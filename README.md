@@ -352,12 +352,17 @@ l'interface n'ont pas à changer.
 
 ### Tester contre une instance locale
 
+Le dépôt fournit un `compose.yaml` qui lance HomeBox avec ses données dans `homebox/` (ignoré par
+git) :
+
 ```bash
-docker run -d --name homebox-dev -p 3100:7745 ghcr.io/sysadminsmedia/homebox:latest
+cp .env.example .env
+sed -i "s|^HBOX_AUTH_API_KEY_PEPPER=.*|HBOX_AUTH_API_KEY_PEPPER=$(openssl rand -base64 48)|" .env
+docker compose up -d        # → http://localhost:3100
 ```
 
-Créez un compte sur `http://localhost:3100`, générez une clé API, puis configurez l'extension avec
-`http://localhost:3100` (accepté par tous les builds).
+Création du compte et de la clé API, choix du build (localhost ou IP du réseau), scénarios de test
+et remise à zéro : voir **[docs/local-homebox.md](docs/local-homebox.md)**.
 
 ## Feuille de route
 

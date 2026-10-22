@@ -1,0 +1,19 @@
+# Instance HomeBox de développement pour tester homebox-companion.
+# Guide : docs/local-homebox.md
+name: homebox-companion-dev
+
+services:
+  homebox:
+    image: ghcr.io/sysadminsmedia/homebox:${HOMEBOX_VERSION:-latest}
+    container_name: homebox
+    restart: unless-stopped
+    ports:
+      # Écoute sur toutes les interfaces : http://localhost:3100 et http://<IP-du-poste>:3100
+      - "${HOMEBOX_PORT:-3100}:7745"
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      # Obligatoire (≥ 32 octets) et stable : le changer invalide toutes les clés API émises.
+      HBOX_AUTH_API_KEY_PEPPER: ${HBOX_AUTH_API_KEY_PEPPER:?Définissez HBOX_AUTH_API_KEY_PEPPER dans .env (voir docs/local-homebox.md)}
+    volumes:
+      # Base SQLite et pièces jointes, dans le dépôt (ignoré par git : /homebox/).
+      - ./homebox:/data
