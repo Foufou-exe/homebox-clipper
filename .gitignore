@@ -193,4 +193,5 @@ specs/
 .wxt/
 node_modules/
 .env*
+!.env.example
 tests/fixtures/**/raw/
