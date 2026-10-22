@@ -8,8 +8,9 @@ import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ResultView from './ResultView.vue';
 import SummaryView from './SummaryView.vue';
+import UnlockView from './UnlockView.vue';
 
-type Screen = 'loading' | 'setup' | 'summary' | 'result';
+type Screen = 'loading' | 'setup' | 'locked' | 'summary' | 'result';
 
 const screen = ref<Screen>('loading');
 const view = ref<ConfigView>({ configured: false });
@@ -33,8 +34,17 @@ const onProgress = (raw: unknown) => {
 onMounted(async () => {
   browser.runtime.onMessage.addListener(onProgress);
   view.value = await send({ type: 'config/get' });
-  if (!view.value.configured) {
+  await route();
+});
+
+async function route() {
+  // Clé migrée perdue ou à chiffrer : la configuration doit être complétée dans les options.
+  if (!view.value.configured || (view.value.needsPassphrase && view.value.locked)) {
     screen.value = 'setup';
+    return;
+  }
+  if (view.value.locked) {
+    screen.value = 'locked';
     return;
   }
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -54,7 +64,18 @@ onMounted(async () => {
   } else {
     screen.value = 'summary';
   }
-});
+}
+
+async function onUnlocked(next: ConfigView) {
+  view.value = next;
+  await route();
+}
+
+async function lock() {
+  view.value = await send({ type: 'session/lock' });
+  pendings.value = [];
+  screen.value = 'locked';
+}
 
 onUnmounted(() => browser.runtime.onMessage.removeListener(onProgress));
 
@@ -86,15 +107,37 @@ function openOptions() {
   <main class="popup">
     <header>
       <h1>homebox-companion</h1>
-      <button class="icon" type="button" aria-label="Configuration" title="Configuration" @click="openOptions">⚙</button>
+      <div class="tools">
+        <button
+          v-if="view.configured && !view.locked && !view.needsPassphrase"
+          class="icon"
+          type="button"
+          aria-label="Verrouiller la clé API"
+          title="Verrouiller"
+          @click="lock"
+        >
+          🔒
+        </button>
+        <button class="icon" type="button" aria-label="Configuration" title="Configuration" @click="openOptions">⚙</button>
+      </div>
     </header>
 
     <p v-if="screen === 'loading'" class="muted" role="status">Chargement…</p>
 
     <section v-else-if="screen === 'setup'">
-      <p>Configurez votre instance HomeBox pour commencer.</p>
+      <p v-if="view.needsPassphrase">
+        Votre clé API doit être ressaisie et protégée par une phrase de passe.
+      </p>
+      <p v-else>Configurez votre instance HomeBox pour commencer.</p>
       <button class="primary" type="button" @click="openOptions">Configurer HomeBox</button>
     </section>
+
+    <UnlockView v-else-if="screen === 'locked'" :config="view" @unlocked="onUnlocked" />
+
+    <p v-if="view.needsPassphrase && !view.locked && screen !== 'setup'" class="notice" role="alert">
+      Clé API non protégée : définissez une phrase de passe dans la
+      <button class="link" type="button" @click="openOptions">configuration</button>.
+    </p>
 
     <SummaryView v-else-if="screen === 'summary' && tabId !== null" :tab-id="tabId" :config="view" @submit="onSubmit" />
 
@@ -102,6 +145,7 @@ function openOptions() {
       <InstanceBadge :config="view" />
       <ErrorBanner v-if="error" :code="error">
         <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">Vérifier la configuration</button>
+        <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">Déverrouiller</button>
       </ErrorBanner>
       <ResultView
         :pendings="pendings"
@@ -138,5 +182,23 @@ h1 {
 }
 .muted {
   color: var(--muted);
+}
+.tools {
+  display: flex;
+  gap: 2px;
+}
+.notice {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.link {
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  font-size: inherit;
 }
 </style>

@@ -79,18 +79,16 @@ export interface LastCheck {
   at: string;
 }
 
-export interface HomeBoxConfig {
-  baseUrl: string;
-  apiKey: string;
-  lastCheck: LastCheck | null;
-}
-
 /** Vue de la configuration exposée à l'UI : ne contient jamais la clé (principe I). */
 export interface ConfigView {
   configured: boolean;
   baseUrl?: string;
   maskedKey?: string;
   lastCheck?: LastCheck | null;
+  /** Clé chiffrée présente mais pas encore déverrouillée pour cette session. */
+  locked?: boolean;
+  /** Clé migrée de l'ancien format en clair : une phrase de passe doit être définie. */
+  needsPassphrase?: boolean;
 }
 
 /** Fichier choisi par l'utilisateur, transmis au service worker. */

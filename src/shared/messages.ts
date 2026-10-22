@@ -16,9 +16,11 @@ import type {
 export type Message =
   // UI → service worker
   | { type: 'config/get' }
-  | { type: 'config/save'; baseUrl: string; apiKey: string }
+  | { type: 'config/save'; baseUrl: string; apiKey: string; passphrase: string }
   | { type: 'config/test' }
   | { type: 'config/delete' }
+  | { type: 'session/unlock'; passphrase: string }
+  | { type: 'session/lock' }
   | { type: 'detect/run'; tabId: number }
   | { type: 'duplicate/check'; orderNumber: string; name: string }
   | { type: 'import/start'; tabId: number; drafts: ImportDraft[]; manualFiles: ManualFile[] }
@@ -50,6 +52,8 @@ export interface ResponseMap {
   'config/save': Result<ConfigView>;
   'config/test': Result<ConfigView>;
   'config/delete': Result<void>;
+  'session/unlock': Result<ConfigView>;
+  'session/lock': ConfigView;
   'detect/run': Result<DetectResult>;
   'duplicate/check': Result<{ matches: DuplicateMatch[] }>;
   'import/start': Result<PendingImport[]>;
@@ -70,9 +74,11 @@ const isArr = Array.isArray;
 
 const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean } = {
   'config/get': () => true,
-  'config/save': (m) => isStr(m.baseUrl) && isStr(m.apiKey),
+  'config/save': (m) => isStr(m.baseUrl) && isStr(m.apiKey) && isStr(m.passphrase),
   'config/test': () => true,
   'config/delete': () => true,
+  'session/unlock': (m) => isStr(m.passphrase),
+  'session/lock': () => true,
   'detect/run': (m) => isInt(m.tabId),
   'duplicate/check': (m) => isStr(m.orderNumber) && isStr(m.name),
   'import/start': (m) => isInt(m.tabId) && isArr(m.drafts) && isArr(m.manualFiles),
