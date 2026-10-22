@@ -183,3 +183,12 @@ dist
 .specify/
 .claude/
 *.pepper
+homebox/
+specs/
+
+# homebox-companion
+.output/
+.wxt/
+node_modules/
+.env*
+tests/fixtures/**/raw/

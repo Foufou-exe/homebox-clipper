@@ -1,0 +1,37 @@
+{
+  "name": "homebox-companion",
+  "description": "Importez vos achats en ligne dans votre inventaire HomeBox.",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "build:homelab": "wxt build --mode homelab",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint .",
+    "test:build": "vitest run --config vitest.build.config.ts"
+  },
+  "dependencies": {
+    "vue": "^3.5.44"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/test-utils": "^2.5.1",
+    "@wxt-dev/module-vue": "^1.0.3",
+    "eslint": "^10.13.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "happy-dom": "^21.0.4",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.13",
+    "wxt": "^0.21.4"
+  }
+}
