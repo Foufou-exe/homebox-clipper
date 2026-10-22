@@ -15,7 +15,8 @@ describe('handlers de configuration (phrase de passe)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
-    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true);
+    // Le type de fake-browser déclare `void` ; l'API réelle renvoie un booléen.
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockImplementation((async () => true) as never);
     registerConfigHandlers();
   });
 
