@@ -126,15 +126,25 @@ Clic sur l'icône de l'extension → ⚙ (ou clic droit → *Options*) :
 1. **Adresse de l'instance HomeBox**, par exemple `https://homebox.mondomaine.fr`. Inutile
    d'ajouter `/api` : l'extension normalise l'adresse.
 2. **Clé API** : collez la clé `hb_…`.
-3. Cliquez sur **Tester et enregistrer**.
-4. Chrome vous demande l'autorisation d'accéder à **cette adresse uniquement** : acceptez.
+3. **Phrase de passe** (au moins 10 caractères) : elle chiffre la clé API sur le disque. Retenez-la :
+   elle ne peut pas être récupérée.
+4. Cliquez sur **Tester et enregistrer**.
+5. Chrome vous demande l'autorisation d'accéder à **cette adresse uniquement** : acceptez.
 
 L'extension vérifie que l'adresse est bien une instance HomeBox et que la clé est acceptée. Elle
 affiche ensuite l'instance connectée et sa version.
 
-**Modifier ou supprimer :** sur la même page, changez l'adresse ou la clé (laissez la clé vide pour
-conserver l'actuelle), ou cliquez sur **Supprimer la configuration**. La suppression efface aussi
-l'autorisation d'accès accordée à l'instance.
+**Déverrouiller / verrouiller :** après un redémarrage du navigateur, le popup demande votre
+phrase de passe. Le bouton 🔒 du popup (ou *Verrouiller* dans les options) efface la clé de la
+mémoire.
+
+**Modifier ou supprimer :** sur la même page, changez l'adresse ou la clé. Pour conserver la clé
+actuelle, laissez le champ vide et saisissez votre phrase de passe actuelle. Pour changer de phrase
+de passe, ressaisissez la clé API. **Supprimer la configuration** efface aussi l'autorisation
+d'accès accordée à l'instance.
+
+**Phrase de passe oubliée :** elle ne peut pas être récupérée. Supprimez la configuration, puis
+reconfigurez l'extension avec votre clé API (ou une nouvelle clé).
 
 ## Utilisation
 
@@ -194,20 +204,37 @@ photo du produit n'est affichée que dans le résumé, elle n'est pas envoyée.
 
 - **Aucun serveur intermédiaire, aucune statistique d'usage.** L'extension ne parle qu'à Amazon.fr
   (pour lire la page et télécharger la facture, avec votre session) et à votre instance HomeBox.
-- **La clé API reste dans votre navigateur.** Elle est stockée localement (`chrome.storage.local`)
-  et seul le service worker de l'extension l'utilise. Elle n'est jamais transmise à la page Amazon,
-  jamais affichée en clair (`hb_••••abcd`) et jamais écrite dans les journaux.
+- **La clé API est chiffrée par votre phrase de passe.** Sur le disque, seule une version chiffrée
+  est conservée (AES-GCM 256, clé dérivée par PBKDF2-SHA256 avec 600 000 itérations). L'adresse
+  de l'instance est liée au chiffrement : la modifier sans la phrase de passe rend la clé
+  inutilisable, ce qui empêche de la détourner vers un autre serveur.
+- **Déverrouillage par session.** La phrase de passe est demandée à la première utilisation après
+  le démarrage du navigateur. La clé déchiffrée ne vit qu'en mémoire (`chrome.storage.session`) :
+  elle disparaît à la fermeture du navigateur ou quand vous cliquez sur 🔒. La phrase de passe
+  n'est jamais enregistrée.
+- **La clé reste dans votre navigateur.** Seul le service worker de l'extension l'utilise. Elle
+  n'est jamais transmise à la page Amazon, jamais affichée en clair (`hb_••••abcd`) et jamais
+  écrite dans les journaux.
 - **Pas d'import sans confirmation** : aucun objet n'est créé sans un clic sur « Ajouter à HomeBox ».
 - **Données minimales** : seuls les champs listés ci-dessus sont lus sur la page, jamais votre
   adresse ni votre moyen de paiement. Les données d'un import ne sont gardées qu'en mémoire de
   session, le temps de permettre une reprise, puis sont effacées.
 - **Journaux sans données personnelles** : uniquement des codes d'erreur et des statuts HTTP.
 
+> [!TIP]
+> Pour limiter les conséquences d'une fuite, créez dans HomeBox une clé **dédiée à l'extension,
+> avec une date d'expiration** : HomeBox affiche sa dernière utilisation et permet de la révoquer.
+
+> [!IMPORTANT]
+> Quand l'extension est déverrouillée, la clé est en mémoire : un programme malveillant qui
+> contrôle votre session peut la lire, comme pour toute extension ou tout gestionnaire de mots de
+> passe déverrouillé. Le chiffrement protège les fichiers du profil Chrome et l'extension verrouillée.
+
 ### Permissions demandées
 
 | Permission | Pourquoi |
 |------------|----------|
-| `storage` | Mémoriser l'adresse de l'instance et la clé API. |
+| `storage` | Mémoriser l'adresse de l'instance et la clé API chiffrée. |
 | `activeTab` | Lire l'onglet Amazon **uniquement au moment où vous ouvrez l'extension**. Aucun accès permanent à Amazon. |
 | `scripting` | Injecter le code de détection dans cet onglet, à ce moment-là. |
 | Accès à votre instance (facultatif) | Demandé pour **l'adresse exacte** que vous configurez, retiré quand vous supprimez la configuration. |
@@ -217,6 +244,8 @@ photo du produit n'est affichée que dans le résumé, elle n'est pas envoyée.
 | Message | Cause probable et solution |
 |---------|----------------------------|
 | *Erreur interne de l'extension* | Rechargez l'extension (↻ dans `chrome://extensions`) puis rouvrez la page. Si le message persiste, [ouvrez une issue](https://github.com/Foufou-exe/homebox-companion/issues). |
+| *Phrase de passe incorrecte.* | Ressaisissez-la (attention au verrouillage majuscules). En cas d'oubli : *Supprimer la configuration* puis reconfigurez. |
+| *Extension verrouillée…* | Saisissez votre phrase de passe dans le popup. |
 | *Une adresse HTTPS est obligatoire.* | Votre instance est en HTTP : utilisez le build `bun run build:homelab`. |
 | *L'adresse HomeBox est invalide…* | L'adresse ne répond pas comme une instance HomeBox. Vérifiez-la dans un onglet : `<adresse>/api/v1/status` doit renvoyer du JSON. |
 | *HomeBox est inaccessible.* | Instance arrêtée, mauvais port, ou réseau (VPN, pare-feu). |

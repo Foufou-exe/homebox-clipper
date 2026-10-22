@@ -3,16 +3,17 @@ import { injectExtractor } from '@/background/detect';
 import { createHomeBoxClient } from '@/background/homebox/client';
 import { register } from '@/background/router';
 import { browser } from '@/platform';
-import { fail } from '@/shared/errors';
+import { fail, ok, type Result } from '@/shared/errors';
 import { sendToTab } from '@/shared/messages';
 import { findDuplicates } from './duplicates';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { pendingStore } from './pending-store';
 
-async function orchestrator(): Promise<Orchestrator | null> {
-  const config = await configStore.getConfig();
-  if (!config) return null;
-  return createOrchestrator({
+async function orchestrator(): Promise<Result<Orchestrator>> {
+  const creds = await configStore.getCredentials();
+  if (!creds.ok) return creds;
+  const config = creds.value;
+  return ok(createOrchestrator({
     client: createHomeBoxClient({ baseUrl: config.baseUrl, apiKey: config.apiKey }),
     store: pendingStore,
     async downloadDetected(tabId, url) {
@@ -31,29 +32,31 @@ async function orchestrator(): Promise<Orchestrator | null> {
       });
     },
     newId: () => crypto.randomUUID(),
-  });
+  }));
 }
 
 export function registerImportHandlers(): void {
   register('import/start', async ({ tabId, drafts, manualFiles }) => {
     const o = await orchestrator();
-    return o ? o.startImport(tabId, drafts, manualFiles) : fail('NOT_CONFIGURED');
+    return o.ok ? o.value.startImport(tabId, drafts, manualFiles) : o;
   });
 
   register('import/retry', async ({ pendingId, manualFiles }) => {
     const o = await orchestrator();
-    return o ? o.retryImport(pendingId, manualFiles) : fail('NOT_CONFIGURED');
+    return o.ok ? o.value.retryImport(pendingId, manualFiles) : o;
   });
 
   register('import/abandon', async ({ pendingId }) => {
-    const o = await orchestrator();
-    return o ? o.abandonImport(pendingId) : fail('NOT_CONFIGURED');
+    // Abandonner ne contacte pas HomeBox : possible même extension verrouillée.
+    const pending = await pendingStore.get(pendingId);
+    if (pending) await pendingStore.purge(pending);
+    return ok(undefined);
   });
 
   register('duplicate/check', async ({ orderNumber, name }) => {
-    const config = await configStore.getConfig();
-    if (!config) return fail('NOT_CONFIGURED');
-    const client = createHomeBoxClient({ baseUrl: config.baseUrl, apiKey: config.apiKey });
+    const creds = await configStore.getCredentials();
+    if (!creds.ok) return creds;
+    const client = createHomeBoxClient(creds.value);
     const res = await findDuplicates(client, orderNumber, name);
     return res.ok ? { ok: true, value: { matches: res.value } } : res;
   });

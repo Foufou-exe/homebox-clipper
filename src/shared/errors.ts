@@ -18,6 +18,9 @@ export type ErrorCode =
   | 'ATTACHMENT_FAILED'
   | 'MANUAL_FILE_REQUIRED'
   | 'NOT_CONFIGURED'
+  | 'LOCKED'
+  | 'WRONG_PASSPHRASE'
+  | 'WEAK_PASSPHRASE'
   | 'BAD_MESSAGE';
 
 export const ERROR_MESSAGES_FR: Record<ErrorCode, string> = {
@@ -40,6 +43,9 @@ export const ERROR_MESSAGES_FR: Record<ErrorCode, string> = {
   ATTACHMENT_FAILED: "L'objet a été créé mais l'envoi de la facture a échoué.",
   MANUAL_FILE_REQUIRED: 'Sélectionnez à nouveau le fichier à joindre pour réessayer.',
   NOT_CONFIGURED: "Configurez d'abord votre instance HomeBox.",
+  LOCKED: 'Extension verrouillée : saisissez votre phrase de passe.',
+  WRONG_PASSPHRASE: 'Phrase de passe incorrecte.',
+  WEAK_PASSPHRASE: 'La phrase de passe doit contenir au moins 10 caractères.',
   BAD_MESSAGE: 'Erreur interne de l’extension.',
 };
 
