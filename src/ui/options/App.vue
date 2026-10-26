@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue';
 import { MIN_PASSPHRASE_LENGTH } from '@/background/config/key-vault';
 import { normalizeBaseUrl } from '@/background/config/url-policy';
 import { requestOrigin } from '@/platform';
-import { ALLOW_HTTP } from '@/shared/env';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type { ConfigView } from '@/shared/types';
@@ -45,7 +44,7 @@ async function saveAndTest() {
   error.value = null;
   mismatch.value = false;
   success.value = null;
-  const url = normalizeBaseUrl(baseUrl.value, { dev: ALLOW_HTTP });
+  const url = normalizeBaseUrl(baseUrl.value);
   if (!url.ok) {
     error.value = url.error;
     return;
