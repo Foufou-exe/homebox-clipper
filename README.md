@@ -284,11 +284,20 @@ TypeScript strict · [Vitest](https://vitest.dev) + happy-dom · Bun comme gesti
 | `bun run zip` | Archive prête à publier |
 | `bun run test` | Tests unitaires et de contrat (passez par Vitest : **pas** `bun test`) |
 | `bun run test:build` | Vérifie le manifeste de production (permissions, CSP), après `bun run build` |
+| `bun run ci` | **Toutes les vérifications de la CI**, en local : à lancer avant chaque push |
 | `bun run typecheck` | Vérification des types (`vue-tsc`) |
 | `bun run lint` | ESLint |
 
-La CI (`.github/workflows/ci.yml`) exécute `typecheck`, `lint`, `test`, `build` et `test:build`
-à chaque push et pull request.
+**Avant chaque push, lancez `bun run ci`** : il enchaîne `typecheck`, `lint`, `test`, `build` et
+`test:build`, exactement comme la CI. Le quota de GitHub Actions étant limité, la CI GitHub
+(`.github/workflows/ci.yml`) ne tourne que sur les pull requests de code vers `main` (pas sur la
+documentation), ou à la demande depuis l'onglet *Actions*. La vérification de référence est locale.
+
+Pour la lancer automatiquement avant chaque `git push` (hook local, facultatif) :
+
+```bash
+printf '#!/bin/sh\nexec bun run ci\n' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+```
 
 ### Architecture
 
@@ -384,7 +393,7 @@ Les contributions sont les bienvenues : signalements de pages Amazon mal détect
 marchands, corrections.
 
 1. Forkez le dépôt et créez une branche (`git checkout -b feat/ma-fonctionnalite`).
-2. Vérifiez que `bun run typecheck && bun run lint && bun run test` passent.
+2. Vérifiez que `bun run ci` passe en local (la CI GitHub a un quota limité).
 3. Utilisez des messages de commit [Conventional Commits](https://www.conventionalcommits.org/fr/)
    (`feat:`, `fix:`, `docs:`…).
 4. Signalez explicitement dans la pull request toute modification des permissions du manifeste.

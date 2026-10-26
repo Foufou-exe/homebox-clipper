@@ -1,16 +1,28 @@
 name: CI
 
+# Quota GitHub Actions limité (3000 min/mois) : la vérification de référence est locale
+# (`bun run ci`). Ce workflow ne tourne que sur les PR de code vers main, ou à la demande.
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.env.example'
+      - 'compose.yaml'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,8 +30,4 @@ jobs:
           node-version: lts/*
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run lint
-      - run: bun run test
-      - run: bun run build
-      - run: bun run test:build
+      - run: bun run ci
