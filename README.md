@@ -67,6 +67,8 @@ Objet créé dans HomeBox ─▶ informations d'achat ─▶ facture jointe ─�
   commande et le même nom existe déjà.
 - **Reprise sur erreur** : si l'objet est créé mais que la facture n'a pas pu être envoyée, vous
   pouvez réessayer sans créer de doublon, même après avoir fermé le popup.
+- **Interface aux couleurs de HomeBox**, en **thème clair, sombre ou automatique** (selon le
+  système), à choisir dans les options ou d'un clic dans la barre du popup.
 - **Messages d'erreur clairs** pour chaque situation : instance injoignable, clé API refusée,
   facture indisponible, fichier non PDF, etc.
 
@@ -410,6 +412,14 @@ bun run dev
 
 Conteneur de développement VS Code / Codespaces, réglages d'éditeur, règles du projet et façon de
 travailler : voir **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
+## Crédits
+
+- Le logo reprend la boîte de [HomeBox](https://github.com/sysadminsmedia/homebox)
+  (© contributeurs HomeBox, licence AGPL-3.0), sans modification, à laquelle s'ajoute une pastille
+  « + » propre à homebox-companion (`src/assets/logo.svg`).
+- Les couleurs de l'interface sont celles du thème par défaut de HomeBox.
+- Icônes au trait inspirées de [Feather Icons](https://feathericons.com) (MIT).
 
 ---
 

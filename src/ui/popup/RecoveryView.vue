@@ -76,8 +76,9 @@ async function abandon() {
 
 <style scoped>
 .recovery {
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--bg);
+  border-left: 3px solid var(--danger-fg);
+  border-radius: var(--radius);
   padding: 8px 10px;
   margin: 8px 0;
 }

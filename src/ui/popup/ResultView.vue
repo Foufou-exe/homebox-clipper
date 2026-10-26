@@ -19,7 +19,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
       {{ pendings.length > 1 ? `${pendings.length} objets ajoutés` : 'Objet ajouté' }} à HomeBox.
     </p>
 
-    <article v-for="p in pendings" :key="p.id" class="item">
+    <article v-for="p in pendings" :key="p.id" class="item card">
       <template v-if="p.status === 'running'">
         <p role="status"><strong>{{ p.draft.name }}</strong> — import en cours…</p>
         <ul class="steps">
@@ -53,7 +53,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 .success {
   background: var(--success-bg);
   color: var(--success-fg);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 8px 10px;
 }
 .item p {
