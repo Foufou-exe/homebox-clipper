@@ -399,17 +399,17 @@ Prévu après validation du MVP :
 
 ## Contribuer
 
-Les contributions sont les bienvenues : signalements de pages Amazon mal détectées, nouveaux
-marchands, corrections.
+Les contributions sont les bienvenues : pages Amazon mal détectées, nouveaux marchands,
+corrections. Tout est prévu pour démarrer vite :
 
-1. Forkez le dépôt et créez une branche (`git checkout -b feat/ma-fonctionnalite`).
-2. Vérifiez que `bun run ci` passe en local (la CI GitHub a un quota limité).
-3. Utilisez des messages de commit [Conventional Commits](https://www.conventionalcommits.org/fr/)
-   (`feat:`, `fix:`, `docs:`…).
-4. Signalez explicitement dans la pull request toute modification des permissions du manifeste.
+```bash
+bun run setup        # dépendances, .env de l'instance HomeBox locale, hook pre-push (au choix)
+bun run homebox:up   # HomeBox sur http://localhost:3100
+bun run dev
+```
 
-Pour une page mal détectée, indiquez dans l'issue le type de commande (vendeur Amazon ou tiers,
-plusieurs articles, numérique…) et le champ concerné, **sans** joindre la page brute.
+Conteneur de développement VS Code / Codespaces, réglages d'éditeur, règles du projet et façon de
+travailler : voir **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ---
 

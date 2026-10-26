@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation HomeBox
+    url: https://homebox.software
+    about: Questions sur HomeBox lui-même (hors extension)

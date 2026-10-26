@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Vérifications (bun run ci)",
+      "type": "shell",
+      "command": "bun run ci",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Extension : mode dev",
+      "type": "shell",
+      "command": "bun run dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Extension : build",
+      "type": "shell",
+      "command": "bun run build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Tests en continu",
+      "type": "shell",
+      "command": "bun run test:watch",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "HomeBox local : démarrer",
+      "type": "shell",
+      "command": "bun run homebox:up",
+      "problemMatcher": []
+    },
+    {
+      "label": "HomeBox local : arrêter",
+      "type": "shell",
+      "command": "bun run homebox:down",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": ["javascript", "typescript", "vue"],
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "files.exclude": {
+    "**/.output": true,
+    "**/.wxt": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.output": true,
+    "**/.wxt": true,
+    "bun.lock": true,
+    "homebox": true
+  }
+}

@@ -195,3 +195,5 @@ node_modules/
 .env*
 !.env.example
 tests/fixtures/**/raw/
+# Configuration locale de `bun run dev` (voir web-ext.config.example.ts)
+web-ext.config.ts
