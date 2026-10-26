@@ -82,15 +82,16 @@ curl -s http://localhost:3100/api/v1/status
 
 ## 4. Brancher l'extension
 
-Choisissez l'adresse et le build selon l'endroit où tourne le navigateur :
+Choisissez l'adresse selon l'endroit où tourne le navigateur :
 
-| Navigateur | Adresse à saisir | Build à charger |
-|------------|------------------|-----------------|
-| Sur le même poste que Docker | `http://localhost:3100` | n'importe lequel (`bun run build`, `bun run dev`) |
-| Sur un autre poste du réseau, ou pour reproduire un homelab | `http://<IP-du-poste>:3100` (ex. `http://192.168.1.160:3100`) | `bun run build:homelab` → `.output/chrome-mv3-homelab/` |
+| Navigateur | Adresse à saisir |
+|------------|------------------|
+| Sur le même poste que Docker | `http://localhost:3100` |
+| Sur un autre poste du réseau (homelab) | `http://<IP-du-poste>:3100` (ex. `http://192.168.1.160:3100`) |
 
-Le build de production refuse toute adresse HTTP autre que `localhost` / `127.0.0.1`. C'est
-voulu : seuls les builds `dev` et `homelab` acceptent le HTTP du réseau local.
+Les deux fonctionnent avec le build unique (`bun run build` → `.output/chrome-mv3/`, ou
+`bun run dev`). L'HTTP est accepté pour les adresses du réseau local et refusé pour les adresses
+publiques (voir le [README](../README.md#adresses-acceptées)).
 
 Puis :
 
@@ -146,5 +147,5 @@ Gardez le même `.env` : le pepper peut rester identique pour une instance neuve
 | Le conteneur redémarre en boucle (`docker compose logs homebox`) | Pepper trop court (< 32 octets) : régénérez-le avec `openssl rand -base64 48` |
 | `Conflict. The container name "/homebox" is already in use` | Un ancien conteneur existe : `docker rm -f homebox` |
 | Toutes les clés API sont refusées après un redémarrage | Le pepper a changé : remettez l'ancien dans `.env`, ou recréez les clés |
-| L'extension affiche « Une adresse HTTPS est obligatoire » | Adresse en IP du réseau avec le build de production : utilisez `bun run build:homelab` |
+| L'extension affiche « Une adresse HTTPS est obligatoire » | L'adresse saisie est publique : utilisez l'IP locale du poste (`192.168.x.x`…) ou `localhost` |
 | Inaccessible depuis un autre poste | Pare-feu du poste Docker : autorisez le port 3100 sur le réseau local |

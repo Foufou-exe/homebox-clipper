@@ -22,8 +22,12 @@ describe('manifest de production', () => {
     expect(manifest.content_scripts).toBeUndefined();
   });
 
-  it('accès HomeBox uniquement en permission optionnelle', () => {
-    expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*']);
+  it('accès HomeBox uniquement en permission optionnelle (origine exacte accordée à l’exécution)', () => {
+    expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*']);
+  });
+
+  it('un seul build : nom sans suffixe de mode', () => {
+    expect(manifest.name).toBe('homebox-companion');
   });
 
   it("CSP sans unsafe-eval ni source distante", () => {

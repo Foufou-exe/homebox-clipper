@@ -1,7 +1,6 @@
 import { createHomeBoxClient } from '@/background/homebox/client';
 import { register } from '@/background/router';
 import { hasOrigin } from '@/platform';
-import { ALLOW_HTTP } from '@/shared/env';
 import { fail, ok, type Result } from '@/shared/errors';
 import type { ConfigView } from '@/shared/types';
 import { configStore, isValidApiKey } from './config-store';
@@ -30,7 +29,7 @@ export function registerConfigHandlers(): void {
   register('config/get', () => configStore.getView());
 
   register('config/save', async ({ baseUrl, apiKey, passphrase }) => {
-    const url = normalizeBaseUrl(baseUrl, { dev: ALLOW_HTTP });
+    const url = normalizeBaseUrl(baseUrl);
     if (!url.ok) return url;
     if (passphrase.length < MIN_PASSPHRASE_LENGTH) return fail('WEAK_PASSPHRASE');
 

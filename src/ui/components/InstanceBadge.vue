@@ -14,7 +14,7 @@ const status = computed(() => props.config.lastCheck?.status);
     <span class="label">HomeBox :</span>
     <strong class="url">{{ config.baseUrl }}</strong>
     <span v-if="config.lastCheck?.version" class="version">v{{ config.lastCheck.version }}</span>
-    <span v-if="isHttp" class="http" title="Connexion non chiffrée : réservée au développement ou au réseau local">
+    <span v-if="isHttp" class="http" title="Connexion non chiffrée, acceptée uniquement sur le réseau local">
       HTTP non chiffré
     </span>
   </div>

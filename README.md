@@ -90,30 +90,41 @@ cd homebox-companion
 bun install
 ```
 
-Choisissez ensuite le build adapté à votre instance HomeBox :
+Compilez l'extension :
 
-| Votre instance HomeBox | Commande | Dossier à charger |
-|------------------------|----------|-------------------|
-| En **HTTPS** (`https://homebox.mondomaine.fr`) ou sur `localhost` | `bun run build` | `.output/chrome-mv3/` |
-| En **HTTP sur le réseau local** (`http://192.168.1.20:3100`, `http://homebox.lan`) | `bun run build:homelab` | `.output/chrome-mv3-homelab/` |
+```bash
+bun run build      # → .output/chrome-mv3/
+```
+
+Un seul build, quelle que soit votre instance HomeBox (voir
+[adresses acceptées](#adresses-acceptées)).
 
 Puis, dans le navigateur :
 
 1. Ouvrez `chrome://extensions`.
 2. Activez le **Mode développeur** (en haut à droite).
-3. Cliquez sur **Charger l'extension non empaquetée** et sélectionnez le dossier indiqué ci-dessus.
+3. Cliquez sur **Charger l'extension non empaquetée** et sélectionnez `.output/chrome-mv3/`.
 4. Épinglez l'icône 📦 dans la barre d'outils pour y accéder facilement.
 
 La page de configuration s'ouvre automatiquement au premier lancement.
-
-> [!WARNING]
-> Le build **homelab** accepte les connexions HTTP non chiffrées : votre clé API circule alors en
-> clair sur le réseau. Réservez-le à un réseau de confiance. Le build standard exige HTTPS.
 
 **Mettre à jour :** `git pull && bun install`, relancez la commande de build, puis cliquez sur ↻
 sur la carte de l'extension dans `chrome://extensions`.
 
 ## Configuration
+
+### Adresses acceptées
+
+| Adresse de l'instance | Accepté ? |
+|-----------------------|-----------|
+| `https://…` (toute adresse) | ✅ |
+| `http://` sur le **réseau local** : `localhost`, `127.0.0.1`, IP privées (`192.168.x.x`, `10.x.x.x`, `172.16.x.x`–`172.31.x.x`, IPv6 `fd…`), noms en `.lan`, `.local`, `.home.arpa`, `.internal`, ou nom court sans point (`http://homebox:7745`) | ✅ avec l'avertissement « HTTP non chiffré » |
+| `http://` vers une adresse **publique** (`http://homebox.mondomaine.fr`, IP publique) | ❌ « Une adresse HTTPS est obligatoire » |
+
+> [!WARNING]
+> En HTTP, votre clé API circule **en clair** sur le réseau à chaque requête. C'est acceptable
+> sur un réseau local de confiance (homelab), jamais sur Internet. Pour aller plus loin, placez
+> HomeBox derrière un reverse proxy HTTPS (Caddy, Traefik, Nginx Proxy Manager…).
 
 ### 1. Créer une clé API dans HomeBox
 
@@ -246,7 +257,7 @@ photo du produit n'est affichée que dans le résumé, elle n'est pas envoyée.
 | *Erreur interne de l'extension* | Rechargez l'extension (↻ dans `chrome://extensions`) puis rouvrez la page. Si le message persiste, [ouvrez une issue](https://github.com/Foufou-exe/homebox-companion/issues). |
 | *Phrase de passe incorrecte.* | Ressaisissez-la (attention au verrouillage majuscules). En cas d'oubli : *Supprimer la configuration* puis reconfigurez. |
 | *Extension verrouillée…* | Saisissez votre phrase de passe dans le popup. |
-| *Une adresse HTTPS est obligatoire.* | Votre instance est en HTTP : utilisez le build `bun run build:homelab`. |
+| *Une adresse HTTPS est obligatoire.* | L'adresse est en HTTP et publique. Passez en HTTPS, ou utilisez l'adresse locale de l'instance (IP privée, nom en `.lan`…). |
 | *L'adresse HomeBox est invalide…* | L'adresse ne répond pas comme une instance HomeBox. Vérifiez-la dans un onglet : `<adresse>/api/v1/status` doit renvoyer du JSON. |
 | *HomeBox est inaccessible.* | Instance arrêtée, mauvais port, ou réseau (VPN, pare-feu). |
 | *Clé API invalide ou expirée.* | Recréez une clé dans HomeBox et enregistrez-la de nouveau. |
@@ -280,7 +291,6 @@ TypeScript strict · [Vitest](https://vitest.dev) + happy-dom · Bun comme gesti
 |----------|------|
 | `bun run dev` | Lance un Chrome de développement avec rechargement automatique (HTTP autorisé) |
 | `bun run build` | Build de production → `.output/chrome-mv3/` |
-| `bun run build:homelab` | Build acceptant une instance en HTTP → `.output/chrome-mv3-homelab/` |
 | `bun run zip` | Archive prête à publier |
 | `bun run test` | Tests unitaires et de contrat (passez par Vitest : **pas** `bun test`) |
 | `bun run test:build` | Vérifie le manifeste de production (permissions, CSP), après `bun run build` |
