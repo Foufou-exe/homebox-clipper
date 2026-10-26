@@ -15,7 +15,7 @@ defineProps<{ code: ErrorCode; tone?: 'error' | 'warning' }>();
 
 <style scoped>
 .banner {
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 8px 10px;
   margin: 8px 0;
   font-size: 13px;

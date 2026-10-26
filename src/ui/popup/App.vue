@@ -4,7 +4,10 @@ import { browser } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { isMessage, send } from '@/shared/messages';
 import type { ConfigView, ImportDraft, ManualFile, PendingImport } from '@/shared/types';
+import AppHeader from '@/ui/components/AppHeader.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
+import Icon from '@/ui/components/Icon.vue';
+import ThemeToggle from '@/ui/components/ThemeToggle.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ResultView from './ResultView.vue';
 import SummaryView from './SummaryView.vue';
@@ -104,99 +107,91 @@ function openOptions() {
 </script>
 
 <template>
-  <main class="popup">
-    <header>
-      <h1>homebox-companion</h1>
-      <div class="tools">
-        <button
-          v-if="view.configured && !view.locked && !view.needsPassphrase"
-          class="icon"
-          type="button"
-          aria-label="Verrouiller la clé API"
-          title="Verrouiller"
-          @click="lock"
-        >
-          🔒
-        </button>
-        <button class="icon" type="button" aria-label="Configuration" title="Configuration" @click="openOptions">⚙</button>
-      </div>
-    </header>
+  <div class="popup">
+    <AppHeader>
+      <ThemeToggle />
+      <button
+        v-if="view.configured && !view.locked && !view.needsPassphrase"
+        class="header-icon"
+        type="button"
+        aria-label="Verrouiller la clé API"
+        title="Verrouiller"
+        @click="lock"
+      >
+        <Icon name="lock" />
+      </button>
+      <button class="header-icon" type="button" aria-label="Configuration" title="Configuration" @click="openOptions">
+        <Icon name="settings" />
+      </button>
+    </AppHeader>
 
-    <p v-if="screen === 'loading'" class="muted" role="status">Chargement…</p>
-
-    <section v-else-if="screen === 'setup'">
-      <p v-if="view.needsPassphrase">
-        Votre clé API doit être ressaisie et protégée par une phrase de passe.
+    <main class="content">
+      <!-- Hors de la chaîne v-if ci-dessous : l'avis ne doit jamais masquer le résumé. -->
+      <p v-if="view.needsPassphrase && !view.locked && screen !== 'setup'" class="notice" role="alert">
+        Clé API non protégée : définissez une phrase de passe dans la
+        <button class="link" type="button" @click="openOptions">configuration</button>.
       </p>
-      <p v-else>Configurez votre instance HomeBox pour commencer.</p>
-      <button class="primary" type="button" @click="openOptions">Configurer HomeBox</button>
-    </section>
 
-    <UnlockView v-else-if="screen === 'locked'" :config="view" @unlocked="onUnlocked" />
+      <p v-if="screen === 'loading'" class="muted" role="status">Chargement…</p>
 
-    <p v-if="view.needsPassphrase && !view.locked && screen !== 'setup'" class="notice" role="alert">
-      Clé API non protégée : définissez une phrase de passe dans la
-      <button class="link" type="button" @click="openOptions">configuration</button>.
-    </p>
+      <section v-else-if="screen === 'setup'" class="card">
+        <p v-if="view.needsPassphrase">
+          Votre clé API doit être ressaisie et protégée par une phrase de passe.
+        </p>
+        <p v-else>Configurez votre instance HomeBox pour commencer.</p>
+        <button class="primary" type="button" @click="openOptions">Configurer HomeBox</button>
+      </section>
 
-    <SummaryView v-else-if="screen === 'summary' && tabId !== null" :tab-id="tabId" :config="view" @submit="onSubmit" />
+      <UnlockView v-else-if="screen === 'locked'" :config="view" @unlocked="onUnlocked" />
 
-    <template v-else-if="screen === 'result'">
-      <InstanceBadge :config="view" />
-      <ErrorBanner v-if="error" :code="error">
-        <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">Vérifier la configuration</button>
-        <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">Déverrouiller</button>
-      </ErrorBanner>
-      <ResultView
-        :pendings="pendings"
-        :base-url="view.baseUrl ?? ''"
-        :running="running"
-        @updated="upsert"
-        @abandoned="onAbandoned"
-      />
-    </template>
-  </main>
+      <SummaryView v-else-if="screen === 'summary' && tabId !== null" :tab-id="tabId" :config="view" @submit="onSubmit" />
+
+      <template v-else-if="screen === 'result'">
+        <InstanceBadge :config="view" />
+        <ErrorBanner v-if="error" :code="error">
+          <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">Vérifier la configuration</button>
+          <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">Déverrouiller</button>
+        </ErrorBanner>
+        <ResultView
+          :pendings="pendings"
+          :base-url="view.baseUrl ?? ''"
+          :running="running"
+          @updated="upsert"
+          @abandoned="onAbandoned"
+        />
+      </template>
+    </main>
+  </div>
 </template>
 
 <style scoped>
 .popup {
   width: 400px;
-  max-height: 580px;
-  overflow-y: auto;
-  padding: 12px;
-  box-sizing: border-box;
-}
-header {
+  max-height: 600px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
 }
-h1 {
-  font-size: 15px;
-  margin: 0 0 6px;
+.content {
+  overflow-y: auto;
+  padding: 8px 12px 12px;
 }
-.icon {
-  border: none;
-  font-size: 16px;
-  padding: 2px 6px;
+.card p {
+  margin: 0 0 10px;
 }
 .muted {
   color: var(--muted);
 }
-.tools {
-  display: flex;
-  gap: 2px;
-}
 .notice {
   background: var(--warn-bg);
   color: var(--warn-fg);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 6px 8px;
   font-size: 12px;
 }
 .link {
   border: none;
   padding: 0;
+  background: none;
   color: inherit;
   text-decoration: underline;
   font-size: inherit;

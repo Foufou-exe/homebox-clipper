@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { ConfigView } from '@/shared/types';
+import Icon from './Icon.vue';
 
 const props = defineProps<{ config: ConfigView }>();
 
@@ -10,6 +11,7 @@ const status = computed(() => props.config.lastCheck?.status);
 
 <template>
   <div class="instance" aria-label="Instance HomeBox utilisée">
+    <Icon name="pin" :size="14" />
     <span class="dot" :class="status ?? 'unknown'" aria-hidden="true" />
     <span class="label">HomeBox :</span>
     <strong class="url">{{ config.baseUrl }}</strong>
@@ -22,6 +24,9 @@ const status = computed(() => props.config.lastCheck?.status);
 
 <style scoped>
 .instance {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -48,7 +53,7 @@ const status = computed(() => props.config.lastCheck?.status);
 .http {
   background: var(--warn-bg);
   color: var(--warn-fg);
-  border-radius: 4px;
+  border-radius: 999px;
   padding: 0 4px;
 }
 </style>

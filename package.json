@@ -14,7 +14,8 @@
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
     "test:build": "vitest run --config vitest.build.config.ts",
-    "ci": "bun run typecheck && bun run lint && bun run test && bun run build && bun run test:build"
+    "ci": "bun run typecheck && bun run lint && bun run test && bun run build && bun run test:build",
+    "icons": "sh scripts/gen-icons.sh"
   },
   "dependencies": {
     "vue": "^3.5.44"

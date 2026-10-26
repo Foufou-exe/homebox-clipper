@@ -66,7 +66,7 @@ select {
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px;
 }
 .file input {
@@ -78,7 +78,7 @@ select {
 .file span {
   display: inline-block;
   border: 1px dashed var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 10px;
   cursor: pointer;
 }
