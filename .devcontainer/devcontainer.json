@@ -1,0 +1,26 @@
+{
+  "name": "homebox-companion",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-24-bookworm",
+  "features": {
+    // Démon Docker propre au conteneur : `bun run homebox:up` y lance l'instance HomeBox.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  // HomeBox local, ouvert depuis le navigateur de l'hôte sur http://localhost:3100
+  "forwardPorts": [3100],
+  "portsAttributes": {
+    "3100": { "label": "HomeBox (dev)", "onAutoForward": "notify" }
+  },
+  "postCreateCommand": "sh .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Vue.volar",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "vitest.explorer",
+        "EditorConfig.EditorConfig",
+        "oven.bun-vscode"
+      ]
+    }
+  }
+}

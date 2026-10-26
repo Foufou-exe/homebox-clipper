@@ -1,0 +1,25 @@
+name: Bug
+description: Un comportement incorrect de l'extension
+labels: ["bug"]
+body:
+  - type: textarea
+    id: etapes
+    attributes:
+      label: Étapes pour reproduire
+      placeholder: "1. …\n2. …"
+    validations:
+      required: true
+  - type: textarea
+    id: attendu
+    attributes:
+      label: Résultat attendu / obtenu (message d'erreur exact)
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: "Extension 0.1.0, HomeBox v0.27.0, Chrome 140"
+  - type: markdown
+    attributes:
+      value: "Ne collez jamais votre clé API ni l'adresse publique de votre instance."

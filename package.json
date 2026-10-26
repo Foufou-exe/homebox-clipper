@@ -15,6 +15,10 @@
     "lint": "eslint .",
     "test:build": "vitest run --config vitest.build.config.ts",
     "ci": "bun run typecheck && bun run lint && bun run test && bun run build && bun run test:build",
+    "setup": "sh scripts/setup.sh",
+    "homebox:up": "docker compose up -d",
+    "homebox:down": "docker compose down",
+    "homebox:logs": "docker compose logs -f homebox",
     "icons": "sh scripts/gen-icons.sh"
   },
   "dependencies": {
@@ -34,5 +38,6 @@
     "vitest": "^5.0.5",
     "vue-tsc": "^3.3.13",
     "wxt": "^0.21.4"
-  }
+  },
+  "packageManager": "bun@1.4.4"
 }

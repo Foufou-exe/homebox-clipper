@@ -1,0 +1,4 @@
+# Versions d'outils du projet (https://mise.jdx.dev) : `mise install` dans le dépôt.
+[tools]
+bun = "1.4"
+node = "lts"

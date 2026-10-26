@@ -1,0 +1,32 @@
+name: Page Amazon mal détectée
+description: Un champ (produit, prix, date, facture…) n'est pas ou mal détecté
+labels: ["détection"]
+body:
+  - type: markdown
+    attributes:
+      value: "⚠️ **Ne joignez jamais la page Amazon brute** : elle contient vos données personnelles."
+  - type: dropdown
+    id: champ
+    attributes:
+      label: Champ concerné
+      multiple: true
+      options: [Nom du produit, Prix, Date, N° de commande, Vendeur, Quantité, Facture, Autre]
+    validations:
+      required: true
+  - type: dropdown
+    id: commande
+    attributes:
+      label: Type de commande
+      multiple: true
+      options: [Vendu par Amazon, Vendeur tiers, Plusieurs articles, Plusieurs expéditions, Commande numérique, Autre]
+  - type: textarea
+    id: constat
+    attributes:
+      label: Ce qui est affiché / ce qui était attendu
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version de l'extension
+      placeholder: "0.1.0 (chrome://extensions)"
