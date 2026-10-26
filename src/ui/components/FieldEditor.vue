@@ -87,10 +87,10 @@ const orderNumber = computed({
 
 <style scoped>
 .editor {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px 10px 10px;
-  margin: 8px 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
 }
 .row {
   display: flex;
@@ -105,7 +105,7 @@ const orderNumber = computed({
 .missing {
   background: var(--warn-bg);
   color: var(--warn-fg);
-  border-radius: 4px;
+  border-radius: 999px;
   padding: 0 4px;
   margin-left: 4px;
   font-size: 11px;

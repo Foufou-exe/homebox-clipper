@@ -28,7 +28,7 @@ async function unlock() {
 </script>
 
 <template>
-  <form class="unlock" @submit.prevent="unlock">
+  <form class="unlock card" @submit.prevent="unlock">
     <InstanceBadge :config="config" />
     <p>🔒 Saisissez votre phrase de passe pour déverrouiller la clé API pour cette session.</p>
     <label for="unlock-passphrase">Phrase de passe</label>

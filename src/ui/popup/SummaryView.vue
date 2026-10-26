@@ -144,8 +144,8 @@ function submit() {
       <ErrorBanner v-for="w in warnings" :key="w" :code="w" tone="warning" />
       <p v-if="detectError" class="muted">Saisissez les informations et joignez un PDF si besoin.</p>
 
-      <h2 v-if="purchase && lines.length > 1">Produits détectés</h2>
-      <div v-for="line in lines" :key="line.key" class="line">
+      <h2 v-if="purchase && lines.length > 1" class="section-title">Produits détectés</h2>
+      <div v-for="line in lines" :key="line.key" class="line card">
         <label v-if="lines.length > 1" class="pick">
           <input v-model="line.selected" type="checkbox" />
           <img v-if="line.product?.imageUrl.value" :src="line.product.imageUrl.value" alt="" />
@@ -157,27 +157,29 @@ function submit() {
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
       </div>
 
-      <h2>Documents à joindre</h2>
-      <ul class="docs">
-        <li v-for="d in documents" :key="d.doc.id">
-          <label class="pick">
-            <input v-model="d.selected" type="checkbox" />
-            <span>
-              {{ d.doc.label }}
-              <small class="muted">
-                {{ d.doc.origin === 'detected' ? 'détectée sur la page' : 'fichier local' }}
-                {{ d.doc.kind === 'order_document' ? '· bon de commande' : '· facture' }}
-                {{ formatSize(d.doc.size) }}
-              </small>
-            </span>
-          </label>
-          <button v-if="d.doc.origin === 'manual'" class="link" type="button" @click="removeManual(d.doc.id)">
-            Retirer
-          </button>
-        </li>
-        <li v-if="documents.length === 0" class="muted">Aucun document.</li>
-      </ul>
-      <DocumentPicker :allow-replace="documents.some((d) => d.doc.origin === 'detected')" @add="onPicked" />
+      <h2 class="section-title">Documents à joindre</h2>
+      <div class="card">
+        <ul class="docs">
+          <li v-for="d in documents" :key="d.doc.id">
+            <label class="pick">
+              <input v-model="d.selected" type="checkbox" />
+              <span>
+                {{ d.doc.label }}
+                <small class="muted">
+                  <span class="chip">{{ d.doc.kind === 'order_document' ? 'Bon de commande' : 'Facture' }}</span>
+                  {{ d.doc.origin === 'detected' ? 'détectée sur la page' : 'fichier local' }}
+                  {{ formatSize(d.doc.size) }}
+                </small>
+              </span>
+            </label>
+            <button v-if="d.doc.origin === 'manual'" class="link" type="button" @click="removeManual(d.doc.id)">
+              Retirer
+            </button>
+          </li>
+          <li v-if="documents.length === 0" class="muted">Aucun document.</li>
+        </ul>
+        <DocumentPicker :allow-replace="documents.some((d) => d.doc.origin === 'detected')" @add="onPicked" />
+      </div>
 
       <div v-if="dialog.kind === 'no-invoice'" class="dialog" role="alertdialog" aria-labelledby="noinv">
         <p id="noinv">Aucune facture ne sera jointe. Créer l'objet quand même ?</p>
@@ -212,9 +214,8 @@ function submit() {
 </template>
 
 <style scoped>
-h2 {
-  font-size: 13px;
-  margin: 12px 0 4px;
+.line :deep(.editor) {
+  margin: 0;
 }
 .muted {
   color: var(--muted);
@@ -251,8 +252,9 @@ h2 {
   padding: 2px 4px;
 }
 .dialog {
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
   padding: 8px 10px;
   margin: 10px 0;
 }
