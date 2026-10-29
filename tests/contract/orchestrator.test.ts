@@ -1,5 +1,13 @@
 import { buildNotes } from '@/background/import/orchestrator';
+import { findDuplicates } from '@/background/import/duplicates';
+import { ok } from '@/shared/errors';
 import { draft, err, invoice, PDF, sessionKeys, setup } from './orchestrator-harness';
+
+// La note HomeBox est résolue par `getMessage` (service worker) : le catalogue réel sert de source.
+vi.mock('@/platform/i18n', async () => {
+  const { loadCatalog, makeGetMessage } = await import('../unit/i18n-harness');
+  return { getMessage: makeGetMessage(loadCatalog('fr')), getUILanguage: () => 'fr' };
+});
 
 describe('orchestrateur — chemin nominal', () => {
   it('crée, met à jour puis joint la facture, et purge l’état', async () => {
@@ -64,5 +72,26 @@ describe('orchestrateur — chemin nominal', () => {
 
   it('buildNotes sans numéro de commande → pas de notes', () => {
     expect(buildNotes(draft({ orderNumber: null }))).toBeUndefined();
+  });
+});
+
+describe('note HomeBox traduisible (summary.orderNote)', () => {
+  it('buildNotes écrit « Commande Amazon.fr : <n°> » puis l’adresse de la page', () => {
+    expect(buildNotes(draft())).toBe(
+      'Commande Amazon.fr : 999-0000000-0000001\nhttps://www.amazon.fr/your-orders/order-details',
+    );
+  });
+
+  it('la détection de doublons cherche le numéro seul, quel que soit le libellé de la note', async () => {
+    // Objet existant créé avec un autre libellé (autre langue ou autre version) : seul le numéro compte.
+    const existing = { id: 'old', name: 'Clavier sans fil Exemple Pro', notes: 'Amazon order: 999-0000000-0000001' };
+    const searchEntities = vi.fn(() => Promise.resolve(ok([existing])));
+    const r = await findDuplicates(
+      { baseUrl: 'https://homebox.example.com', searchEntities } as never,
+      '999-0000000-0000001',
+      'clavier sans fil exemple pro',
+    );
+    expect(searchEntities).toHaveBeenCalledWith('"999-0000000-0000001"');
+    expect(r.ok && r.value.map((m) => m.id)).toEqual(['old']);
   });
 });

@@ -29,6 +29,11 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
   {
+    // Scripts Bun (dump-locales, check-config…) : leur sortie standard est leur interface.
+    files: ['scripts/**'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     files: ['src/shared/logger.ts'],
     rules: { 'no-console': 'off' },
   },

@@ -2,6 +2,7 @@
 import { ref, useId } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import type { DocumentRef } from '@/shared/types';
+import { t } from '@/ui/i18n';
 import { readPdf, type PickedDocument } from '@/ui/read-pdf';
 import ErrorBanner from './ErrorBanner.vue';
 
@@ -37,19 +38,19 @@ async function onChange(event: Event) {
 <template>
   <div class="picker">
     <div class="row">
-      <label :for="`${id}-kind`" class="sr-only">Type de document</label>
+      <label :for="`${id}-kind`" class="sr-only">{{ t('documents.kindLabel') }}</label>
       <select v-if="!fixedDocId" :id="`${id}-kind`" v-model="kind">
-        <option value="invoice">Facture</option>
-        <option value="order_document">Bon de commande</option>
+        <option value="invoice">{{ t('documents.invoice') }}</option>
+        <option value="order_document">{{ t('documents.orderDocument') }}</option>
       </select>
       <label class="file">
         <input ref="input" type="file" accept="application/pdf,.pdf" @change="onChange" />
-        <span>Choisir un PDF…</span>
+        <span>{{ t('documents.choose') }}</span>
       </label>
     </div>
     <label v-if="allowReplace" class="inline">
       <input v-model="replaceDetected" type="checkbox" />
-      Remplacer la facture détectée
+      {{ t('documents.replaceDetected') }}
     </label>
     <ErrorBanner v-if="error" :code="error" />
   </div>

@@ -15,6 +15,7 @@ import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
+import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields } from './drafts';
 
@@ -137,19 +138,19 @@ function submit() {
   <section class="summary">
     <InstanceBadge :config="config" />
 
-    <p v-if="loading" class="muted" role="status">Détection de l'achat…</p>
+    <p v-if="loading" class="muted" role="status">{{ t('summary.detecting') }}</p>
 
     <template v-else>
       <ErrorBanner v-if="detectError" :code="detectError" tone="warning" />
       <ErrorBanner v-for="w in warnings" :key="w" :code="w" tone="warning" />
-      <p v-if="detectError" class="muted">Saisissez les informations et joignez un PDF si besoin.</p>
+      <p v-if="detectError" class="muted">{{ t('summary.manualHint') }}</p>
 
-      <h2 v-if="purchase && lines.length > 1" class="section-title">Produits détectés</h2>
+      <h2 v-if="purchase && lines.length > 1" class="section-title">{{ t('summary.detectedProducts') }}</h2>
       <div v-for="line in lines" :key="line.key" class="line card">
         <label v-if="lines.length > 1" class="pick">
           <input v-model="line.selected" type="checkbox" />
           <img v-if="line.product?.imageUrl.value" :src="line.product.imageUrl.value" alt="" />
-          <span>{{ line.draft.name || 'Produit sans nom' }}</span>
+          <span>{{ line.draft.name || t('summary.unnamedProduct') }}</span>
         </label>
         <div v-else-if="line.product?.imageUrl.value" class="thumb">
           <img :src="line.product.imageUrl.value" alt="" />
@@ -157,7 +158,7 @@ function submit() {
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
       </div>
 
-      <h2 class="section-title">Documents à joindre</h2>
+      <h2 class="section-title">{{ t('summary.documentsTitle') }}</h2>
       <div class="card">
         <ul class="docs">
           <li v-for="d in documents" :key="d.doc.id">
@@ -166,26 +167,26 @@ function submit() {
               <span>
                 {{ d.doc.label }}
                 <small class="muted">
-                  <span class="chip">{{ d.doc.kind === 'order_document' ? 'Bon de commande' : 'Facture' }}</span>
-                  {{ d.doc.origin === 'detected' ? 'détectée sur la page' : 'fichier local' }}
+                  <span class="chip">{{ d.doc.kind === 'order_document' ? t('documents.orderDocument') : t('documents.invoice') }}</span>
+                  {{ d.doc.origin === 'detected' ? t('summary.originDetected') : t('summary.originLocal') }}
                   {{ formatSize(d.doc.size) }}
                 </small>
               </span>
             </label>
             <button v-if="d.doc.origin === 'manual'" class="link" type="button" @click="removeManual(d.doc.id)">
-              Retirer
+              {{ t('summary.remove') }}
             </button>
           </li>
-          <li v-if="documents.length === 0" class="muted">Aucun document.</li>
+          <li v-if="documents.length === 0" class="muted">{{ t('summary.noDocuments') }}</li>
         </ul>
         <DocumentPicker :allow-replace="documents.some((d) => d.doc.origin === 'detected')" @add="onPicked" />
       </div>
 
       <div v-if="dialog.kind === 'no-invoice'" class="dialog" role="alertdialog" aria-labelledby="noinv">
-        <p id="noinv">Aucune facture ne sera jointe. Créer l'objet quand même ?</p>
+        <p id="noinv">{{ t('summary.noInvoicePrompt') }}</p>
         <div class="actions">
-          <button class="primary" type="button" @click="checkDuplicates">Créer quand même</button>
-          <button type="button" @click="dialog = { kind: 'none' }">Retour</button>
+          <button class="primary" type="button" @click="checkDuplicates">{{ t('summary.createAnyway') }}</button>
+          <button type="button" @click="dialog = { kind: 'none' }">{{ t('summary.back') }}</button>
         </div>
       </div>
 
@@ -197,17 +198,17 @@ function submit() {
           </li>
         </ul>
         <div class="actions">
-          <button type="button" @click="dialog = { kind: 'none' }">Annuler</button>
-          <button class="primary" type="button" @click="submit">Créer quand même</button>
+          <button type="button" @click="dialog = { kind: 'none' }">{{ t('summary.cancel') }}</button>
+          <button class="primary" type="button" @click="submit">{{ t('summary.createAnyway') }}</button>
         </div>
       </div>
       <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />
 
       <div class="actions footer">
         <button class="primary" type="button" :disabled="!canSubmit" @click="onAdd">
-          {{ dialog.kind === 'checking' ? 'Vérification…' : 'Ajouter à HomeBox' }}
+          {{ dialog.kind === 'checking' ? t('summary.checking') : t('summary.add') }}
         </button>
-        <button type="button" @click="cancel">Annuler</button>
+        <button type="button" @click="cancel">{{ t('summary.cancel') }}</button>
       </div>
     </template>
   </section>

@@ -10,7 +10,8 @@ import AppHeader from '@/ui/components/AppHeader.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
-import { THEME_LABELS, saveTheme, themePreference as theme } from '@/ui/theme';
+import { t } from '@/ui/i18n';
+import { THEME_VALUES, saveTheme, themeLabel, themePreference as theme } from '@/ui/theme';
 
 const view = ref<ConfigView>({ configured: false });
 const baseUrl = ref('');
@@ -84,7 +85,7 @@ async function saveAndTest() {
       passphrase: passphrase.value,
     });
     if (result.ok) {
-      success.value = 'Connexion à HomeBox réussie. Clé API chiffrée et enregistrée.';
+      success.value = t('options.savedAndConnected');
       reset();
     } else {
       error.value = result.error;
@@ -103,7 +104,7 @@ async function test() {
   busy.value = true;
   try {
     const result = await send({ type: 'config/test' });
-    if (result.ok) success.value = 'Connexion à HomeBox réussie.';
+    if (result.ok) success.value = t('options.connected');
     else error.value = result.error;
   } finally {
     busy.value = false;
@@ -117,7 +118,7 @@ async function lock() {
 }
 
 async function remove() {
-  if (!window.confirm('Supprimer la configuration HomeBox (adresse et clé API) de cette extension ?')) return;
+  if (!window.confirm(t('options.confirmDelete'))) return;
   await send({ type: 'config/delete' });
   reset();
   success.value = null;
@@ -127,39 +128,35 @@ async function remove() {
 </script>
 
 <template>
-  <AppHeader subtitle="Configuration">
+  <AppHeader :subtitle="t('options.subtitle')">
     <ThemeToggle />
   </AppHeader>
   <main class="options">
     <section class="card">
-      <h1>Instance HomeBox</h1>
+      <h1>{{ t('options.title') }}</h1>
       <p class="intro">
-        L’extension communique uniquement avec votre instance HomeBox. La clé API est chiffrée avec
-        votre phrase de passe et stockée localement dans ce navigateur ; elle n’est jamais envoyée
-        ailleurs.
+        {{ t('options.intro') }}
       </p>
 
       <InstanceBadge v-if="view.configured" :config="view" />
 
       <p v-if="view.needsPassphrase" class="notice" role="alert">
-        Votre clé API était enregistrée en clair par une version précédente. Elle a été retirée du
-        disque : définissez une phrase de passe pour la chiffrer, sinon elle sera perdue à la fermeture
-        du navigateur.
+        {{ t('options.legacyKeyNotice') }}
       </p>
 
       <div v-if="view.configured && !view.needsPassphrase" class="session">
-        <span v-if="view.locked" class="chip">Verrouillée</span>
-        <span v-if="view.locked">La clé sera demandée à l’ouverture de l’extension.</span>
+        <span v-if="view.locked" class="chip">{{ t('options.locked') }}</span>
+        <span v-if="view.locked">{{ t('options.lockedHint') }}</span>
         <template v-else>
-          <span class="chip">Déverrouillée</span>
-          <span>pour cette session du navigateur.</span>
-          <button type="button" :disabled="busy" @click="test">Tester la connexion</button>
-          <button type="button" :disabled="busy" @click="lock">Verrouiller</button>
+          <span class="chip">{{ t('options.unlocked') }}</span>
+          <span>{{ t('options.unlockedHint') }}</span>
+          <button type="button" :disabled="busy" @click="test">{{ t('options.test') }}</button>
+          <button type="button" :disabled="busy" @click="lock">{{ t('options.lock') }}</button>
         </template>
       </div>
 
       <form @submit.prevent="saveAndTest">
-        <label for="baseUrl">Adresse de l’instance HomeBox</label>
+        <label for="baseUrl">{{ t('options.baseUrl') }}</label>
         <input
           id="baseUrl"
           v-model="baseUrl"
@@ -169,7 +166,7 @@ async function remove() {
           autocomplete="url"
         />
 
-        <label for="apiKey">Clé API</label>
+        <label for="apiKey">{{ t('options.apiKey') }}</label>
         <input
           id="apiKey"
           v-model="apiKey"
@@ -181,12 +178,12 @@ async function remove() {
           aria-describedby="apiKeyHelp"
         />
         <p id="apiKeyHelp" class="help">
-          Générez une clé dans HomeBox (Profil → Clés API), idéalement avec une date d’expiration.
-          <template v-if="view.configured">Laissez vide pour conserver la clé actuelle.</template>
+          {{ t('options.apiKeyHelp') }}
+          <template v-if="view.configured">{{ t('options.keepKeyHint') }}</template>
         </p>
 
         <label for="passphrase">
-          {{ choosingPassphrase ? 'Phrase de passe (nouvelle)' : 'Phrase de passe actuelle' }}
+          {{ choosingPassphrase ? t('options.passphraseNew') : t('options.passphraseCurrent') }}
         </label>
         <input
           id="passphrase"
@@ -198,7 +195,7 @@ async function remove() {
           aria-describedby="passphraseHelp"
         />
         <template v-if="choosingPassphrase">
-          <label for="confirmation">Confirmer la phrase de passe</label>
+          <label for="confirmation">{{ t('options.passphraseConfirm') }}</label>
           <input
             id="confirmation"
             v-model="confirmation"
@@ -210,35 +207,33 @@ async function remove() {
         </template>
         <p id="passphraseHelp" class="help">
           <template v-if="choosingPassphrase">
-            Au moins {{ MIN_PASSPHRASE_LENGTH }} caractères. Elle chiffre la clé API sur le disque et vous
-            sera demandée une fois par session du navigateur. Elle ne peut pas être récupérée : en cas
-            d’oubli, supprimez la configuration et recommencez.
+            {{ t('options.passphraseHelpNew', [String(MIN_PASSPHRASE_LENGTH)]) }}
           </template>
-          <template v-else>Nécessaire pour déchiffrer la clé actuelle.</template>
+          <template v-else>{{ t('options.passphraseHelpCurrent') }}</template>
         </p>
 
-        <p v-if="mismatch" class="error" role="alert">Les deux phrases de passe ne correspondent pas.</p>
+        <p v-if="mismatch" class="error" role="alert">{{ t('options.mismatch') }}</p>
         <ErrorBanner v-if="error" :code="error" />
         <p v-if="success" class="success" role="status">{{ success }}</p>
 
         <div class="actions">
           <button class="primary" type="submit" :disabled="busy">
-            {{ busy ? 'Test en cours…' : 'Tester et enregistrer' }}
+            {{ busy ? t('options.saving') : t('options.saveAndTest') }}
           </button>
           <button v-if="view.configured" type="button" :disabled="busy" @click="remove">
-            Supprimer la configuration
+            {{ t('options.deleteConfig') }}
           </button>
         </div>
       </form>
     </section>
 
     <section class="card">
-      <h2>Apparence</h2>
+      <h2>{{ t('options.appearance') }}</h2>
       <fieldset class="themes">
-        <legend class="sr-only">Thème</legend>
-        <label v-for="(label, value) in THEME_LABELS" :key="value" class="radio">
+        <legend class="sr-only">{{ t('theme.legend') }}</legend>
+        <label v-for="value in THEME_VALUES" :key="value" class="radio">
           <input v-model="theme" type="radio" name="theme" :value="value" @change="onTheme" />
-          {{ label }}
+          {{ themeLabel(value) }}
         </label>
       </fieldset>
     </section>

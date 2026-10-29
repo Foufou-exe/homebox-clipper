@@ -5,6 +5,7 @@ import { send } from '@/shared/messages';
 import type { ManualFile, PendingImport } from '@/shared/types';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
+import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 
 const props = defineProps<{ pending: PendingImport; baseUrl: string }>();
@@ -23,8 +24,8 @@ const manualToReselect = computed(() =>
   failedDocs.value.filter((d) => d.origin === 'manual' && !files.value.has(d.id)),
 );
 const retryLabel = computed(() => {
-  if (!props.pending.entityId) return "Réessayer l'import";
-  return props.pending.steps.update === 'failed' ? 'Réessayer' : "Réessayer l'envoi de la facture";
+  if (!props.pending.entityId) return t('recovery.retryImport');
+  return props.pending.steps.update === 'failed' ? t('recovery.retry') : t('recovery.retryInvoice');
 });
 
 function onPicked({ doc, file }: PickedDocument) {
@@ -52,24 +53,24 @@ async function abandon() {
 <template>
   <div class="recovery">
     <p v-if="pending.entityId">
-      L'objet <strong>{{ pending.draft.name }}</strong> a été créé dans HomeBox
-      <a v-if="link" :href="link" target="_blank" rel="noopener">(ouvrir)</a>, mais l'import n'est pas complet.
+      {{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ t('recovery.created') }}
+      <a v-if="link" :href="link" target="_blank" rel="noopener">{{ t('recovery.openLink') }}</a>{{ t('recovery.incomplete') }}
     </p>
-    <p v-else>L'objet <strong>{{ pending.draft.name }}</strong> n'a pas été créé.</p>
+    <p v-else>{{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ t('recovery.notCreated') }}</p>
 
     <ErrorBanner v-if="pending.error" :code="pending.error" />
     <ErrorBanner v-if="error" :code="error" />
 
     <div v-for="d in manualToReselect" :key="d.id" class="reselect">
-      <p class="muted">Sélectionnez à nouveau « {{ d.label }} » :</p>
+      <p class="muted">{{ t('recovery.reselect', [d.label]) }}</p>
       <DocumentPicker :fixed-doc-id="d.id" @add="onPicked" />
     </div>
 
     <div class="actions">
       <button class="primary" type="button" :disabled="busy || manualToReselect.length > 0" @click="retry">
-        {{ busy ? 'Nouvel essai…' : retryLabel }}
+        {{ busy ? t('recovery.retrying') : retryLabel }}
       </button>
-      <button type="button" :disabled="busy" @click="abandon">Abandonner</button>
+      <button type="button" :disabled="busy" @click="abandon">{{ t('recovery.abandon') }}</button>
     </div>
   </div>
 </template>
