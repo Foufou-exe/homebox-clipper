@@ -11,6 +11,7 @@
         "@eslint/js": "^10.0.1",
         "@vitejs/plugin-vue": "^6.0.10",
         "@vue/test-utils": "^2.5.1",
+        "@wxt-dev/i18n": "^0.2.8",
         "@wxt-dev/module-vue": "^1.0.3",
         "eslint": "^10.13.0",
         "eslint-plugin-vue": "^10.11.1",
@@ -202,6 +203,8 @@
     "@webext-core/match-patterns": ["@webext-core/match-patterns@2.0.0", "", {}, "sha512-EsyMMKfQuSE4rWCjP/TifwvUWlhC/OhiGn5OK3p9F0d57UmtLib0nzguzPKyxM1/kZV7SkE+jYXkE8gsdPRLmw=="],
 
     "@wxt-dev/browser": ["@wxt-dev/browser@0.3.6", "", { "dependencies": { "@types/har-format": "*" } }, "sha512-HbzZ1PqG0u8+U0aByL0qD22fJ+cYRcol1b9eZQCPmCRP2PlVg7MX8JgHe1WfDBeau2TKWLUBJTXAC4/pvIQJKw=="],
+
+    "@wxt-dev/i18n": ["@wxt-dev/i18n@0.2.8", "", { "dependencies": { "@wxt-dev/browser": ">=0.1", "chokidar": "^5.0.0", "confbox": "^0.2.4", "tinyglobby": "^0.2.16" }, "peerDependencies": { "wxt": ">=0.19.7" }, "optionalPeers": ["wxt"] }, "sha512-mxVwIJ2YFzsWuXEKMElaD7ehI6hfxjWT4ON8xFVX5kk+vNQ8JmgsDflfU8LApaNHULs8nqhU0QoLecVp075LPQ=="],
 
     "@wxt-dev/module-vue": ["@wxt-dev/module-vue@1.0.3", "", { "dependencies": { "@vitejs/plugin-vue": "^5.2.3 || ^6.0.0" }, "peerDependencies": { "wxt": ">=0.19.16" } }, "sha512-xUNygcj4w0b1MzQGOQIp5V2ZwFE4y+5AwKPi/IPKyo2aNeFVJTfItIxzWI5vTj7031WCLzHgQrrBRS5C63D5iw=="],
 

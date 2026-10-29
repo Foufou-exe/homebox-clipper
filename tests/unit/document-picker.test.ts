@@ -1,6 +1,10 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import { readPdf, type PickedDocument } from '@/ui/read-pdf';
+import { loadCatalog } from './i18n-harness';
+
+// Texte attendu : valeur du catalogue (le composant passe par errorMessage → getMessage).
+const NOT_A_PDF = loadCatalog('fr')['error.NOT_A_PDF']!;
 
 const pdfFile = (name = 'facture.pdf') => new File(['%PDF-1.7\n1 0 obj'], name, { type: 'application/pdf' });
 
@@ -44,6 +48,6 @@ describe('DocumentPicker', () => {
     const wrapper = mount(DocumentPicker);
     await pick(wrapper, new File(['<html>'], 'faux.pdf'));
     expect(wrapper.emitted('add')).toBeUndefined();
-    expect(wrapper.text()).toContain("Le fichier n'est pas un PDF.");
+    expect(wrapper.text()).toContain(NOT_A_PDF);
   });
 });

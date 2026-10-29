@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ERROR_MESSAGES_FR, type ErrorCode } from '@/shared/errors';
+import type { ErrorCode } from '@/shared/errors';
+import { errorMessage } from '@/ui/i18n';
 
 defineProps<{ code: ErrorCode; tone?: 'error' | 'warning' }>();
 </script>
 
 <template>
   <div class="banner" :class="tone ?? 'error'" role="alert">
-    <p>{{ ERROR_MESSAGES_FR[code] }}</p>
+    <p>{{ errorMessage(code) }}</p>
     <div v-if="$slots.default" class="actions">
       <slot />
     </div>

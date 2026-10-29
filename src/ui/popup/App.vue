@@ -8,6 +8,7 @@ import AppHeader from '@/ui/components/AppHeader.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import Icon from '@/ui/components/Icon.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
+import { t } from '@/ui/i18n';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ResultView from './ResultView.vue';
 import SummaryView from './SummaryView.vue';
@@ -114,13 +115,19 @@ function openOptions() {
         v-if="view.configured && !view.locked && !view.needsPassphrase"
         class="header-icon"
         type="button"
-        aria-label="Verrouiller la clé API"
-        title="Verrouiller"
+        :aria-label="t('popup.lockAria')"
+        :title="t('popup.lockTitle')"
         @click="lock"
       >
         <Icon name="lock" />
       </button>
-      <button class="header-icon" type="button" aria-label="Configuration" title="Configuration" @click="openOptions">
+      <button
+        class="header-icon"
+        type="button"
+        :aria-label="t('popup.optionsLabel')"
+        :title="t('popup.optionsLabel')"
+        @click="openOptions"
+      >
         <Icon name="settings" />
       </button>
     </AppHeader>
@@ -128,18 +135,18 @@ function openOptions() {
     <main class="content">
       <!-- Hors de la chaîne v-if ci-dessous : l'avis ne doit jamais masquer le résumé. -->
       <p v-if="view.needsPassphrase && !view.locked && screen !== 'setup'" class="notice" role="alert">
-        Clé API non protégée : définissez une phrase de passe dans la
-        <button class="link" type="button" @click="openOptions">configuration</button>.
+        {{ t('popup.unprotectedPrefix') }}
+        <button class="link" type="button" @click="openOptions">{{ t('popup.unprotectedLink') }}</button>.
       </p>
 
-      <p v-if="screen === 'loading'" class="muted" role="status">Chargement…</p>
+      <p v-if="screen === 'loading'" class="muted" role="status">{{ t('popup.loading') }}</p>
 
       <section v-else-if="screen === 'setup'" class="card">
         <p v-if="view.needsPassphrase">
-          Votre clé API doit être ressaisie et protégée par une phrase de passe.
+          {{ t('popup.setupPassphrase') }}
         </p>
-        <p v-else>Configurez votre instance HomeBox pour commencer.</p>
-        <button class="primary" type="button" @click="openOptions">Configurer HomeBox</button>
+        <p v-else>{{ t('popup.setupConfigure') }}</p>
+        <button class="primary" type="button" @click="openOptions">{{ t('popup.configureButton') }}</button>
       </section>
 
       <UnlockView v-else-if="screen === 'locked'" :config="view" @unlocked="onUnlocked" />
@@ -149,8 +156,8 @@ function openOptions() {
       <template v-else-if="screen === 'result'">
         <InstanceBadge :config="view" />
         <ErrorBanner v-if="error" :code="error">
-          <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">Vérifier la configuration</button>
-          <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">Déverrouiller</button>
+          <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">{{ t('popup.checkConfiguration') }}</button>
+          <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">{{ t('unlock.submit') }}</button>
         </ErrorBanner>
         <ResultView
           :pendings="pendings"

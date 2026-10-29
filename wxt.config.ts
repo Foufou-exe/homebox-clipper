@@ -3,10 +3,12 @@ import { defineConfig } from 'wxt';
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: 'src',
-  modules: ['@wxt-dev/module-vue'],
+  modules: ['@wxt-dev/module-vue', '@wxt-dev/i18n/module'],
   manifest: {
-    name: 'homebox-companion',
-    description: 'Importez vos achats Amazon.fr dans votre inventaire HomeBox, après confirmation.',
+    // Textes du manifeste issus de src/locales/fr.yml (un seul dossier de locale à l'étape A).
+    default_locale: 'fr',
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
     // Principe V : aucune host_permission statique. L'onglet Amazon est accessible
     // via activeTab ; seule l'origine exacte de l'instance HomeBox est demandée à l'exécution.
     permissions: ['storage', 'activeTab', 'scripting'],

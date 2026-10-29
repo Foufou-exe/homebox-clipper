@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { browser } from '@/platform';
+import { t } from '@/ui/i18n';
 
 /** Apparence choisie : celle du système (auto), claire ou sombre. */
 export type ThemePreference = 'auto' | 'light' | 'dark';
@@ -7,11 +8,13 @@ export type ThemePreference = 'auto' | 'light' | 'dark';
 const KEY = 'uiTheme';
 const VALUES: readonly ThemePreference[] = ['auto', 'light', 'dark'];
 
-export const THEME_LABELS: Record<ThemePreference, string> = {
-  auto: 'Automatique (système)',
-  light: 'Clair',
-  dark: 'Sombre',
-};
+/** Valeurs proposées, dans l'ordre du cycle du bouton d'en-tête. */
+export const THEME_VALUES = VALUES;
+
+/** Libellé affiché d'une apparence (clés `theme.auto|light|dark`). */
+export function themeLabel(pref: ThemePreference): string {
+  return t(`theme.${pref}`);
+}
 
 /** Préférence courante, partagée par tous les composants de la page (bouton d'en-tête, options). */
 export const themePreference = ref<ThemePreference>('auto');

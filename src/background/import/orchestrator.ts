@@ -1,5 +1,6 @@
 import { entityOutToUpdate, type HomeBoxClient } from '@/background/homebox/client';
 import type { EntityOut } from '@/background/homebox/types';
+import { getMessage } from '@/platform/i18n';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
 import type { DocumentRef, ImportDraft, ManualFile, PendingImport } from '@/shared/types';
@@ -21,7 +22,7 @@ type FileMap = Map<string, Result<Uint8Array>>;
 
 export function buildNotes(draft: ImportDraft): string | undefined {
   if (!draft.orderNumber) return undefined;
-  return [`Commande Amazon.fr : ${draft.orderNumber}`, draft.pageUrl].filter(Boolean).join('\n');
+  return [getMessage('summary.orderNote', [draft.orderNumber]), draft.pageUrl].filter(Boolean).join('\n');
 }
 
 function manualBytes(file: ManualFile): Result<Uint8Array> {

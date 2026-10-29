@@ -1,41 +1,47 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { PendingImport } from '@/shared/types';
+import { t } from '@/ui/i18n';
 import RecoveryView from './RecoveryView.vue';
 
 const props = defineProps<{ pendings: PendingImport[]; baseUrl: string; running: boolean }>();
 const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: string] }>();
 
-const STEP_LABELS = { pending: 'en attente', done: 'fait', failed: 'échec' } as const;
+const STEP_LABELS = {
+  pending: 'result.stepPending',
+  done: 'result.stepDone',
+  failed: 'result.stepFailed',
+} as const;
+const stepLabel = (step: keyof typeof STEP_LABELS) => t(STEP_LABELS[step]);
 const itemLink = (p: PendingImport) => (p.entityId ? `${props.baseUrl}/item/${p.entityId}` : null);
 const allDone = computed(() => !props.running && props.pendings.every((p) => p.status === 'success'));
 </script>
 
 <template>
   <section class="result">
-    <p v-if="running && pendings.length === 0" role="status">Import en cours…</p>
+    <p v-if="running && pendings.length === 0" role="status">{{ t('result.running') }}</p>
 
     <p v-if="allDone && pendings.length" class="success" role="status">
-      {{ pendings.length > 1 ? `${pendings.length} objets ajoutés` : 'Objet ajouté' }} à HomeBox.
+      {{ pendings.length > 1 ? t('result.addedMany', [String(pendings.length)]) : t('result.addedOne') }}
     </p>
 
     <article v-for="p in pendings" :key="p.id" class="item card">
       <template v-if="p.status === 'running'">
-        <p role="status"><strong>{{ p.draft.name }}</strong> — import en cours…</p>
+        <p role="status"><strong>{{ p.draft.name }}</strong> {{ t('result.itemRunning') }}</p>
         <ul class="steps">
-          <li>Création de l'objet : {{ STEP_LABELS[p.steps.create] }}</li>
-          <li>Informations d'achat : {{ STEP_LABELS[p.steps.update] }}</li>
+          <li>{{ t('result.stepCreate', [stepLabel(p.steps.create)]) }}</li>
+          <li>{{ t('result.stepUpdate', [stepLabel(p.steps.update)]) }}</li>
           <li v-for="d in p.draft.documents" :key="d.id">
-            {{ d.label }} : {{ STEP_LABELS[p.steps.attachments[d.id] ?? 'pending'] }}
+            {{ t('result.stepDocument', [d.label, stepLabel(p.steps.attachments[d.id] ?? 'pending')]) }}
           </li>
         </ul>
       </template>
 
       <p v-else-if="p.status === 'success'">
         ✓ <strong>{{ p.draft.name }}</strong>
-        <template v-if="p.draft.documents.length">avec {{ p.draft.documents.length > 1 ? 'ses documents' : 'sa facture' }}</template>
+        <template v-if="p.draft.documents.length">{{ p.draft.documents.length > 1 ? t('result.withDocuments') : t('result.withInvoice') }}</template>
         —
-        <a v-if="itemLink(p)" :href="itemLink(p) ?? undefined" target="_blank" rel="noopener">Ouvrir dans HomeBox</a>
+        <a v-if="itemLink(p)" :href="itemLink(p) ?? undefined" target="_blank" rel="noopener">{{ t('result.openInHomebox') }}</a>
       </p>
 
       <RecoveryView

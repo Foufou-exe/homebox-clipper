@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue';
 import type { ImportDraft } from '@/shared/types';
+import { t } from '@/ui/i18n';
 import { draftErrors } from '@/ui/popup/drafts';
 
 const draft = defineModel<ImportDraft>({ required: true });
@@ -31,52 +32,52 @@ const orderNumber = computed({
 <template>
   <fieldset class="editor">
     <label :for="`${id}-name`">
-      Nom du produit <span aria-hidden="true">*</span>
-      <span v-if="isMissing('name')" class="missing">non détecté</span>
+      {{ t('fields.name') }} <span aria-hidden="true">*</span>
+      <span v-if="isMissing('name')" class="missing">{{ t('fields.notDetected') }}</span>
     </label>
     <input :id="`${id}-name`" v-model="draft.name" required maxlength="255" />
 
     <div class="row">
       <div>
         <label :for="`${id}-price`">
-          Prix d'achat ({{ draft.currency }})
-          <span v-if="isMissing('purchasePrice')" class="missing">non détecté</span>
+          {{ t('fields.price', [draft.currency]) }}
+          <span v-if="isMissing('purchasePrice')" class="missing">{{ t('fields.notDetected') }}</span>
         </label>
         <input :id="`${id}-price`" v-model="price" inputmode="decimal" />
       </div>
       <div class="qty">
-        <label :for="`${id}-qty`">Quantité</label>
+        <label :for="`${id}-qty`">{{ t('fields.quantity') }}</label>
         <input :id="`${id}-qty`" v-model.number="draft.quantity" type="number" min="1" step="1" />
       </div>
     </div>
     <p v-if="draft.currency !== 'EUR'" class="warn" role="note">
-      Devise détectée : {{ draft.currency }}. HomeBox enregistre le montant sans devise.
+      {{ t('fields.currencyWarning', [draft.currency]) }}
     </p>
 
     <div class="row">
       <div>
         <label :for="`${id}-date`">
-          Date d'achat
-          <span v-if="isMissing('purchaseDate')" class="missing">non détectée</span>
+          {{ t('fields.date') }}
+          <span v-if="isMissing('purchaseDate')" class="missing">{{ t('fields.notDetectedFeminine') }}</span>
         </label>
         <input :id="`${id}-date`" v-model="date" type="date" :max="today" />
       </div>
       <div>
         <label :for="`${id}-order`">
-          N° de commande
-          <span v-if="isMissing('orderNumber')" class="missing">non détecté</span>
+          {{ t('fields.orderNumber') }}
+          <span v-if="isMissing('orderNumber')" class="missing">{{ t('fields.notDetected') }}</span>
         </label>
         <input :id="`${id}-order`" v-model="orderNumber" />
       </div>
     </div>
 
     <label :for="`${id}-seller`">
-      Vendeur
-      <span v-if="isMissing('purchaseFrom')" class="missing">non détecté</span>
+      {{ t('fields.seller') }}
+      <span v-if="isMissing('purchaseFrom')" class="missing">{{ t('fields.notDetected') }}</span>
     </label>
     <input :id="`${id}-seller`" v-model="draft.purchaseFrom" maxlength="255" />
 
-    <label :for="`${id}-desc`">Description</label>
+    <label :for="`${id}-desc`">{{ t('fields.description') }}</label>
     <textarea :id="`${id}-desc`" v-model="draft.description" rows="2" maxlength="1000" />
 
     <ul v-if="errors.length" class="errors" role="alert">

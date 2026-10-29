@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import logo from '@/assets/logo.svg';
+import { t } from '@/ui/i18n';
 
 defineProps<{ subtitle?: string }>();
 </script>
@@ -9,7 +10,7 @@ defineProps<{ subtitle?: string }>();
     <div class="brand">
       <img :src="logo" alt="" width="28" height="28" />
       <div>
-        <span class="name">HomeBox <span class="companion">Companion</span></span>
+        <span class="name">{{ t('header.brand') }} <span class="companion">{{ t('header.companion') }}</span></span>
         <span v-if="subtitle" class="subtitle">{{ subtitle }}</span>
       </div>
     </div>

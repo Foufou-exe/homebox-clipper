@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /** Exécuté après `bun run build` (script `test:build`) — principe V. */
@@ -26,8 +26,19 @@ describe('manifest de production', () => {
     expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*']);
   });
 
-  it('un seul build : nom sans suffixe de mode', () => {
-    expect(manifest.name).toBe('homebox-companion');
+  it('un seul build : nom issu du catalogue, sans suffixe de mode', () => {
+    expect(manifest.name).toBe('__MSG_extName__');
+    expect(manifest.description).toBe('__MSG_extDescription__');
+  });
+
+  // @wxt-dev/i18n accepte un seul catalogue avec default_locale fr (étape A, R1).
+  it('langue par défaut fr, avec un seul dossier de locale', () => {
+    expect(manifest.default_locale).toBe('fr');
+    const locales = resolve(path, '../_locales');
+    expect(readdirSync(locales)).toEqual(['fr']);
+    const messages = JSON.parse(readFileSync(resolve(locales, 'fr/messages.json'), 'utf8')) as Record<string, unknown>;
+    expect(messages).toHaveProperty('extName');
+    expect(messages).toHaveProperty('extDescription');
   });
 
   it("CSP sans unsafe-eval ni source distante", () => {

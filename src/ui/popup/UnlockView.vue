@@ -5,6 +5,7 @@ import { send } from '@/shared/messages';
 import type { ConfigView } from '@/shared/types';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
+import { t } from '@/ui/i18n';
 
 defineProps<{ config: ConfigView }>();
 const emit = defineEmits<{ unlocked: [view: ConfigView] }>();
@@ -30,8 +31,8 @@ async function unlock() {
 <template>
   <form class="unlock card" @submit.prevent="unlock">
     <InstanceBadge :config="config" />
-    <p>🔒 Saisissez votre phrase de passe pour déverrouiller la clé API pour cette session.</p>
-    <label for="unlock-passphrase">Phrase de passe</label>
+    <p>{{ t('unlock.description') }}</p>
+    <label for="unlock-passphrase">{{ t('unlock.passphrase') }}</label>
     <input
       id="unlock-passphrase"
       v-model="passphrase"
@@ -43,7 +44,7 @@ async function unlock() {
     <ErrorBanner v-if="error" :code="error" />
     <div class="actions">
       <button class="primary" type="submit" :disabled="busy || passphrase === ''">
-        {{ busy ? 'Déverrouillage…' : 'Déverrouiller' }}
+        {{ busy ? t('unlock.busy') : t('unlock.submit') }}
       </button>
     </div>
   </form>
