@@ -1,0 +1,22 @@
+name: Modèle factice
+description: factice
+labels: ["inconnue"]
+body:
+  - type: input
+    id: etapes
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: attendu-obtenu
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Champ
+    validations:
+      required: true

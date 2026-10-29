@@ -1,0 +1,10 @@
+name: Modèle factice
+description: factice
+labels: ["enhancement"]
+body:
+  - type: input
+    id: besoin
+    attributes:
+      label: Champ
+    validations:
+      required: true

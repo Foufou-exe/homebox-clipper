@@ -9,6 +9,12 @@
       "problemMatcher": ["$tsc"]
     },
     {
+      "label": "Vérifier les réglages (check:config)",
+      "type": "shell",
+      "command": "bun run check:config",
+      "problemMatcher": []
+    },
+    {
       "label": "Extension : mode dev",
       "type": "shell",
       "command": "bun run dev",

@@ -1,0 +1,24 @@
+- name: bug
+  color: "d73a4a"
+  description: Comportement incorrect de l'extension
+- name: enhancement
+  color: "a2eeef"
+  description: Nouvelle fonctionnalité ou amélioration
+- name: documentation
+  color: "0075ca"
+  description: Wiki, README, guides et autres documents
+- name: "merchant: detection"
+  color: "fbca04"
+  description: Champ mal détecté sur la page d'un marchand
+- name: "merchant: request"
+  color: "0e8a16"
+  description: Demande de prise en charge d'un nouveau marchand
+- name: security
+  color: "b60205"
+  description: Sécurité, permissions, clé API ou données personnelles
+- name: i18n
+  color: "5319e7"
+  description: Traduction et internationalisation
+- name: good first issue
+  color: "7057ff"
+  description: Idéal pour une première contribution

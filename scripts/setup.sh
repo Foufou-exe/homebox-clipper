@@ -73,6 +73,8 @@ Prêt. Ensuite :
   bun run homebox:up     démarrer HomeBox sur http://localhost:3100 (guide : docs/local-homebox.md)
   bun run dev            développer avec rechargement automatique
   bun run build          build → .output/chrome-mv3/ (à charger dans chrome://extensions)
-  bun run ci             toutes les vérifications, avant chaque push
+  bun run check:config   valide les fichiers de réglage (JSON, YAML, versions de Bun, modèles d'issue)
+  bun run ci             toutes les vérifications (dont check:config), avant chaque push
+Maintenance de l'environnement : https://github.com/Foufou-exe/homebox-companion/wiki/Maintaining-the-dev-environment
 Guide de contribution : CONTRIBUTING.md
 MSG

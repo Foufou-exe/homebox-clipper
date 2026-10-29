@@ -120,6 +120,7 @@ function toDocuments(urls: string[], orderNumber: string | null): DocumentRef[] 
 
 export const amazonFrExtractor: MerchantExtractor = {
   id: 'amazon.fr',
+  domains: [new URL(AMAZON_FR_ORIGIN).hostname],
 
   matchesUrl(url) {
     return url.origin === AMAZON_FR_ORIGIN;

@@ -1,0 +1,28 @@
+name: Modèle factice
+description: factice
+labels: ["merchant: request"]
+body:
+  - type: input
+    id: nom-marchand
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: domaines
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: pays
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: factures
+    attributes:
+      label: Champ
+    validations:
+      required: true

@@ -2,6 +2,9 @@ name: Idée de fonctionnalité
 description: Proposer une amélioration
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: "Ne joignez jamais de page brute d'un site marchand, de clé API, d'adresse réelle d'instance (publique ou locale) ni de donnée personnelle."
   - type: textarea
     id: besoin
     attributes:

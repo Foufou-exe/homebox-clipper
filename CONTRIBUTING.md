@@ -50,15 +50,27 @@ l'enregistrement. Les tâches courantes sont dans *Terminal → Run Task*
 
 ## Commandes
 
+Chaque commande se lance avec `bun run <script>`.
+
 | Commande | Rôle |
 |----------|------|
 | `bun run setup` | Préparation du poste (relançable sans risque) |
 | `bun run dev` | Mode dev avec rechargement automatique |
 | `bun run build` | Build → `.output/chrome-mv3/` |
-| `bun run ci` | **Toutes les vérifications** : typecheck, lint, tests, build, manifeste |
-| `bun run test` / `bun run test:watch` | Tests (Vitest, **pas** `bun test`) |
-| `bun run homebox:up` / `homebox:down` / `homebox:logs` | Instance HomeBox locale |
+| `bun run zip` | Archive prête à publier |
+| `bun run test` | Tests unitaires et de contrat (Vitest, **pas** `bun test`) |
+| `bun run test:watch` | Tests en continu |
+| `bun run test:build` | Vérifie le manifeste produit (permissions, CSP), après `bun run build` |
+| `bun run typecheck` | Vérification des types (`vue-tsc`) |
+| `bun run lint` | ESLint |
+| `bun run check:config` | Valide les fichiers de réglage : JSON/YAML, version de Bun identique partout, modèles d'issue et étiquettes |
+| `bun run ci` | **Toutes les vérifications** : `check:config`, typecheck, lint, tests, build, manifeste |
+| `bun run homebox:up` | Démarre l'instance HomeBox locale |
+| `bun run homebox:down` | Arrête l'instance HomeBox locale |
+| `bun run homebox:logs` | Suit les journaux de HomeBox |
 | `bun run icons` | Régénère `public/icon/*.png` depuis `src/assets/logo.svg` |
+| `bun run release:notes` | Affiche la section d'une version de `CHANGELOG.md` (voir « Changelog ») |
+| `bun run wiki:publish` | Publie `docs/wiki/` vers le wiki GitHub (action manuelle, voir « Documentation et wiki ») |
 
 `bun run dev` se personnalise avec un fichier local `web-ext.config.ts` : autre navigateur, pas
 de navigateur, page de démarrage. Voir `web-ext.config.example.ts`.
@@ -85,11 +97,11 @@ Les principes complets sont dans la constitution du projet. Les essentiels :
 - **Confirmation explicite** : aucune écriture dans HomeBox sans clic de l'utilisateur.
 - **Permissions minimales** : toute modification du manifeste (permissions, CSP) doit être
   signalée et justifiée dans la PR. `bun run test:build` vérifie le manifeste produit.
-- **Sélecteurs Amazon** : uniquement dans `src/content/merchants/amazon-fr/selectors.ts`, avec
-  plusieurs sélecteurs par champ.
+- **Sélecteurs d'un marchand** : uniquement dans le `selectors.ts` de son dossier (par exemple
+  `src/content/merchants/amazon-fr/selectors.ts`), avec plusieurs sélecteurs par champ.
 - **Tests** : chaque extracteur est testé sur des pages **anonymisées**
-  (`tests/fixtures/amazon-fr/`, procédure dans le README de ce dossier). **Ne commitez jamais**
-  de page Amazon brute, de clé API, de pepper ni d'adresse d'instance réelle.
+  (par exemple `tests/fixtures/amazon-fr/`, procédure dans le README de ce dossier). **Ne commitez jamais**
+  de page brute d'un marchand, de clé API, de pepper ni d'adresse d'instance réelle.
 
 ## Cas fréquents
 
@@ -104,8 +116,52 @@ HomeBox, ni l'interface n'ont à changer.
 **Modifier l'interface** : les couleurs sont des variables CSS dans `src/ui/theme.css`.
 Vérifiez vos changements dans les thèmes clair et sombre.
 
+## Changelog
+
+Toute évolution visible par un utilisateur est ajoutée à la section `[Unreleased]` de
+[CHANGELOG.md](CHANGELOG.md) (format [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/)),
+dans la même PR. `bun run release:notes Unreleased` affiche cette section ; la procédure de
+publication est dans le wiki : [Releasing](https://github.com/Foufou-exe/homebox-companion/wiki/Releasing).
+
+## Marchands pris en charge
+
+L'extension vise **tous les sites marchands**, pas seulement Amazon. La liste des marchands est
+dans [MERCHANTS.md](MERCHANTS.md), tenue à la main et vérifiée par un test contre
+`src/content/merchants/registry.ts` : ajoutez votre marchand au registre, puis mettez à jour `MERCHANTS.md`.
+Pas à pas : [Adding-a-merchant](https://github.com/Foufou-exe/homebox-companion/wiki/Adding-a-merchant) et [Supported-merchants](https://github.com/Foufou-exe/homebox-companion/wiki/Supported-merchants).
+
+## Traductions
+
+Tous les textes visibles passent par `t()` (clés du catalogue `src/locales/fr.yml`) : aucun texte
+en dur dans les composants. Le catalogue est pour l'instant uniquement français ; l'anglais est
+prévu dans une étape ultérieure. Détails : [Translations](https://github.com/Foufou-exe/homebox-companion/wiki/Translations).
+
+## Documentation et wiki
+
+Les pages du wiki vivent dans `docs/wiki/` (en français) et sont revues comme le reste du code.
+`bun run wiki:publish` les pousse vers le wiki GitHub ; c'est une action manuelle, à ne lancer
+qu'avec l'accord du mainteneur. Les liens du wiki vers des fichiers du dépôt sont des URL
+absolues (`blob/main`).
+
+## Maintenir l'environnement de dev
+
+Quand Bun, Node, HomeBox, une extension VS Code ou WXT change, plusieurs fichiers doivent évoluer
+ensemble. La liste de contrôle est dans le wiki :
+[Maintaining-the-dev-environment](https://github.com/Foufou-exe/homebox-companion/wiki/Maintaining-the-dev-environment), et
+`bun run check:config` détecte une partie des oublis. Les modèles d'issue et `labels.yml` ne
+déclenchent pas la CI GitHub : `bun run ci` en local est leur seule garde.
+
 ## Signaler un problème
 
-Utilisez les modèles d'issue. Pour une page Amazon mal détectée, indiquez le type de commande
-(vendeur Amazon ou tiers, plusieurs articles…) et le champ concerné, **sans** joindre la page
-brute.
+Utilisez les modèles d'issue : bug, suggestion, **page de marchand mal détectée** ou **demande de
+nouveau marchand**. Pour une détection erronée, indiquez le marchand, le type de commande (vendeur
+tiers, plusieurs articles…) et le champ concerné, **sans** joindre la page brute.
+
+Pour une **vulnérabilité**, n'ouvrez pas d'issue publique : suivez [SECURITY.md](SECURITY.md).
+Mainteneur : activez *Private vulnerability reporting* dans *Settings → Code security* du dépôt si
+le dépôt le permet ; sinon, le repli décrit dans `SECURITY.md` s'applique.
+
+## Aller plus loin
+
+Le [wiki](https://github.com/Foufou-exe/homebox-companion/wiki/Home) détaille l'[architecture](https://github.com/Foufou-exe/homebox-companion/wiki/Architecture), les
+[tests et fixtures](https://github.com/Foufou-exe/homebox-companion/wiki/Testing-and-fixtures) et la [configuration](https://github.com/Foufou-exe/homebox-companion/wiki/Configuration).
