@@ -8,6 +8,8 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/labels.yml'
       - '.env.example'
       - 'compose.yaml'
   workflow_dispatch:

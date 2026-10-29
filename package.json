@@ -14,12 +14,15 @@
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
     "test:build": "vitest run --config vitest.build.config.ts",
-    "ci": "bun run typecheck && bun run lint && bun run test && bun run build && bun run test:build",
+    "check:config": "bun scripts/check-config.ts",
+    "ci": "bun run check:config && bun run typecheck && bun run lint && bun run test && bun run build && bun run test:build",
     "setup": "sh scripts/setup.sh",
     "homebox:up": "docker compose up -d",
     "homebox:down": "docker compose down",
     "homebox:logs": "docker compose logs -f homebox",
-    "icons": "sh scripts/gen-icons.sh"
+    "icons": "sh scripts/gen-icons.sh",
+    "release:notes": "bun scripts/release-notes.ts",
+    "wiki:publish": "sh scripts/publish-wiki.sh"
   },
   "dependencies": {
     "vue": "^3.5.44"

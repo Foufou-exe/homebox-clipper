@@ -1,21 +1,44 @@
-# Security Policy
+# Politique de sécurité
 
-## Supported Versions
+## Versions prises en charge
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Seule la **dernière version publiée** reçoit les correctifs de sécurité. Mettez l'extension à jour
+avant de signaler un problème.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+## Signaler une vulnérabilité
 
-## Reporting a Vulnerability
+Ne signalez pas une vulnérabilité dans une issue publique.
 
-Use this section to tell people how to report a vulnerability.
+1. **Signalement privé GitHub** : onglet *Security → Report a vulnerability* du dépôt, lorsque cette
+   option est disponible (elle peut ne pas l'être tant que le dépôt est privé).
+2. **Repli** : contactez le mainteneur en privé via les moyens de contact indiqués sur son profil
+   GitHub : <https://github.com/Foufou-exe>.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+## Informations utiles à fournir
+
+- la version de l'extension et celle de Chrome ;
+- une description du problème et son impact ;
+- les étapes pour le reproduire ;
+- si possible, une piste de correction.
+
+Ne joignez jamais de clé API, d'adresse réelle d'instance (publique ou locale), de page brute d'un
+site marchand ni de donnée personnelle.
+
+## Délais
+
+Vous recevrez une première réponse sous **7 jours** environ (délai indicatif, projet maintenu
+bénévolement). Le mainteneur indiquera ensuite si le signalement est retenu ou non, et le suivi.
+
+## Périmètre
+
+Sont concernés :
+
+- la clé API et son chiffrement ;
+- le stockage de l'extension ;
+- la messagerie interne de l'extension ;
+- les permissions du manifeste ;
+- les données d'achat traitées par l'extension.
+
+## Hors périmètre
+
+Les failles de **HomeBox** lui-même : signalez-les en amont, auprès du projet HomeBox.

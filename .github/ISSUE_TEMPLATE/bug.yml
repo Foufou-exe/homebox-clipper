@@ -1,7 +1,10 @@
-name: Bug
+name: Signaler un bug
 description: Un comportement incorrect de l'extension
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: "Ne joignez jamais de page brute d'un site marchand, de clé API, d'adresse réelle d'instance (publique ou locale) ni de donnée personnelle."
   - type: textarea
     id: etapes
     attributes:
@@ -10,7 +13,7 @@ body:
     validations:
       required: true
   - type: textarea
-    id: attendu
+    id: attendu-obtenu
     attributes:
       label: Résultat attendu / obtenu (message d'erreur exact)
     validations:
@@ -20,6 +23,5 @@ body:
     attributes:
       label: Versions
       placeholder: "Extension 0.1.0, HomeBox v0.27.0, Chrome 140"
-  - type: markdown
-    attributes:
-      value: "Ne collez jamais votre clé API ni l'adresse publique de votre instance."
+    validations:
+      required: true

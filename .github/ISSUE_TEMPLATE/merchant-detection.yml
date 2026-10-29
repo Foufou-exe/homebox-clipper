@@ -1,0 +1,41 @@
+name: Page marchand mal détectée
+description: Un champ (produit, prix, date, facture…) n'est pas ou mal détecté sur un site marchand
+labels: ["merchant: detection"]
+body:
+  - type: markdown
+    attributes:
+      value: "Ne joignez jamais de page brute d'un site marchand, de clé API, d'adresse réelle d'instance (publique ou locale) ni de donnée personnelle."
+  - type: input
+    id: marchand-domaine
+    attributes:
+      label: Marchand / domaine
+      placeholder: "Nom du marchand et domaine (ex. exemple.fr)"
+    validations:
+      required: true
+  - type: dropdown
+    id: champs
+    attributes:
+      label: Champ(s) concerné(s)
+      multiple: true
+      options: [Nom du produit, Prix, Devise, Date, N° de commande, Vendeur, Quantité, Image, Facture, Autre]
+    validations:
+      required: true
+  - type: dropdown
+    id: type-commande
+    attributes:
+      label: Type de commande
+      multiple: true
+      options: [Vendu par le marchand, Vendeur tiers, Plusieurs articles, Plusieurs expéditions, Commande numérique, Autre]
+    validations:
+      required: true
+  - type: textarea
+    id: constat
+    attributes:
+      label: Ce qui est affiché / ce qui était attendu
+  - type: input
+    id: version-extension
+    attributes:
+      label: Version de l'extension
+      placeholder: "0.1.0 (chrome://extensions)"
+    validations:
+      required: true

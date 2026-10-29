@@ -1,0 +1,28 @@
+name: Modèle factice
+description: factice
+labels: ["merchant: detection"]
+body:
+  - type: input
+    id: marchand-domaine
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: champs
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: type-commande
+    attributes:
+      label: Champ
+    validations:
+      required: true
+  - type: input
+    id: version-extension
+    attributes:
+      label: Champ
+    validations:
+      required: true

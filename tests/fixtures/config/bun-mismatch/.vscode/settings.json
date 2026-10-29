@@ -1,0 +1,4 @@
+{
+  // JSONC : commentaires et virgules finales acceptés
+  "editor.formatOnSave": true,
+}

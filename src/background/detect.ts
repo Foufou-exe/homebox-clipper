@@ -1,4 +1,4 @@
-import { amazonFrExtractor } from '@/content/merchants/amazon-fr/extractor';
+import { MERCHANTS } from '@/content/merchants/registry';
 import { browser } from '@/platform';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { sendToTab, type DetectResult } from '@/shared/messages';
@@ -25,7 +25,7 @@ export async function detect(tabId: number): Promise<Result<DetectResult>> {
   } catch {
     return fail('NOT_AN_ORDER_PAGE');
   }
-  if (!amazonFrExtractor.matchesUrl(url)) return fail('NOT_AN_ORDER_PAGE');
+  if (!MERCHANTS.find((m) => m.matchesUrl(url))) return fail('NOT_AN_ORDER_PAGE');
 
   if (!(await injectExtractor(tabId))) return fail('NOT_AN_ORDER_PAGE');
 
