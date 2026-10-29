@@ -4,7 +4,7 @@ Ce guide monte une instance HomeBox de développement avec Docker Compose. Ses d
 le dossier `homebox/` du dépôt : c'est la configuration utilisée pour développer l'extension.
 
 ```
-homebox-companion/
+homebox-clipper/
 ├── compose.yaml      instance HomeBox de dev
 ├── .env              votre pepper HomeBox (ignoré par git)
 ├── homebox/          données HomeBox : base SQLite + pièces jointes (ignoré par git)
@@ -17,7 +17,7 @@ homebox-companion/
 
 - Docker avec le plugin Compose (`docker compose version`).
 - `openssl` pour générer le secret.
-- Le dépôt installé (`bun install`), voir le [README](https://github.com/Foufou-exe/homebox-companion/blob/main/README.md#installation).
+- Le dépôt installé (`bun install`), voir le [README](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.md#installation).
 
 ## 1. Préparer le secret (pepper)
 
@@ -77,7 +77,7 @@ curl -s http://localhost:3100/api/v1/status
 
 1. Ouvrez <http://localhost:3100> et créez un compte (une adresse fictive suffit, par exemple
    `dev@example.com`).
-2. **Profil → Clés API** → créez une clé nommée `homebox-companion-dev`, avec une date d'expiration.
+2. **Profil → Clés API** → créez une clé nommée `homebox-clipper-dev`, avec une date d'expiration.
 3. Copiez la clé `hb_…` : elle ne sera plus affichée ensuite.
 
 ## 4. Brancher l'extension

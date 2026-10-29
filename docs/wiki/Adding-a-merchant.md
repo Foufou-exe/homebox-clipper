@@ -62,11 +62,11 @@ service worker retient le premier extracteur dont `matchesUrl` est vrai pour l'o
 
 ## 6. Mettre à jour `MERCHANTS.md`
 
-Ajoutez une ligne dans la section « Supported » (ou « Partial ») de [MERCHANTS.md](https://github.com/Foufou-exe/homebox-companion/blob/main/MERCHANTS.md) : marchand,
+Ajoutez une ligne dans la section « Supported » (ou « Partial ») de [MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md) : marchand,
 domaines, pays, champs détectés, version, limites. Un test échoue si un extracteur du registre n'y figure pas
 (l'un de ses domaines doit apparaître dans une ligne des sections Supported ou Partial). Les identifiants de
 statut (`Supported`, `Partial`, `In progress`, `Planned`, `Requested`) restent en anglais. Ajoutez aussi une
-entrée « Added » dans le [journal des modifications](https://github.com/Foufou-exe/homebox-companion/blob/main/CHANGELOG.md).
+entrée « Added » dans le [journal des modifications](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md).
 
 ## 7. Clés de traduction
 

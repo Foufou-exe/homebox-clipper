@@ -147,7 +147,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
 
   it('AppHeader', () => {
     const wrapper = mount(AppHeader, { props: { subtitle: DATA } });
-    expect(wrapper.find('.name').text()).toBe('HomeBox Companion');
+    expect(wrapper.find('.name').text()).toBe('HomeBox Clipper');
     expectCatalogTexts(wrapper, []);
   });
 

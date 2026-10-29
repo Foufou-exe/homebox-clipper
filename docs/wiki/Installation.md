@@ -17,8 +17,8 @@ en mode développeur.
 ## Compiler
 
 ```bash
-git clone https://github.com/Foufou-exe/homebox-companion.git
-cd homebox-companion
+git clone https://github.com/Foufou-exe/homebox-clipper.git
+cd homebox-clipper
 bun install
 bun run build      # produit .output/chrome-mv3/
 ```
@@ -55,5 +55,5 @@ dans les options, qui retire également l'autorisation d'accès accordée à vot
 ## Pour développer
 
 Voir [Maintaining-the-dev-environment](Maintaining-the-dev-environment.md) et le
-[guide de contribution](https://github.com/Foufou-exe/homebox-companion/blob/main/CONTRIBUTING.md) : `bun run dev` lance un Chrome de développement avec
+[guide de contribution](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md) : `bun run dev` lance un Chrome de développement avec
 rechargement automatique.

@@ -1,5 +1,5 @@
 # Catalogue de l'interface (étape A : français seul, langue par défaut). Voir contracts/locales.md.
-extName: "HomeBox Companion"
+extName: "HomeBox Clipper"
 extDescription: "Importez vos achats en ligne dans votre inventaire HomeBox, avec leurs factures, après votre confirmation."
 
 error:
@@ -38,7 +38,7 @@ common:
 
 header:
   brand: "HomeBox"
-  companion: "Companion"
+  clipper: "Clipper"
 
 theme:
   auto: "Automatique (système)"
@@ -76,7 +76,7 @@ documents:
   replaceDetected: "Remplacer la facture détectée"
 
 popup:
-  pageTitle: "homebox-companion"
+  pageTitle: "homebox-clipper"
   lockAria: "Verrouiller la clé API"
   lockTitle: "Verrouiller"
   optionsLabel: "Configuration"
@@ -143,7 +143,7 @@ unlock:
   busy: "Déverrouillage…"
 
 options:
-  pageTitle: "homebox-companion — Configuration"
+  pageTitle: "homebox-clipper — Configuration"
   subtitle: "Configuration"
   title: "Instance HomeBox"
   intro: "L’extension communique uniquement avec votre instance HomeBox. La clé API est chiffrée avec votre phrase de passe et stockée localement dans ce navigateur ; elle n’est jamais envoyée ailleurs."

@@ -10,7 +10,7 @@ defineProps<{ subtitle?: string }>();
     <div class="brand">
       <img :src="logo" alt="" width="28" height="28" />
       <div>
-        <span class="name">{{ t('header.brand') }} <span class="companion">{{ t('header.companion') }}</span></span>
+        <span class="name">{{ t('header.brand') }} <span class="clipper">{{ t('header.clipper') }}</span></span>
         <span v-if="subtitle" class="subtitle">{{ subtitle }}</span>
       </div>
     </div>
@@ -43,7 +43,7 @@ defineProps<{ subtitle?: string }>();
   letter-spacing: -0.01em;
   color: #fff;
 }
-.companion {
+.clipper {
   font-weight: 500;
   color: var(--header-fg);
 }

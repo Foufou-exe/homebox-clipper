@@ -55,7 +55,7 @@ d'apparition.
 
 | Message affiché | Code | Cause probable | Solution |
 |-----------------|------|----------------|----------|
-| Erreur interne de l’extension. | `BAD_MESSAGE` | Message interne invalide, import introuvable, ou erreur inattendue. | Rechargez l'extension (↻ dans `chrome://extensions`) puis rouvrez la page. Si cela persiste, [ouvrez une issue](https://github.com/Foufou-exe/homebox-companion/issues). |
+| Erreur interne de l’extension. | `BAD_MESSAGE` | Message interne invalide, import introuvable, ou erreur inattendue. | Rechargez l'extension (↻ dans `chrome://extensions`) puis rouvrez la page. Si cela persiste, [ouvrez une issue](https://github.com/Foufou-exe/homebox-clipper/issues). |
 
 ## FAQ
 

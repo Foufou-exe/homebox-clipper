@@ -1,5 +1,5 @@
 {
-  "name": "homebox-companion",
+  "name": "homebox-clipper",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:4-24-bookworm",
   "features": {
     // Démon Docker propre au conteneur : `bun run homebox:up` y lance l'instance HomeBox.

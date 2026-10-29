@@ -28,6 +28,7 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 - **Action requise :** build unique ; retirer l'ancienne extension « homelab » du navigateur puis reconfigurer l'extension (PR #5).
 - HTTP n'est accepté que pour les adresses du réseau local ; HTTPS est exigé ailleurs (PR #5).
 - La note HomeBox d'un objet importé (« Commande Amazon.fr : <n°> ») est construite à partir du catalogue de traduction (PR #9).
+- **Action requise :** le projet est renommé **homebox-clipper** (nom affiché « HomeBox Clipper »), pour éviter la confusion avec un autre projet du même nom ; mettez à jour l'adresse du dépôt (`git remote set-url origin …/homebox-clipper.git`).
 - `README.md` réécrit en version courte et multi-marchands ; le détail est dans le wiki.
 - Modèles d'issue généralisés à tous les marchands (l'ancien modèle « page mal détectée » est remplacé).
 
@@ -48,5 +49,5 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 - Téléchargement et rattachement de la facture PDF.
 - Détection des doublons.
 
-[Unreleased]: https://github.com/Foufou-exe/homebox-companion/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Foufou-exe/homebox-companion/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Foufou-exe/homebox-clipper/releases/tag/v0.1.0

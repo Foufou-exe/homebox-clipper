@@ -1,5 +1,5 @@
 #!/bin/sh
-# Prépare un poste (ou un conteneur) pour contribuer à homebox-companion.
+# Prépare un poste (ou un conteneur) pour contribuer à homebox-clipper.
 #   sh scripts/setup.sh              poste local (interactif)
 #   sh scripts/setup.sh --container  conteneur de développement (pas de navigateur)
 #   sh scripts/setup.sh --hook       installe aussi le hook pre-push sans le demander
@@ -75,6 +75,6 @@ Prêt. Ensuite :
   bun run build          build → .output/chrome-mv3/ (à charger dans chrome://extensions)
   bun run check:config   valide les fichiers de réglage (JSON, YAML, versions de Bun, modèles d'issue)
   bun run ci             toutes les vérifications (dont check:config), avant chaque push
-Maintenance de l'environnement : https://github.com/Foufou-exe/homebox-companion/wiki/Maintaining-the-dev-environment
+Maintenance de l'environnement : https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment
 Guide de contribution : CONTRIBUTING.md
 MSG

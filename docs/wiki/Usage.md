@@ -85,4 +85,4 @@ Le popup suit le thème du système par défaut. Le bouton de la barre d'en-têt
 - HomeBox enregistre un montant sans devise : pour un achat dans une autre devise que l'euro, l'extension
   vous prévient (« Devise détectée : … ») mais ne convertit pas.
 - La détection dépend du HTML d'Amazon, qui change régulièrement : en cas de champ non détecté, utilisez la
-  saisie manuelle et [signalez la page mal détectée](https://github.com/Foufou-exe/homebox-companion/issues).
+  saisie manuelle et [signalez la page mal détectée](https://github.com/Foufou-exe/homebox-clipper/issues).

@@ -42,6 +42,6 @@ Le script est testé par `tests/unit/check-config.test.ts`, sur des dépôts fac
 
 ## Voir aussi
 
-- [Guide de contribution](https://github.com/Foufou-exe/homebox-companion/blob/main/CONTRIBUTING.md)
+- [Guide de contribution](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
 - [Local-HomeBox-instance](Local-HomeBox-instance.md)
 - [Releasing](Releasing.md)

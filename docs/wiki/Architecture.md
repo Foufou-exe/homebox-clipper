@@ -1,6 +1,6 @@
 # Architecture
 
-HomeBox Companion est une extension Manifest V3 construite avec [WXT](https://wxt.dev) (base Vite),
+HomeBox Clipper est une extension Manifest V3 construite avec [WXT](https://wxt.dev) (base Vite),
 [Vue 3](https://vuejs.org) et TypeScript strict. Le code est découpé en couches qui ne se connaissent que
 par des contrats typés : ajouter un marchand ne touche ni le client HomeBox ni l'interface.
 
@@ -93,4 +93,4 @@ clé `summary.orderNote`). Les clés sont typées à partir de `fr.yml` et véri
 - Permissions minimales et build unique ; toute modification du manifeste doit être justifiée en pull request.
 
 Les principes complets sont dans la constitution du projet, résumés dans le
-[guide de contribution](https://github.com/Foufou-exe/homebox-companion/blob/main/CONTRIBUTING.md). Pour étendre le code : [Adding-a-merchant](Adding-a-merchant.md).
+[guide de contribution](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md). Pour étendre le code : [Adding-a-merchant](Adding-a-merchant.md).

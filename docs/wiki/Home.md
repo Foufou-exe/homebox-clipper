@@ -1,6 +1,6 @@
-# HomeBox Companion : le wiki
+# HomeBox Clipper : le wiki
 
-**HomeBox Companion** est une extension Chrome (Manifest V3) qui transforme un achat en ligne en objet
+**HomeBox Clipper** est une extension Chrome (Manifest V3) qui transforme un achat en ligne en objet
 d'inventaire [HomeBox](https://github.com/sysadminsmedia/homebox), facture PDF comprise, après votre
 confirmation. Elle fonctionne aujourd'hui avec **Amazon.fr** (page « Détails de la commande ») et
 parle uniquement à **votre** instance HomeBox auto-hébergée (API testée avec la v0.27).
@@ -28,11 +28,11 @@ parle uniquement à **votre** instance HomeBox auto-hébergée (API testée avec
 
 ## Liens utiles
 
-- [README du dépôt](https://github.com/Foufou-exe/homebox-companion/blob/main/README.md)
-- [Guide de contribution](https://github.com/Foufou-exe/homebox-companion/blob/main/CONTRIBUTING.md)
-- [Journal des modifications](https://github.com/Foufou-exe/homebox-companion/blob/main/CHANGELOG.md)
-- [Marchands pris en charge](https://github.com/Foufou-exe/homebox-companion/blob/main/MERCHANTS.md)
-- [Politique de sécurité](https://github.com/Foufou-exe/homebox-companion/blob/main/SECURITY.md)
+- [README du dépôt](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.md)
+- [Guide de contribution](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
+- [Journal des modifications](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md)
+- [Marchands pris en charge](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md)
+- [Politique de sécurité](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md)
 
 La navigation complète est dans la barre latérale. Le contenu de ce wiki est versionné dans le
 dépôt, dans `docs/wiki/` : pour le corriger, ouvrez une pull request plutôt que de modifier la page
