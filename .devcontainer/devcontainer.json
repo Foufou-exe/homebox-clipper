@@ -1,6 +1,6 @@
 {
   "name": "homebox-companion",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-24-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:4-24-bookworm",
   "features": {
     // Démon Docker propre au conteneur : `bun run homebox:up` y lance l'instance HomeBox.
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
@@ -19,7 +19,15 @@
         "esbenp.prettier-vscode",
         "vitest.explorer",
         "EditorConfig.EditorConfig",
-        "oven.bun-vscode"
+        "oven.bun-vscode",
+        "fill-labs.dependi",
+        "usernamehw.errorlens",
+        "yzhang.markdown-all-in-one",
+        "DavidAnson.vscode-markdownlint",
+        "christian-kohler.npm-intellisense",
+        "piotrpalarz.vscode-gitignore-generator",
+        "steoates.autoimport",
+        "Blodwynn.featurehighlight"
       ]
     }
   }
