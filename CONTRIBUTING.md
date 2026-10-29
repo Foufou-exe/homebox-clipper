@@ -1,4 +1,4 @@
-# Contribuer à homebox-companion
+# Contribuer à homebox-clipper
 
 Merci de votre intérêt ! Ce guide permet d'être opérationnel en quelques minutes.
 
@@ -7,8 +7,8 @@ Merci de votre intérêt ! Ce guide permet d'être opérationnel en quelques min
 **Option A : sur votre poste**
 
 ```bash
-git clone https://github.com/Foufou-exe/homebox-companion.git
-cd homebox-companion
+git clone https://github.com/Foufou-exe/homebox-clipper.git
+cd homebox-clipper
 mise install          # facultatif : installe Bun et Node aux versions du projet (mise.toml)
 bun run setup         # dépendances, .env de l'instance HomeBox, hook pre-push (au choix)
 bun run homebox:up    # HomeBox sur http://localhost:3100
@@ -121,20 +121,20 @@ Vérifiez vos changements dans les thèmes clair et sombre.
 Toute évolution visible par un utilisateur est ajoutée à la section `[Unreleased]` de
 [CHANGELOG.md](CHANGELOG.md) (format [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/)),
 dans la même PR. `bun run release:notes Unreleased` affiche cette section ; la procédure de
-publication est dans le wiki : [Releasing](https://github.com/Foufou-exe/homebox-companion/wiki/Releasing).
+publication est dans le wiki : [Releasing](https://github.com/Foufou-exe/homebox-clipper/wiki/Releasing).
 
 ## Marchands pris en charge
 
 L'extension vise **tous les sites marchands**, pas seulement Amazon. La liste des marchands est
 dans [MERCHANTS.md](MERCHANTS.md), tenue à la main et vérifiée par un test contre
 `src/content/merchants/registry.ts` : ajoutez votre marchand au registre, puis mettez à jour `MERCHANTS.md`.
-Pas à pas : [Adding-a-merchant](https://github.com/Foufou-exe/homebox-companion/wiki/Adding-a-merchant) et [Supported-merchants](https://github.com/Foufou-exe/homebox-companion/wiki/Supported-merchants).
+Pas à pas : [Adding-a-merchant](https://github.com/Foufou-exe/homebox-clipper/wiki/Adding-a-merchant) et [Supported-merchants](https://github.com/Foufou-exe/homebox-clipper/wiki/Supported-merchants).
 
 ## Traductions
 
 Tous les textes visibles passent par `t()` (clés du catalogue `src/locales/fr.yml`) : aucun texte
 en dur dans les composants. Le catalogue est pour l'instant uniquement français ; l'anglais est
-prévu dans une étape ultérieure. Détails : [Translations](https://github.com/Foufou-exe/homebox-companion/wiki/Translations).
+prévu dans une étape ultérieure. Détails : [Translations](https://github.com/Foufou-exe/homebox-clipper/wiki/Translations).
 
 ## Documentation et wiki
 
@@ -147,7 +147,7 @@ absolues (`blob/main`).
 
 Quand Bun, Node, HomeBox, une extension VS Code ou WXT change, plusieurs fichiers doivent évoluer
 ensemble. La liste de contrôle est dans le wiki :
-[Maintaining-the-dev-environment](https://github.com/Foufou-exe/homebox-companion/wiki/Maintaining-the-dev-environment), et
+[Maintaining-the-dev-environment](https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment), et
 `bun run check:config` détecte une partie des oublis. Les modèles d'issue et `labels.yml` ne
 déclenchent pas la CI GitHub : `bun run ci` en local est leur seule garde.
 
@@ -163,5 +163,5 @@ le dépôt le permet ; sinon, le repli décrit dans `SECURITY.md` s'applique.
 
 ## Aller plus loin
 
-Le [wiki](https://github.com/Foufou-exe/homebox-companion/wiki/Home) détaille l'[architecture](https://github.com/Foufou-exe/homebox-companion/wiki/Architecture), les
-[tests et fixtures](https://github.com/Foufou-exe/homebox-companion/wiki/Testing-and-fixtures) et la [configuration](https://github.com/Foufou-exe/homebox-companion/wiki/Configuration).
+Le [wiki](https://github.com/Foufou-exe/homebox-clipper/wiki/Home) détaille l'[architecture](https://github.com/Foufou-exe/homebox-clipper/wiki/Architecture), les
+[tests et fixtures](https://github.com/Foufou-exe/homebox-clipper/wiki/Testing-and-fixtures) et la [configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration).

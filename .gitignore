@@ -188,7 +188,7 @@ dist
 /homebox/
 specs/
 
-# homebox-companion
+# homebox-clipper
 .output/
 .wxt/
 node_modules/

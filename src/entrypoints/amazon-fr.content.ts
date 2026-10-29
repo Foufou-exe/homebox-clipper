@@ -12,9 +12,9 @@ export default defineContentScript({
   matches: ['https://www.amazon.fr/*'],
   registration: 'runtime',
   main() {
-    const flag = window as unknown as { __homeboxCompanion?: boolean };
-    if (flag.__homeboxCompanion) return;
-    flag.__homeboxCompanion = true;
+    const flag = window as unknown as { __homeboxClipper?: boolean };
+    if (flag.__homeboxClipper) return;
+    flag.__homeboxClipper = true;
 
     browser.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
       if (sender.id !== browser.runtime.id || sender.tab !== undefined || !isMessage(raw)) return false;

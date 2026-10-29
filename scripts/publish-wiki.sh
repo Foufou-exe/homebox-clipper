@@ -9,8 +9,8 @@
 # et que la première page du wiki ait déjà été créée depuis l'interface GitHub.
 set -eu
 
-REPO_URL="https://github.com/Foufou-exe/homebox-companion"
-WIKI_REMOTE="git@github.com:Foufou-exe/homebox-companion.wiki.git"
+REPO_URL="https://github.com/Foufou-exe/homebox-clipper"
+WIKI_REMOTE="git@github.com:Foufou-exe/homebox-clipper.wiki.git"
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 WIKI="$ROOT/docs/wiki"

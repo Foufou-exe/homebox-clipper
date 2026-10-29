@@ -1,8 +1,8 @@
 # Marchands pris en charge
 
-HomeBox Companion vise à terme les boutiques en ligne en général. Cette page résume l'état actuel ; la
+HomeBox Clipper vise à terme les boutiques en ligne en général. Cette page résume l'état actuel ; la
 liste complète, tenue à jour à chaque ajout de marchand, est dans
-[MERCHANTS.md](https://github.com/Foufou-exe/homebox-companion/blob/main/MERCHANTS.md).
+[MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md).
 
 ## En bref
 
@@ -12,7 +12,7 @@ liste complète, tenue à jour à chaque ajout de marchand, est dans
 
 D'autres marchands (Amazon Allemagne, Espagne, Italie, États-Unis, eBay, Fnac, Darty, Boulanger,
 Leroy Merlin…) figurent sur la feuille de route, sans date. Le statut de chacun est dans
-[MERCHANTS.md](https://github.com/Foufou-exe/homebox-companion/blob/main/MERCHANTS.md).
+[MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md).
 
 ## Comment l'extension choisit un marchand
 
@@ -25,7 +25,7 @@ son script. Si aucun marchand ne correspond, l'extension propose la saisie manue
 ## Votre boutique manque ?
 
 - **La demander** : ouvrez une issue avec le modèle « marchand » du dépôt
-  ([issues](https://github.com/Foufou-exe/homebox-companion/issues)).
+  ([issues](https://github.com/Foufou-exe/homebox-clipper/issues)).
 - **L'ajouter vous-même** : voir [Adding-a-merchant](Adding-a-merchant.md). Ni le client HomeBox, ni
   l'orchestrateur d'import, ni l'interface n'ont à changer.
 - **Une page Amazon mal détectée ?** Signalez-la sans joindre la page brute (elle contient vos données

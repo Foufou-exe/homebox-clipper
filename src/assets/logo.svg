@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="homebox-companion">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="homebox-clipper">
   <!-- Boîte : logo HomeBox (https://github.com/sysadminsmedia/homebox, AGPL-3.0), non modifié -->
   <g transform="translate(16 70) scale(0.0805)" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:5.42683">
     <path d="M9310.16 2560.9c245.302 249.894 419.711 539.916 565.373 845.231 47.039 98.872 36.229 215.514-28.2 304.05-64.391 88.536-172.099 134.676-280.631 120.28 0 .053-.039.053-.039.053" style="fill:gray;stroke:#000;stroke-width:206.41px"/>
@@ -11,7 +11,7 @@
   <path d="M5443.76 9041.74v-4278.4" style="fill:none;stroke:#000;stroke-width:206.44px;stroke-linejoin:miter"/>
   <path d="m5471.79 4773.86 3829.35-2188.22" style="fill:none;stroke:#000;stroke-width:206.43px;stroke-linejoin:miter"/>
   </g>
-  <!-- Pastille « ajout » propre à homebox-companion -->
+  <!-- Pastille « ajout » propre à homebox-clipper -->
   <g transform="translate(790 790)">
     <circle r="214" fill="#ffffff"/>
     <circle r="178" fill="#567f67" stroke="#000" stroke-width="16"/>

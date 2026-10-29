@@ -1,7 +1,7 @@
 # Publier une version
 
 Procédure **locale** (aucune minute de GitHub Actions n'est consommée), réservée au mainteneur. Le format
-du [journal des modifications](https://github.com/Foufou-exe/homebox-companion/blob/main/CHANGELOG.md) est celui de
+du [journal des modifications](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md) est celui de
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), la numérotation suit
 [SemVer](https://semver.org).
 

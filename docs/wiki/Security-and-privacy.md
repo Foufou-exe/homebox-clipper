@@ -2,7 +2,7 @@
 
 La clé API HomeBox donne accès à tout votre inventaire : sa protection est le principe central du projet.
 Cette page décrit ce que l'extension fait, ce qu'elle ne fait pas, et ses limites. Pour signaler une
-vulnérabilité, voir la [politique de sécurité](https://github.com/Foufou-exe/homebox-companion/blob/main/SECURITY.md).
+vulnérabilité, voir la [politique de sécurité](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md).
 
 ## Ce que la clé API ne fait jamais
 

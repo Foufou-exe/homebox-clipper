@@ -1,9 +1,9 @@
 # Marchands pris en charge
 
-homebox-companion vise à prendre en charge les boutiques en ligne en général, pas seulement Amazon.
+homebox-clipper vise à prendre en charge les boutiques en ligne en général, pas seulement Amazon.
 Cette page liste ce qui fonctionne aujourd'hui et ce qui est prévu. Votre boutique n'y figure pas ?
-[Demandez-la](https://github.com/Foufou-exe/homebox-companion/issues/new?template=merchant-request.yml)
-ou [ajoutez-la](https://github.com/Foufou-exe/homebox-companion/wiki/Adding-a-merchant).
+[Demandez-la](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml)
+ou [ajoutez-la](https://github.com/Foufou-exe/homebox-clipper/wiki/Adding-a-merchant).
 
 Légende : ✅ Supported · 🟡 Partial · 🚧 In progress · 🗓️ Planned · 🙋 Requested
 

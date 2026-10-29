@@ -1,6 +1,6 @@
-# Instance HomeBox de développement pour tester homebox-companion.
+# Instance HomeBox de développement pour tester homebox-clipper.
 # Guide : docs/local-homebox.md
-name: homebox-companion-dev
+name: homebox-clipper-dev
 
 services:
   homebox:

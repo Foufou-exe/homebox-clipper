@@ -2,11 +2,11 @@
 
 <img src="public/icon/128.png" alt="" width="96" height="96">
 
-# homebox-companion
+# homebox-clipper
 
 **Transformez un achat en ligne en objet d'inventaire [HomeBox](https://github.com/sysadminsmedia/homebox), facture comprise, en un clic.**
 
-[![CI](https://github.com/Foufou-exe/homebox-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/Foufou-exe/homebox-companion/actions/workflows/ci.yml)
+[![CI](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml/badge.svg)](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
 ![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supporté-success)
 ![Statut](https://img.shields.io/badge/statut-MVP-orange)
@@ -15,7 +15,7 @@
 
 ---
 
-**homebox-companion** est un compagnon d'import pour les sites marchands en ligne : depuis la page
+**homebox-clipper** est un compagnon d'import pour les sites marchands en ligne : depuis la page
 de commande, il détecte le produit, le prix, la date, le numéro de commande, le vendeur et la
 facture PDF, puis crée l'objet dans votre instance HomeBox. Vous vérifiez, vous confirmez, c'est
 rangé. **Amazon.fr est le premier site pris en charge** ; d'autres marchands sont prévus et
@@ -39,7 +39,7 @@ l'architecture est faite pour en ajouter facilement.
 
 La liste à jour (pris en charge, partiels, prévus, demandés) est dans
 **[MERCHANTS.md](MERCHANTS.md)**. Votre boutique n'y figure pas ? Ouvrez une
-[demande de marchand](https://github.com/Foufou-exe/homebox-companion/issues/new?template=merchant-request.yml).
+[demande de marchand](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml).
 
 ## Installation
 
@@ -49,15 +49,15 @@ en mode développeur. Prérequis : Chrome ou Chromium, [Bun](https://bun.sh) et
 [HomeBox](https://github.com/sysadminsmedia/homebox) (testé avec **v0.27.0**).
 
 ```bash
-git clone https://github.com/Foufou-exe/homebox-companion.git
-cd homebox-companion
+git clone https://github.com/Foufou-exe/homebox-clipper.git
+cd homebox-clipper
 bun install
 bun run build      # → .output/chrome-mv3/
 ```
 
 Puis dans `chrome://extensions` : activez le **Mode développeur**, cliquez sur **Charger
 l'extension non empaquetée** et sélectionnez `.output/chrome-mv3/`. Guide complet :
-[Installation](https://github.com/Foufou-exe/homebox-companion/wiki/Installation).
+[Installation](https://github.com/Foufou-exe/homebox-clipper/wiki/Installation).
 
 ## Configuration rapide
 
@@ -69,18 +69,18 @@ l'extension non empaquetée** et sélectionnez `.output/chrome-mv3/`. Guide comp
 3. Ouvrez la page de détail d'une commande chez un marchand pris en charge, puis l'extension.
 
 HTTPS est exigé, sauf pour une adresse du réseau local (HTTP accepté avec un avertissement).
-Détails : [Configuration](https://github.com/Foufou-exe/homebox-companion/wiki/Configuration) et
-[Utilisation](https://github.com/Foufou-exe/homebox-companion/wiki/Usage).
+Détails : [Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration) et
+[Utilisation](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage).
 
 ## Documentation
 
-Tout le détail est dans le **[wiki](https://github.com/Foufou-exe/homebox-companion/wiki)** :
-[Installation](https://github.com/Foufou-exe/homebox-companion/wiki/Installation),
-[Configuration](https://github.com/Foufou-exe/homebox-companion/wiki/Configuration),
-[Utilisation](https://github.com/Foufou-exe/homebox-companion/wiki/Usage),
-[Sécurité et confidentialité](https://github.com/Foufou-exe/homebox-companion/wiki/Security-and-privacy),
-[Dépannage et FAQ](https://github.com/Foufou-exe/homebox-companion/wiki/Troubleshooting-and-FAQ),
-[Architecture](https://github.com/Foufou-exe/homebox-companion/wiki/Architecture).
+Tout le détail est dans le **[wiki](https://github.com/Foufou-exe/homebox-clipper/wiki)** :
+[Installation](https://github.com/Foufou-exe/homebox-clipper/wiki/Installation),
+[Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration),
+[Utilisation](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage),
+[Sécurité et confidentialité](https://github.com/Foufou-exe/homebox-clipper/wiki/Security-and-privacy),
+[Dépannage et FAQ](https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ),
+[Architecture](https://github.com/Foufou-exe/homebox-clipper/wiki/Architecture).
 
 ## Contribuer
 
@@ -107,10 +107,10 @@ Pour signaler une vulnérabilité, suivez **[SECURITY.md](SECURITY.md)** (pas d'
 
 - Le logo reprend la boîte de [HomeBox](https://github.com/sysadminsmedia/homebox)
   (© contributeurs HomeBox, licence AGPL-3.0), sans modification, à laquelle s'ajoute une pastille
-  « + » propre à homebox-companion (`src/assets/logo.svg`).
+  « + » propre à homebox-clipper (`src/assets/logo.svg`).
 - Les couleurs de l'interface sont celles du thème par défaut de HomeBox.
 - Icônes au trait inspirées de [Feather Icons](https://feathericons.com) (MIT).
 
 ---
 
-<sub>homebox-companion est un projet indépendant, sans lien avec Amazon ni avec l'équipe HomeBox.</sub>
+<sub>homebox-clipper est un projet indépendant, sans lien avec Amazon ni avec l'équipe HomeBox.</sub>

@@ -14,9 +14,9 @@ export interface LogMeta {
 
 export function log(event: string, meta: LogMeta = {}): void {
   if (!import.meta.env.DEV) return;
-  console.debug(`[homebox-companion] ${event}`, meta);
+  console.debug(`[homebox-clipper] ${event}`, meta);
 }
 
 export function logError(event: string, meta: LogMeta = {}): void {
-  console.warn(`[homebox-companion] ${event}`, meta);
+  console.warn(`[homebox-clipper] ${event}`, meta);
 }
