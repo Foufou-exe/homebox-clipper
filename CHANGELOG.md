@@ -8,8 +8,18 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 
 ## [Unreleased]
 
+### Changed
+
+- **Action requise :** le projet est renommé **homebox-clipper** (nom affiché « HomeBox Clipper »), pour éviter la confusion avec un autre projet du même nom ; mettez à jour l'adresse du dépôt (`git remote set-url origin …/homebox-clipper.git`).
+
+## [0.1.0] - 2026-10-29
+
 ### Added
 
+- MVP Amazon.fr : détection d'une page de détail de commande, confirmation avant tout import.
+- Import en 3 étapes vers HomeBox, avec reprise après interruption.
+- Téléchargement et rattachement de la facture PDF.
+- Détection des doublons.
 - Chiffrement de la clé API par phrase de passe, avec verrouillage de l'extension (PR #1).
 - Interface aux couleurs de HomeBox : thèmes clair, sombre et automatique, nouveau logo (PR #6).
 - Environnement HomeBox local via Docker Compose et guide de test local (PR #3).
@@ -28,7 +38,6 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 - **Action requise :** build unique ; retirer l'ancienne extension « homelab » du navigateur puis reconfigurer l'extension (PR #5).
 - HTTP n'est accepté que pour les adresses du réseau local ; HTTPS est exigé ailleurs (PR #5).
 - La note HomeBox d'un objet importé (« Commande Amazon.fr : <n°> ») est construite à partir du catalogue de traduction (PR #9).
-- **Action requise :** le projet est renommé **homebox-clipper** (nom affiché « HomeBox Clipper »), pour éviter la confusion avec un autre projet du même nom ; mettez à jour l'adresse du dépôt (`git remote set-url origin …/homebox-clipper.git`).
 - `README.md` réécrit en version courte et multi-marchands ; le détail est dans le wiki.
 - Modèles d'issue généralisés à tous les marchands (l'ancien modèle « page mal détectée » est remplacé).
 
@@ -39,15 +48,6 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 ### Security
 
 - Clé API chiffrée au repos (AES-GCM, dérivation PBKDF2 à 600 000 itérations, liée à l'URL de l'instance) (PR #1).
-
-## [0.1.0] - 2026-10-22
-
-### Added
-
-- MVP Amazon.fr : détection d'une page de détail de commande, confirmation avant tout import.
-- Import en 3 étapes vers HomeBox, avec reprise après interruption.
-- Téléchargement et rattachement de la facture PDF.
-- Détection des doublons.
 
 [Unreleased]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Foufou-exe/homebox-clipper/releases/tag/v0.1.0

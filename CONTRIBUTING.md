@@ -80,7 +80,7 @@ de navigateur, page de démarrage. Voir `web-ext.config.example.ts`.
 1. **Une branche par sujet**, créée depuis `main` à jour : `feat/…`, `fix/…`, `docs/…`,
    `chore/…`, `ci/…`.
 2. **Commits** au format [Conventional Commits](https://www.conventionalcommits.org/fr/)
-   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…).
+   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), en français ou en anglais.
 3. **`bun run ci` doit passer en local avant chaque push.** Le quota de GitHub Actions du dépôt
    est limité : la CI GitHub ne tourne que sur les pull requests de code vers `main`, et la
    vérification de référence est locale. `bun run setup` peut installer un hook `pre-push` qui la

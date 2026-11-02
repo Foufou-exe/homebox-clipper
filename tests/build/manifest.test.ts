@@ -26,6 +26,10 @@ describe('manifest de production', () => {
     expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*']);
   });
 
+  it("info-bulle de l'icône : nom affiché de l'extension", () => {
+    expect((manifest.action as { default_title?: string }).default_title).toBe('HomeBox Clipper');
+  });
+
   it('un seul build : nom issu du catalogue, sans suffixe de mode', () => {
     expect(manifest.name).toBe('__MSG_extName__');
     expect(manifest.description).toBe('__MSG_extDescription__');
