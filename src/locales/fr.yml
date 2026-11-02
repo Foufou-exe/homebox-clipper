@@ -76,7 +76,7 @@ documents:
   replaceDetected: "Remplacer la facture détectée"
 
 popup:
-  pageTitle: "homebox-clipper"
+  pageTitle: "HomeBox Clipper"
   lockAria: "Verrouiller la clé API"
   lockTitle: "Verrouiller"
   optionsLabel: "Configuration"
@@ -143,7 +143,7 @@ unlock:
   busy: "Déverrouillage…"
 
 options:
-  pageTitle: "homebox-clipper — Configuration"
+  pageTitle: "HomeBox Clipper — Configuration"
   subtitle: "Configuration"
   title: "Instance HomeBox"
   intro: "L’extension communique uniquement avec votre instance HomeBox. La clé API est chiffrée avec votre phrase de passe et stockée localement dans ce navigateur ; elle n’est jamais envoyée ailleurs."
