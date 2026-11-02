@@ -8,6 +8,10 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 
 ## [Unreleased]
 
+### Fixed
+
+- Amazon.fr : l'image du produit et le bouton « Facture » sont de nouveau détectés sur la page de détail de commande actuelle (image dans la colonne de gauche, menu « Facture » chargé via `data-a-popover`).
+
 ### Changed
 
 - **Action requise :** le projet est renommé **homebox-clipper** (nom affiché « HomeBox Clipper »), pour éviter la confusion avec un autre projet du même nom ; mettez à jour l'adresse du dépôt (`git remote set-url origin …/homebox-clipper.git`).

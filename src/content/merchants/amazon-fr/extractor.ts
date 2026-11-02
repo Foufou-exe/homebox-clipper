@@ -65,7 +65,23 @@ function productRows(doc: Document): Element[] {
   return [];
 }
 
-function extractProduct(row: Element, index: number): DetectedProduct {
+/**
+ * Zone où chercher l'image : la ligne complète (colonnes gauche + droite) si son conteneur ne
+ * couvre que cette ligne, sinon la ligne seule (évite de prendre l'image d'un autre produit).
+ */
+function imageScope(row: Element, rows: Element[]): Element {
+  for (const selector of SELECTORS.productRowContainer) {
+    try {
+      const container = row.closest(selector);
+      if (container && !rows.some((other) => other !== row && container.contains(other))) return container;
+    } catch {
+      // sélecteur suivant
+    }
+  }
+  return row;
+}
+
+function extractProduct(row: Element, index: number, rows: Element[]): DetectedProduct {
   const price = firstField(row, SELECTORS.productPrice, (el) => parsePriceFr(text(el)));
   const asin = firstField(row, SELECTORS.productAsin, asinFrom);
   const quantity = firstField(row, SELECTORS.productQuantity, (el) => parseQuantity(text(el)));
@@ -75,7 +91,7 @@ function extractProduct(row: Element, index: number): DetectedProduct {
     unitPrice: price.value ? { value: price.value.amount, selector: price.selector } : missing(price.reason),
     currency: price.value ? { value: price.value.currency, selector: price.selector } : missing(price.reason),
     quantity: quantity.value ? quantity : { value: 1, selector: 'default' },
-    imageUrl: firstField(row, SELECTORS.productImage, (el) => {
+    imageUrl: firstField(imageScope(row, rows), SELECTORS.productImage, (el) => {
       const src = el.getAttribute('src') ?? '';
       return src.startsWith('https://') ? src : null;
     }),
@@ -146,7 +162,7 @@ export const amazonFrExtractor: MerchantExtractor = {
       orderNumber,
       orderDate: firstField(doc, SELECTORS.orderDate, (el) => parseDateFr(text(el))),
       seller: sellerOf(rows),
-      products: rows.map(extractProduct),
+      products: rows.map((row, i) => extractProduct(row, i, rows)),
       documents: toDocuments(collectLinks(doc, SELECTORS.invoiceLink, pageUrl), orderNumber.value),
     };
   },
