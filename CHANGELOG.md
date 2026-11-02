@@ -11,6 +11,7 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 ### Fixed
 
 - Amazon.fr : l'image du produit et le bouton « Facture » sont de nouveau détectés sur la page de détail de commande actuelle (image dans la colonne de gauche, menu « Facture » chargé via `data-a-popover`).
+- Amazon.fr : la quantité affichée dans le badge de la colonne image (articles commandés en plusieurs exemplaires) est lue au lieu de retomber sur 1.
 
 ### Changed
 
