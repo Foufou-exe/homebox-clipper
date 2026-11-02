@@ -127,4 +127,42 @@ describe('amazonFrExtractor', () => {
     ]);
     expect(docs[0]?.label).toBe('facture-amazon-999-0000000-0000006.pdf');
   });
+
+  it('page réelle : image trouvée dans la colonne de gauche pour chaque article', () => {
+    const { doc, url } = loadFixture('order-real-layout.html');
+    const purchase = ex.extract(doc, url);
+    expect(purchase.products.map((p) => p.imageUrl.value)).toEqual([
+      'https://m.media-amazon.com/images/I/test-lampe.jpg',
+      'https://m.media-amazon.com/images/I/test-support.jpg',
+    ]);
+    expect(purchase.products.map((p) => p.name.value)).toEqual(['Lampe de bureau LED', 'Support de téléphone']);
+    expect(purchase.products.map((p) => p.key)).toEqual(['B000TEST07', 'B000TEST08']);
+    expect(purchase.products[0]?.quantity.value).toBe(2);
+    expect(purchase.seller.value).toBe('Boutique Factice SARL');
+  });
+
+  it('page réelle : resolveDocuments suit le popover « Facture » (sans récapitulatif ni lien externe)', async () => {
+    const { doc, url } = loadFixture('order-real-layout.html');
+    const fetchMock = vi.fn(async (u: string) => {
+      void u;
+      return new Response(fixtureHtml('invoice-popover-real.html'), { status: 200 });
+    });
+    const docs = await ex.resolveDocuments(doc, url, fetchMock as unknown as typeof fetch);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      'https://www.amazon.fr/your-orders/invoice/popover?orderId=999-0000000-0000007',
+    );
+    expect(docs.map((d) => d.url)).toEqual([
+      'https://www.amazon.fr/documents/download/eeeeeeee-0000-0000-0000-000000000001/invoice.pdf',
+      'https://www.amazon.fr/documents/download/eeeeeeee-0000-0000-0000-000000000002/invoice.pdf',
+    ]);
+    expect(docs.every((d) => d.url?.startsWith('https://www.amazon.fr/') === true)).toBe(true);
+  });
+
+  it('l’image d’une ligne n’est pas prise dans une autre ligne', () => {
+    const { doc, url } = loadFixture('order-multi-item.html');
+    const [first, second] = ex.extract(doc, url).products;
+    expect(first?.imageUrl.value).toBe('https://m.media-amazon.com/images/I/test-cable.jpg');
+    expect(second?.imageUrl.value).toBeNull();
+  });
 });

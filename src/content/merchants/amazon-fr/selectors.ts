@@ -32,6 +32,8 @@ export const SELECTORS = {
     '.yohtmlc-item',
     '[data-component="purchasedItems"] .a-fixed-left-grid',
   ],
+  /** Conteneur de la ligne complète : l'image est dans la colonne de gauche, hors de `productRow`. */
+  productRowContainer: ['.a-fixed-left-grid'],
   /** Sélecteurs relatifs à une ligne de produit. */
   productName: [
     '[data-component="itemTitle"] a',
@@ -62,7 +64,12 @@ export const SELECTORS = {
     'a[href*="/documents/download/"]',
   ],
   /** Lien ou déclencheur du menu « Facture » chargé à la demande. */
-  invoicePopoverTrigger: ['a[href*="/invoice/invoice.html"]', '[data-a-popover*="invoice.html"]'],
+  invoicePopoverTrigger: [
+    '[data-component="orderInvoice"] [data-a-popover]',
+    '[data-a-popover*="invoice/popover"]',
+    'a[href*="/invoice/invoice.html"]',
+    '[data-a-popover*="invoice.html"]',
+  ],
   /** Liens PDF dans le contenu du menu « Facture ». */
   invoicePopoverPdfLink: ['a[href*="/documents/download/"]', 'a[href$=".pdf"]'],
 } as const satisfies Record<string, readonly string[]>;
