@@ -11,7 +11,7 @@ Légende : ✅ Supported · 🟡 Partial · 🚧 In progress · 🗓️ Planned 
 
 | Marchand | Domaines | Pays | Champs détectés | Depuis | Limites |
 |----------|----------|------|-----------------|--------|---------|
-| Amazon France | `www.amazon.fr` | FR | nom, prix, devise, date, n° de commande, vendeur, quantité, image, facture | 0.1.0 | Page de détail de commande uniquement ; fixtures pas encore validées sur des pages réelles |
+| Amazon France | `www.amazon.fr` | FR | nom, prix, devise, date, n° de commande, vendeur, quantité, image, facture | 0.1.0 | Page de détail de commande uniquement |
 
 ## 🟡 Partial
 

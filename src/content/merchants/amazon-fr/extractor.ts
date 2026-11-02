@@ -84,14 +84,18 @@ function imageScope(row: Element, rows: Element[]): Element {
 function extractProduct(row: Element, index: number, rows: Element[]): DetectedProduct {
   const price = firstField(row, SELECTORS.productPrice, (el) => parsePriceFr(text(el)));
   const asin = firstField(row, SELECTORS.productAsin, asinFrom);
-  const quantity = firstField(row, SELECTORS.productQuantity, (el) => parseQuantity(text(el)));
+  const scope = imageScope(row, rows);
+  const readQuantity = (el: Element) => parseQuantity(text(el));
+  // Quantité > 1 : badge dans la colonne image, hors de la ligne ; sinon repli sur la zone image.
+  let quantity = firstField(row, SELECTORS.productQuantity, readQuantity);
+  if (quantity.value === null && scope !== row) quantity = firstField(scope, SELECTORS.productQuantity, readQuantity);
   return {
     key: asin.value ?? `item-${index}`,
     name: firstField(row, SELECTORS.productName, (el) => nonEmpty(cleanText(text(el), NAME_MAX))),
     unitPrice: price.value ? { value: price.value.amount, selector: price.selector } : missing(price.reason),
     currency: price.value ? { value: price.value.currency, selector: price.selector } : missing(price.reason),
     quantity: quantity.value ? quantity : { value: 1, selector: 'default' },
-    imageUrl: firstField(imageScope(row, rows), SELECTORS.productImage, (el) => {
+    imageUrl: firstField(scope, SELECTORS.productImage, (el) => {
       const src = el.getAttribute('src') ?? '';
       return src.startsWith('https://') ? src : null;
     }),
