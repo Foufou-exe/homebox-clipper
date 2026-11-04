@@ -79,3 +79,13 @@ export function parseQuantity(input: string): number | null {
   const n = Number(input.match(/\d+/)?.[0]);
   return Number.isInteger(n) && n >= 1 ? n : null;
 }
+
+const SIZE_TOKEN = /^(https:\/\/[^/]+\/images\/I\/[^/.]+)\._[^/]*_\.([a-z0-9]+)$/;
+
+/**
+ * Remplace le jeton de taille d'une URL d'image Amazon par `_SL1000_` (côté long de 1000 px au plus, R7).
+ * Sans jeton, l'URL est renvoyée telle quelle.
+ */
+export function toPhotoUrl(src: string): string {
+  return src.replace(SIZE_TOKEN, '$1._SL1000_.$2');
+}

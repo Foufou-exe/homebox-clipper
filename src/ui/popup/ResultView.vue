@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { PendingImport } from '@/shared/types';
+import type { PendingImport, PhotoStep } from '@/shared/types';
 import { t } from '@/ui/i18n';
 import RecoveryView from './RecoveryView.vue';
 
@@ -13,6 +13,31 @@ const STEP_LABELS = {
   failed: 'result.stepFailed',
 } as const;
 const stepLabel = (step: keyof typeof STEP_LABELS) => t(STEP_LABELS[step]);
+
+/** `sending` s'affiche comme « en attente » : l'envoi est en cours, rien n'est encore confirmé. */
+const PHOTO_STEP_LABELS = {
+  pending: 'result.stepPending',
+  sending: 'result.stepPending',
+  done: 'result.stepDone',
+  failed: 'result.stepFailed',
+} as const;
+const photoStep = (p: PendingImport): PhotoStep => p.steps.photo ?? 'not_requested';
+const photoStepLabel = (p: PendingImport) => {
+  const step = photoStep(p);
+  return step in PHOTO_STEP_LABELS ? t(PHOTO_STEP_LABELS[step as keyof typeof PHOTO_STEP_LABELS]) : null;
+};
+
+const PHOTO_RESULTS = {
+  done: 'result.photoAdded',
+  not_requested: 'result.photoNotRequested',
+  unavailable: 'result.photoUnavailable',
+  failed: 'result.photoFailed',
+} as const;
+/** Issue de la photo, par produit (FR-009) ; rien tant que l'objet n'existe pas ou que la photo est en attente. */
+const photoResult = (p: PendingImport) => {
+  const step = photoStep(p);
+  return p.entityId && step in PHOTO_RESULTS ? t(PHOTO_RESULTS[step as keyof typeof PHOTO_RESULTS]) : null;
+};
 const itemLink = (p: PendingImport) => (p.entityId ? `${props.baseUrl}/item/${p.entityId}` : null);
 const allDone = computed(() => !props.running && props.pendings.every((p) => p.status === 'success'));
 </script>
@@ -34,23 +59,27 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
           <li v-for="d in p.draft.documents" :key="d.id">
             {{ t('result.stepDocument', [d.label, stepLabel(p.steps.attachments[d.id] ?? 'pending')]) }}
           </li>
+          <li v-if="photoStepLabel(p)">{{ t('result.stepPhoto', [photoStepLabel(p) ?? '']) }}</li>
         </ul>
       </template>
 
       <p v-else-if="p.status === 'success'">
         ✓ <strong>{{ p.draft.name }}</strong>
-        <template v-if="p.draft.documents.length">{{ p.draft.documents.length > 1 ? t('result.withDocuments') : t('result.withInvoice') }}</template>
+        <template v-if="p.draft.documents.length">{{ ' ' }}{{ p.draft.documents.length > 1 ? t('result.withDocuments') : t('result.withInvoice') }}</template>
         —
         <a v-if="itemLink(p)" :href="itemLink(p) ?? undefined" target="_blank" rel="noopener">{{ t('result.openInHomebox') }}</a>
+        <small v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</small>
       </p>
 
-      <RecoveryView
-        v-else
-        :pending="p"
-        :base-url="baseUrl"
-        @updated="emit('updated', $event)"
-        @abandoned="emit('abandoned', $event)"
-      />
+      <template v-else>
+        <RecoveryView
+          :pending="p"
+          :base-url="baseUrl"
+          @updated="emit('updated', $event)"
+          @abandoned="emit('abandoned', $event)"
+        />
+        <p v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</p>
+      </template>
     </article>
   </section>
 </template>
@@ -64,6 +93,11 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 }
 .item p {
   margin: 6px 0;
+}
+.photo-result {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
 }
 .steps {
   margin: 0;

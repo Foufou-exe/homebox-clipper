@@ -8,6 +8,11 @@ la numérotation [SemVer](https://semver.org). Les types de changement (`Added`,
 
 ## [Unreleased]
 
+### Added
+
+- La photo du produit (Amazon.fr) est jointe à l'objet HomeBox comme image principale. Une case, cochée par défaut, permet de ne pas l'envoyer ; le résultat indique le sort de la photo pour chaque produit.
+- Reprise d'un import interrompu par l'arrêt du service worker de l'extension : l'import redevient réessayable, sans recréer l'objet ni renvoyer deux fois la photo. Les imports en cours sont conservés en mémoire de session : ils sont perdus à la fermeture du navigateur et à la mise à jour de l'extension (vérifiez alors dans HomeBox). Si la création d'un objet est incertaine (réponse perdue, arrêt pendant l'envoi), la reprise cherche d'abord un objet de même nom dans HomeBox et refuse de réessayer s'il en trouve un ; ce contrôle réduit le risque de doublon sans l'éliminer.
+
 ### Fixed
 
 - Amazon.fr : l'image du produit et le bouton « Facture » sont de nouveau détectés sur la page de détail de commande actuelle (image dans la colonne de gauche, menu « Facture » chargé via `data-a-popover`).

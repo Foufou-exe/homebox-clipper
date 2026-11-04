@@ -38,6 +38,13 @@ const purchase = ref<DetectedPurchase | null>(null);
 const lines = ref<Line[]>([]);
 const documents = ref<{ doc: DocumentRef; selected: boolean }[]>([]);
 const manualFiles = reactive(new Map<string, ManualFile>());
+/** Lignes dont l'image n'a pas pu être affichée : la photo n'est alors pas envoyée. */
+const photoErrors = reactive(new Set<string>());
+
+function onPhotoError(line: Line) {
+  photoErrors.add(line.key);
+  if (line.draft.photo) line.draft.photo.include = false;
+}
 
 type Dialog =
   | { kind: 'none' }
@@ -125,7 +132,12 @@ function submit() {
   dialog.value = { kind: 'none' };
   const docs = selectedDocs.value;
   emit('submit', {
-    drafts: selectedLines.value.map((l) => ({ ...l.draft, documents: docs })),
+    drafts: selectedLines.value.map((l) => ({
+      ...l.draft,
+      documents: docs,
+      // Aperçu en échec : la photo est « indisponible » (FR-009), pas « non demandée ».
+      photo: l.draft.photo && !photoErrors.has(l.key) ? { ...l.draft.photo } : null,
+    })),
     manualFiles: docs.flatMap((d) => {
       const f = manualFiles.get(d.id);
       return f ? [f] : [];
@@ -149,12 +161,19 @@ function submit() {
       <div v-for="line in lines" :key="line.key" class="line card">
         <label v-if="lines.length > 1" class="pick">
           <input v-model="line.selected" type="checkbox" />
-          <img v-if="line.product?.imageUrl.value" :src="line.product.imageUrl.value" alt="" />
           <span>{{ line.draft.name || t('summary.unnamedProduct') }}</span>
         </label>
-        <div v-else-if="line.product?.imageUrl.value" class="thumb">
-          <img :src="line.product.imageUrl.value" alt="" />
+        <div v-if="line.selected && line.draft.photo" class="photo">
+          <img :src="line.draft.photo.url" alt="" referrerpolicy="no-referrer" width="64" height="64" @error="onPhotoError(line)" />
+          <div>
+            <label class="pick">
+              <input v-model="line.draft.photo.include" type="checkbox" :disabled="photoErrors.has(line.key)" />
+              <span>{{ t('summary.photoInclude') }}</span>
+            </label>
+            <p v-if="photoErrors.has(line.key)" class="muted" role="status">{{ t('summary.photoLoadFailed') }}</p>
+          </div>
         </div>
+        <p v-else-if="line.selected && line.product" class="photo muted">{{ t('summary.photoNone') }}</p>
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
       </div>
 
@@ -231,11 +250,20 @@ function submit() {
 .pick input {
   width: auto;
 }
-.pick img,
-.thumb img {
-  width: 32px;
-  height: 32px;
+.photo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+.photo img {
+  width: 64px;
+  height: 64px;
   object-fit: contain;
+}
+.photo p {
+  margin: 0;
+  font-size: 12px;
 }
 .docs {
   list-style: none;

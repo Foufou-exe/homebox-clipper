@@ -159,9 +159,10 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
 
     async addAttachment(id: string, file: AttachmentUpload): Promise<Result<void>> {
       const form = new FormData();
-      form.append('file', new Blob([file.bytes as BlobPart], { type: 'application/pdf' }), file.filename);
+      form.append('file', new Blob([file.bytes as BlobPart], { type: file.mimeType }), file.filename);
       form.append('name', file.filename);
       form.append('type', file.type);
+      if (file.primary) form.append('primary', 'true');
       const res = await request('POST', `/entities/${encodeURIComponent(id)}/attachments`, {
         auth: true,
         endpoint: 'POST /entities/{id}/attachments',
@@ -193,7 +194,8 @@ export function entityOutToUpdate(out: EntityOut, patch: Partial<EntityUpdate>):
     purchaseDate: out.purchaseDate,
     warrantyDetails: out.warrantyDetails,
     warrantyExpires: out.warrantyExpires,
-    locationId: out.location?.id ?? out.locationId,
+    // `location` est résolu et en lecture seule (hérité du parent) : le recopier épinglerait l'emplacement.
+    locationId: out.locationId,
     parentId: out.parent?.id,
     entityTypeId: out.entityType?.id,
     tagIds: out.tags?.map((t) => t.id),

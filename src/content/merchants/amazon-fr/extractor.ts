@@ -1,10 +1,13 @@
 import type { DetectedProduct, DocumentRef, Field } from '@/shared/types';
 import type { MerchantExtractor } from '../types';
-import { cleanText, parseDateFr, parseOrderNumber, parsePriceFr, parseQuantity } from './parse';
+import { isAllowedImageUrl } from '@/shared/image';
+import { cleanText, parseDateFr, parseOrderNumber, parsePriceFr, parseQuantity, toPhotoUrl } from './parse';
 import { SELECTORS } from './selectors';
 
 export const AMAZON_FR_ORIGIN = 'https://www.amazon.fr';
 const NAME_MAX = 255;
+/** Seul hôte d'image observé sur les pages de commande (V7). */
+const IMAGE_HOSTS = ['m.media-amazon.com'] as const;
 
 const missing = <T>(reason: 'not_found' | 'unparsable' = 'not_found'): Field<T> => ({ value: null, reason });
 
@@ -81,6 +84,18 @@ function imageScope(row: Element, rows: Element[]): Element {
   return row;
 }
 
+/**
+ * Un logo ou un pixel d'un autre hôte est refusé et le sélecteur suivant est essayé ; sans image
+ * acceptable, l'absence est toujours `not_found`.
+ */
+function photoField(scope: Element): Field<string> {
+  const found = firstField(scope, SELECTORS.productImage, (el) => {
+    const src = el.getAttribute('src') ?? '';
+    return isAllowedImageUrl(src, IMAGE_HOSTS) ? toPhotoUrl(src) : null;
+  });
+  return found.value === null ? missing('not_found') : found;
+}
+
 function extractProduct(row: Element, index: number, rows: Element[]): DetectedProduct {
   const price = firstField(row, SELECTORS.productPrice, (el) => parsePriceFr(text(el)));
   const asin = firstField(row, SELECTORS.productAsin, asinFrom);
@@ -95,10 +110,7 @@ function extractProduct(row: Element, index: number, rows: Element[]): DetectedP
     unitPrice: price.value ? { value: price.value.amount, selector: price.selector } : missing(price.reason),
     currency: price.value ? { value: price.value.currency, selector: price.selector } : missing(price.reason),
     quantity: quantity.value ? quantity : { value: 1, selector: 'default' },
-    imageUrl: firstField(scope, SELECTORS.productImage, (el) => {
-      const src = el.getAttribute('src') ?? '';
-      return src.startsWith('https://') ? src : null;
-    }),
+    imageUrl: photoField(scope),
   };
 }
 
@@ -141,6 +153,7 @@ function toDocuments(urls: string[], orderNumber: string | null): DocumentRef[] 
 export const amazonFrExtractor: MerchantExtractor = {
   id: 'amazon.fr',
   domains: [new URL(AMAZON_FR_ORIGIN).hostname],
+  imageHosts: IMAGE_HOSTS,
 
   matchesUrl(url) {
     return url.origin === AMAZON_FR_ORIGIN;

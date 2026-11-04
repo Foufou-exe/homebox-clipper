@@ -20,6 +20,7 @@ describe('orchestrateur — saisie et fichiers manuels (US3)', () => {
       bytes: PDF,
       filename: 'bon-de-commande.pdf',
       type: 'attachment',
+      mimeType: 'application/pdf',
     });
   });
 

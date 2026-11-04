@@ -31,6 +31,7 @@ export interface EntityOut {
   parent?: { id: string } | null;
   entityType?: { id: string } | null;
   tags?: { id: string }[];
+  attachments?: { id: string; type?: string; primary?: boolean }[];
 }
 
 export interface EntityUpdate {
@@ -67,7 +68,11 @@ export interface EntitySummary {
 export interface AttachmentUpload {
   bytes: Uint8Array;
   filename: string;
-  type: 'receipt' | 'attachment';
+  type: 'receipt' | 'attachment' | 'photo';
+  /** Type MIME du `Blob` : `application/pdf` pour les documents, celui de l'image pour la photo. */
+  mimeType: string;
+  /** Envoyé seulement si vrai : un PDF n'a jamais de champ `primary`. */
+  primary?: boolean;
 }
 
 export interface StatusOut {

@@ -72,6 +72,13 @@ const isStr = (x: unknown): x is string => typeof x === 'string';
 const isInt = (x: unknown): x is number => Number.isInteger(x);
 const isArr = Array.isArray;
 
+/** `ImportDraft.photo` : absente ou `null` (aucune photo), sinon `{ url, merchantId, include }` bien typé. */
+const isDraftPhoto = (x: unknown): boolean =>
+  x === undefined ||
+  x === null ||
+  (isObj(x) && isStr(x.url) && isStr(x.merchantId) && typeof x.include === 'boolean');
+const areDrafts = (x: unknown): boolean => isArr(x) && x.every((d) => isObj(d) && isDraftPhoto(d.photo));
+
 const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean } = {
   'config/get': () => true,
   'config/save': (m) => isStr(m.baseUrl) && isStr(m.apiKey) && isStr(m.passphrase),
@@ -81,7 +88,7 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'session/lock': () => true,
   'detect/run': (m) => isInt(m.tabId),
   'duplicate/check': (m) => isStr(m.orderNumber) && isStr(m.name),
-  'import/start': (m) => isInt(m.tabId) && isArr(m.drafts) && isArr(m.manualFiles),
+  'import/start': (m) => isInt(m.tabId) && areDrafts(m.drafts) && isArr(m.manualFiles),
   'import/retry': (m) => isStr(m.pendingId) && (m.manualFiles === undefined || isArr(m.manualFiles)),
   'import/abandon': (m) => isStr(m.pendingId),
   'import/pending': (m) => isInt(m.tabId),

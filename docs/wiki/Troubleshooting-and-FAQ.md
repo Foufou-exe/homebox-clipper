@@ -45,11 +45,40 @@ d'apparition.
 
 | Message affiché | Code | Cause probable | Solution |
 |-----------------|------|----------------|----------|
-| Un objet semblable existe déjà dans HomeBox. | `DUPLICATE_SUSPECTED` | Un objet de même nom contient déjà ce numéro de commande dans ses notes. | Ouvrez l'objet existant (lien affiché) ; continuez seulement si c'est voulu. |
-| La vérification des doublons n'a pas pu être effectuée. | `DUPLICATE_CHECK_FAILED` | La recherche dans HomeBox a échoué. Non bloquant. | Contrôlez à la main dans HomeBox, puis poursuivez. |
+| Un objet semblable existe déjà dans HomeBox. | `DUPLICATE_SUSPECTED` | Au résumé : un objet de même nom contient déjà ce numéro de commande dans ses notes. À la reprise d'une création incertaine : un objet de même nom existe déjà (le numéro de commande n'est pas utilisé, l'objet ne l'a pas encore), y compris un produit acheté une autre fois. | Ouvrez l'objet existant (lien affiché) ; continuez seulement si c'est voulu. Après une reprise refusée : abandonnez, puis relancez depuis le résumé, qui demande confirmation. |
+| La vérification des doublons n'a pas pu être effectuée. | `DUPLICATE_CHECK_FAILED` | La recherche dans HomeBox a échoué. Non bloquant au résumé ; **bloquant à la reprise d'une création incertaine** (aucune création n'est envoyée). | Au résumé : contrôlez à la main dans HomeBox, puis poursuivez. À la reprise : vérifiez dans HomeBox si l'objet existe, puis réessayez ou abandonnez. |
 | La création de l'objet dans HomeBox a échoué. | `CREATE_FAILED` | HomeBox a refusé ou n'a pas pu traiter la création. Rien n'a été créé. | Vérifiez l'état de l'instance, puis « Réessayer l'import ». |
 | L'objet a été créé mais les informations d'achat n'ont pas été enregistrées. | `UPDATE_FAILED` | La mise à jour (prix, date, vendeur, notes) a échoué après la création. | « Réessayer l'import » : l'objet existant est complété, jamais recréé. |
 | L'objet a été créé mais l'envoi de la facture a échoué. | `ATTACHMENT_FAILED` | Instance injoignable ou erreur HomeBox pendant l'envoi de la pièce jointe. | « Réessayer l'envoi de la facture » : un seul objet, avec sa facture. |
+
+## Photo du produit
+
+La photo n'est jamais bloquante : l'objet et la facture sont conservés, et **Réessayer l'envoi de la photo**
+ne relance que la photo.
+
+| Message affiché | Code | Cause probable | Solution |
+|-----------------|------|----------------|----------|
+| La photo n'a pas pu être récupérée sur le site du marchand. | `PHOTO_UNAVAILABLE` | Réseau, délai dépassé, redirection, image supprimée ou serveur d'images qui refuse la requête. | Réessayez ; sinon ajoutez la photo à la main dans HomeBox. |
+| Le fichier récupéré n'est pas une image valide : il n'a pas été envoyé. | `PHOTO_NOT_IMAGE` | Le serveur a renvoyé une page ou un format refusé (SVG, GIF). | Ajoutez la photo à la main dans HomeBox. |
+| La photo dépasse 5 Mo : elle n'a pas été envoyée. | `PHOTO_TOO_LARGE` | Image plus lourde que la limite. | Ajoutez une version réduite à la main dans HomeBox. |
+| L'objet a été créé mais l'envoi de la photo a échoué. | `PHOTO_UPLOAD_FAILED` | HomeBox a refusé la photo, ou l'extension n'a pas pu vérifier qu'elle n'était pas déjà jointe. | « Réessayer l'envoi de la photo » ; vérifiez dans HomeBox que l'objet n'a pas déjà sa photo. |
+
+Si l'objet a deux photos, c'est qu'une connexion réutilisée a été coupée juste après le traitement de l'envoi
+et que le navigateur a renvoyé la requête de lui-même. L'extension ne supprime rien dans HomeBox :
+supprimez la photo en trop dans HomeBox.
+
+**Risque résiduel.** La reprise après arrêt du service worker ne vaut que pour cet arrêt : les imports en
+cours sont gardés dans `storage.session`, vidé à la fermeture du navigateur et à la mise à jour de
+l'extension. Dans ces cas, rien n'est repris ; vérifiez dans HomeBox si l'objet a été créé.
+
+Quand la réponse de la création est perdue (réseau, délai) ou que le service worker s'arrête pendant
+l'envoi, l'objet a pu être créé sans que l'extension le sache (HomeBox ne propose pas de clé d'idempotence).
+À la reprise, l'extension cherche alors dans HomeBox un objet de **même nom** (le numéro de commande n'est
+écrit qu'à l'étape suivante) et refuse de réessayer si elle en trouve un, ou si cette recherche échoue.
+Ce contrôle a des limites : faux positif si vous avez acheté le même produit une autre fois (abandonnez, puis
+vérifiez d'abord dans HomeBox, puis abandonnez et relancez depuis le résumé. Attention : le résumé ne demande confirmation que si un objet de même nom contient déjà le numéro de commande, donc pas pour un objet resté incomplet : un second objet peut alors être créé sans nouvelle confirmation) ; doublon toujours possible si l'objet a été renommé
+ou si la recherche ne le voit pas ; objet, facture et photo peuvent être doublés dans un cas de réseau rare : si une connexion est coupée juste après l'envoi, le navigateur peut renvoyer la requête de lui-même, et l'extension affiche alors un succès sans le savoir. En cas de doute, vérifiez dans HomeBox ; cette
+protection ne peut pas être garantie à 100 %.
 
 ## Interne
 

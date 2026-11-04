@@ -16,6 +16,23 @@ describe('catalogue fr.yml (contracts/locales.md)', () => {
     for (const code of ERROR_CODES) expect(catalog, code).toHaveProperty([`error.${code}`]);
   });
 
+  it('les six codes photo et emplacement ont un message, tous distincts (SC-007)', () => {
+    const codes = [
+      'PHOTO_UNAVAILABLE',
+      'PHOTO_NOT_IMAGE',
+      'PHOTO_TOO_LARGE',
+      'PHOTO_UPLOAD_FAILED',
+      'LOCATIONS_UNAVAILABLE',
+      'LOCATION_NOT_FOUND',
+    ];
+    const messages = codes.map((code) => {
+      expect(ERROR_CODES, code).toContain(code);
+      expect(catalog, code).toHaveProperty([`error.${code}`]);
+      return catalog[`error.${code}`];
+    });
+    expect(new Set(messages).size).toBe(codes.length);
+  });
+
   it('extName et extDescription existent (manifeste)', () => {
     expect(catalog).toHaveProperty('extName');
     expect(catalog).toHaveProperty('extDescription');

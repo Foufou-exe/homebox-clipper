@@ -21,6 +21,14 @@ describe('MERCHANTS.md : cohérence avec le registre', () => {
     for (const m of MERCHANTS) expect(m.domains.length).toBeGreaterThan(0);
   });
 
+  it.each(MERCHANTS.map((m) => [m.id, m.imageHosts] as const))(
+    '%s : déclare imageHosts (tableau de noms d’hôte exacts ; vide = pas de photo)',
+    (_id, hosts) => {
+      expect(Array.isArray(hosts)).toBe(true);
+      for (const host of hosts) expect(host).toMatch(/^[a-z0-9.-]+$/);
+    },
+  );
+
   it.each(MERCHANTS.map((m) => [m.id, m.domains] as const))(
     '%s : chaque domaine figure dans une ligne Supported ou Partial',
     (_id, domains) => {

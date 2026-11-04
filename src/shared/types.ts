@@ -13,7 +13,10 @@ export interface DetectedProduct {
   /** Code ISO 4217. */
   currency: Field<string>;
   quantity: Field<number>;
-  /** Affichage uniquement, jamais envoyé à HomeBox. */
+  /**
+   * URL de la photo proposée à l'envoi vers HomeBox : déjà filtrée par `imageHosts` du marchand et
+   * réécrite à la résolution voulue.
+   */
   imageUrl: Field<string>;
 }
 
@@ -40,6 +43,15 @@ export interface DetectedPurchase {
   documents: DocumentRef[];
 }
 
+/** Photo proposée avec l'objet. Les octets ne sont jamais conservés : seule l'URL l'est, jusqu'à la purge. */
+export interface DraftPhoto {
+  url: string;
+  /** Donne la liste `imageHosts` qui sert à recontrôler l'URL dans le service worker. */
+  merchantId: DetectedPurchase['source'];
+  /** Vrai par défaut (FR-002) ; décochée, la photo n'est pas récupérée. */
+  include: boolean;
+}
+
 export interface ImportDraft {
   name: string;
   description: string;
@@ -52,7 +64,11 @@ export interface ImportDraft {
   quantity: number;
   pageUrl: string | null;
   documents: DocumentRef[];
+  /** `null` : aucune photo détectée (ou saisie manuelle). */
+  photo: DraftPhoto | null;
 }
+
+export type PhotoStep = 'not_requested' | 'unavailable' | 'pending' | 'sending' | 'done' | 'failed';
 
 export type StepState = 'pending' | 'done' | 'failed';
 
@@ -66,9 +82,24 @@ export interface PendingImport {
     create: StepState;
     update: StepState;
     attachments: Record<string, StepState>;
+    /** Lu avec `?? 'not_requested'` par prudence (état persisté par une version précédente). */
+    photo: PhotoStep;
   };
   status: 'running' | 'success' | 'partial' | 'failed';
   error: ErrorCode | null;
+  /** Erreur propre à la photo, affichée à part de `error`. */
+  photoError: ErrorCode | null;
+  /** Vrai dès qu'un POST de photo a pu partir : déclenche la relecture anti-double à la reprise (R8). */
+  photoAttempted: boolean;
+  /** Vrai dès que le POST de création a pu partir (écrit avant l'envoi) ; remis à faux après un échec certain (R8). */
+  createAttempted?: boolean;
+  /**
+   * Création d'issue inconnue : la réponse du POST s'est perdue (réseau, délai) ou le service worker s'est
+   * arrêté pendant le POST. L'objet a pu être créé sans `entityId` : la reprise cherche d'abord son nom (R8).
+   */
+  createUncertain?: boolean;
+  /** Posé quand un import `running` est récupéré après l'arrêt du service worker (R8) ; retiré à la reprise. */
+  orphaned?: boolean;
 }
 
 export interface LastCheck {

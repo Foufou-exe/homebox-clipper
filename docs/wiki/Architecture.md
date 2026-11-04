@@ -34,7 +34,7 @@ Popup / Options (Vue)  ──messages typés──▶  Service worker  ──HTT
 Hors de `src/` : `tests/` (voir [Testing-and-fixtures](Testing-and-fixtures.md)), `public/`, `scripts/`,
 `wxt.config.ts` (manifeste et modules WXT).
 
-## Un import en trois appels
+## Un import en quatre étapes
 
 L'API HomeBox (v0.27) n'accepte pas le prix, la date ni le vendeur à la création ; d'où :
 
@@ -42,11 +42,39 @@ L'API HomeBox (v0.27) n'accepte pas le prix, la date ni le vendeur à la créati
 2. `PUT /api/v1/entities/{id}` : informations d'achat (prix, date, vendeur) et notes ; l'objet est relu
    avant la mise à jour pour ne pas écraser ses autres champs ;
 3. `POST /api/v1/entities/{id}/attachments` : une requête par document (`multipart/form-data`), de type
-   `receipt` pour une facture, `attachment` sinon.
+   `receipt` pour une facture, `attachment` sinon ;
+4. `POST /api/v1/entities/{id}/attachments` pour la photo (`type=photo`, `primary=true`), en dernier : son échec ne
+   retarde ni l'objet ni la facture.
 
 L'orchestrateur (`src/background/import/orchestrator.ts`) conserve l'état de chaque étape. **Une étape
 réussie n'est jamais rejouée et, une fois l'identifiant de l'objet connu, l'objet n'est jamais recréé** : une
 reprise ne fait que les étapes restantes. À la réussite, les données d'achat conservées sont purgées.
+
+### Étape photo (`photo-fetch.ts`)
+
+`src/background/import/photo-fetch.ts` récupère l'image par un `fetch` anonyme, dans un module **séparé du
+client HomeBox** (il n'a jamais accès à la clé). Il recontrôle l'URL avec `imageHosts` du marchand
+(`draft.photo.merchantId`), refuse les redirections, limite la taille (5 Mo) et décide du format par la
+signature. L'orchestrateur le reçoit comme dépendance (`fetchPhoto`) et garde l'état de l'étape
+(`not_requested`, `unavailable`, `pending`, `sending`, `done`, `failed`) dans `PendingImport`, avec
+`photoError` et `photoAttempted`. `sending` est écrit **avant** le POST : à la reprise, si un envoi a pu
+partir, l'objet est relu et la photo n'est pas renvoyée si une pièce jointe de type `photo` existe déjà.
+Les octets ne sont jamais persistés ; une même image n'est téléchargée qu'une fois par appel.
+
+### Imports orphelins
+
+Le service worker garde en mémoire l'ensemble des imports actifs (`activeImports`). À la lecture
+(`import/pending`), un import `running` absent de cet ensemble n'a plus de processus derrière lui : il passe à
+`failed` (objet non créé) ou `partial` (objet créé), marqué `orphaned`, et devient réessayable. Tous les
+imports d'un lot sont persistés avant le premier POST. Le POST de création est précédé de l'écriture de
+`createAttempted` ; un orphelin sans identifiant dont le POST a démarré est marqué `createUncertain`, comme un
+import dont la réponse du POST s'est perdue (`HOMEBOX_UNREACHABLE`). Une erreur HTTP explicite reste un échec
+certain. Pour une création incertaine, la reprise cherche d'abord le nom exact (`findDuplicatesByName`, sans
+numéro de commande, que l'objet n'a pas avant le PUT) : `DUPLICATE_SUSPECTED` s'il existe,
+`DUPLICATE_CHECK_FAILED` si la recherche échoue, dans les deux cas sans POST. Une reprise lancée alors que la
+même est déjà en cours (`activeImports`) renvoie l'état courant sans seconde exécution. Le mécanisme ne couvre
+que l'arrêt du service worker : `storage.session` est vidé à la fermeture du navigateur et à la mise à jour de
+l'extension.
 
 Avant l'import, `duplicate/check` interroge HomeBox (`GET /api/v1/entities?q=…`) pour repérer un doublon
 probable (même numéro de commande dans les notes, même nom).
