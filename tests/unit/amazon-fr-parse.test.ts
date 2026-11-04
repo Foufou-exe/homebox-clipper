@@ -1,4 +1,11 @@
-import { cleanText, parseDateFr, parseOrderNumber, parsePriceFr, parseQuantity } from '@/content/merchants/amazon-fr/parse';
+import {
+  cleanText,
+  parseDateFr,
+  parseOrderNumber,
+  parsePriceFr,
+  parseQuantity,
+  toPhotoUrl,
+} from '@/content/merchants/amazon-fr/parse';
 
 describe('parsePriceFr', () => {
   it.each([
@@ -63,5 +70,26 @@ describe('cleanText', () => {
   it('compresse les espaces et tronque à la limite', () => {
     expect(cleanText('  Clavier  \n sans   fil ')).toBe('Clavier sans fil');
     expect(cleanText('a'.repeat(300), 255)).toHaveLength(255);
+  });
+});
+
+describe('toPhotoUrl (R7)', () => {
+  it.each([
+    ['https://m.media-amazon.com/images/I/test-1._SS284_.jpg', 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg'],
+    ['https://m.media-amazon.com/images/I/test-1._AC_UL320_.png', 'https://m.media-amazon.com/images/I/test-1._SL1000_.png'],
+    ['https://m.media-amazon.com/images/I/test-1._SL500_.webp', 'https://m.media-amazon.com/images/I/test-1._SL1000_.webp'],
+    // plusieurs jetons : un seul remplacement, tout le bloc de jetons est consommé
+    ['https://m.media-amazon.com/images/I/test-1._AC_SX679_SY400_.jpg', 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg'],
+  ])('%s → jeton _SL1000_', (input, expected) => {
+    expect(toPhotoUrl(input)).toBe(expected);
+  });
+
+  it.each([
+    'https://m.media-amazon.com/images/I/test-1.jpg',
+    'https://m.media-amazon.com/images/G/01/gc/designs/x.png',
+    'https://m.media-amazon.com/autre/chemin._SS284_.jpg',
+    '',
+  ])('%s → inchangée', (input) => {
+    expect(toPhotoUrl(input)).toBe(input);
   });
 });

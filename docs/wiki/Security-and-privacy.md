@@ -25,6 +25,8 @@ vulnérabilité, voir la [politique de sécurité](https://github.com/Foufou-exe
 | La clé est envoyée au mauvais hôte | L'en-tête `Authorization: Bearer` n'est ajouté qu'aux requêtes dont l'adresse commence par l'adresse configurée. |
 | Écoute du réseau local en HTTP | HTTP n'est accepté que pour le réseau local, avec l'avertissement « HTTP non chiffré » ; HTTPS est obligatoire pour toute adresse publique. |
 | Création d'objets non voulus | Aucune écriture dans HomeBox sans clic sur « Ajouter à HomeBox » ; tous les champs sont modifiables avant l'envoi. |
+| URL d'image piégée (page marchande modifiée) | L'URL est contrôlée deux fois (à l'extraction, puis dans le service worker) : `https`, hôte **strictement égal** à celui du marchand (`m.media-amazon.com`), sans port ni identifiants. Redirections refusées. |
+| Fichier piégé présenté comme une photo (HTML, SVG, GIF) | Seuls JPEG, PNG et WebP (signature des octets vérifiée) de 5 Mo au plus sont envoyés ; le type envoyé vient de la signature, pas de l'en-tête de la réponse. |
 | Fichier piégé présenté comme une facture | Seuls de vrais PDF (signature `%PDF-`) de 15 Mo maximum sont envoyés ; téléchargement limité à l'origine `https://www.amazon.fr`. |
 
 ## Où sont stockées les données
@@ -35,6 +37,7 @@ vulnérabilité, voir la [politique de sécurité](https://github.com/Foufou-exe
 | Clé API **déchiffrée** | `storage.session` (mémoire) | Jusqu'au verrouillage (🔒), à la fermeture du navigateur ou au rechargement, à la mise à jour ou à la désactivation de l'extension |
 | Phrase de passe | **Nulle part** | Jamais enregistrée |
 | Imports en cours (données d'achat nécessaires à une reprise) | `storage.session` (mémoire) | Effacés dès que l'import réussit ou est abandonné ; sans les octets des fichiers |
+| URL de la photo d'un import en cours | `storage.session` (mémoire) | Effacée avec l'import (succès ou abandon) ; **jamais les octets de l'image** |
 | Thème choisi | `storage.local` | Préférence d'affichage |
 
 Aucune donnée n'est placée dans `storage.sync`.
@@ -51,6 +54,19 @@ Aucune donnée n'est placée dans `storage.sync`.
 Le manifeste ne déclare ni `host_permissions` statiques ni scripts de contenu statiques, et sa politique de
 sécurité de contenu interdit `eval` et le code distant. `bun run test:build` vérifie ces points sur le
 build de production.
+
+## La photo du produit
+
+- La requête d'image vers le serveur du marchand est un **GET anonyme** : sans cookies, sans en-tête
+  `Referer`, sans clé API, vers l'hôte exact du marchand uniquement. Elle est faite par un module séparé du
+  client HomeBox (`src/background/import/photo-fetch.ts`), qui n'a pas accès à la clé.
+- La photo n'est lue qu'après votre clic sur « Ajouter à HomeBox », et seulement si sa case est cochée.
+- Les octets ne sont **jamais conservés** (ni dans `storage.session`, ni dans `storage.local`) ; une reprise
+  retélécharge la photo.
+- **Aucune permission n'est ajoutée** au manifeste pour cela.
+- **Aucune URL d'image n'est écrite dans les journaux** (seuls un gabarit, un statut et une durée le sont).
+- Le popup affiche la vignette depuis le serveur d'images du marchand : c'est la seule requête d'image faite
+  avant votre confirmation, et elle est faite par votre navigateur, comme sur la page d'Amazon.
 
 ## Journaux et données personnelles
 

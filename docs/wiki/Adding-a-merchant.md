@@ -14,6 +14,7 @@ Défini dans `src/content/merchants/types.ts` :
 |--------|------|
 | `id` | Identifiant du marchand (type de `DetectedPurchase['source']`, aujourd'hui `'amazon.fr'`). |
 | `domains: readonly string[]` | Domaines du marchand (par exemple `['www.amazon.fr']`). Source du contrôle qui garde `MERCHANTS.md` à jour. |
+| `imageHosts: readonly string[]` | **Obligatoire.** Hôtes **exacts** autorisés pour la photo du produit (pas de suffixe ni de joker). Une liste vide signifie « pas de photo pour ce marchand ». |
 | `matchesUrl(url)` | Vrai si l'URL relève de ce marchand ; testé **avant toute injection**. |
 | `isOrderPage(doc)` | Vrai si le document est une page de détail de commande. |
 | `extract(doc, pageUrl)` | Extraction **pure** : sans réseau ni effet de bord, ne lève jamais d'exception. Renvoie un `DetectedPurchase`. |
@@ -21,6 +22,13 @@ Défini dans `src/content/merchants/types.ts` :
 
 Chaque champ extrait est un `Field<T>` : soit une valeur, soit explicitement absent (avec une raison).
 Le cœur de l'extension ne dépend que de ce contrat, jamais du DOM.
+
+Pour la photo, `extract` applique `isAllowedImageUrl(src, imageHosts)` (`src/shared/image.ts`) puis, au besoin,
+une réécriture pure de résolution (`toPhotoUrl` pour Amazon), et place le résultat dans `imageUrl`. Le service
+worker recontrôle l'URL avant le `fetch`. **Question CORS** : la photo est récupérée par un `fetch` anonyme
+depuis le service worker, sans permission ajoutée ; le CDN du marchand doit donc répondre avec un en-tête
+`Access-Control-Allow-Origin` adapté. Sinon la photo échoue proprement (`PHOTO_UNAVAILABLE`) et il faut une
+décision propre à ce marchand avant d'ajouter un accès.
 
 ## 2. Créer le module
 

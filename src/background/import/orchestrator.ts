@@ -2,8 +2,10 @@ import { entityOutToUpdate, type HomeBoxClient } from '@/background/homebox/clie
 import type { EntityOut } from '@/background/homebox/types';
 import { getMessage } from '@/platform/i18n';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
+import { findDuplicatesByName } from './duplicates';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
-import type { DocumentRef, ImportDraft, ManualFile, PendingImport } from '@/shared/types';
+import type { DocumentRef, DraftPhoto, ImportDraft, ManualFile, PendingImport, PhotoStep } from '@/shared/types';
+import type { FetchedPhoto } from './photo-fetch';
 
 export interface OrchestratorDeps {
   client: HomeBoxClient;
@@ -14,11 +16,20 @@ export interface OrchestratorDeps {
   };
   /** Télécharge un document détecté via le script injecté dans l'onglet amazon.fr. */
   downloadDetected(tabId: number, url: string): Promise<Result<{ base64: string }>>;
+  /** Récupère la photo sur le serveur du marchand (module séparé : il n'a jamais accès à la clé). */
+  fetchPhoto(photo: DraftPhoto): Promise<Result<FetchedPhoto>>;
   notify(p: PendingImport): void;
   newId(): string;
 }
 
 type FileMap = Map<string, Result<Uint8Array>>;
+/** Photos récupérées pendant un appel, par URL : une commande de plusieurs produits ne télécharge l'image qu'une fois. */
+type PhotoMap = Map<string, Result<FetchedPhoto>>;
+
+function initialPhotoStep(photo: DraftPhoto | null): PhotoStep {
+  if (!photo) return 'unavailable';
+  return photo.include ? 'pending' : 'not_requested';
+}
 
 export function buildNotes(draft: ImportDraft): string | undefined {
   if (!draft.orderNumber) return undefined;
@@ -59,17 +70,79 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return result;
   }
 
+  /** Télécharge la photo une seule fois par URL pendant un appel. */
+  async function photoFor(photo: DraftPhoto, photos: PhotoMap): Promise<Result<FetchedPhoto>> {
+    const cached = photos.get(photo.url);
+    if (cached) return cached;
+    const result = await deps.fetchPhoto(photo);
+    photos.set(photo.url, result);
+    return result;
+  }
+
+  /**
+   * Anti-double (R8) : après une tentative d'envoi dont l'issue est inconnue, on relit l'objet. Une photo
+   * déjà jointe (`type`, jamais `primary`) clôt l'étape ; une lecture impossible l'échoue sans envoyer.
+   */
+  async function reconcilePhoto(p: PendingImport, entityId: string): Promise<void> {
+    const step = p.steps.photo;
+    if (step !== 'sending' && step !== 'failed') return;
+    if (!p.photoAttempted) {
+      p.steps.photo = 'pending';
+      return;
+    }
+    const current = await client.getEntity(entityId);
+    if (!current.ok) {
+      p.steps.photo = 'failed';
+      p.photoError = 'PHOTO_UPLOAD_FAILED';
+    } else if (current.value.attachments?.some((a) => a.type === 'photo')) {
+      p.steps.photo = 'done';
+      p.photoError = null;
+    } else {
+      p.steps.photo = 'pending';
+    }
+  }
+
+  async function sendPhoto(p: PendingImport, entityId: string, photos: PhotoMap): Promise<void> {
+    const photo = p.draft.photo;
+    if (!photo) return;
+    const fetched = await photoFor(photo, photos);
+    if (!fetched.ok) {
+      p.steps.photo = 'failed';
+      p.photoError = fetched.error;
+      return;
+    }
+    // Écriture anticipée : si le service worker s'arrête pendant le POST, la reprise relira l'objet.
+    p.steps.photo = 'sending';
+    p.photoAttempted = true;
+    await persist(p);
+    const res = await client.addAttachment(entityId, {
+      bytes: fetched.value.bytes,
+      filename: fetched.value.filename,
+      type: 'photo',
+      mimeType: fetched.value.mimeType,
+      primary: true,
+    });
+    p.steps.photo = res.ok ? 'done' : 'failed';
+    p.photoError = res.ok ? null : 'PHOTO_UPLOAD_FAILED';
+  }
+
   /**
    * Exécute les étapes restantes d'un import. Invariant (FR-021) : une fois `entityId`
    * renseigné, l'objet n'est jamais recréé.
    */
-  async function run(p: PendingImport, files: FileMap): Promise<PendingImport> {
+  async function run(p: PendingImport, files: FileMap, photos: PhotoMap): Promise<PendingImport> {
+    delete p.orphaned;
     p.status = 'running';
     p.error = null;
     await persist(p);
 
     let created: EntityOut | null = null;
     if (!p.entityId) {
+      // Écriture anticipée (R8) : si le service worker s'arrête pendant le POST, l'import orphelin saura
+      // que l'objet a pu être créé.
+      p.createAttempted = true;
+      delete p.createUncertain;
+      await persist(p);
       const res = await client.createEntity({
         name: p.draft.name,
         description: p.draft.description || undefined,
@@ -79,6 +152,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         p.steps.create = 'failed';
         p.status = 'failed';
         p.error = res.error;
+        // Réponse perdue (réseau, délai) : le POST a pu aboutir. Une erreur HTTP explicite est un échec certain.
+        if (res.error === 'HOMEBOX_UNREACHABLE') p.createUncertain = true;
+        else p.createAttempted = false;
         await persist(p);
         return p;
       }
@@ -117,6 +193,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
             bytes: bytes.value,
             filename: attachmentName(doc),
             type: doc.kind === 'invoice' ? 'receipt' : 'attachment',
+            mimeType: 'application/pdf',
           })
         : bytes;
       p.steps.attachments[doc.id] = res.ok ? 'done' : 'failed';
@@ -128,6 +205,17 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       }
       await persist(p);
     }
+
+    p.steps.photo ??= 'not_requested';
+    p.photoError ??= null;
+    await reconcilePhoto(p, entityId);
+    if (p.steps.photo === 'pending') {
+      await sendPhoto(p, entityId, photos);
+      await persist(p);
+    }
+    // Tant que la photo n'est pas en échec, aucune erreur de photo n'est conservée.
+    if (p.steps.photo !== 'failed') p.photoError = null;
+    else partialError ??= p.photoError;
 
     if (partialError) {
       p.status = 'partial';
@@ -150,27 +238,33 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     async startImport(tabId: number, drafts: ImportDraft[], manualFiles: ManualFile[]): Promise<Result<PendingImport[]>> {
       if (drafts.some((d) => d.name.trim() === '')) return fail('PRODUCT_NOT_FOUND');
       const files = filesFrom(manualFiles);
+      const photos: PhotoMap = new Map();
       // Rejet des fichiers manuels invalides avant tout appel HomeBox.
       for (const result of files.values()) if (!result.ok) return result;
 
+      // Tous les imports du lot sont persistés avant le premier POST : si le service worker s'arrête pendant
+      // le premier, les suivants restent visibles et réessayables.
+      const pendings: PendingImport[] = drafts.map((draft) => ({
+        id: deps.newId(),
+        tabId,
+        pageUrl: draft.pageUrl,
+        draft,
+        entityId: null,
+        steps: {
+          create: 'pending',
+          update: 'pending',
+          attachments: Object.fromEntries(draft.documents.map((d) => [d.id, 'pending'])),
+          photo: initialPhotoStep(draft.photo),
+        },
+        status: 'running',
+        error: null,
+        photoError: null,
+        photoAttempted: false,
+      }));
+      for (const pending of pendings) await store.save(pending);
+
       const results: PendingImport[] = [];
-      for (const draft of drafts) {
-        const pending: PendingImport = {
-          id: deps.newId(),
-          tabId,
-          pageUrl: draft.pageUrl,
-          draft,
-          entityId: null,
-          steps: {
-            create: 'pending',
-            update: 'pending',
-            attachments: Object.fromEntries(draft.documents.map((d) => [d.id, 'pending'])),
-          },
-          status: 'running',
-          error: null,
-        };
-        results.push(await run(pending, files));
-      }
+      for (const pending of pendings) results.push(await run(pending, files, photos));
       return ok(results);
     },
 
@@ -179,11 +273,20 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       if (!pending) return fail('BAD_MESSAGE');
       const files = filesFrom(manualFiles);
       for (const result of files.values()) if (!result.ok) return result;
+      // Création incertaine (réponse perdue, ou arrêt du service worker pendant le POST) : l'objet a pu être
+      // créé sans que son identifiant soit enregistré. On cherche son nom exact avant de renvoyer un POST ;
+      // le risque de doublon n'est réduit que, pas supprimé (objet renommé, index de recherche en retard).
+      const uncertain = pending.createUncertain || (pending.orphaned && pending.createAttempted);
+      if (!pending.entityId && uncertain) {
+        const dup = await findDuplicatesByName(client, pending.draft.name);
+        if (!dup.ok) return fail('DUPLICATE_CHECK_FAILED');
+        if (dup.value.length > 0) return fail('DUPLICATE_SUSPECTED');
+      }
       const needsManual = pending.draft.documents.some(
         (d) => d.origin === 'manual' && pending.steps.attachments[d.id] !== 'done' && !files.has(d.id),
       );
       if (needsManual) return fail('MANUAL_FILE_REQUIRED');
-      return ok(await run(pending, files));
+      return ok(await run(pending, files, new Map()));
     },
 
     async abandonImport(pendingId: string): Promise<Result<void>> {

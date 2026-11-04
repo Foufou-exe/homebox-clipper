@@ -11,7 +11,9 @@ déverrouillée pour la session en cours.
 3. Vérifiez et corrigez les champs : nom du produit (obligatoire), description, prix d'achat, quantité,
    date d'achat, numéro de commande, vendeur. Les champs non détectés sont signalés « non détecté ».
 4. Contrôlez les documents à joindre (facture détectée ou fichier local).
-5. Cliquez sur **Ajouter à HomeBox**. Un message confirme l'ajout, avec le lien **Ouvrir dans HomeBox**.
+5. Pour chaque produit, la photo détectée s'affiche (64 px) avec la case **Envoyer cette photo avec l'objet**,
+   cochée par défaut : décochez-la pour ne rien envoyer. Sans photo, le résumé l'indique.
+6. Cliquez sur **Ajouter à HomeBox**. Un message confirme l'ajout, avec le lien **Ouvrir dans HomeBox**.
 
 Aucune écriture n'a lieu dans HomeBox avant ce clic. Le popup affiche en permanence l'instance ciblée
 (« HomeBox : <adresse> »), avec la mention « HTTP non chiffré » si elle est en HTTP.
@@ -29,9 +31,17 @@ Aucune écriture n'a lieu dans HomeBox avant ce clic. Le popup affiche en perman
 | N° de commande et lien de la page de commande | Notes (« Commande Amazon.fr : <numéro> » puis l'adresse de la page) |
 | Facture PDF | Pièce jointe de type **Reçu** |
 | Bon de commande ajouté à la main | Pièce jointe de type **Pièce jointe** |
+| Photo du produit (case cochée) | Pièce jointe de type **Photo**, image principale de l'objet |
 
-L'objet est créé avec le type par défaut de HomeBox, sans emplacement ni étiquette. La photo du produit
-n'est affichée que dans le résumé : elle n'est pas envoyée.
+L'objet est créé avec le type par défaut de HomeBox, sans emplacement ni étiquette.
+
+## La photo du produit
+
+La photo est récupérée sur le serveur du marchand au moment de l'import (seulement si la case est cochée),
+vérifiée (JPEG, PNG ou WebP, 5 Mo au plus, d'après le contenu réel du fichier) puis envoyée à HomeBox. Elle
+n'est jamais conservée par l'extension. Le résultat indique, par produit : *Photo ajoutée*, *Photo non
+demandée*, *Aucune photo disponible* ou *Échec de l'envoi de la photo*. Si la photo échoue, l'objet et sa
+facture sont conservés : **Réessayer l'envoi de la photo** ne relance que la photo, sans recréer l'objet.
 
 ## Commande à plusieurs articles
 
@@ -69,10 +79,22 @@ même ? » avant de créer l'objet.
 
 Un import se fait en plusieurs appels (voir [Architecture](Architecture.md)). Si l'objet est créé mais que
 la suite échoue (informations d'achat ou facture), le popup l'indique et propose **Réessayer l'envoi de la
-facture** ou **Réessayer l'import**, **sans recréer l'objet**. Si vous fermez le popup, la reprise vous est
+facture**, **Réessayer l'envoi de la photo** ou **Réessayer l'import**, **sans recréer l'objet**. Si vous fermez le popup, la reprise vous est
 reproposée à sa prochaine ouverture sur le même onglet. Pour un fichier ajouté à la main, il faut le
 sélectionner à nouveau (les octets des fichiers ne sont jamais conservés). **Abandonner** efface l'import
-en cours sans contacter HomeBox, même extension verrouillée.
+en cours sans contacter HomeBox, même extension verrouillée (l'objet déjà créé est conservé).
+
+Si le service worker de l'extension s'est arrêté pendant un import, le popup l'indique (« L'import a été
+interrompu avant la fin. ») et propose de le reprendre. Cette reprise ne vaut que pour cet arrêt : les imports
+en cours sont gardés en mémoire de session, vidée à la fermeture du navigateur et à la mise à jour de
+l'extension. Dans ces deux cas, rien n'est repris : vérifiez dans HomeBox si l'objet a été créé.
+
+Quand la création d'un objet est incertaine (réponse perdue, délai dépassé, arrêt pendant l'envoi), la reprise
+cherche d'abord dans HomeBox un objet de **même nom**. S'il en existe un, elle refuse de réessayer (faux
+positif possible : le même produit acheté une autre fois). Si cette recherche échoue, elle refuse aussi.
+Dans les deux cas, vérifiez dans HomeBox, puis abandonnez et relancez l'import depuis le résumé, qui demande
+confirmation en cas de doublon. Ce contrôle réduit le risque sans l'éliminer : un doublon reste possible si
+l'objet a été renommé ou si la recherche ne le voit pas.
 
 ## Thèmes
 

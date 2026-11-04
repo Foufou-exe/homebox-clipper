@@ -1,11 +1,13 @@
 import { vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { HomeBoxClient } from '@/background/homebox/client';
+import type { AttachmentUpload } from '@/background/homebox/types';
 import { createOrchestrator } from '@/background/import/orchestrator';
 import { pendingStore } from '@/background/import/pending-store';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { bytesToBase64 } from '@/shared/pdf';
-import type { DocumentRef, ImportDraft, PendingImport } from '@/shared/types';
+import type { FetchedPhoto } from '@/background/import/photo-fetch';
+import type { DocumentRef, DraftPhoto, ImportDraft, PendingImport } from '@/shared/types';
 
 export const PDF = new TextEncoder().encode('%PDF-1.7\n1 0 obj\n');
 export const PDF_B64 = bytesToBase64(PDF);
@@ -17,6 +19,14 @@ export const invoice: DocumentRef = {
   label: 'facture-amazon-999-0000000-0000001.pdf',
   url: 'https://www.amazon.fr/documents/download/x/invoice.pdf',
 };
+
+export const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
+export const photoOk: FetchedPhoto = { bytes: JPEG, mimeType: 'image/jpeg', filename: 'photo-produit.jpg' };
+
+/** Photo proposée par défaut pour les tests de la photo ; `draft()` n'en a pas (aucun test existant n'est affecté). */
+export function draftPhoto(over: Partial<DraftPhoto> = {}): DraftPhoto {
+  return { url: 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg', merchantId: 'amazon.fr', include: true, ...over };
+}
 
 export function draft(overrides: Partial<ImportDraft> = {}): ImportDraft {
   return {
@@ -30,6 +40,7 @@ export function draft(overrides: Partial<ImportDraft> = {}): ImportDraft {
     quantity: 1,
     pageUrl: 'https://www.amazon.fr/your-orders/order-details',
     documents: [invoice],
+    photo: null,
     ...overrides,
   };
 }
@@ -42,7 +53,7 @@ export function fakeClient(script: {
   create?: Step<{ id: string; name: string }>[];
   update?: Step<{ id: string; name: string }>[];
   attach?: Step<void>[];
-  get?: Step<{ id: string; name: string }>[];
+  get?: Step<{ id: string; name: string; attachments?: { id: string; type?: string; primary?: boolean }[] }>[];
 }) {
   let n = 0;
   const take = <T>(queue: Step<T>[] | undefined, fallback: () => Result<T>) => {
@@ -51,13 +62,20 @@ export function fakeClient(script: {
   };
   const client = {
     baseUrl: 'https://homebox.example.com',
-    createEntity: vi.fn(() => take(script.create, () => ok({ id: `e${++n}`, name: 'x' }))),
+    createEntity: vi.fn((data?: { name: string; description?: string }) => {
+      void data;
+      return take(script.create, () => ok({ id: `e${++n}`, name: 'x' }));
+    }),
     updateEntity: vi.fn((id: string, data?: unknown) => {
       void data;
       return take(script.update, () => ok({ id, name: 'x' }));
     }),
     getEntity: vi.fn((id: string) => take(script.get, () => ok({ id, name: 'x' }))),
-    addAttachment: vi.fn(() => take(script.attach, () => ok(undefined))),
+    addAttachment: vi.fn((id: string, file: AttachmentUpload) => {
+      void id;
+      void file;
+      return take(script.attach, () => ok(undefined));
+    }),
     searchEntities: vi.fn(),
     getStatus: vi.fn(),
     checkAuth: vi.fn(),
@@ -67,20 +85,29 @@ export function fakeClient(script: {
 
 export const err = (code: ErrorCode, status?: number) => fail(code, status);
 
-export function setup(script: Parameters<typeof fakeClient>[0] = {}, download?: () => Result<{ base64: string }>) {
+export function setup(
+  script: Parameters<typeof fakeClient>[0] = {},
+  download?: () => Result<{ base64: string }>,
+  photo?: () => Result<FetchedPhoto>,
+) {
   fakeBrowser.reset();
   const client = fakeClient(script);
   const notified: PendingImport['status'][] = [];
   const downloadDetected = vi.fn(async () => (download ? download() : ok({ base64: PDF_B64 })));
+  const fetchPhoto = vi.fn(async (p: DraftPhoto) => {
+    void p;
+    return photo ? photo() : ok(photoOk);
+  });
   let id = 0;
   const orchestrator = createOrchestrator({
     client: client as unknown as HomeBoxClient,
     store: pendingStore,
     downloadDetected,
+    fetchPhoto,
     notify: (p) => notified.push(p.status),
     newId: () => `p${++id}`,
   });
-  return { client, orchestrator, notified, downloadDetected };
+  return { client, orchestrator, notified, downloadDetected, fetchPhoto };
 }
 
 export const sessionKeys = async () => Object.keys(await fakeBrowser.storage.session.get(null));

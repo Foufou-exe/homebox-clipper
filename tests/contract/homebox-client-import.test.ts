@@ -43,7 +43,7 @@ describe('client HomeBox — import', () => {
   it('addAttachment envoie un multipart avec file, name et type=receipt', async () => {
     const m = mockFetch(json(201, { id: 'e1' }));
     const bytes = new TextEncoder().encode('%PDF-1.7');
-    const r = await client(m.fetch).addAttachment('e1', { bytes, filename: 'facture.pdf', type: 'receipt' });
+    const r = await client(m.fetch).addAttachment('e1', { bytes, filename: 'facture.pdf', type: 'receipt', mimeType: 'application/pdf' });
     expect(r.ok).toBe(true);
     expect(m.calls[0]?.url).toBe(`${BASE}/api/v1/entities/e1/attachments`);
     const form = m.calls[0]?.body as FormData;
@@ -55,6 +55,42 @@ describe('client HomeBox — import', () => {
     expect(new Uint8Array(await file.arrayBuffer())).toEqual(bytes);
     // Le navigateur fixe lui-même la frontière multipart.
     expect(m.calls[0]?.headers.has('Content-Type')).toBe(false);
+    // SC-006 : un PDF n'envoie jamais `primary`.
+    expect(form.has('primary')).toBe(false);
+  });
+
+  it('addAttachment photo envoie type=photo, primary=true et le type MIME de l’image', async () => {
+    const m = mockFetch(json(201, { id: 'e1' }));
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const r = await client(m.fetch).addAttachment('e1', {
+      bytes,
+      filename: 'clavier.jpg',
+      type: 'photo',
+      mimeType: 'image/jpeg',
+      primary: true,
+    });
+    expect(r.ok).toBe(true);
+    const form = m.calls[0]?.body as FormData;
+    expect(form.get('type')).toBe('photo');
+    expect(form.get('primary')).toBe('true');
+    expect(form.get('name')).toBe('clavier.jpg');
+    const file = form.get('file') as File;
+    expect(file.type).toBe('image/jpeg');
+    expect(new Uint8Array(await file.arrayBuffer())).toEqual(bytes);
+  });
+
+  it('addAttachment n’envoie pas primary quand il est faux ou absent', async () => {
+    const m = mockFetch(json(201, {}), json(201, {}));
+    const c = client(m.fetch);
+    const base = { bytes: new Uint8Array([1]), filename: 'f.pdf', type: 'attachment' as const, mimeType: 'application/pdf' };
+    await c.addAttachment('e1', { ...base, primary: false });
+    await c.addAttachment('e1', base);
+    for (const call of m.calls) {
+      const form = call.body as FormData;
+      expect(form.has('primary')).toBe(false);
+      expect(form.get('type')).toBe('attachment');
+      expect((form.get('file') as File).type).toBe('application/pdf');
+    }
   });
 
   it('addAttachment 422 → ATTACHMENT_FAILED', async () => {
@@ -63,6 +99,7 @@ describe('client HomeBox — import', () => {
       bytes: new Uint8Array([1]),
       filename: 'f.pdf',
       type: 'receipt',
+      mimeType: 'application/pdf',
     });
     expect(r).toEqual({ ok: false, error: 'ATTACHMENT_FAILED', httpStatus: 422 });
   });
@@ -95,6 +132,23 @@ describe('client HomeBox — import', () => {
       purchaseFrom: 'Amazon.fr',
       notes: 'n',
     });
+  });
+
+  it('entityOutToUpdate n’épingle pas un emplacement hérité (location résolu, sans locationId)', () => {
+    const update = entityOutToUpdate(
+      { id: 'e1', name: 'Clavier', location: { id: 'loc-herite' }, parent: null },
+      {},
+    );
+    expect(update).not.toHaveProperty('locationId');
+    expect(update).not.toHaveProperty('parentId');
+  });
+
+  it('entityOutToUpdate conserve le locationId et le parentId propres à l’entité', () => {
+    const update = entityOutToUpdate(
+      { id: 'e1', name: 'Clavier', locationId: 'loc-propre', location: { id: 'loc-propre' }, parent: { id: 'p1' } },
+      {},
+    );
+    expect(update).toMatchObject({ locationId: 'loc-propre', parentId: 'p1' });
   });
 
   it('itemUrl pointe vers la page objet de HomeBox', () => {

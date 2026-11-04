@@ -14,6 +14,8 @@ const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: st
 const busy = ref(false);
 const error = ref<ErrorCode | null>(null);
 const files = ref(new Map<string, ManualFile>());
+/** Reprise refusée pour doublon probable : un nouvel essai donnerait le même refus, on ne le propose plus. */
+const duplicateBlocked = ref(false);
 
 const link = computed(() => (props.pending.entityId ? `${props.baseUrl}/item/${props.pending.entityId}` : null));
 const failedDocs = computed(() =>
@@ -23,9 +25,17 @@ const failedDocs = computed(() =>
 const manualToReselect = computed(() =>
   failedDocs.value.filter((d) => d.origin === 'manual' && !files.value.has(d.id)),
 );
+/** Photo encore à faire : `pending` (reprise interrompue), `sending` (issue inconnue) ou `failed`. */
+const photoRemaining = computed(() => ['pending', 'sending', 'failed'].includes(props.pending.steps.photo ?? 'not_requested'));
+/** Erreur de la photo, affichée à part sauf si c'est déjà l'erreur principale. */
+const photoError = computed(() => (props.pending.photoError !== props.pending.error ? props.pending.photoError : null));
 const retryLabel = computed(() => {
   if (!props.pending.entityId) return t('recovery.retryImport');
-  return props.pending.steps.update === 'failed' ? t('recovery.retry') : t('recovery.retryInvoice');
+  const updateRemaining = props.pending.steps.update !== 'done';
+  const docsRemaining = failedDocs.value.length > 0;
+  if (photoRemaining.value && !updateRemaining && !docsRemaining) return t('recovery.retryPhoto');
+  if (docsRemaining && !updateRemaining && !photoRemaining.value) return t('recovery.retryInvoice');
+  return t('recovery.retry');
 });
 
 function onPicked({ doc, file }: PickedDocument) {
@@ -38,7 +48,10 @@ async function retry() {
   try {
     const res = await send({ type: 'import/retry', pendingId: props.pending.id, manualFiles: [...files.value.values()] });
     if (res.ok) emit('updated', res.value);
-    else error.value = res.error;
+    else {
+      error.value = res.error;
+      duplicateBlocked.value = res.error === 'DUPLICATE_SUSPECTED';
+    }
   } finally {
     busy.value = false;
   }
@@ -56,10 +69,13 @@ async function abandon() {
       {{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ t('recovery.created') }}
       <a v-if="link" :href="link" target="_blank" rel="noopener">{{ t('recovery.openLink') }}</a>{{ t('recovery.incomplete') }}
     </p>
-    <p v-else>{{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ t('recovery.notCreated') }}</p>
+    <p v-else>{{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ pending.createUncertain || (pending.orphaned && pending.createAttempted) ? t('recovery.maybeCreated') : t('recovery.notCreated') }}</p>
 
+    <p v-if="pending.orphaned" class="muted">{{ t('recovery.interrupted') }}</p>
     <ErrorBanner v-if="pending.error" :code="pending.error" />
+    <ErrorBanner v-if="photoError" :code="photoError" />
     <ErrorBanner v-if="error" :code="error" />
+    <p v-if="duplicateBlocked" class="muted">{{ t('recovery.duplicateHint') }}</p>
 
     <div v-for="d in manualToReselect" :key="d.id" class="reselect">
       <p class="muted">{{ t('recovery.reselect', [d.label]) }}</p>
@@ -67,7 +83,7 @@ async function abandon() {
     </div>
 
     <div class="actions">
-      <button class="primary" type="button" :disabled="busy || manualToReselect.length > 0" @click="retry">
+      <button v-if="!duplicateBlocked" class="primary" type="button" :disabled="busy || manualToReselect.length > 0" @click="retry">
         {{ busy ? t('recovery.retrying') : retryLabel }}
       </button>
       <button type="button" :disabled="busy" @click="abandon">{{ t('recovery.abandon') }}</button>

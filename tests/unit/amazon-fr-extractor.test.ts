@@ -1,5 +1,6 @@
 import { amazonFrExtractor as ex, firstField } from '@/content/merchants/amazon-fr/extractor';
-import { fixtureHtml, loadFixture } from './fixtures';
+import { Window } from 'happy-dom';
+import { fixtureHtml, loadFixture, ORDER_URL } from './fixtures';
 
 const extract = (name: string) => {
   const { doc, url } = loadFixture(name);
@@ -141,6 +142,50 @@ describe('amazonFrExtractor', () => {
     expect(purchase.seller.value).toBe('Boutique Factice SARL');
   });
 
+  describe('hôte de l’image (R6, FR-010)', () => {
+    const ORIGINAL = '<img alt="" src="https://m.media-amazon.com/images/I/test-keyboard.jpg">';
+    const withImages = (html: string) => {
+      const window = new Window({ url: ORDER_URL });
+      window.document.write(fixtureHtml('order-single-item-invoice.html').replace(ORIGINAL, html));
+      return ex.extract(window.document as unknown as Document, new URL(ORDER_URL)).products[0];
+    };
+
+    it('hôte non autorisé → { value: null, reason: not_found }, jamais l’URL', () => {
+      const product = withImages('<img alt="" src="https://tracker.example.invalid/pixel.gif">');
+      expect(product?.imageUrl).toEqual({ value: null, reason: 'not_found' });
+    });
+
+    it('aucune image du tout → not_found', () => {
+      expect(withImages('')?.imageUrl).toEqual({ value: null, reason: 'not_found' });
+    });
+
+    it('hôte lookalike ou http: refusés', () => {
+      expect(withImages('<img src="https://m.media-amazon.com.evil.example/a.jpg">')?.imageUrl.value).toBeNull();
+      expect(withImages('<img src="http://m.media-amazon.com/images/I/a.jpg">')?.imageUrl.value).toBeNull();
+    });
+
+    it('un logo d’un autre hôte est refusé et le sélecteur suivant (productImage) retrouve la photo', () => {
+      const product = withImages(
+        '<img alt="" src="https://logo.example.invalid/logo.png"></a></div>' +
+          '<img alt="" src="https://m.media-amazon.com/images/I/test-fallback.jpg">' +
+          '<div hidden><a>',
+      );
+      expect(product?.imageUrl).toEqual({
+        value: 'https://m.media-amazon.com/images/I/test-fallback.jpg',
+        selector: 'img',
+      });
+    });
+
+    it('le jeton de taille est réécrit en _SL1000_ (toPhotoUrl)', () => {
+      const product = withImages('<img alt="" src="https://m.media-amazon.com/images/I/test-keyboard._SS284_.jpg">');
+      expect(product?.imageUrl.value).toBe('https://m.media-amazon.com/images/I/test-keyboard._SL1000_.jpg');
+    });
+
+    it('Amazon.fr déclare m.media-amazon.com comme seul hôte d’image', () => {
+      expect(ex.imageHosts).toEqual(['m.media-amazon.com']);
+    });
+  });
+
   it('page réelle : quantité lue dans le badge de la colonne image, sans croiser les lignes', () => {
     const { doc, url } = loadFixture('order-real-layout-qty.html');
     const { products } = ex.extract(doc, url);
@@ -243,7 +288,7 @@ describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
     it('image trouvée pour chaque ligne, sans croiser les lignes', () => {
       const { products } = extract(fixture);
       expect(products.map((x) => x.imageUrl.value)).toEqual(
-        rowNumbers.map((n) => `https://images.example.invalid/${n}.jpg`),
+        rowNumbers.map((n) => `https://m.media-amazon.com/images/I/test-${n}.jpg`),
       );
     });
 

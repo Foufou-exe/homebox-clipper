@@ -1,7 +1,15 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { fail, ok } from '@/shared/errors';
 import { send } from '@/shared/messages';
-import type { ConfigView, DetectedProduct, DetectedPurchase, DocumentRef, ImportDraft, PendingImport } from '@/shared/types';
+import type {
+  ConfigView,
+  DetectedProduct,
+  DetectedPurchase,
+  DocumentRef,
+  DraftPhoto,
+  ImportDraft,
+  PendingImport,
+} from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
@@ -83,6 +91,7 @@ const draft = (over: Partial<ImportDraft> = {}): ImportDraft => ({
   quantity: 1,
   pageUrl: null,
   documents: [],
+  photo: null,
   ...over,
 });
 
@@ -114,7 +123,9 @@ const pending = (over: Partial<PendingImport> = {}): PendingImport => ({
   pageUrl: null,
   draft: draft({ documents: [detectedDoc, manualDoc] }),
   entityId: 'e1',
-  steps: { create: 'done', update: 'failed', attachments: { d1: 'pending', m1: 'failed' } },
+  steps: { create: 'done', update: 'failed', attachments: { d1: 'pending', m1: 'failed' }, photo: 'unavailable' },
+  photoError: null,
+  photoAttempted: false,
   status: 'partial',
   error: 'UPDATE_FAILED',
   ...over,
@@ -171,7 +182,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
   });
 
   it('ResultView : import en cours, partiel et réussi', () => {
-    const running = pending({ status: 'running', error: null, steps: { create: 'done', update: 'pending', attachments: {} } });
+    const running = pending({ status: 'running', error: null, steps: { create: 'done', update: 'pending', attachments: {}, photo: 'pending' } });
     const done = pending({ id: 'p2', status: 'success', error: null });
     const wrapper = mount(ResultView, {
       props: { pendings: [running, done, pending({ id: 'p3' })], baseUrl: DATA, running: false },
@@ -198,6 +209,14 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     });
     expectCatalogTexts(notCreated, [DATA]);
     expect(notCreated.text()).toContain('n\'a pas été créé.');
+    // Création incertaine : ne jamais affirmer que l'objet n'existe pas.
+    for (const state of [{ createUncertain: true }, { orphaned: true, createAttempted: true }]) {
+      const uncertain = mount(RecoveryView, {
+        props: { pending: pending({ entityId: null, error: 'DUPLICATE_SUSPECTED', ...state }), baseUrl: '' },
+      });
+      expect(uncertain.text()).toContain('a peut-être été créé');
+      expect(uncertain.text()).not.toContain('n\'a pas été créé.');
+    }
   });
 
   describe('SummaryView', () => {
@@ -237,6 +256,249 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       await flushPromises();
       expectCatalogTexts(wrapper, [DATA]);
       expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true);
+    });
+  });
+
+  describe('photo du produit (US1)', () => {
+    const PHOTO = 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg';
+    const withPhoto = (key: string): DetectedProduct => ({ ...product(key), imageUrl: found(PHOTO) });
+    const mountSummary = async (products: DetectedProduct[]) => {
+      vi.mocked(send).mockResolvedValue(ok({ purchase: purchase(products), warnings: [] }) as never);
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      await flushPromises();
+      return wrapper;
+    };
+    const submitted = (wrapper: VueWrapper) =>
+      (wrapper.emitted('submit')?.[0]?.[0] as { drafts: ImportDraft[] }).drafts;
+
+    it('SummaryView : image de 64 px et case cochée par défaut (scénario 1, FR-001, FR-002)', async () => {
+      const wrapper = await mountSummary([withPhoto('a')]);
+      const img = wrapper.find('.photo img');
+      expect(img.attributes('src')).toBe(PHOTO);
+      expect(img.attributes('width')).toBe('64');
+      expect(img.attributes('height')).toBe('64');
+      const box = wrapper.find('.photo input[type="checkbox"]');
+      expect((box.element as HTMLInputElement).checked).toBe(true);
+      expect(wrapper.find('.photo').text()).toBe("Envoyer cette photo avec l'objet");
+      expectCatalogTexts(wrapper, [DATA]);
+    });
+
+    it('SummaryView : la case reflète draft.photo.include à la soumission (FR-002)', async () => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(
+          msg.type === 'detect/run'
+            ? ok({ purchase: purchase([withPhoto('a')]), warnings: [] })
+            : ok({ matches: [] }),
+        ) as never,
+      );
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      await flushPromises();
+      await wrapper.find('.photo input[type="checkbox"]').setValue(false);
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      expect(submitted(wrapper)[0]?.photo).toEqual({ url: PHOTO, merchantId: 'amazon.fr', include: false } satisfies DraftPhoto);
+    });
+
+    it('SummaryView : photo cochée → draft.photo.include vrai, avec l’URL et le marchand', async () => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(
+          msg.type === 'detect/run'
+            ? ok({ purchase: purchase([withPhoto('a')]), warnings: [] })
+            : ok({ matches: [] }),
+        ) as never,
+      );
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      await flushPromises();
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      expect(submitted(wrapper)[0]?.photo).toEqual({ url: PHOTO, merchantId: 'amazon.fr', include: true });
+    });
+
+    it('SummaryView : sans photo, summary.photoNone et draft.photo = null (scénario 4)', async () => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(
+          msg.type === 'detect/run' ? ok({ purchase: purchase([product('a')]), warnings: [] }) : ok({ matches: [] }),
+        ) as never,
+      );
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      await flushPromises();
+      expect(wrapper.find('.photo input').exists()).toBe(false);
+      expect(wrapper.text()).toContain('Aucune photo disponible pour ce produit.');
+      expectCatalogTexts(wrapper, [DATA]);
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      expect(submitted(wrapper)[0]?.photo).toBeNull();
+    });
+
+    it('SummaryView : @error sur l’image décoche la case et affiche summary.photoLoadFailed', async () => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(
+          msg.type === 'detect/run'
+            ? ok({ purchase: purchase([withPhoto('a')]), warnings: [] })
+            : ok({ matches: [] }),
+        ) as never,
+      );
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      await flushPromises();
+      await wrapper.find('.photo img').trigger('error');
+      expect(wrapper.text()).toContain("La photo n'a pas pu être affichée : elle ne sera pas envoyée.");
+      expect((wrapper.find('.photo input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false);
+      expectCatalogTexts(wrapper, [DATA]);
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      // D3 : l'utilisateur n'a rien décoché, la photo est indisponible (FR-009), pas « non demandée ».
+      expect(submitted(wrapper)[0]?.photo).toBeNull();
+    });
+
+    it('SummaryView : sans clic sur « Ajouter », aucun import/start ni requête réseau (FR-022)', async () => {
+      const fetchSpy = vi.fn();
+      vi.stubGlobal('fetch', fetchSpy);
+      const wrapper = await mountSummary([withPhoto('a')]);
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(msg.type === 'duplicate/check' ? ok({ matches: [] }) : ok({ purchase: purchase([withPhoto('a')]), warnings: [] })) as never,
+      );
+      await wrapper.find('.photo img').trigger('error');
+      await flushPromises();
+      expect(wrapper.emitted('submit')).toBeUndefined();
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type)).toEqual(['detect/run']);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      expect(wrapper.emitted('submit')).toHaveLength(1);
+      vi.unstubAllGlobals();
+    });
+
+    it('SummaryView : la vignette n’envoie pas de référent (referrerpolicy=no-referrer)', async () => {
+      const wrapper = await mountSummary([withPhoto('a')]);
+      expect(wrapper.find('.photo img').attributes('referrerpolicy')).toBe('no-referrer');
+    });
+
+    it('ResultView : « avec sa facture » est séparé du nom du produit (D2)', () => {
+      const one = pending({ status: 'success', error: null, draft: draft({ documents: [detectedDoc] }) });
+      const many = pending({ id: 'p2', status: 'success', error: null, draft: draft({ documents: [detectedDoc, manualDoc] }) });
+      const wrapper = mount(ResultView, { props: { pendings: [one, many], baseUrl: DATA, running: false } });
+      const text = wrapper.text();
+      expect(text).toContain(`${DATA} avec sa facture —`);
+      expect(text).toContain(`${DATA} avec ses documents —`);
+    });
+
+    it('SummaryView : plusieurs produits, une photo par ligne', async () => {
+      const wrapper = await mountSummary([withPhoto('a'), product('b')]);
+      expect(wrapper.findAll('.photo img')).toHaveLength(1);
+      expect(wrapper.text()).toContain('Aucune photo disponible pour ce produit.');
+      expectCatalogTexts(wrapper, [DATA]);
+    });
+
+    const withPhotoStep = (photo: PendingImport['steps']['photo'], over: Partial<PendingImport> = {}) =>
+      pending({
+        status: 'success',
+        error: null,
+        steps: { create: 'done', update: 'done', attachments: { d1: 'done', m1: 'done' }, photo },
+        ...over,
+      });
+
+    it('ResultView : ligne result.stepPhoto pendant l’import', () => {
+      const running = pending({
+        status: 'running',
+        error: null,
+        steps: { create: 'done', update: 'done', attachments: {}, photo: 'sending' },
+      });
+      const wrapper = mount(ResultView, { props: { pendings: [running], baseUrl: DATA, running: true } });
+      expect(wrapper.text()).toContain('Photo : en attente');
+      expectCatalogTexts(wrapper, [DATA]);
+    });
+
+    it.each([
+      ['done', 'Photo ajoutée.'],
+      ['not_requested', 'Photo non demandée.'],
+      ['unavailable', 'Aucune photo disponible.'],
+    ] as const)('ResultView : résultat par produit, photo %s (FR-009)', (step, text) => {
+      const wrapper = mount(ResultView, { props: { pendings: [withPhotoStep(step)], baseUrl: DATA, running: false } });
+      expect(wrapper.text()).toContain(text);
+      expectCatalogTexts(wrapper, [DATA]);
+    });
+
+    it('ResultView : photo en échec → photoFailed, avec la reprise de la photo seule', () => {
+      const failed = withPhotoStep('failed', { status: 'partial', error: 'PHOTO_UPLOAD_FAILED', photoError: 'PHOTO_UPLOAD_FAILED', photoAttempted: true });
+      const wrapper = mount(ResultView, { props: { pendings: [failed], baseUrl: DATA, running: false } });
+      expect(wrapper.text()).toContain("Échec de l'envoi de la photo.");
+      expect(wrapper.text()).toContain("Réessayer l'envoi de la photo");
+      expectCatalogTexts(wrapper, [DATA]);
+    });
+
+    it('RecoveryView : photoError à part de error, et recovery.retryPhoto quand seule la photo reste', () => {
+      const onlyPhoto = withPhotoStep('failed', {
+        status: 'partial',
+        error: 'PHOTO_TOO_LARGE',
+        photoError: 'PHOTO_TOO_LARGE',
+      });
+      const wrapper = mount(RecoveryView, { props: { pending: onlyPhoto, baseUrl: DATA } });
+      expect(wrapper.findAll('[role="alert"]')).toHaveLength(1); // pas de doublon error / photoError
+      expect(wrapper.text()).toContain('La photo dépasse 5 Mo : elle n\'a pas été envoyée.');
+      expect(wrapper.find('button.primary').text()).toBe("Réessayer l'envoi de la photo");
+      expectCatalogTexts(wrapper, [DATA]);
+
+      const both = withPhotoStep('failed', {
+        status: 'partial',
+        error: 'ATTACHMENT_FAILED',
+        photoError: 'PHOTO_UNAVAILABLE',
+        steps: { create: 'done', update: 'done', attachments: { d1: 'failed', m1: 'done' }, photo: 'failed' },
+      });
+      const wrapper2 = mount(RecoveryView, { props: { pending: both, baseUrl: DATA } });
+      expect(wrapper2.findAll('[role="alert"]')).toHaveLength(2);
+      expect(wrapper2.find('button.primary').text()).toBe('Réessayer');
+      expectCatalogTexts(wrapper2, [DATA]);
+    });
+  });
+
+  describe('reprise après redémarrage du service worker (R8)', () => {
+    const interrupted = (over: Partial<PendingImport> = {}) =>
+      pending({
+        status: 'partial',
+        error: null,
+        orphaned: true,
+        steps: { create: 'done', update: 'pending', attachments: { d1: 'pending', m1: 'pending' }, photo: 'pending' },
+        ...over,
+      });
+
+    it('partial orphelin : message d’interruption et reprise générique', () => {
+      const wrapper = mount(ResultView, { props: { pendings: [interrupted()], baseUrl: DATA, running: false } });
+      expect(wrapper.text()).toContain("L'import a été interrompu avant la fin.");
+      expect(wrapper.find('button.primary').text()).toBe('Réessayer');
+      expectCatalogTexts(wrapper, [DATA]);
+    });
+
+    it('failed orphelin sans objet : réessai de l’import complet', () => {
+      const failed = interrupted({ status: 'failed', entityId: null });
+      const wrapper = mount(ResultView, { props: { pendings: [failed], baseUrl: DATA, running: false } });
+      expect(wrapper.text()).toContain("n'a pas été créé.");
+      expect(wrapper.find('button.primary').text()).toBe("Réessayer l'import");
+      expectCatalogTexts(wrapper, [DATA]);
+    });
+
+    it('DUPLICATE_SUSPECTED à la reprise : le refus est affiché, plus de « Réessayer » (pas de boucle), abandon proposé', async () => {
+      const orphan = interrupted({
+        status: 'failed',
+        entityId: null,
+        draft: draft({ documents: [detectedDoc] }),
+        steps: { create: 'pending', update: 'pending', attachments: { d1: 'pending' }, photo: 'pending' },
+      });
+      vi.mocked(send).mockResolvedValue(fail('DUPLICATE_SUSPECTED') as never);
+      const wrapper = mount(RecoveryView, { props: { pending: orphan, baseUrl: DATA } });
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/retry', pendingId: 'p1' }));
+      expect(wrapper.text()).toContain('Un objet semblable existe déjà dans HomeBox.');
+      expect(wrapper.text()).toContain('un second objet peut être créé sans nouvelle confirmation');
+      expect(wrapper.find('button.primary').exists()).toBe(false);
+      const abandon = wrapper.findAll('button').find((b) => b.text() === 'Abandonner');
+      expect(abandon?.exists()).toBe(true);
+      expectCatalogTexts(wrapper, [DATA]);
+
+      vi.mocked(send).mockResolvedValue(ok(undefined) as never);
+      await abandon!.trigger('click');
+      await flushPromises();
+      expect(wrapper.emitted('abandoned')).toEqual([['p1']]);
     });
   });
 

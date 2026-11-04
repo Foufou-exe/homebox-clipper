@@ -28,12 +28,14 @@ export function emptyDraft(): ImportDraft {
     quantity: 1,
     pageUrl: null,
     documents: [],
+    photo: null,
   };
 }
 
 /** Brouillon modifiable pré-rempli avec les valeurs détectées (ou vides si non détectées). */
 export function draftFrom(purchase: DetectedPurchase, product: DetectedProduct | null): ImportDraft {
   const date = purchase.orderDate.value;
+  const imageUrl = product?.imageUrl.value ?? null;
   return {
     name: product?.name.value ?? '',
     description: defaultDescription(date),
@@ -45,6 +47,8 @@ export function draftFrom(purchase: DetectedPurchase, product: DetectedProduct |
     quantity: product?.quantity.value ?? 1,
     pageUrl: purchase.pageUrl,
     documents: [],
+    // Cochée par défaut (FR-002) ; `null` sans photo détectée ou en saisie manuelle.
+    photo: imageUrl ? { url: imageUrl, merchantId: purchase.source, include: true } : null,
   };
 }
 

@@ -5,6 +5,11 @@ export interface MerchantExtractor {
   id: DetectedPurchase['source'];
   /** Noms d'hôte pris en charge (utilisés pour garder MERCHANTS.md cohérent avec le code). */
   domains: readonly string[];
+  /**
+   * Hôtes exacts autorisés pour la photo du produit. Obligatoire : chaque marchand doit se prononcer.
+   * Une liste vide signifie « ce marchand ne fournit pas de photo ».
+   */
+  imageHosts: readonly string[];
   /** Vrai si l'URL relève de ce marchand (testé avant toute injection). */
   matchesUrl(url: URL): boolean;
   /** Vrai si le document est une page de détail de commande. */
