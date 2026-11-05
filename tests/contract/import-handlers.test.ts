@@ -108,4 +108,72 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
     expect(hb.posts).toHaveLength(1);
     expect(activeImports.has('r1')).toBe(false);
   });
+  describe('emplacement (T083, R10)', () => {
+    const ORIGIN = 'https://homebox.example.com';
+    const GARAGE = { id: 'loc-g', path: ['Maison', 'Garage'] };
+    const bodies: Record<string, unknown>[] = [];
+    function homebox(createStatus = 201) {
+      bodies.length = 0;
+      return vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        const url = String(input);
+        if ((init.method ?? 'GET') === 'POST' && url.endsWith('/entities')) {
+          bodies.push(JSON.parse(String(init.body)));
+          return createStatus === 201 ? reply(201, { id: 'e1', name: 'x' }) : reply(createStatus, {});
+        }
+        return reply(200, { id: 'e1', name: 'x' });
+      });
+    }
+    const memory = async () => (await fakeBrowser.storage.local.get('lastLocationByInstance')).lastLocationByInstance;
+
+    it('import/start : le choix part en parentId et orderLocationId est mémorisé pour cette instance', async () => {
+      vi.stubGlobal('fetch', homebox());
+      await call({
+        type: 'import/start',
+        tabId: 5,
+        manualFiles: [],
+        orderLocationId: 'loc-g',
+        drafts: [draft({ documents: [], location: GARAGE })],
+      });
+      expect(bodies[0]).toMatchObject({ parentId: 'loc-g' });
+      expect(await memory()).toEqual({ [ORIGIN]: 'loc-g' });
+    });
+
+    it('import/start sans emplacement : corps sans parentId, mémoire inchangée', async () => {
+      vi.stubGlobal('fetch', homebox());
+      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'ancien' } });
+      await call({ type: 'import/start', tabId: 5, manualFiles: [], drafts: [draft({ documents: [] })] });
+      expect(bodies[0]).not.toHaveProperty('parentId');
+      expect(await memory()).toEqual({ [ORIGIN]: 'ancien' });
+    });
+
+    it('import/start dont la création échoue : mémoire inchangée', async () => {
+      vi.stubGlobal('fetch', homebox(500));
+      await call({
+        type: 'import/start',
+        tabId: 5,
+        manualFiles: [],
+        orderLocationId: 'loc-g',
+        drafts: [draft({ documents: [], location: GARAGE })],
+      });
+      expect(await memory()).toBeUndefined();
+    });
+
+    it('import/retry transmet le nouveau choix à l’orchestrateur', async () => {
+      await pendingStore.save(failedPending());
+      vi.stubGlobal('fetch', homebox());
+      await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [], location: GARAGE });
+      expect(bodies[0]).toMatchObject({ parentId: 'loc-g' });
+    });
+
+    it('import/retry avec location alors que l’objet existe : BAD_MESSAGE, aucune requête', async () => {
+      await pendingStore.save({ ...failedPending(), entityId: 'e9', status: 'partial' });
+      const fetchMock = homebox();
+      vi.stubGlobal('fetch', fetchMock);
+      expect(await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [], location: GARAGE })).toEqual({
+        ok: false,
+        error: 'BAD_MESSAGE',
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
 });

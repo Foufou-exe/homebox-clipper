@@ -38,6 +38,7 @@ vulnérabilité, voir la [politique de sécurité](https://github.com/Foufou-exe
 | Phrase de passe | **Nulle part** | Jamais enregistrée |
 | Imports en cours (données d'achat nécessaires à une reprise) | `storage.session` (mémoire) | Effacés dès que l'import réussit ou est abandonné ; sans les octets des fichiers |
 | URL de la photo d'un import en cours | `storage.session` (mémoire) | Effacée avec l'import (succès ou abandon) ; **jamais les octets de l'image** |
+| Dernier emplacement utilisé, par instance (`lastLocationByInstance`) : **identifiants seulement**, jamais un nom d'emplacement | `storage.local` | Jusqu'à « Supprimer la configuration » (effacé avec elle) ou la désinstallation |
 | Thème choisi | `storage.local` | Préférence d'affichage |
 
 Aucune donnée n'est placée dans `storage.sync`.
@@ -67,6 +68,17 @@ build de production.
 - **Aucune URL d'image n'est écrite dans les journaux** (seuls un gabarit, un statut et une durée le sont).
 - Le popup affiche la vignette depuis le serveur d'images du marchand : c'est la seule requête d'image faite
   avant votre confirmation, et elle est faite par votre navigateur, comme sur la page d'Amazon.
+
+## L'emplacement
+
+- La liste des emplacements est une **lecture** (`GET /entities/tree`) sur l'instance que vous avez
+  configurée, avec la clé API, comme les autres appels : rien n'est envoyé ailleurs.
+- Les messages `location/*` sont réservés aux pages de l'extension (popup, options), jamais aux scripts
+  injectés dans une page marchande.
+- `storage.local` ne contient que des identifiants (`lastLocationByInstance`) ; ils sont effacés avec la
+  configuration.
+- **Aucun nom ni chemin d'emplacement n'est écrit dans les journaux.**
+- **Aucune permission n'est ajoutée** au manifeste pour cela.
 
 ## Journaux et données personnelles
 

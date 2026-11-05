@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
-import type { ManualFile, PendingImport } from '@/shared/types';
+import type { LocationChoice, LocationOption, ManualFile, PendingImport } from '@/shared/types';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
+import LocationPicker from '@/ui/components/LocationPicker.vue';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 
@@ -16,6 +17,33 @@ const error = ref<ErrorCode | null>(null);
 const files = ref(new Map<string, ManualFile>());
 /** Reprise refusée pour doublon probable : un nouvel essai donnerait le même refus, on ne le propose plus. */
 const duplicateBlocked = ref(false);
+
+/** Emplacement disparu (FR-018) : aucun objet n'a été créé, un nouveau choix ou l'import sans emplacement est proposé. */
+const locationGone = computed(() => props.pending.error === 'LOCATION_NOT_FOUND' && !props.pending.entityId);
+const locations = ref<LocationOption[]>([]);
+const locationsError = ref<ErrorCode | null>(null);
+const newLocation = ref<LocationChoice | null>(null);
+
+async function loadLocations() {
+  locationsError.value = null;
+  try {
+    const res = await send({ type: 'location/list' });
+    if (res.ok && Array.isArray(res.value?.locations)) locations.value = res.value.locations;
+    else locationsError.value = res.ok ? 'LOCATIONS_UNAVAILABLE' : res.error;
+  } catch {
+    locationsError.value = 'LOCATIONS_UNAVAILABLE';
+  }
+}
+// À chaque nouveau LOCATION_NOT_FOUND (nouvel état d'import reçu), pas seulement au premier passage.
+watch(
+  () => (locationGone.value ? props.pending : null),
+  (current) => {
+    if (!current) return;
+    newLocation.value = null;
+    void loadLocations();
+  },
+  { immediate: true },
+);
 
 const link = computed(() => (props.pending.entityId ? `${props.baseUrl}/item/${props.pending.entityId}` : null));
 const failedDocs = computed(() =>
@@ -42,11 +70,18 @@ function onPicked({ doc, file }: PickedDocument) {
   files.value.set(doc.id, file);
 }
 
-async function retry() {
+/** `location` absent : choix inchangé ; `null` : sans emplacement ; sinon nouveau choix. */
+async function retry(location?: LocationChoice | null) {
   busy.value = true;
   error.value = null;
   try {
-    const res = await send({ type: 'import/retry', pendingId: props.pending.id, manualFiles: [...files.value.values()] });
+    const res = await send({
+      type: 'import/retry',
+      pendingId: props.pending.id,
+      manualFiles: [...files.value.values()],
+      ...(location === undefined ? {} : { location }),
+    });
+    newLocation.value = null;
     if (res.ok) emit('updated', res.value);
     else {
       error.value = res.error;
@@ -82,9 +117,23 @@ async function abandon() {
       <DocumentPicker :fixed-doc-id="d.id" @add="onPicked" />
     </div>
 
+    <template v-if="locationGone">
+      <LocationPicker v-if="locations.length > 0" v-model="newLocation" :options="locations" :label="t('location.productLabel')" />
+      <ErrorBanner v-else-if="locationsError" :code="locationsError" tone="warning" />
+    </template>
+
     <div class="actions">
-      <button v-if="!duplicateBlocked" class="primary" type="button" :disabled="busy || manualToReselect.length > 0" @click="retry">
+      <button
+        v-if="!duplicateBlocked"
+        class="primary"
+        type="button"
+        :disabled="busy || manualToReselect.length > 0 || (locationGone && !newLocation)"
+        @click="retry(locationGone ? newLocation : undefined)"
+      >
         {{ busy ? t('recovery.retrying') : retryLabel }}
+      </button>
+      <button v-if="locationGone && !duplicateBlocked" type="button" :disabled="busy" @click="retry(null)">
+        {{ t('recovery.retryWithoutLocation') }}
       </button>
       <button type="button" :disabled="busy" @click="abandon">{{ t('recovery.abandon') }}</button>
     </div>

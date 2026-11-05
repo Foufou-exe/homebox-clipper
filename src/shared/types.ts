@@ -52,6 +52,24 @@ export interface DraftPhoto {
   include: boolean;
 }
 
+/**
+ * Emplacement choisi pour un objet. `id` est l'identifiant de l'entité-lieu (envoyé en `parentId`) ; `path`
+ * est le chemin affiché. Vit en mémoire et en `storage.session` le temps de l'import ; jamais journalisé.
+ */
+export interface LocationChoice {
+  id: string;
+  path: string[];
+}
+
+/** Emplacement proposé dans la liste (aplatie depuis l'arbre de HomeBox). Le nom seul n'identifie pas : `id` fait foi. */
+export interface LocationOption {
+  id: string;
+  /** Dernier segment du chemin. */
+  name: string;
+  /** Du lieu racine au lieu lui-même. */
+  path: string[];
+}
+
 export interface ImportDraft {
   name: string;
   description: string;
@@ -66,6 +84,8 @@ export interface ImportDraft {
   documents: DocumentRef[];
   /** `null` : aucune photo détectée (ou saisie manuelle). */
   photo: DraftPhoto | null;
+  /** `null` : sans emplacement, aucun `parentId` n'est envoyé (FR-012). Absent d'un état persisté par une version précédente. */
+  location: LocationChoice | null;
 }
 
 export type PhotoStep = 'not_requested' | 'unavailable' | 'pending' | 'sending' | 'done' | 'failed';

@@ -8,7 +8,7 @@ type Handler<T extends MessageType> = (msg: MessageOf<T>) => Promise<ResponseOf<
 const handlers = new Map<MessageType, Handler<MessageType>>();
 
 /** Messages réservés aux pages de l'extension (popup, options), jamais aux scripts injectés. */
-const UI_ONLY_PREFIXES = ['config/', 'session/', 'detect/', 'duplicate/', 'import/'];
+const UI_ONLY_PREFIXES = ['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/'];
 
 /**
  * Vrai si l'expéditeur est une page de l'extension (popup, options).
@@ -44,7 +44,12 @@ export async function dispatch(raw: unknown, sender: Sender): Promise<unknown> {
 
 export function startRouter(): void {
   browser.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
-    if (!isMessage(raw) || !handlers.has(raw.type)) return false;
+    if (!isMessage(raw)) {
+      // Message mal formé : réponse BAD_MESSAGE, aucun handler exécuté (contracts/runtime-messages.md).
+      sendResponse({ ok: false, error: 'BAD_MESSAGE' });
+      return false;
+    }
+    if (!handlers.has(raw.type)) return false;
     void dispatch(raw, sender).then(sendResponse);
     return true;
   });

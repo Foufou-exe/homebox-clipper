@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { HomeBoxClient } from '@/background/homebox/client';
-import type { AttachmentUpload } from '@/background/homebox/types';
+import type { AttachmentUpload, TreeItem } from '@/background/homebox/types';
 import { createOrchestrator } from '@/background/import/orchestrator';
 import { pendingStore } from '@/background/import/pending-store';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
@@ -41,6 +41,7 @@ export function draft(overrides: Partial<ImportDraft> = {}): ImportDraft {
     pageUrl: 'https://www.amazon.fr/your-orders/order-details',
     documents: [invoice],
     photo: null,
+    location: null,
     ...overrides,
   };
 }
@@ -54,6 +55,8 @@ export function fakeClient(script: {
   update?: Step<{ id: string; name: string }>[];
   attach?: Step<void>[];
   get?: Step<{ id: string; name: string; attachments?: { id: string; type?: string; primary?: boolean }[] }>[];
+  /** Arbre des emplacements renvoyé par `listLocations` (vide par défaut). */
+  tree?: Step<TreeItem[]>[];
 }) {
   let n = 0;
   const take = <T>(queue: Step<T>[] | undefined, fallback: () => Result<T>) => {
@@ -76,6 +79,7 @@ export function fakeClient(script: {
       void file;
       return take(script.attach, () => ok(undefined));
     }),
+    listLocations: vi.fn(() => take(script.tree, () => ok([] as TreeItem[]))),
     searchEntities: vi.fn(),
     getStatus: vi.fn(),
     checkAuth: vi.fn(),
@@ -98,16 +102,20 @@ export function setup(
     void p;
     return photo ? photo() : ok(photoOk);
   });
+  const rememberLocation = vi.fn(async (id: string) => {
+    void id;
+  });
   let id = 0;
   const orchestrator = createOrchestrator({
     client: client as unknown as HomeBoxClient,
     store: pendingStore,
     downloadDetected,
     fetchPhoto,
+    rememberLocation,
     notify: (p) => notified.push(p.status),
     newId: () => `p${++id}`,
   });
-  return { client, orchestrator, notified, downloadDetected, fetchPhoto };
+  return { client, orchestrator, notified, downloadDetected, fetchPhoto, rememberLocation };
 }
 
 export const sessionKeys = async () => Object.keys(await fakeBrowser.storage.session.get(null));

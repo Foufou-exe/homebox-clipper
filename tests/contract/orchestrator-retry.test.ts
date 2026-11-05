@@ -207,6 +207,18 @@ describe('orchestrateur — reprise après échec partiel (US4)', () => {
       expect((await pendingStore.get('o1'))?.createUncertain).toBe(true);
     });
 
+    it('réponse 2xx illisible ou sans id (CREATE_FAILED, 201) → création incertaine : recherche par nom à la reprise', async () => {
+      const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 201)] });
+      const first = await orchestrator.startImport(5, [draft()], []);
+      const p = first.ok ? first.value[0] : undefined;
+      expect(p).toMatchObject({ status: 'failed', entityId: null, createUncertain: true });
+      expect(p?.createAttempted).toBe(true);
+      client.searchEntities.mockResolvedValue(ok([]));
+      const retry = await orchestrator.retryImport(p!.id);
+      expect(retry.ok && retry.value.status).toBe('success');
+      expect(client.searchEntities).toHaveBeenCalledTimes(1);
+    });
+
     it('erreur HTTP explicite (CREATE_FAILED) → échec certain : ni createUncertain ni recherche à la reprise', async () => {
       const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 422)] });
       const first = await orchestrator.startImport(5, [draft()], []);
@@ -385,5 +397,66 @@ describe('orchestrateur — reprise après échec partiel (US4)', () => {
       expect(ctx.client.addAttachment.mock.calls.filter(([, f]) => f.type === 'receipt')).toHaveLength(1);
       expect(ctx.downloadDetected).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('orchestrateur — reprise après LOCATION_NOT_FOUND (T070, FR-018)', () => {
+  const GARAGE = { id: 'loc-garage', path: ['Maison', 'Garage'] };
+  const CAVE = { id: 'loc-cave', path: ['Maison', 'Cave'] };
+
+  /** Premier essai : l'emplacement a disparu (404 puis arbre sans lui). */
+  async function notFound() {
+    const ctx = setup({ create: [err('CREATE_FAILED', 404)], tree: [ok([])] });
+    const first = await ctx.orchestrator.startImport(5, [draft({ location: GARAGE })], []);
+    const p = first.ok ? first.value[0]! : (undefined as never);
+    expect(p).toMatchObject({ status: 'failed', entityId: null, error: 'LOCATION_NOT_FOUND' });
+    return { ...ctx, id: p.id };
+  }
+
+  it('retry avec un nouveau choix : l’objet est créé à ce nouvel emplacement', async () => {
+    const { client, orchestrator, id } = await notFound();
+    const retry = await orchestrator.retryImport(id, [], CAVE);
+    expect(retry.ok && retry.value).toMatchObject({ status: 'success', entityId: 'e1' });
+    expect(client.createEntity).toHaveBeenLastCalledWith(expect.objectContaining({ parentId: 'loc-cave' }));
+    expect(client.updateEntity).toHaveBeenCalledWith('e1', expect.objectContaining({ parentId: 'loc-cave' }));
+  });
+
+  it('retry avec null : création sans parentId (importer sans emplacement)', async () => {
+    const { client, orchestrator, id } = await notFound();
+    const retry = await orchestrator.retryImport(id, [], null);
+    expect(retry.ok && retry.value.status).toBe('success');
+    expect(client.createEntity.mock.calls.at(-1)?.[0]).not.toHaveProperty('parentId');
+    expect(retry.ok && retry.value.draft.location).toBeNull();
+  });
+
+  it('location absent : le choix du brouillon est inchangé', async () => {
+    const { client, orchestrator, id } = await notFound();
+    await orchestrator.retryImport(id);
+    expect(client.createEntity).toHaveBeenLastCalledWith(expect.objectContaining({ parentId: 'loc-garage' }));
+  });
+
+  it('location fourni alors que entityId est défini → BAD_MESSAGE sans aucune requête (invariant 3)', async () => {
+    const ctx = setup({ attach: [err('ATTACHMENT_FAILED')] });
+    const first = await ctx.orchestrator.startImport(5, [draft({ location: GARAGE })], []);
+    const p = first.ok ? first.value[0]! : (undefined as never);
+    expect(p.entityId).toBe('e1');
+    for (const c of Object.values(ctx.client)) if (typeof c === 'function' && 'mockClear' in c) c.mockClear();
+
+    expect(await ctx.orchestrator.retryImport(p.id, [], CAVE)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(await ctx.orchestrator.retryImport(p.id, [], null)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    for (const [name, c] of Object.entries(ctx.client)) {
+      if (typeof c === 'function' && 'mock' in c) expect(c, name).not.toHaveBeenCalled();
+    }
+    expect((await pendingStore.get(p.id))?.draft.location).toEqual(GARAGE);
+  });
+
+  it('le choix est persisté dans le brouillon : une reprise ultérieure le réutilise', async () => {
+    const ctx = setup({ create: [err('CREATE_FAILED', 404), err('CREATE_FAILED', 500)], tree: [ok([]), ok([{ id: 'loc-cave', name: 'x', type: 'location' }])] });
+    const first = await ctx.orchestrator.startImport(5, [draft({ location: GARAGE })], []);
+    const id = first.ok ? first.value[0]!.id : '';
+    await ctx.orchestrator.retryImport(id, [], CAVE); // échoue : CREATE_FAILED (l'emplacement existe)
+    expect((await pendingStore.get(id))?.draft.location).toEqual(CAVE);
+    await ctx.orchestrator.retryImport(id);
+    expect(ctx.client.createEntity).toHaveBeenLastCalledWith(expect.objectContaining({ parentId: 'loc-cave' }));
   });
 });

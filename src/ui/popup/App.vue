@@ -83,13 +83,21 @@ async function lock() {
 
 onUnmounted(() => browser.runtime.onMessage.removeListener(onProgress));
 
-async function onSubmit({ drafts, manualFiles }: { drafts: ImportDraft[]; manualFiles: ManualFile[] }) {
+async function onSubmit({
+  drafts,
+  manualFiles,
+  orderLocationId,
+}: {
+  drafts: ImportDraft[];
+  manualFiles: ManualFile[];
+  orderLocationId: string | null;
+}) {
   if (tabId.value === null) return;
   screen.value = 'result';
   running.value = true;
   error.value = null;
   try {
-    const res = await send({ type: 'import/start', tabId: tabId.value, drafts, manualFiles });
+    const res = await send({ type: 'import/start', tabId: tabId.value, drafts, manualFiles, orderLocationId });
     if (res.ok) res.value.forEach(upsert);
     else error.value = res.error;
   } finally {

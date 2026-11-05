@@ -78,7 +78,19 @@ l'envoi, l'objet a pu être créé sans que l'extension le sache (HomeBox ne pro
 Ce contrôle a des limites : faux positif si vous avez acheté le même produit une autre fois (abandonnez, puis
 vérifiez d'abord dans HomeBox, puis abandonnez et relancez depuis le résumé. Attention : le résumé ne demande confirmation que si un objet de même nom contient déjà le numéro de commande, donc pas pour un objet resté incomplet : un second objet peut alors être créé sans nouvelle confirmation) ; doublon toujours possible si l'objet a été renommé
 ou si la recherche ne le voit pas ; objet, facture et photo peuvent être doublés dans un cas de réseau rare : si une connexion est coupée juste après l'envoi, le navigateur peut renvoyer la requête de lui-même, et l'extension affiche alors un succès sans le savoir. En cas de doute, vérifiez dans HomeBox ; cette
-protection ne peut pas être garantie à 100 %.
+protection ne peut pas être garantie à 100 %. Il en va de même quand HomeBox répond avec succès à la création mais que la réponse est illisible : la création est alors traitée comme incertaine et la reprise cherche d'abord l'objet par son nom.
+
+## Emplacement
+
+L'emplacement n'est jamais bloquant, sauf s'il a disparu de HomeBox.
+
+| Message affiché | Code | Cause probable | Solution |
+|-----------------|------|----------------|----------|
+| La liste des emplacements n'a pas pu être obtenue. | `LOCATIONS_UNAVAILABLE` | HomeBox injoignable, clé refusée ou réponse inattendue à la lecture des emplacements. | Importez sans emplacement (rangez l'objet ensuite dans HomeBox), ou vérifiez la connexion dans les options puis rouvrez le popup. |
+| Cet emplacement n'existe plus dans HomeBox. Choisissez-en un autre ou importez sans emplacement. | `LOCATION_NOT_FOUND` | L'emplacement a été supprimé dans HomeBox entre le choix et l'envoi. Aucun objet n'a été créé pour ce produit. | Choisissez un autre emplacement et réessayez, ou **Importer sans emplacement**. |
+
+Si la liste est vide, créez d'abord un emplacement dans HomeBox : l'extension n'en crée pas. Le dernier
+emplacement mémorisé qui n'existe plus est simplement ignoré.
 
 ## Interne
 

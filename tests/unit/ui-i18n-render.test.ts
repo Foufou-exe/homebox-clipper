@@ -1,4 +1,5 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { fail, ok } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type {
@@ -8,6 +9,8 @@ import type {
   DocumentRef,
   DraftPhoto,
   ImportDraft,
+  LocationChoice,
+  LocationOption,
   PendingImport,
 } from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
@@ -22,6 +25,7 @@ import RecoveryView from '@/ui/popup/RecoveryView.vue';
 import ResultView from '@/ui/popup/ResultView.vue';
 import SummaryView from '@/ui/popup/SummaryView.vue';
 import UnlockView from '@/ui/popup/UnlockView.vue';
+import LocationPicker from '@/ui/components/LocationPicker.vue';
 import { loadCatalog } from './i18n-harness';
 
 // Le mock de `@/platform/i18n` (setup-i18n.ts) sert le vrai catalogue fr.yml : le rendu doit donc
@@ -92,6 +96,7 @@ const draft = (over: Partial<ImportDraft> = {}): ImportDraft => ({
   pageUrl: null,
   documents: [],
   photo: null,
+  location: null,
   ...over,
 });
 
@@ -360,7 +365,8 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       await wrapper.find('.photo img').trigger('error');
       await flushPromises();
       expect(wrapper.emitted('submit')).toBeUndefined();
-      expect(vi.mocked(send).mock.calls.map(([m]) => m.type)).toEqual(['detect/run']);
+      // Seules les lectures du résumé partent (détection, liste des emplacements) : aucun import/start.
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list']);
       expect(fetchSpy).not.toHaveBeenCalled();
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
@@ -563,6 +569,506 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       const wrapper = await mountOptions(config({ locked: true, needsPassphrase: true }));
       expectCatalogTexts(wrapper, [DATA]);
       expect(wrapper.text()).toContain('Apparence');
+    });
+  });
+});
+
+describe('choix de l’emplacement (US2, US3)', () => {
+  const NAMES = ['Maison', 'Garage', 'Atelier'];
+  const MAISON: LocationOption = { id: 'm', name: 'Maison', path: ['Maison'] };
+  const GARAGE: LocationOption = { id: 'g', name: 'Garage', path: ['Maison', 'Garage'] };
+  const ATELIER: LocationOption = { id: 'a', name: 'Atelier', path: ['Atelier'] };
+  const LOCATIONS = [ATELIER, MAISON, GARAGE];
+  const choice = (o: LocationOption): LocationChoice => ({ id: o.id, path: o.path });
+  const PHOTO = 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg';
+  const named = (key: string, name: string, imageUrl?: string): DetectedProduct => ({
+    ...product(key),
+    name: found(name),
+    imageUrl: imageUrl ? found(imageUrl) : { value: null, reason: 'not_found' },
+  });
+
+  type ListReply = ReturnType<typeof ok> | ReturnType<typeof fail> | Promise<never>;
+  const listOk = (lastUsedId: string | null = null, locations = LOCATIONS): ListReply =>
+    ok({ locations, lastUsedId }) as ListReply;
+
+  /** `send` simulé par type de message ; chaque appel est consigné par `vi.mocked(send)`. */
+  function wire(opts: { products?: DetectedProduct[]; list?: ListReply; duplicates?: DetectedProduct[] | 'found' } = {}) {
+    const products = opts.products ?? [named('a', 'Clavier'), named('b', 'Souris')];
+    vi.mocked(send).mockImplementation((msg) => {
+      if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase(products), warnings: [] })) as never;
+      if (msg.type === 'location/list') return Promise.resolve(opts.list ?? listOk()) as never;
+      if (msg.type === 'duplicate/check') {
+        const matches = opts.duplicates === 'found' ? [{ id: 'x', name: DATA, url: DATA }] : [];
+        return Promise.resolve(ok({ matches })) as never;
+      }
+      return Promise.resolve(ok(undefined)) as never;
+    });
+  }
+  const mountSummary = async () => {
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    return wrapper;
+  };
+  type PickerWrapper = VueWrapper<InstanceType<typeof LocationPicker>>;
+  const orderPicker = (w: VueWrapper) => w.findComponent('.order-location') as unknown as PickerWrapper;
+  const pick = async (picker: ReturnType<typeof orderPicker>, o: LocationOption | null) => {
+    picker.vm.$emit('update:modelValue', o ? choice(o) : null);
+    await flushPromises();
+  };
+  const editButtons = (w: VueWrapper) => w.findAll('button').filter((b) => b.text() === 'Modifier');
+  const confirm = async (w: VueWrapper) => {
+    await w.find('button.primary').trigger('click');
+    await flushPromises();
+    return w.emitted('submit')?.[0]?.[0] as { drafts: ImportDraft[]; orderLocationId: string | null };
+  };
+
+  describe('SummaryView', () => {
+    it('charge location/list en parallèle de detect/run, sans bloquer le résumé (état « chargement »)', async () => {
+      wire({ list: new Promise<never>(() => undefined) });
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      // Les deux appels partent avant qu'aucun ne soit résolu.
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list']);
+      await flushPromises();
+      expect(wrapper.text()).toContain('Chargement des emplacements…');
+      expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined();
+      expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
+    });
+
+    it('un choix de commande s’applique à toutes les lignes ; orderLocationId le porte', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE), choice(GARAGE)]);
+      expect(orderLocationId).toBe('g');
+    });
+
+    it('sans choix : location = null partout, orderLocationId = null, import possible (FR-012)', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([null, null]);
+      expect(orderLocationId).toBeNull();
+    });
+
+    it('plusieurs produits : sans choix propre, chaque produit indique qu’il partage l’emplacement des autres (FR-015)', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      // Rien de choisi : la mention le dit.
+      for (const row of wrapper.findAll('.product-location')) expect(row.text()).toContain('Aucun emplacement');
+      await pick(orderPicker(wrapper), GARAGE);
+      const rows = wrapper.findAll('.product-location');
+      expect(rows).toHaveLength(2);
+      for (const row of rows) {
+        // La mention nomme l'emplacement suivi, sans répéter le chemin complet du champ de commande.
+        expect(row.text()).toContain('Même emplacement que les autres produits : Garage');
+        expect(row.text()).not.toContain('Maison › Garage');
+        expect(row.text()).not.toContain('Emplacement de ce produit');
+      }
+      expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
+    });
+
+    it('un seul produit : un seul sélecteur « Emplacement (facultatif) », aucune ligne par produit, aucun « Modifier »', async () => {
+      wire({ products: [named('a', 'Clavier')] });
+      const wrapper = await mountSummary();
+      expect(wrapper.findAllComponents(LocationPicker)).toHaveLength(1);
+      expect(wrapper.findAll('.product-location')).toHaveLength(0);
+      expect(editButtons(wrapper)).toHaveLength(0);
+      expect(wrapper.text()).not.toContain('Emplacement de ce produit');
+      expect(wrapper.text()).not.toContain('Emplacement des produits');
+      expect(wrapper.text()).not.toContain('Emplacement pour cette commande');
+      expect(orderPicker(wrapper).props('label')).toBe('Emplacement (facultatif)');
+      expect(orderPicker(wrapper).get('label').text()).toBe('Emplacement (facultatif)');
+      await pick(orderPicker(wrapper), GARAGE);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE)]);
+      expect(orderLocationId).toBe('g');
+    });
+
+    it('saisie manuelle (aucun produit détecté) : un seul sélecteur, présélection du dernier emplacement conservée', async () => {
+      wire({ products: [], list: listOk('a') });
+      const wrapper = await mountSummary();
+      await wrapper.get('input[required]').setValue('Perceuse');
+      expect(wrapper.findAllComponents(LocationPicker)).toHaveLength(1);
+      expect(wrapper.findAll('.product-location')).toHaveLength(0);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(ATELIER)]);
+      expect(orderLocationId).toBe('a');
+    });
+
+    it('plusieurs produits : le champ de la commande, intitulé et expliqué, précède les produits', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      const html = wrapper.html();
+      const orderAt = html.indexOf('order-location');
+      expect(orderAt).toBeGreaterThan(-1);
+      expect(orderAt).toBeLessThan(html.indexOf('class="line card"'));
+      expect(orderPicker(wrapper).props('label')).toBe('Emplacement des produits');
+      expect(wrapper.text()).toContain('Chaque objet est rangé à un seul emplacement. Vous pouvez en choisir un autre pour un produit.');
+      // L'aide est reliée au champ.
+      const help = wrapper.get('#' + orderPicker(wrapper).props('describedBy'));
+      expect(help.text()).toContain('Chaque objet est rangé à un seul emplacement');
+      expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
+    });
+
+    it('choix propre : « Emplacement de ce produit : X » et « Utiliser celui de la commande » nommant le produit', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[1]!.trigger('click');
+      (wrapper.findComponent('.line-location') as unknown as PickerWrapper).vm.$emit('update:modelValue', choice(ATELIER));
+      await flushPromises();
+      const rows = wrapper.findAll('.product-location');
+      expect(rows[0]!.text()).toContain('Même emplacement que les autres produits');
+      expect(rows[1]!.text()).toContain('Emplacement de ce produit');
+      expect(rows[1]!.text()).toContain('Atelier');
+      expect(rows[1]!.text()).not.toContain('Même emplacement');
+      const back = wrapper.findAll('button').filter((b) => b.text() === 'Utiliser celui de la commande');
+      expect(back).toHaveLength(1);
+      expect(back[0]!.attributes('aria-label')).toBe("Utiliser l'emplacement de la commande pour Souris");
+      expect(editButtons(wrapper)[1]!.attributes('aria-label')).toBe("Modifier l'emplacement de Souris");
+    });
+
+    it('« Utiliser celui de la commande » : retour à l’héritage, le brouillon envoyé reprend l’emplacement de la commande', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[1]!.trigger('click');
+      (wrapper.findComponent('.line-location') as unknown as PickerWrapper).vm.$emit('update:modelValue', choice(ATELIER));
+      await flushPromises();
+      await wrapper.findAll('button').find((b) => b.text() === 'Utiliser celui de la commande')!.trigger('click');
+      expect(wrapper.findAll('button').some((b) => b.text() === 'Utiliser celui de la commande')).toBe(false);
+      expect(wrapper.findAll('.product-location')[1]!.text()).toContain('Même emplacement que les autres produits');
+      // Redevenu héritier : il suit de nouveau les changements de la commande.
+      await pick(orderPicker(wrapper), MAISON);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(MAISON), choice(MAISON)]);
+      expect(orderLocationId).toBe('m');
+    });
+
+    it('retour à l’héritage après un « Retirer » propre : l’emplacement de la commande revient (et non null)', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[0]!.trigger('click');
+      (wrapper.findComponent('.line-location') as unknown as PickerWrapper).vm.$emit('update:modelValue', null);
+      await flushPromises();
+      await wrapper.findAll('button').find((b) => b.text() === 'Utiliser celui de la commande')!.trigger('click');
+      const { drafts } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE), choice(GARAGE)]);
+    });
+
+    it('les sélecteurs et boutons par produit portent le nom du produit dans leur libellé accessible', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      const buttons = editButtons(wrapper);
+      expect(buttons.map((b) => b.attributes('aria-label'))).toEqual([
+        "Modifier l'emplacement de Clavier",
+        "Modifier l'emplacement de Souris",
+      ]);
+      await buttons[1]!.trigger('click');
+      const picker = wrapper.findComponent('.line-location') as unknown as PickerWrapper;
+      expect(picker.props('label')).toBe('Emplacement de Souris');
+      expect(picker.get('label').text()).toBe('Emplacement de Souris');
+      expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
+    });
+
+    it('« Modifier » ouvre un sélecteur propre à la ligne : l’autre produit garde le choix de commande (FR-014)', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[1]!.trigger('click');
+      const linePickers = wrapper.findAllComponents('.line-location') as unknown as PickerWrapper[];
+      expect(linePickers).toHaveLength(1);
+      linePickers[0]!.vm.$emit('update:modelValue', choice(ATELIER));
+      await flushPromises();
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE), choice(ATELIER)]);
+      // La mémoire (orderLocationId) suit la commande, pas la modification d'un seul produit.
+      expect(orderLocationId).toBe('g');
+    });
+
+    it('« Retirer » sur une ligne : ce produit n’a aucun emplacement (null), les autres suivent la commande', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[0]!.trigger('click');
+      (wrapper.findComponent('.line-location') as unknown as PickerWrapper).vm.$emit('update:modelValue', null);
+      await flushPromises();
+      const { drafts } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([null, choice(GARAGE)]);
+    });
+
+    it('une ligne qui suit la commande suit aussi ses changements ultérieurs', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await pick(orderPicker(wrapper), ATELIER);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(ATELIER), choice(ATELIER)]);
+      expect(orderLocationId).toBe('a');
+    });
+
+    it('un produit décoché n’est pas soumis, mais le choix de commande reste', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await wrapper.findAll('.pick input[type="checkbox"]')[0]!.setValue(false);
+      const { drafts } = await confirm(wrapper);
+      expect(drafts).toHaveLength(1);
+    });
+
+    it('liste indisponible : ErrorBanner + indication, aucun sélecteur, import possible sans emplacement (scénario 16, FR-017)', async () => {
+      wire({ list: fail('LOCATIONS_UNAVAILABLE') });
+      const wrapper = await mountSummary();
+      expect(wrapper.text()).toContain("La liste des emplacements n'a pas pu être obtenue.");
+      expect(wrapper.text()).toContain('Vous pouvez importer sans emplacement.');
+      expect(wrapper.findComponent(LocationPicker).exists()).toBe(false);
+      expectCatalogTexts(wrapper, [DATA, 'Clavier', 'Souris']);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([null, null]);
+      expect(orderLocationId).toBeNull();
+    });
+
+    it.each(['UNAUTHORIZED', 'HOMEBOX_UNREACHABLE'] as const)('%s à la liste : même traitement, import possible', async (code) => {
+      wire({ list: fail(code) });
+      const wrapper = await mountSummary();
+      expect(wrapper.find('[role="alert"]').exists()).toBe(true);
+      expect(wrapper.text()).toContain('Vous pouvez importer sans emplacement.');
+      expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined();
+    });
+
+    it('liste vide : invitation à créer un emplacement dans HomeBox, import possible (scénario 17)', async () => {
+      wire({ list: listOk(null, []) });
+      const wrapper = await mountSummary();
+      expect(wrapper.text()).toContain('Aucun emplacement dans HomeBox. Créez-en un dans HomeBox, ou importez sans emplacement.');
+      expect(wrapper.findComponent(LocationPicker).exists()).toBe(false);
+      expectCatalogTexts(wrapper, [DATA, 'Clavier', 'Souris']);
+      const { drafts } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([null, null]);
+    });
+
+    it('achat non détecté (saisie manuelle) : le choix d’emplacement reste proposé', async () => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(msg.type === 'location/list' ? listOk() : fail('NOT_AN_ORDER_PAGE')) as never,
+      );
+      const wrapper = await mountSummary();
+      expect(orderPicker(wrapper).exists()).toBe(true);
+    });
+
+    it('scénario 28 : doublon probable + photo + emplacement → avertissement inchangé', async () => {
+      wire({ products: [named('a', 'Clavier', PHOTO)], duplicates: 'found' });
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[role="alertdialog"]').text()).toContain('Un objet semblable existe déjà dans HomeBox.');
+      // Le contrôle de doublon n'envoie ni emplacement ni photo.
+      const dup = vi.mocked(send).mock.calls.map(([m]) => m).find((m) => m.type === 'duplicate/check');
+      expect(dup).toEqual({ type: 'duplicate/check', orderNumber: DATA, name: 'Clavier' });
+      expect(wrapper.emitted('submit')).toBeUndefined();
+      const create = wrapper.findAll('.dialog button').find((b) => b.text() === 'Créer quand même');
+      await create!.trigger('click');
+      const { drafts } = wrapper.emitted('submit')![0]![0] as { drafts: ImportDraft[] };
+      expect(drafts[0]).toMatchObject({ location: choice(GARAGE), photo: { include: true } });
+    });
+
+    describe('dernier emplacement utilisé (US3, SC-009)', () => {
+      it('présélectionne lastUsedId quand il existe dans la liste', async () => {
+        wire({ list: listOk('g') });
+        const wrapper = await mountSummary();
+        const { drafts, orderLocationId } = await confirm(wrapper);
+        expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE), choice(GARAGE)]);
+        expect(orderLocationId).toBe('g');
+      });
+
+      it('le chemin vient de la liste (jamais d’un nom mémorisé)', async () => {
+        wire({ list: listOk('g') });
+        const wrapper = await mountSummary();
+        expect(wrapper.text()).toContain('Maison › Garage');
+      });
+
+      it('l’utilisateur peut le changer', async () => {
+        wire({ list: listOk('g') });
+        const wrapper = await mountSummary();
+        await pick(orderPicker(wrapper), ATELIER);
+        const { drafts } = await confirm(wrapper);
+        expect(drafts.map((d) => d.location)).toEqual([choice(ATELIER), choice(ATELIER)]);
+      });
+
+      it('l’utilisateur peut le retirer : draft.location devient null (US3-4)', async () => {
+        wire({ list: listOk('g') });
+        const wrapper = await mountSummary();
+        await pick(orderPicker(wrapper), null);
+        const { drafts, orderLocationId } = await confirm(wrapper);
+        expect(drafts.map((d) => d.location)).toEqual([null, null]);
+        expect(orderLocationId).toBeNull();
+      });
+
+      it('lastUsedId null (autre instance ou lieu disparu) : aucune présélection, aucune erreur', async () => {
+        wire({ list: listOk(null) });
+        const wrapper = await mountSummary();
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+        const { drafts } = await confirm(wrapper);
+        expect(drafts.map((d) => d.location)).toEqual([null, null]);
+      });
+
+      it('lastUsedId absent de la liste reçue : ignoré sans erreur', async () => {
+        wire({ list: listOk('disparu') });
+        const wrapper = await mountSummary();
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+        const { orderLocationId } = await confirm(wrapper);
+        expect(orderLocationId).toBeNull();
+      });
+
+      it('un choix fait avant l’arrivée de la liste n’est pas écrasé par la présélection', async () => {
+        let release!: () => void;
+        const gate = new Promise<void>((r) => (release = r));
+        vi.mocked(send).mockImplementation((msg) => {
+          if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase([named('a', 'Clavier')]), warnings: [] })) as never;
+          if (msg.type === 'location/list') return gate.then(() => listOk('g')) as never;
+          return Promise.resolve(ok({ matches: [] })) as never;
+        });
+        const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+        await flushPromises();
+        release();
+        await flushPromises();
+        expect(orderPicker(wrapper).props('modelValue')).toEqual(choice(GARAGE));
+      });
+    });
+  });
+
+  describe('LocationPicker : textes', () => {
+    it('tout texte rendu vient du catalogue (liste ouverte, valeur choisie, aucun résultat)', async () => {
+      const wrapper = mount(LocationPicker, {
+        props: { modelValue: choice(GARAGE), options: LOCATIONS, label: 'Emplacement des produits' },
+      });
+      expectCatalogTexts(wrapper, [DATA, ...NAMES]);
+      await wrapper.get('input').setValue('ma');
+      expectCatalogTexts(wrapper, [DATA, ...NAMES]);
+      await wrapper.get('input').setValue('zzz');
+      expectCatalogTexts(wrapper, [DATA, ...NAMES]);
+    });
+  });
+
+  describe('ResultView', () => {
+    it('affiche l’emplacement retenu par produit (result.locationAt)', () => {
+      const withLoc = pending({ status: 'success', error: null, draft: draft({ location: choice(GARAGE) }) });
+      const wrapper = mount(ResultView, { props: { pendings: [withLoc], baseUrl: DATA, running: false } });
+      expect(wrapper.text()).toContain('Emplacement : Maison › Garage');
+      expectCatalogTexts(wrapper, [DATA, ...NAMES]);
+    });
+
+    it('rien sans emplacement', () => {
+      const none = pending({ status: 'success', error: null });
+      const wrapper = mount(ResultView, { props: { pendings: [none], baseUrl: DATA, running: false } });
+      expect(wrapper.text()).not.toContain('Emplacement');
+    });
+  });
+
+  describe('RecoveryView sur LOCATION_NOT_FOUND (scénario 18, FR-018)', () => {
+    const gone = () =>
+      pending({
+        entityId: null,
+        status: 'failed',
+        error: 'LOCATION_NOT_FOUND',
+        steps: { create: 'failed', update: 'pending', attachments: { d1: 'pending', m1: 'pending' }, photo: 'unavailable' },
+        draft: draft({ documents: [detectedDoc], location: choice(GARAGE) }),
+      });
+
+    const mountGone = async () => {
+      vi.mocked(send).mockImplementation((msg) => {
+        if (msg.type === 'location/list') return Promise.resolve(listOk()) as never;
+        return Promise.resolve(ok(pending({ status: 'success', error: null }))) as never;
+      });
+      const wrapper = mount(RecoveryView, { props: { pending: gone(), baseUrl: DATA } });
+      await flushPromises();
+      return wrapper;
+    };
+
+    it('recharge location/list, affiche le message, propose un sélecteur et « Importer sans emplacement »', async () => {
+      const wrapper = await mountGone();
+      expect(send).toHaveBeenCalledWith({ type: 'location/list' });
+      expect(wrapper.text()).toContain("Cet emplacement n'existe plus dans HomeBox.");
+      expect(wrapper.findComponent(LocationPicker).exists()).toBe(true);
+      expect(wrapper.findAll('button').some((b) => b.text() === 'Importer sans emplacement')).toBe(true);
+      expectCatalogTexts(wrapper, [DATA, ...NAMES]);
+    });
+
+    it('le sélecteur ne propose pas l’ancien choix : il faut en faire un nouveau avant de réessayer', async () => {
+      const wrapper = await mountGone();
+      expect(wrapper.findComponent(LocationPicker).props('modelValue')).toBeNull();
+      expect(wrapper.find('button.primary').attributes('disabled')).toBeDefined();
+    });
+
+    it('nouveau choix → import/retry transmet ce choix', async () => {
+      const wrapper = await mountGone();
+      wrapper.findComponent(LocationPicker).vm.$emit('update:modelValue', choice(ATELIER));
+      await flushPromises();
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/retry', pendingId: 'p1', location: choice(ATELIER) }));
+      expect(wrapper.emitted('updated')).toHaveLength(1);
+    });
+
+    it('« Importer sans emplacement » → import/retry avec location: null', async () => {
+      const wrapper = await mountGone();
+      await wrapper.findAll('button').find((b) => b.text() === 'Importer sans emplacement')!.trigger('click');
+      await flushPromises();
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/retry', location: null }));
+    });
+
+    it('liste indisponible : l’import sans emplacement reste possible', async () => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(msg.type === 'location/list' ? fail('LOCATIONS_UNAVAILABLE') : ok(pending())) as never,
+      );
+      const wrapper = mount(RecoveryView, { props: { pending: gone(), baseUrl: DATA } });
+      await flushPromises();
+      expect(wrapper.findComponent(LocationPicker).exists()).toBe(false);
+      expect(wrapper.findAll('button').some((b) => b.text() === 'Importer sans emplacement')).toBe(true);
+    });
+
+    it('recharge la liste à chaque nouveau LOCATION_NOT_FOUND, pas seulement au premier', async () => {
+      const wrapper = await mountGone();
+      const listCalls = () => vi.mocked(send).mock.calls.filter(([m]) => m.type === 'location/list').length;
+      expect(listCalls()).toBe(1);
+      await wrapper.setProps({ pending: gone() });
+      await flushPromises();
+      expect(listCalls()).toBe(2);
+    });
+
+    it('un autre échec que LOCATION_NOT_FOUND ne charge pas la liste', async () => {
+      vi.mocked(send).mockResolvedValue(ok(undefined) as never);
+      mount(RecoveryView, { props: { pending: pending(), baseUrl: DATA } });
+      await flushPromises();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('un retry ordinaire n’envoie pas de location (choix inchangé)', async () => {
+      vi.mocked(send).mockResolvedValue(ok(pending()) as never);
+      const plain = pending({ draft: draft({ documents: [detectedDoc] }) });
+      const wrapper = mount(RecoveryView, { props: { pending: plain, baseUrl: DATA } });
+      await wrapper.find('button.primary').trigger('click');
+      await flushPromises();
+      const msg = vi.mocked(send).mock.calls[0]![0] as { location?: unknown };
+      expect(msg).not.toHaveProperty('location');
+    });
+  });
+
+  describe('popup App', () => {
+    it('transmet orderLocationId à import/start', async () => {
+      vi.mocked(send).mockImplementation((msg) => {
+        if (msg.type === 'config/get') return Promise.resolve(config({ locked: false })) as never;
+        if (msg.type === 'import/pending') return Promise.resolve([]) as never;
+        if (msg.type === 'import/start') return Promise.resolve(ok([])) as never;
+        return Promise.resolve(fail('NOT_AN_ORDER_PAGE')) as never;
+      });
+      vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([{ id: 1, url: 'https://www.amazon.fr/x' }] as never);
+      const wrapper = mount(PopupApp);
+      await flushPromises();
+      wrapper.findComponent(SummaryView).vm.$emit('submit', { drafts: [draft()], manualFiles: [], orderLocationId: 'g' });
+      await flushPromises();
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/start', orderLocationId: 'g' }));
     });
   });
 });

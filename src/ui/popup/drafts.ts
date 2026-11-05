@@ -29,6 +29,7 @@ export function emptyDraft(): ImportDraft {
     pageUrl: null,
     documents: [],
     photo: null,
+    location: null,
   };
 }
 
@@ -49,6 +50,8 @@ export function draftFrom(purchase: DetectedPurchase, product: DetectedProduct |
     documents: [],
     // Cochée par défaut (FR-002) ; `null` sans photo détectée ou en saisie manuelle.
     photo: imageUrl ? { url: imageUrl, merchantId: purchase.source, include: true } : null,
+    // Résolu à la soumission depuis le choix de commande et celui de la ligne (FR-014).
+    location: null,
   };
 }
 

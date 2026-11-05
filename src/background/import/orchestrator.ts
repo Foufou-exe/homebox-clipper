@@ -4,7 +4,16 @@ import { getMessage } from '@/platform/i18n';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { findDuplicatesByName } from './duplicates';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
-import type { DocumentRef, DraftPhoto, ImportDraft, ManualFile, PendingImport, PhotoStep } from '@/shared/types';
+import { flattenTree } from '@/shared/locations';
+import type {
+  DocumentRef,
+  DraftPhoto,
+  ImportDraft,
+  LocationChoice,
+  ManualFile,
+  PendingImport,
+  PhotoStep,
+} from '@/shared/types';
 import type { FetchedPhoto } from './photo-fetch';
 
 export interface OrchestratorDeps {
@@ -18,6 +27,11 @@ export interface OrchestratorDeps {
   downloadDetected(tabId: number, url: string): Promise<Result<{ base64: string }>>;
   /** Récupère la photo sur le serveur du marchand (module séparé : il n'a jamais accès à la clé). */
   fetchPhoto(photo: DraftPhoto): Promise<Result<FetchedPhoto>>;
+  /**
+   * Mémorise le dernier emplacement utilisé avec cette instance (R10) : identifiant seul. Optionnel, et une
+   * erreur d'écriture n'interrompt jamais l'import.
+   */
+  rememberLocation?(locationId: string): Promise<void>;
   notify(p: PendingImport): void;
   newId(): string;
 }
@@ -127,6 +141,28 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   }
 
   /**
+   * Un échec certain du POST avec emplacement choisi : HomeBox répond 404 sans rien créer si le `parentId`
+   * est inconnu (V4), mais ce statut seul ne dit pas si c'est le parent qui manque. On relit l'arbre :
+   * identifiant absent → `LOCATION_NOT_FOUND`, présent ou relecture impossible → `CREATE_FAILED` (R3).
+   */
+  async function creationFailureFor(location: LocationChoice | null | undefined): Promise<ErrorCode> {
+    if (!location) return 'CREATE_FAILED';
+    const tree = await client.listLocations();
+    if (!tree.ok) return 'CREATE_FAILED';
+    return flattenTree(tree.value).some((l) => l.id === location.id) ? 'CREATE_FAILED' : 'LOCATION_NOT_FOUND';
+  }
+
+  /** Écrit la mémoire du dernier emplacement ; ne bloque jamais l'import. */
+  async function remember(locationId: string | null | undefined, results: PendingImport[]): Promise<void> {
+    if (!locationId || !deps.rememberLocation || !results.some((r) => r.entityId)) return;
+    try {
+      await deps.rememberLocation(locationId);
+    } catch {
+      // mémoire non écrite : sans conséquence pour l'import
+    }
+  }
+
+  /**
    * Exécute les étapes restantes d'un import. Invariant (FR-021) : une fois `entityId`
    * renseigné, l'objet n'est jamais recréé.
    */
@@ -147,13 +183,17 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         name: p.draft.name,
         description: p.draft.description || undefined,
         quantity: p.draft.quantity,
+        // `parentId` seulement si un emplacement est choisi : sans choix, le corps reste celui de la spec 001.
+        ...(p.draft.location ? { parentId: p.draft.location.id } : {}),
       });
       if (!res.ok) {
         p.steps.create = 'failed';
         p.status = 'failed';
-        p.error = res.error;
+        p.error = res.error === 'CREATE_FAILED' ? await creationFailureFor(p.draft.location) : res.error;
         // Réponse perdue (réseau, délai) : le POST a pu aboutir. Une erreur HTTP explicite est un échec certain.
-        if (res.error === 'HOMEBOX_UNREACHABLE') p.createUncertain = true;
+        // Réponse 2xx illisible ou sans `id` : l'objet existe peut-être aussi, même traitement.
+        const acceptedButUnreadable = res.httpStatus !== undefined && res.httpStatus >= 200 && res.httpStatus < 300;
+        if (res.error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
         else p.createAttempted = false;
         await persist(p);
         return p;
@@ -177,6 +217,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
               purchaseDate: p.draft.purchaseDate ?? undefined,
               purchaseFrom: p.draft.purchaseFrom || undefined,
               notes: buildNotes(p.draft),
+              // Un PUT sans `parentId` ferait perdre l'emplacement (V3) : on le renvoie toujours.
+              parentId: current.value.parent?.id ?? p.draft.location?.id,
             }),
           )
         : current;
@@ -235,7 +277,13 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   }
 
   return {
-    async startImport(tabId: number, drafts: ImportDraft[], manualFiles: ManualFile[]): Promise<Result<PendingImport[]>> {
+    async startImport(
+      tabId: number,
+      drafts: ImportDraft[],
+      manualFiles: ManualFile[],
+      /** Choix au niveau de la commande, pour la mémoire du dernier emplacement (R10). */
+      orderLocationId: string | null = null,
+    ): Promise<Result<PendingImport[]>> {
       if (drafts.some((d) => d.name.trim() === '')) return fail('PRODUCT_NOT_FOUND');
       const files = filesFrom(manualFiles);
       const photos: PhotoMap = new Map();
@@ -265,12 +313,21 @@ export function createOrchestrator(deps: OrchestratorDeps) {
 
       const results: PendingImport[] = [];
       for (const pending of pendings) results.push(await run(pending, files, photos));
+      await remember(orderLocationId, results);
       return ok(results);
     },
 
-    async retryImport(pendingId: string, manualFiles: ManualFile[] = []): Promise<Result<PendingImport>> {
+    async retryImport(
+      pendingId: string,
+      manualFiles: ManualFile[] = [],
+      /** Absent : choix inchangé ; `null` : sans emplacement ; sinon nouveau choix (FR-018). */
+      location?: LocationChoice | null,
+    ): Promise<Result<PendingImport>> {
       const pending = await store.get(pendingId);
       if (!pending) return fail('BAD_MESSAGE');
+      // Invariant 3 : l'objet existe déjà, son emplacement ne se change plus ici. Refus avant toute requête.
+      if (location !== undefined && pending.entityId) return fail('BAD_MESSAGE');
+      if (location !== undefined) pending.draft = { ...pending.draft, location };
       const files = filesFrom(manualFiles);
       for (const result of files.values()) if (!result.ok) return result;
       // Création incertaine (réponse perdue, ou arrêt du service worker pendant le POST) : l'objet a pu être

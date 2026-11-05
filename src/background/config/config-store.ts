@@ -8,6 +8,8 @@ const KEY = 'homeboxConfig';
 /** Clé API déchiffrée : storage.session uniquement (mémoire, effacée à la fermeture du navigateur). */
 const SESSION_KEY = 'homeboxUnlocked';
 export const PENDING_PREFIX = 'pendingImport:';
+/** Dernier emplacement par instance (storage.local) : identifiants seuls, effacé avec la configuration (FR-021). */
+export const LAST_LOCATION_KEY = 'lastLocationByInstance';
 
 /** Configuration persistée dans storage.local : la clé n'y figure que chiffrée. */
 interface StoredConfig {
@@ -137,7 +139,7 @@ export const configStore = {
 
   async delete(): Promise<void> {
     const config = await readStored();
-    await browser.storage.local.remove(KEY);
+    await browser.storage.local.remove([KEY, LAST_LOCATION_KEY]);
     if (config) {
       try {
         await removeOrigin(originOf(config.baseUrl));
