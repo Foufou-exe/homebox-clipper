@@ -256,3 +256,188 @@ describe('orchestrateur — photo du produit (US1)', () => {
     expect(stored).not.toContain('"bytes"');
   });
 });
+
+const GARAGE = { id: 'loc-garage', path: ['Maison', 'Garage'] };
+const CAVE = { id: 'loc-cave', path: ['Maison', 'Cave'] };
+const tree = (...ids: string[]) =>
+  ok(ids.map((id) => ({ id, name: `Nom ${id}`, type: 'location', children: [] })));
+
+describe('orchestrateur — emplacement (US2)', () => {
+  it('emplacement choisi → parentId dans le POST, jamais locationId (FR-016)', async () => {
+    const { client, orchestrator } = setup();
+    await orchestrator.startImport(7, [draft({ location: GARAGE })], [], null);
+    expect(client.createEntity).toHaveBeenCalledWith({
+      name: 'Clavier sans fil Exemple Pro',
+      description: 'Acheté sur Amazon.fr le 22/10/2026',
+      quantity: 1,
+      parentId: 'loc-garage',
+    });
+    expect(client.createEntity.mock.calls[0]?.[0]).not.toHaveProperty('locationId');
+  });
+
+  it('aucun emplacement → corps du POST sans parentId ni locationId, mêmes clés qu’avant (FR-012, SC-006)', async () => {
+    const { client, orchestrator } = setup();
+    await orchestrator.startImport(7, [draft({ location: null })], []);
+    expect(Object.keys(client.createEntity.mock.calls[0]?.[0] ?? {})).toEqual(['name', 'description', 'quantity']);
+  });
+
+  it('brouillon persisté sans champ location (ancienne version) → traité comme sans emplacement', async () => {
+    const { client, orchestrator } = setup();
+    const legacy = draft();
+    delete (legacy as Partial<typeof legacy>).location;
+    await orchestrator.startImport(7, [legacy], []);
+    expect(Object.keys(client.createEntity.mock.calls[0]?.[0] ?? {})).toEqual(['name', 'description', 'quantity']);
+  });
+
+  it('le PUT renvoie parentId : celui de l’objet créé en priorité (V3 : un PUT sans parentId perd l’emplacement)', async () => {
+    const { client, orchestrator } = setup({
+      create: [ok({ id: 'e1', name: 'x', parent: { id: 'loc-garage' } } as never)],
+    });
+    await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
+    expect(client.updateEntity).toHaveBeenCalledWith('e1', expect.objectContaining({ parentId: 'loc-garage' }));
+  });
+
+  it('le PUT renvoie parentId = draft.location.id quand la réponse du POST ne porte pas le parent', async () => {
+    const { client, orchestrator } = setup();
+    await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
+    expect(client.updateEntity).toHaveBeenCalledWith('e1', expect.objectContaining({ parentId: 'loc-garage' }));
+  });
+
+  it('sans emplacement choisi, le PUT n’a pas de parentId (comportement 001 inchangé)', async () => {
+    const { client, orchestrator } = setup();
+    await orchestrator.startImport(7, [draft()], []);
+    expect(client.updateEntity.mock.calls[0]?.[1]).not.toHaveProperty('parentId');
+  });
+
+  it('reprise du PUT : parentId repris de l’objet relu, sinon du brouillon persisté', async () => {
+    const { client, orchestrator } = setup({ update: [err('UPDATE_FAILED', 400)] });
+    const first = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
+    const id = first.ok ? first.value[0]!.id : '';
+    await orchestrator.retryImport(id);
+    expect(client.getEntity).toHaveBeenCalledWith('e1');
+    expect(client.updateEntity).toHaveBeenLastCalledWith('e1', expect.objectContaining({ parentId: 'loc-garage' }));
+  });
+
+  it('emplacements différents par produit (FR-014, FR-016)', async () => {
+    const { client, orchestrator } = setup();
+    await orchestrator.startImport(
+      7,
+      [draft({ location: GARAGE }), draft({ name: 'Câble', location: CAVE }), draft({ name: 'Souris', location: null })],
+      [],
+      'loc-garage',
+    );
+    const bodies = client.createEntity.mock.calls.map(([d]) => d as Record<string, unknown>);
+    expect(bodies.map((b) => b.parentId)).toEqual(['loc-garage', 'loc-cave', undefined]);
+    expect(bodies[2]).not.toHaveProperty('parentId');
+  });
+
+  describe('emplacement disparu (scénario 18, FR-018)', () => {
+    it('échec du POST + identifiant absent de l’arbre relu → LOCATION_NOT_FOUND, aucun objet', async () => {
+      const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 404)], tree: [tree('autre')] });
+      const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
+      expect(r.ok && r.value[0]).toMatchObject({
+        status: 'failed',
+        entityId: null,
+        error: 'LOCATION_NOT_FOUND',
+      });
+      expect(r.ok && r.value[0]).not.toHaveProperty('createUncertain');
+      expect(client.listLocations).toHaveBeenCalledTimes(1);
+      expect(client.updateEntity).not.toHaveBeenCalled();
+      expect(client.addAttachment).not.toHaveBeenCalled();
+      expect(r.ok && r.value[0]?.createAttempted).toBe(false);
+    });
+
+    it('identifiant présent dans l’arbre relu → CREATE_FAILED', async () => {
+      const { orchestrator } = setup({ create: [err('CREATE_FAILED', 500)], tree: [tree('loc-garage')] });
+      const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
+      expect(r.ok && r.value[0]).toMatchObject({ status: 'failed', error: 'CREATE_FAILED' });
+    });
+
+    it('relecture de l’arbre en échec → CREATE_FAILED (on ne devine pas)', async () => {
+      const { orchestrator } = setup({ create: [err('CREATE_FAILED', 500)], tree: [err('LOCATIONS_UNAVAILABLE', 500)] });
+      const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
+      expect(r.ok && r.value[0]).toMatchObject({ status: 'failed', error: 'CREATE_FAILED' });
+    });
+
+    it('401 à la création : UNAUTHORIZED, pas de relecture de l’arbre', async () => {
+      const { client, orchestrator } = setup({ create: [err('UNAUTHORIZED', 401)] });
+      const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
+      expect(r.ok && r.value[0]).toMatchObject({ error: 'UNAUTHORIZED' });
+      expect(client.listLocations).not.toHaveBeenCalled();
+    });
+
+    it('réponse perdue (HOMEBOX_UNREACHABLE) : création incertaine conservée, pas de relecture', async () => {
+      const { client, orchestrator } = setup({ create: [err('HOMEBOX_UNREACHABLE')] });
+      const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
+      expect(r.ok && r.value[0]).toMatchObject({ error: 'HOMEBOX_UNREACHABLE', createUncertain: true });
+      expect(client.listLocations).not.toHaveBeenCalled();
+    });
+
+    it('sans emplacement choisi, un échec du POST ne relit pas l’arbre', async () => {
+      const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 500)] });
+      const r = await orchestrator.startImport(7, [draft()], []);
+      expect(r.ok && r.value[0]).toMatchObject({ error: 'CREATE_FAILED' });
+      expect(client.listLocations).not.toHaveBeenCalled();
+    });
+
+    it('dans un lot, l’échec d’un produit n’empêche pas les autres', async () => {
+      const { orchestrator } = setup({ create: [err('CREATE_FAILED', 404)], tree: [tree('autre')] });
+      const r = await orchestrator.startImport(7, [draft({ location: GARAGE }), draft({ name: 'B', location: CAVE })], []);
+      expect(r.ok && r.value.map((p) => p.error)).toEqual(['LOCATION_NOT_FOUND', null]);
+    });
+  });
+});
+
+describe('orchestrateur — mémoire du dernier emplacement (US3)', () => {
+  it('écrite avec orderLocationId une fois l’objet créé', async () => {
+    const { orchestrator, rememberLocation } = setup();
+    await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
+    expect(rememberLocation).toHaveBeenCalledTimes(1);
+    expect(rememberLocation).toHaveBeenCalledWith('loc-garage');
+  });
+
+  it('pas écrite avant la création : l’appel arrive après le POST', async () => {
+    const { client, orchestrator, rememberLocation } = setup();
+    const order: string[] = [];
+    client.createEntity.mockImplementation(async () => {
+      order.push('create');
+      return ok({ id: 'e1', name: 'x' });
+    });
+    rememberLocation.mockImplementation(async () => {
+      order.push('remember');
+    });
+    await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
+    expect(order).toEqual(['create', 'remember']);
+  });
+
+  it('pas écrite si aucune création n’a abouti', async () => {
+    const { orchestrator, rememberLocation } = setup({ create: [err('CREATE_FAILED', 500)] });
+    await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
+    expect(rememberLocation).not.toHaveBeenCalled();
+  });
+
+  it('écrite si au moins un objet du lot est créé', async () => {
+    const { orchestrator, rememberLocation } = setup({ create: [err('CREATE_FAILED', 500)] });
+    await orchestrator.startImport(7, [draft({ location: GARAGE }), draft({ name: 'B', location: GARAGE })], [], 'loc-garage');
+    expect(rememberLocation).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([null, undefined])('orderLocationId = %s (import sans emplacement) → mémoire inchangée (R10)', async (orderLocationId) => {
+    const { orchestrator, rememberLocation } = setup();
+    await orchestrator.startImport(7, [draft()], [], orderLocationId);
+    expect(rememberLocation).not.toHaveBeenCalled();
+  });
+
+  it('une modification sur un seul produit ne change pas la mémoire : seul orderLocationId compte', async () => {
+    const { orchestrator, rememberLocation } = setup();
+    await orchestrator.startImport(7, [draft({ location: CAVE })], [], 'loc-garage');
+    expect(rememberLocation).toHaveBeenCalledWith('loc-garage');
+  });
+
+  it('une erreur d’écriture de la mémoire n’interrompt pas l’import', async () => {
+    const { orchestrator, rememberLocation } = setup();
+    rememberLocation.mockRejectedValue(new Error('quota'));
+    const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
+    expect(r.ok && r.value[0]?.status).toBe('success');
+  });
+});

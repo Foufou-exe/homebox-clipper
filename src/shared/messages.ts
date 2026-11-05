@@ -5,6 +5,8 @@ import type {
   DetectedPurchase,
   DuplicateMatch,
   ImportDraft,
+  LocationChoice,
+  LocationOption,
   ManualFile,
   PendingImport,
 } from './types';
@@ -23,8 +25,22 @@ export type Message =
   | { type: 'session/lock' }
   | { type: 'detect/run'; tabId: number }
   | { type: 'duplicate/check'; orderNumber: string; name: string }
-  | { type: 'import/start'; tabId: number; drafts: ImportDraft[]; manualFiles: ManualFile[] }
-  | { type: 'import/retry'; pendingId: string; manualFiles?: ManualFile[] }
+  | { type: 'location/list' }
+  | {
+      type: 'import/start';
+      tabId: number;
+      drafts: ImportDraft[];
+      manualFiles: ManualFile[];
+      /** Choix au niveau de la commande : sert seulement à mémoriser le dernier emplacement (R10). */
+      orderLocationId?: string | null;
+    }
+  | {
+      type: 'import/retry';
+      pendingId: string;
+      manualFiles?: ManualFile[];
+      /** Absent : choix inchangé ; `null` : sans emplacement. Refusé si l'objet existe déjà. */
+      location?: LocationChoice | null;
+    }
   | { type: 'import/abandon'; pendingId: string }
   | { type: 'import/pending'; tabId: number }
   // service worker → script injecté
@@ -56,6 +72,7 @@ export interface ResponseMap {
   'session/lock': ConfigView;
   'detect/run': Result<DetectResult>;
   'duplicate/check': Result<{ matches: DuplicateMatch[] }>;
+  'location/list': Result<{ locations: LocationOption[]; lastUsedId: string | null }>;
   'import/start': Result<PendingImport[]>;
   'import/retry': Result<PendingImport>;
   'import/abandon': Result<void>;
@@ -77,7 +94,12 @@ const isDraftPhoto = (x: unknown): boolean =>
   x === undefined ||
   x === null ||
   (isObj(x) && isStr(x.url) && isStr(x.merchantId) && typeof x.include === 'boolean');
-const areDrafts = (x: unknown): boolean => isArr(x) && x.every((d) => isObj(d) && isDraftPhoto(d.photo));
+/** `LocationChoice` : `id` textuel et `path` tableau de textes. */
+const isLocationChoice = (x: unknown): boolean =>
+  isObj(x) && isStr(x.id) && isArr(x.path) && x.path.every(isStr);
+const isOptionalLocation = (x: unknown): boolean => x === undefined || x === null || isLocationChoice(x);
+const areDrafts = (x: unknown): boolean =>
+  isArr(x) && x.every((d) => isObj(d) && isDraftPhoto(d.photo) && isOptionalLocation(d.location));
 
 const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean } = {
   'config/get': () => true,
@@ -88,8 +110,14 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'session/lock': () => true,
   'detect/run': (m) => isInt(m.tabId),
   'duplicate/check': (m) => isStr(m.orderNumber) && isStr(m.name),
-  'import/start': (m) => isInt(m.tabId) && areDrafts(m.drafts) && isArr(m.manualFiles),
-  'import/retry': (m) => isStr(m.pendingId) && (m.manualFiles === undefined || isArr(m.manualFiles)),
+  'location/list': () => true,
+  'import/start': (m) =>
+    isInt(m.tabId) &&
+    areDrafts(m.drafts) &&
+    isArr(m.manualFiles) &&
+    (m.orderLocationId === undefined || m.orderLocationId === null || isStr(m.orderLocationId)),
+  'import/retry': (m) =>
+    isStr(m.pendingId) && (m.manualFiles === undefined || isArr(m.manualFiles)) && isOptionalLocation(m.location),
   'import/abandon': (m) => isStr(m.pendingId),
   'import/pending': (m) => isInt(m.tabId),
   'amazon/extract': () => true,

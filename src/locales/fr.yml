@@ -117,6 +117,19 @@ summary:
   photoNone: "Aucune photo disponible pour ce produit."
   photoLoadFailed: "La photo n'a pas pu être affichée : elle ne sera pas envoyée."
 
+location:
+  orderLabel: "Emplacement pour cette commande"
+  productLabel: "Emplacement de ce produit"
+  placeholder: "Rechercher un emplacement…"
+  none: "Aucun emplacement"
+  noMatch: "Aucun emplacement ne correspond."
+  empty: "Aucun emplacement dans HomeBox. Créez-en un dans HomeBox, ou importez sans emplacement."
+  unavailableHint: "Vous pouvez importer sans emplacement."
+  loading: "Chargement des emplacements…"
+  edit: "Modifier"
+  remove: "Retirer"
+  pathSeparator: " › "
+
 result:
   running: "Import en cours…"
   addedOne: "Objet ajouté à HomeBox."
@@ -136,6 +149,7 @@ result:
   photoNotRequested: "Photo non demandée."
   photoUnavailable: "Aucune photo disponible."
   photoFailed: "Échec de l'envoi de la photo."
+  locationAt: "Emplacement : $1"
 
 recovery:
   objectPrefix: "L'objet"
@@ -150,6 +164,7 @@ recovery:
   retrying: "Nouvel essai…"
   abandon: "Abandonner"
   retryPhoto: "Réessayer l'envoi de la photo"
+  retryWithoutLocation: "Importer sans emplacement"
   interrupted: "L'import a été interrompu avant la fin."
   duplicateHint: "Un objet du même nom existe déjà : c'est peut-être celui de cet import, encore incomplet. Vérifiez dans HomeBox avant de continuer. Si vous abandonnez puis relancez cet import, un second objet peut être créé sans nouvelle confirmation."
   maybeCreated: "a peut-être été créé dans HomeBox."

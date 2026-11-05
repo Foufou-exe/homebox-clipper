@@ -7,6 +7,7 @@ import type {
   EntitySummary,
   EntityUpdate,
   StatusOut,
+  TreeItem,
 } from './types';
 
 export const REQUEST_TIMEOUT_MS = 15_000;
@@ -123,6 +124,18 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       const json = await readJson<EntityOut>(res, 'CREATE_FAILED');
       if (json.ok && typeof json.value?.id !== 'string') return fail('CREATE_FAILED');
       return json;
+    },
+
+    /** GET /entities/tree (sans `withItems`) : arbre des emplacements. Aucun nom n'est journalisé. */
+    async listLocations(): Promise<Result<TreeItem[]>> {
+      const res = await request('GET', '/entities/tree', {
+        auth: true,
+        endpoint: 'GET /entities/tree',
+        onHttpError: 'LOCATIONS_UNAVAILABLE',
+      });
+      const json = await readJson<unknown>(res, 'LOCATIONS_UNAVAILABLE');
+      if (!json.ok) return json;
+      return Array.isArray(json.value) ? ok(json.value as TreeItem[]) : fail('LOCATIONS_UNAVAILABLE');
     },
 
     async getEntity(id: string): Promise<Result<EntityOut>> {

@@ -1,4 +1,5 @@
 import { configStore } from '@/background/config/config-store';
+import { lastLocation } from '@/background/location/last-location';
 import { injectExtractor } from '@/background/detect';
 import { createHomeBoxClient } from '@/background/homebox/client';
 import { register } from '@/background/router';
@@ -45,6 +46,8 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
       }
     },
     fetchPhoto,
+    // Dernier emplacement utilisé, propre à cette instance (R10) : identifiant seul.
+    rememberLocation: (id) => lastLocation.set(config.baseUrl, id),
     notify(pending) {
       browser.runtime.sendMessage({ type: 'import/progress', pending }).catch(() => {
         // popup fermé : l'état reste lisible via import/pending
@@ -61,17 +64,17 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
 }
 
 export function registerImportHandlers(): void {
-  register('import/start', async ({ tabId, drafts, manualFiles }) => {
+  register('import/start', async ({ tabId, drafts, manualFiles, orderLocationId }) => {
     const started: string[] = [];
     try {
       const o = await orchestrator(started);
-      return o.ok ? await o.value.startImport(tabId, drafts, manualFiles) : o;
+      return o.ok ? await o.value.startImport(tabId, drafts, manualFiles, orderLocationId ?? null) : o;
     } finally {
       for (const id of started) activeImports.delete(id);
     }
   });
 
-  register('import/retry', async ({ pendingId, manualFiles }) => {
+  register('import/retry', async ({ pendingId, manualFiles, location }) => {
     // Reprise déjà en cours (double clic, deux popups) : pas de deuxième exécution, et ce second appel ne
     // retire pas l'identifiant du premier.
     if (activeImports.has(pendingId)) {
@@ -81,7 +84,7 @@ export function registerImportHandlers(): void {
     activeImports.add(pendingId);
     try {
       const o = await orchestrator();
-      return o.ok ? await o.value.retryImport(pendingId, manualFiles) : o;
+      return o.ok ? await o.value.retryImport(pendingId, manualFiles, location) : o;
     } finally {
       activeImports.delete(pendingId);
     }

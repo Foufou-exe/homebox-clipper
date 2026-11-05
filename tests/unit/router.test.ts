@@ -82,4 +82,58 @@ describe('router — provenance des messages', () => {
       });
     });
   });
+  describe('emplacements (US2)', () => {
+    const sender = () => ({ id: id(), url: `${BASE}popup.html` });
+    const web = () => ({ id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } });
+    const good = { id: 'l1', path: ['Maison', 'Garage'] };
+
+    beforeEach(() => {
+      register('location/list', async () => ({ ok: true, value: { locations: [], lastUsedId: null } }));
+      register('import/start', async () => ({ ok: true, value: [] }));
+      register('import/retry', async () => ({ ok: true, value: {} as never }));
+    });
+
+    it('location/list depuis le popup : accepté', async () => {
+      expect(await dispatch({ type: 'location/list' }, sender())).toEqual({
+        ok: true,
+        value: { locations: [], lastUsedId: null },
+      });
+    });
+
+    it('location/list depuis un script injecté : BAD_MESSAGE (scénario 25, principe I)', async () => {
+      expect(await dispatch({ type: 'location/list' }, web())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    });
+
+    const start = (extra: Record<string, unknown>) => ({ type: 'import/start', tabId: 1, manualFiles: [], drafts: [], ...extra });
+
+    it.each([undefined, null, 'loc-1'])('import/start accepte orderLocationId = %s', async (orderLocationId) => {
+      expect(await dispatch(start({ orderLocationId }), sender())).toEqual({ ok: true, value: [] });
+    });
+
+    it.each([3, {}, ['x'], true])('import/start refuse orderLocationId = %j', async (orderLocationId) => {
+      expect(await dispatch(start({ orderLocationId }), sender())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    });
+
+    it('import/start refuse un drafts[].location mal formé et accepte un choix bien formé ou null', async () => {
+      const withLoc = (location: unknown) => start({ drafts: [{ name: 'x', location }] });
+      expect(await dispatch(withLoc(good), sender())).toEqual({ ok: true, value: [] });
+      expect(await dispatch(withLoc(null), sender())).toEqual({ ok: true, value: [] });
+      for (const bad of ['l1', { id: 3, path: [] }, { id: 'l1' }, { id: 'l1', path: 'Maison' }, { id: 'l1', path: [1] }]) {
+        expect(await dispatch(withLoc(bad), sender()), JSON.stringify(bad)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+      }
+    });
+
+    const retry = (extra: Record<string, unknown>) => ({ type: 'import/retry', pendingId: 'p1', ...extra });
+
+    it.each([undefined, null, good])('import/retry accepte location = %j', async (location) => {
+      expect(await dispatch(retry({ location }), sender())).toMatchObject({ ok: true });
+    });
+
+    it.each(['l1', 3, {}, { id: 3, path: [] }, { id: 'l1', path: 'Maison' }])(
+      'import/retry refuse location = %j',
+      async (location) => {
+        expect(await dispatch(retry({ location }), sender())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+      },
+    );
+  });
 });

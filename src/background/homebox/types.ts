@@ -6,6 +6,17 @@ export interface EntityCreate {
   /** ≤ 1000 caractères */
   description?: string;
   quantity?: number;
+  /** Identifiant d'un lieu ; jamais `locationId` (inconnu = 422, R2). Absent sans choix : corps inchangé (SC-006). */
+  parentId?: string;
+}
+
+export interface TreeItem {
+  id: string;
+  name: string;
+  /** `location` ; `item` seulement avec `withItems`, que l'extension n'envoie pas. */
+  type: string;
+  /** Absent ou vide pour une feuille. */
+  children?: TreeItem[];
 }
 
 export interface EntityOut {

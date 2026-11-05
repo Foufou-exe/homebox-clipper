@@ -5,7 +5,10 @@ import { pendingStore } from '@/background/import/pending-store';
 import { ok } from '@/shared/errors';
 import { PDF_B64, draft, draftPhoto } from '../contract/orchestrator-harness';
 import { fetchPhoto } from '@/background/import/photo-fetch';
-import { json, mockFetch } from '../contract/fetch-mock';
+import { json, mockFetch, networkError } from '../contract/fetch-mock';
+import { configStore } from '@/background/config/config-store';
+import { registerLocationHandlers } from '@/background/location/handlers';
+import { dispatch } from '@/background/router';
 
 const KEY = 'hb_super_secret_key_9876';
 const SENSITIVE = [KEY, 'Clavier sans fil Exemple Pro', '999-0000000-0000001', '99.99', '99,99'];
@@ -140,5 +143,68 @@ describe('confidentialité de la photo (FR-022 à FR-027)', () => {
     stored = await dump();
     expect(stored).not.toContain('test-secret-photo');
     expect(stored).not.toContain(bytes);
+  });
+});
+
+describe('confidentialité des emplacements (scénario 24, SC-008)', () => {
+  const NAMES = ['Cave secrète Dupont', 'Garage Martin privé', 'Étagère de Léa'];
+  const CHOICE = { id: 'loc-1', path: [NAMES[0]!, NAMES[1]!] };
+  const TREE = [
+    { id: 'loc-1', name: NAMES[0], type: 'location', children: [{ id: 'loc-2', name: NAMES[2], type: 'location', children: [] }] },
+  ];
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+
+  const run = (...homebox: Parameters<typeof mockFetch>) => {
+    const m = mockFetch(...homebox);
+    return createOrchestrator({
+      client: createHomeBoxClient({ baseUrl: 'https://homebox.example.com', apiKey: KEY, fetchImpl: m.fetch }),
+      store: pendingStore,
+      downloadDetected: async () => ok({ base64: PDF_B64 }),
+      fetchPhoto: async () => ok({ bytes: new Uint8Array(), mimeType: 'image/jpeg', filename: 'p.jpg' }),
+      rememberLocation: async () => undefined,
+      notify: () => undefined,
+      newId: () => 'p1',
+    });
+  };
+
+  it('aucun nom ni chemin d’emplacement dans les journaux : import réussi, emplacement disparu, arbre illisible, réseau perdu', async () => {
+    fakeBrowser.reset();
+    const spies = spyConsole();
+    const d = () => draft({ location: CHOICE, documents: [] });
+    // réussite
+    await run(json(201, { id: 'e1', name: 'x' }), json(200, {})).startImport(1, [d()], [], CHOICE.id);
+    // emplacement disparu : 404 puis arbre qui ne le contient plus
+    await run(json(404, { error: 'Not Found' }), json(200, [{ id: 'autre', name: NAMES[2], type: 'location' }])).startImport(1, [d()], []);
+    // arbre en échec après l'échec du POST
+    await run(json(500, {}), json(500, { name: NAMES[0] })).startImport(1, [d()], []);
+    // réponse du POST perdue
+    await run(networkError()).startImport(1, [d()], []);
+
+    const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+    expect(output.length).toBeGreaterThan(2);
+    expect(output).toContain('GET /entities/tree');
+    for (const name of [...NAMES, KEY]) expect(output).not.toContain(name);
+  });
+
+  it('aucun nom d’emplacement dans les journaux du handler location/list (succès et échecs)', async () => {
+    fakeBrowser.reset();
+    const spies = spyConsole();
+    const ext = 'chrome-extension://abcdefghijklmnop/';
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => ext + p.replace(/^\//, ''));
+    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ baseUrl: 'https://homebox.example.com', apiKey: KEY }));
+    registerLocationHandlers();
+    const bodies = [json(200, TREE), json(500, TREE), json(200, { name: NAMES[0] }), networkError()];
+    for (const body of bodies) {
+      const m = mockFetch(body);
+      vi.stubGlobal('fetch', m.fetch);
+      await dispatch({ type: 'location/list' }, { id: fakeBrowser.runtime.id, url: `${ext}popup.html` });
+    }
+    vi.unstubAllGlobals();
+
+    const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+    expect(output.length).toBeGreaterThan(2);
+    expect(output).toContain('GET /entities/tree');
+    for (const name of [...NAMES, KEY]) expect(output).not.toContain(name);
   });
 });

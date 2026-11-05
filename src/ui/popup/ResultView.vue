@@ -38,6 +38,9 @@ const photoResult = (p: PendingImport) => {
   const step = photoStep(p);
   return p.entityId && step in PHOTO_RESULTS ? t(PHOTO_RESULTS[step as keyof typeof PHOTO_RESULTS]) : null;
 };
+/** Emplacement retenu pour l'objet, une fois créé (US2-5). Absent d'un état persisté par une version précédente. */
+const locationResult = (p: PendingImport) =>
+  p.entityId && p.draft.location ? t('result.locationAt', [p.draft.location.path.join(t('location.pathSeparator'))]) : null;
 const itemLink = (p: PendingImport) => (p.entityId ? `${props.baseUrl}/item/${p.entityId}` : null);
 const allDone = computed(() => !props.running && props.pendings.every((p) => p.status === 'success'));
 </script>
@@ -69,6 +72,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         —
         <a v-if="itemLink(p)" :href="itemLink(p) ?? undefined" target="_blank" rel="noopener">{{ t('result.openInHomebox') }}</a>
         <small v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</small>
+        <small v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</small>
       </p>
 
       <template v-else>
@@ -79,6 +83,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
           @abandoned="emit('abandoned', $event)"
         />
         <p v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</p>
+        <p v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</p>
       </template>
     </article>
   </section>

@@ -1,5 +1,5 @@
 import { createHomeBoxClient, entityOutToUpdate, itemUrl } from '@/background/homebox/client';
-import { json, mockFetch } from './fetch-mock';
+import { html, json, mockFetch, networkError } from './fetch-mock';
 
 const BASE = 'https://homebox.example.com';
 const client = (f: typeof fetch) => createHomeBoxClient({ baseUrl: BASE, apiKey: 'hb_x', fetchImpl: f });
@@ -170,5 +170,71 @@ describe('client HomeBox — recherche (US5)', () => {
   it('searchEntities 500 → DUPLICATE_CHECK_FAILED', async () => {
     const m = mockFetch(json(500, {}));
     expect(await client(m.fetch).searchEntities('x')).toMatchObject({ ok: false, error: 'DUPLICATE_CHECK_FAILED' });
+  });
+});
+
+describe('client HomeBox — emplacements (US2)', () => {
+  const TREE = [{ id: 'l1', name: 'Maison', type: 'location', children: [] }];
+
+  it('listLocations : GET /entities/tree sans paramètre, avec le jeton', async () => {
+    const m = mockFetch(json(200, TREE));
+    const r = await client(m.fetch).listLocations();
+    expect(r).toEqual({ ok: true, value: TREE });
+    expect(m.calls[0]?.method).toBe('GET');
+    expect(m.calls[0]?.url).toBe(`${BASE}/api/v1/entities/tree`);
+    expect(m.calls[0]?.headers.get('Authorization')).toBe('Bearer hb_x');
+  });
+
+  it('listLocations : erreur réseau → HOMEBOX_UNREACHABLE', async () => {
+    const m = mockFetch(networkError());
+    expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'HOMEBOX_UNREACHABLE' });
+  });
+
+  it.each([401, 403])('listLocations : %i → UNAUTHORIZED', async (status) => {
+    const m = mockFetch(json(status, {}));
+    expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'UNAUTHORIZED' });
+  });
+
+  it('listLocations : autre statut → LOCATIONS_UNAVAILABLE', async () => {
+    const m = mockFetch(json(500, {}));
+    expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
+  });
+
+  it('listLocations : JSON illisible → LOCATIONS_UNAVAILABLE', async () => {
+    const m = mockFetch(html(200, '<html>pas du json</html>'));
+    expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
+  });
+
+  it('listLocations : réponse non tableau → LOCATIONS_UNAVAILABLE', async () => {
+    const m = mockFetch(json(200, { items: [] }));
+    expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
+  });
+
+  it('listLocations : aucun nom d’emplacement journalisé (succès, échec, réponse anormale)', async () => {
+    const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) =>
+      vi.spyOn(console, k).mockImplementation(() => undefined),
+    );
+    const secret = [{ id: 'l1', name: 'Cave secrète Dupont', type: 'location', children: [] }];
+    await client(mockFetch(json(200, secret)).fetch).listLocations();
+    await client(mockFetch(json(500, secret)).fetch).listLocations();
+    await client(mockFetch(json(200, { name: 'Cave secrète Dupont' })).fetch).listLocations();
+    const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+    expect(output.length).toBeGreaterThan(2);
+    expect(output).not.toContain('Cave secrète');
+    expect(output).toContain('GET /entities/tree');
+  });
+
+  it('createEntity avec emplacement : parentId présent dans le corps, jamais locationId', async () => {
+    const m = mockFetch(json(201, { id: 'e1', name: 'Clavier' }));
+    await client(m.fetch).createEntity({ name: 'Clavier', quantity: 1, parentId: 'l1' });
+    const body = JSON.parse(String(m.calls[0]?.body));
+    expect(body).toEqual({ name: 'Clavier', quantity: 1, parentId: 'l1' });
+    expect(body).not.toHaveProperty('locationId');
+  });
+
+  it('createEntity sans choix : corps strictement identique à l’existant (SC-006, scénario 15)', async () => {
+    const m = mockFetch(json(201, { id: 'e1', name: 'Clavier' }));
+    await client(m.fetch).createEntity({ name: 'Clavier', description: 'd', quantity: 1 });
+    expect(String(m.calls[0]?.body)).toBe('{"name":"Clavier","description":"d","quantity":1}');
   });
 });

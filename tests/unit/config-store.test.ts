@@ -107,6 +107,19 @@ describe('config-store (clé chiffrée)', () => {
     });
   });
 
+  it('la suppression efface toute la clé lastLocationByInstance, toutes instances confondues (FR-021, scénario 21)', async () => {
+    await save();
+    vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);
+    await fakeBrowser.storage.local.set({
+      lastLocationByInstance: { 'https://homebox.example.com': 'loc-1', 'https://autre.example.com': 'loc-2' },
+    });
+
+    await configStore.delete();
+
+    expect(await fakeBrowser.storage.local.get('lastLocationByInstance')).toEqual({});
+    expect(await fakeBrowser.storage.local.get(null)).toEqual({});
+  });
+
   it("la suppression efface tout : config, clé de session, imports, permission d'origine", async () => {
     await save({ baseUrl: 'https://homebox.example.com/sub' });
     const remove = vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);

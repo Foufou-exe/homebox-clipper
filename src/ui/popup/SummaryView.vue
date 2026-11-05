@@ -9,19 +9,22 @@ import type {
   DocumentRef,
   DuplicateMatch,
   ImportDraft,
+  LocationChoice,
+  LocationOption,
   ManualFile,
 } from '@/shared/types';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
+import LocationPicker from '@/ui/components/LocationPicker.vue';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields } from './drafts';
 
 const props = defineProps<{ tabId: number; config: ConfigView }>();
 const emit = defineEmits<{
-  submit: [payload: { drafts: ImportDraft[]; manualFiles: ManualFile[] }];
+  submit: [payload: { drafts: ImportDraft[]; manualFiles: ManualFile[]; orderLocationId: string | null }];
 }>();
 
 interface Line {
@@ -29,6 +32,8 @@ interface Line {
   product: DetectedProduct | null;
   selected: boolean;
   draft: ImportDraft;
+  /** `inherit` suit le choix de commande ; `null` retire l'emplacement pour ce produit (FR-014). */
+  location: 'inherit' | LocationChoice | null;
 }
 
 const loading = ref(true);
@@ -40,6 +45,53 @@ const documents = ref<{ doc: DocumentRef; selected: boolean }[]>([]);
 const manualFiles = reactive(new Map<string, ManualFile>());
 /** Lignes dont l'image n'a pas pu être affichée : la photo n'est alors pas envoyée. */
 const photoErrors = reactive(new Set<string>());
+
+/** Emplacements : chargés en parallèle de la détection, sans jamais bloquer le résumé (FR-017). */
+const locState = ref<'loading' | 'ready' | 'unavailable'>('loading');
+const locError = ref<ErrorCode>('LOCATIONS_UNAVAILABLE');
+const locations = ref<LocationOption[]>([]);
+const orderLocation = ref<LocationChoice | null>(null);
+/** Vrai dès que l'utilisateur agit sur le choix de commande : la présélection ne l'écrase plus. */
+let orderTouched = false;
+const orderModel = computed({
+  get: () => orderLocation.value,
+  set: (v: LocationChoice | null) => {
+    orderTouched = true;
+    orderLocation.value = v;
+  },
+});
+/** Lignes dont le sélecteur d'emplacement est ouvert. */
+const editingLines = reactive(new Set<string>());
+
+async function loadLocations() {
+  try {
+    const res = await send({ type: 'location/list' });
+    if (!res.ok || !Array.isArray(res.value?.locations)) {
+      locError.value = res.ok ? 'LOCATIONS_UNAVAILABLE' : res.error;
+      locState.value = 'unavailable';
+      return;
+    }
+    locations.value = res.value.locations;
+    locState.value = 'ready';
+    // Dernier emplacement utilisé (FR-020) : présélectionné s'il est dans la liste, sans écraser un choix déjà fait.
+    const last = res.value.lastUsedId ? locations.value.find((l) => l.id === res.value.lastUsedId) : undefined;
+    if (last && !orderTouched) orderLocation.value = { id: last.id, path: [...last.path] };
+  } catch {
+    locError.value = 'LOCATIONS_UNAVAILABLE';
+    locState.value = 'unavailable';
+  }
+}
+
+const effectiveLocation = (line: Line): LocationChoice | null =>
+  line.location === 'inherit' ? orderLocation.value : line.location;
+const locationText = (loc: LocationChoice | null) => (loc ? loc.path.join(t('location.pathSeparator')) : t('location.none'));
+function setLineLocation(line: Line, v: LocationChoice | null) {
+  line.location = v;
+  editingLines.delete(line.key);
+}
+function toggleEdit(line: Line) {
+  if (!editingLines.delete(line.key)) editingLines.add(line.key);
+}
 
 function onPhotoError(line: Line) {
   photoErrors.add(line.key);
@@ -55,19 +107,20 @@ const dialog = ref<Dialog>({ kind: 'none' });
 const duplicateCheckFailed = ref(false);
 
 onMounted(async () => {
+  void loadLocations();
   const res = await send({ type: 'detect/run', tabId: props.tabId });
   loading.value = false;
   if (!res.ok) {
     detectError.value = res.error;
-    lines.value = [{ key: 'manual', product: null, selected: true, draft: emptyDraft() }];
+    lines.value = [{ key: 'manual', product: null, selected: true, draft: emptyDraft(), location: 'inherit' }];
     return;
   }
   purchase.value = res.value.purchase;
   warnings.value = res.value.warnings;
   const products = res.value.purchase.products.filter((p) => p.name.value !== null);
   lines.value = products.length
-    ? products.map((p) => ({ key: p.key, product: p, selected: true, draft: draftFrom(res.value.purchase, p) }))
-    : [{ key: 'manual', product: null, selected: true, draft: draftFrom(res.value.purchase, null) }];
+    ? products.map((p) => ({ key: p.key, product: p, selected: true, draft: draftFrom(res.value.purchase, p), location: 'inherit' as const }))
+    : [{ key: 'manual', product: null, selected: true, draft: draftFrom(res.value.purchase, null), location: 'inherit' as const }];
   documents.value = res.value.purchase.documents.map((doc) => ({ doc, selected: true }));
 });
 
@@ -128,6 +181,8 @@ async function checkDuplicates() {
   submit();
 }
 
+const copyOf = (loc: LocationChoice | null): LocationChoice | null => (loc ? { id: loc.id, path: [...loc.path] } : null);
+
 function submit() {
   dialog.value = { kind: 'none' };
   const docs = selectedDocs.value;
@@ -137,11 +192,14 @@ function submit() {
       documents: docs,
       // Aperçu en échec : la photo est « indisponible » (FR-009), pas « non demandée ».
       photo: l.draft.photo && !photoErrors.has(l.key) ? { ...l.draft.photo } : null,
+      location: copyOf(effectiveLocation(l)),
     })),
     manualFiles: docs.flatMap((d) => {
       const f = manualFiles.get(d.id);
       return f ? [f] : [];
     }),
+    // Choix de commande seul : le service worker s'en sert pour mémoriser le dernier emplacement (R10).
+    orderLocationId: orderLocation.value?.id ?? null,
   });
 }
 </script>
@@ -175,6 +233,31 @@ function submit() {
         </div>
         <p v-else-if="line.selected && line.product" class="photo muted">{{ t('summary.photoNone') }}</p>
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
+        <div v-if="line.selected && locState === 'ready' && locations.length > 0" class="product-location">
+          <span class="muted">{{ t('location.productLabel') }}</span>
+          <strong>{{ locationText(effectiveLocation(line)) }}</strong>
+          <button class="link" type="button" :aria-expanded="editingLines.has(line.key) ? 'true' : 'false'" @click="toggleEdit(line)">
+            {{ t('location.edit') }}
+          </button>
+          <LocationPicker
+            v-if="editingLines.has(line.key)"
+            class="line-location"
+            :model-value="effectiveLocation(line)"
+            :options="locations"
+            :label="t('location.productLabel')"
+            @update:model-value="setLineLocation(line, $event)"
+          />
+        </div>
+      </div>
+
+      <div class="card location-section">
+        <p v-if="locState === 'loading'" class="muted" role="status">{{ t('location.loading') }}</p>
+        <template v-else-if="locState === 'unavailable'">
+          <ErrorBanner :code="locError" tone="warning" />
+          <p class="muted">{{ t('location.unavailableHint') }}</p>
+        </template>
+        <p v-else-if="locations.length === 0" class="muted">{{ t('location.empty') }}</p>
+        <LocationPicker v-else v-model="orderModel" class="order-location" :options="locations" :label="t('location.orderLabel')" />
       </div>
 
       <h2 class="section-title">{{ t('summary.documentsTitle') }}</h2>
@@ -239,6 +322,17 @@ function submit() {
 }
 .muted {
   color: var(--muted);
+}
+.product-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 2px;
+  font-size: 13px;
+}
+.product-location .line-location {
+  flex-basis: 100%;
 }
 .pick {
   display: flex;
