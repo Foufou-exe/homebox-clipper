@@ -207,6 +207,18 @@ describe('orchestrateur — reprise après échec partiel (US4)', () => {
       expect((await pendingStore.get('o1'))?.createUncertain).toBe(true);
     });
 
+    it('réponse 2xx illisible ou sans id (CREATE_FAILED, 201) → création incertaine : recherche par nom à la reprise', async () => {
+      const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 201)] });
+      const first = await orchestrator.startImport(5, [draft()], []);
+      const p = first.ok ? first.value[0] : undefined;
+      expect(p).toMatchObject({ status: 'failed', entityId: null, createUncertain: true });
+      expect(p?.createAttempted).toBe(true);
+      client.searchEntities.mockResolvedValue(ok([]));
+      const retry = await orchestrator.retryImport(p!.id);
+      expect(retry.ok && retry.value.status).toBe('success');
+      expect(client.searchEntities).toHaveBeenCalledTimes(1);
+    });
+
     it('erreur HTTP explicite (CREATE_FAILED) → échec certain : ni createUncertain ni recherche à la reprise', async () => {
       const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 422)] });
       const first = await orchestrator.startImport(5, [draft()], []);

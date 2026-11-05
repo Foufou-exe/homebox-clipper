@@ -34,7 +34,16 @@ async function loadLocations() {
     locationsError.value = 'LOCATIONS_UNAVAILABLE';
   }
 }
-watch(locationGone, (gone) => gone && void loadLocations(), { immediate: true });
+// À chaque nouveau LOCATION_NOT_FOUND (nouvel état d'import reçu), pas seulement au premier passage.
+watch(
+  () => (locationGone.value ? props.pending : null),
+  (current) => {
+    if (!current) return;
+    newLocation.value = null;
+    void loadLocations();
+  },
+  { immediate: true },
+);
 
 const link = computed(() => (props.pending.entityId ? `${props.baseUrl}/item/${props.pending.entityId}` : null));
 const failedDocs = computed(() =>

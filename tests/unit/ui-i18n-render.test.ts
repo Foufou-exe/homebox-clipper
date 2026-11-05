@@ -665,6 +665,21 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
     });
 
+    it('les sélecteurs et boutons par produit portent le nom du produit dans leur libellé accessible', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      const buttons = editButtons(wrapper);
+      expect(buttons.map((b) => b.attributes('aria-label'))).toEqual([
+        "Modifier l'emplacement de Clavier",
+        "Modifier l'emplacement de Souris",
+      ]);
+      await buttons[1]!.trigger('click');
+      const picker = wrapper.findComponent('.line-location') as unknown as PickerWrapper;
+      expect(picker.props('label')).toBe('Emplacement de Souris');
+      expect(picker.get('label').text()).toBe('Emplacement de Souris');
+      expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
+    });
+
     it('« Modifier » ouvre un sélecteur propre à la ligne : l’autre produit garde le choix de commande (FR-014)', async () => {
       wire();
       const wrapper = await mountSummary();
@@ -918,6 +933,15 @@ describe('choix de l’emplacement (US2, US3)', () => {
       await flushPromises();
       expect(wrapper.findComponent(LocationPicker).exists()).toBe(false);
       expect(wrapper.findAll('button').some((b) => b.text() === 'Importer sans emplacement')).toBe(true);
+    });
+
+    it('recharge la liste à chaque nouveau LOCATION_NOT_FOUND, pas seulement au premier', async () => {
+      const wrapper = await mountGone();
+      const listCalls = () => vi.mocked(send).mock.calls.filter(([m]) => m.type === 'location/list').length;
+      expect(listCalls()).toBe(1);
+      await wrapper.setProps({ pending: gone() });
+      await flushPromises();
+      expect(listCalls()).toBe(2);
     });
 
     it('un autre échec que LOCATION_NOT_FOUND ne charge pas la liste', async () => {

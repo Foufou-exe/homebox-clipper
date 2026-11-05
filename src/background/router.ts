@@ -44,7 +44,12 @@ export async function dispatch(raw: unknown, sender: Sender): Promise<unknown> {
 
 export function startRouter(): void {
   browser.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
-    if (!isMessage(raw) || !handlers.has(raw.type)) return false;
+    if (!isMessage(raw)) {
+      // Message mal formé : réponse BAD_MESSAGE, aucun handler exécuté (contracts/runtime-messages.md).
+      sendResponse({ ok: false, error: 'BAD_MESSAGE' });
+      return false;
+    }
+    if (!handlers.has(raw.type)) return false;
     void dispatch(raw, sender).then(sendResponse);
     return true;
   });

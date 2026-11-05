@@ -191,7 +191,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         p.status = 'failed';
         p.error = res.error === 'CREATE_FAILED' ? await creationFailureFor(p.draft.location) : res.error;
         // Réponse perdue (réseau, délai) : le POST a pu aboutir. Une erreur HTTP explicite est un échec certain.
-        if (res.error === 'HOMEBOX_UNREACHABLE') p.createUncertain = true;
+        // Réponse 2xx illisible ou sans `id` : l'objet existe peut-être aussi, même traitement.
+        const acceptedButUnreadable = res.httpStatus !== undefined && res.httpStatus >= 200 && res.httpStatus < 300;
+        if (res.error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
         else p.createAttempted = false;
         await persist(p);
         return p;

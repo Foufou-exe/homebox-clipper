@@ -33,7 +33,8 @@ Aucune écriture n'a lieu dans HomeBox avant ce clic. Le popup affiche en perman
 | Bon de commande ajouté à la main | Pièce jointe de type **Pièce jointe** |
 | Photo du produit (case cochée) | Pièce jointe de type **Photo**, image principale de l'objet |
 
-L'objet est créé avec le type par défaut de HomeBox, sans emplacement ni étiquette.
+L'objet est créé avec le type par défaut de HomeBox, sans étiquette. L'emplacement est celui que vous avez
+choisi (voir [Choisir l'emplacement](#choisir-lemplacement)) ; sans choix, l'objet est créé sans emplacement.
 
 ## La photo du produit
 
@@ -42,6 +43,23 @@ vérifiée (JPEG, PNG ou WebP, 5 Mo au plus, d'après le contenu réel du fichie
 n'est jamais conservée par l'extension. Le résultat indique, par produit : *Photo ajoutée*, *Photo non
 demandée*, *Aucune photo disponible* ou *Échec de l'envoi de la photo*. Si la photo échoue, l'objet et sa
 facture sont conservés : **Réessayer l'envoi de la photo** ne relance que la photo, sans recréer l'objet.
+
+## Choisir l'emplacement
+
+Le résumé propose un champ **Emplacement pour cette commande** : commencez à taper (la casse et les accents
+sont ignorés ; « etagere » trouve « Étagère »), puis choisissez dans la liste, à la souris ou au clavier
+(flèches, Entrée, Échap). Chaque proposition montre son **chemin complet** (« Maison › Garage »), ce qui
+distingue les emplacements homonymes. Le choix s'applique à tous les produits cochés.
+
+- **Un emplacement différent pour un produit** : **Modifier** sous ce produit ouvre son propre sélecteur ;
+  les autres produits gardent le choix de la commande.
+- **Dernier emplacement** : celui du dernier import qui a créé au moins un objet sur cette instance est présélectionné ;
+  **Retirer** vide le champ (l'objet sera créé sans emplacement).
+- **Liste vide ou indisponible** : si HomeBox n'a aucun emplacement, ou si la liste n'a pas pu être lue, un
+  message l'indique et l'import reste possible sans emplacement. Créez les emplacements dans HomeBox : l'extension
+  n'en crée, n'en renomme et n'en supprime aucun.
+- **Emplacement disparu** : s'il a été supprimé dans HomeBox entre le choix et l'envoi, aucun objet n'est
+  créé pour ce produit. Choisissez un autre emplacement puis réessayez, ou **Importer sans emplacement**.
 
 ## Commande à plusieurs articles
 

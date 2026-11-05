@@ -1,5 +1,5 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { dispatch, register } from '@/background/router';
+import { dispatch, register, startRouter } from '@/background/router';
 
 const BASE = 'chrome-extension://abcdefghijklmnop/';
 
@@ -135,5 +135,50 @@ describe('router — provenance des messages', () => {
         expect(await dispatch(retry({ location }), sender())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
       },
     );
+  });
+});
+
+describe('router — écouteur runtime.onMessage (contracts/runtime-messages.md)', () => {
+  type Listener = (raw: unknown, sender: unknown, sendResponse: (r: unknown) => void) => boolean | undefined;
+  let listener: Listener;
+  const handler = vi.fn(async () => ({ configured: false }));
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    handler.mockClear();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
+    const add = vi.spyOn(fakeBrowser.runtime.onMessage, 'addListener');
+    register('config/get', handler);
+    startRouter();
+    listener = add.mock.calls[0]![0] as unknown as Listener;
+  });
+
+  const call = async (raw: unknown, sender: unknown) => {
+    const sendResponse = vi.fn();
+    const keepOpen = listener(raw, sender, sendResponse);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
+    return { keepOpen, response: sendResponse.mock.calls[0]![0] };
+  };
+
+  it('un message mal formé reçoit BAD_MESSAGE, sans exécuter de handler', async () => {
+    const ok = { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` };
+    for (const raw of [{ type: 'config/save', baseUrl: 1 }, { nimporte: 'quoi' }, 'texte', null]) {
+      const r = await call(raw, ok);
+      expect(r.keepOpen).toBe(false);
+      expect(r.response).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    }
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('un message bien formé mais venant du script injecté reste refusé', async () => {
+    const r = await call({ type: 'config/get' }, { id: fakeBrowser.runtime.id, url: 'https://www.amazon.fr/x', tab: { id: 1 } });
+    expect(r.response).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('un message valide de la page de l’extension atteint le handler', async () => {
+    const r = await call({ type: 'config/get' }, { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` });
+    expect(r.response).toEqual({ configured: false });
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });

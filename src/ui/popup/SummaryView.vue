@@ -236,7 +236,13 @@ function submit() {
         <div v-if="line.selected && locState === 'ready' && locations.length > 0" class="product-location">
           <span class="muted">{{ t('location.productLabel') }}</span>
           <strong>{{ locationText(effectiveLocation(line)) }}</strong>
-          <button class="link" type="button" :aria-expanded="editingLines.has(line.key) ? 'true' : 'false'" @click="toggleEdit(line)">
+          <button
+            class="link"
+            type="button"
+            :aria-label="t('location.editFor', [line.draft.name || t('summary.unnamedProduct')])"
+            :aria-expanded="editingLines.has(line.key) ? 'true' : 'false'"
+            @click="toggleEdit(line)"
+          >
             {{ t('location.edit') }}
           </button>
           <LocationPicker
@@ -244,7 +250,7 @@ function submit() {
             class="line-location"
             :model-value="effectiveLocation(line)"
             :options="locations"
-            :label="t('location.productLabel')"
+            :label="t('location.productLabelFor', [line.draft.name || t('summary.unnamedProduct')])"
             @update:model-value="setLineLocation(line, $event)"
           />
         </div>
@@ -371,7 +377,7 @@ function submit() {
 }
 .link {
   border: none;
-  color: var(--accent);
+  color: var(--accent-text);
   padding: 2px 4px;
 }
 .dialog {

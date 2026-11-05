@@ -27,7 +27,13 @@ const query = ref('');
 const active = ref(-1);
 
 /** Minuscules et sans accents : « etagere » trouve « Étagère ». */
-const fold = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const LIGATURES: Record<string, string> = { 'œ': 'oe', 'æ': 'ae', 'ĳ': 'ij' };
+const fold = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[œæĳ]/g, (c) => LIGATURES[c] ?? c)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
 const separator = computed(() => t('location.pathSeparator'));
 const pathText = (path: string[]) => path.join(separator.value);
@@ -40,6 +46,8 @@ const filtered = computed(() => {
   const words = fold(query.value).split(/\s+/).filter(Boolean);
   return entries.value.filter((e) => words.every((w) => e.haystack.includes(w)));
 });
+/** Vrai si la liste est réellement affichée (ouverte et non vide). */
+const visible = computed(() => open.value && filtered.value.length > 0);
 const activeId = computed(() => (open.value && active.value >= 0 && active.value < filtered.value.length ? optionId(active.value) : undefined));
 
 function openList() {
@@ -52,9 +60,17 @@ function close() {
   query.value = '';
   active.value = -1;
 }
+function onFocus(event: FocusEvent) {
+  // Tout sélectionner : la première frappe remplace le chemin affiché au lieu de s'y ajouter.
+  if (selectedText.value) (event.target as HTMLInputElement).select();
+  openList();
+}
 function onInput(event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  // Premier caractère hors édition : le champ montre encore le choix courant. On n'en garde que le texte tapé.
+  const typed = !editing.value && selectedText.value && value.includes(selectedText.value) ? value.replace(selectedText.value, '') : value;
   editing.value = true;
-  query.value = (event.target as HTMLInputElement).value;
+  query.value = typed;
   active.value = filtered.value.length ? 0 : -1;
   openList();
 }
@@ -109,12 +125,14 @@ watch(active, async (index) => {
         autocomplete="off"
         spellcheck="false"
         aria-autocomplete="list"
-        :aria-expanded="open ? 'true' : 'false'"
+        :aria-expanded="visible ? 'true' : 'false'"
         :aria-controls="listId"
         :aria-activedescendant="activeId"
         :placeholder="t('location.placeholder')"
         :disabled="disabled"
         :value="inputValue"
+        @focus="onFocus"
+        @click="openList"
         @input="onInput"
         @blur="close"
         @keydown="onKeydown"
@@ -123,7 +141,7 @@ watch(active, async (index) => {
         {{ t('location.remove') }}
       </button>
     </div>
-    <ul v-show="open && filtered.length > 0" :id="listId" class="list" role="listbox" :aria-label="label">
+    <ul v-show="visible" :id="listId" class="list" role="listbox" :aria-label="label">
       <li
         v-for="(entry, i) in filtered"
         :id="optionId(i)"

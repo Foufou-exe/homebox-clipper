@@ -174,3 +174,68 @@ describe('LocationPicker : ARIA combobox + listbox (R9, FR-011, FR-013)', () => 
     expect(w.text()).not.toMatch(/créer|renommer|supprimer|ajouter/i);
   });
 });
+
+describe('LocationPicker : champ prérempli, ouverture, normalisation (revue US2)', () => {
+  const PRESET: LocationChoice = { id: 'a', path: ['Atelier'] };
+  /** Simule la frappe d'une lettre dans un champ prérempli sans sélection : le navigateur ajoute au texte affiché. */
+  const typeAppended = async (w: W, extra: string) => {
+    const el = input(w).element as HTMLInputElement;
+    el.value = el.value + extra;
+    await input(w).trigger('input');
+  };
+
+  it('champ prérempli : taper ne cherche que le texte tapé, pas le chemin affiché', async () => {
+    const w = mountPicker({ modelValue: PRESET });
+    await typeAppended(w, 'gar');
+    expect(optionTexts(w)).toEqual(['Maison › Garage', 'Maison › Garage › Étagère']);
+    expect((input(w).element as HTMLInputElement).value).toBe('gar');
+  });
+
+  it('champ prérempli avec un séparateur dans le choix : la recherche n’est pas cassée', async () => {
+    const w = mountPicker({ modelValue: { id: 'g', path: ['Maison', 'Garage'] } });
+    await typeAppended(w, 'atel');
+    expect(optionTexts(w)).toEqual(['Atelier', 'Atelier › Étagère']);
+  });
+
+  it('le focus sélectionne tout le texte du champ prérempli', async () => {
+    const w = mountPicker({ modelValue: PRESET });
+    const select = vi.spyOn(input(w).element as HTMLInputElement, 'select');
+    await input(w).trigger('focus');
+    expect(select).toHaveBeenCalled();
+  });
+
+  it('le focus ouvre la liste ; le clic aussi après Échap', async () => {
+    const w = mountPicker();
+    await input(w).trigger('focus');
+    expect(input(w).attributes('aria-expanded')).toBe('true');
+    expect(w.findAll('[role="option"]')).toHaveLength(OPTIONS.length);
+    await input(w).trigger('keydown', { key: 'Escape' });
+    expect(input(w).attributes('aria-expanded')).toBe('false');
+    await input(w).trigger('click');
+    expect(input(w).attributes('aria-expanded')).toBe('true');
+  });
+
+  it('aria-expanded reflète la liste réellement visible : faux sans résultat', async () => {
+    const w = mountPicker();
+    await type(w, 'zzz');
+    expect(input(w).attributes('aria-expanded')).toBe('false');
+    const none = mountPicker({ options: [] });
+    await input(none).trigger('focus');
+    expect(input(none).attributes('aria-expanded')).toBe('false');
+  });
+
+  it('« oeuvres » trouve « Œuvres » et « ae » trouve « Æ »', async () => {
+    const options: LocationOption[] = [
+      { id: 'o', name: 'Œuvres', path: ['Œuvres'] },
+      { id: 'x', name: 'Cæsar', path: ['Cæsar'] },
+    ];
+    const w = mountPicker({ options });
+    await type(w, 'oeuvres');
+    expect(optionTexts(w)).toEqual(['Œuvres']);
+    await type(w, 'caesar');
+    expect(optionTexts(w)).toEqual(['Cæsar']);
+    await type(w, 'ŒUVRES');
+    expect(optionTexts(w)).toEqual(['Œuvres']);
+  });
+});
+

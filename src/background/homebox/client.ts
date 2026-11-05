@@ -122,7 +122,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
         json: data,
       });
       const json = await readJson<EntityOut>(res, 'CREATE_FAILED');
-      if (json.ok && typeof json.value?.id !== 'string') return fail('CREATE_FAILED');
+      if (json.ok && typeof json.value?.id !== 'string') return fail('CREATE_FAILED', res.ok ? res.value.status : undefined);
       return json;
     },
 

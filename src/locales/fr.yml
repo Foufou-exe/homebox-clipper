@@ -127,6 +127,8 @@ location:
   unavailableHint: "Vous pouvez importer sans emplacement."
   loading: "Chargement des emplacements…"
   edit: "Modifier"
+  editFor: "Modifier l'emplacement de $1"
+  productLabelFor: "Emplacement de $1"
   remove: "Retirer"
   pathSeparator: " › "
 

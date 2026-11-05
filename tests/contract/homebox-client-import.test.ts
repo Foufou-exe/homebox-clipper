@@ -25,6 +25,13 @@ describe('client HomeBox — import', () => {
     expect(await client(m.fetch).createEntity({ name: 'x' })).toMatchObject({ ok: false, error: 'CREATE_FAILED' });
   });
 
+  it('createEntity 201 sans id ou JSON illisible → CREATE_FAILED avec le statut 2xx (création incertaine)', async () => {
+    const noId = mockFetch(json(201, {}));
+    expect(await client(noId.fetch).createEntity({ name: 'x' })).toMatchObject({ ok: false, error: 'CREATE_FAILED', httpStatus: 201 });
+    const bad = mockFetch(() => new Response('pas du json', { status: 200 }));
+    expect(await client(bad.fetch).createEntity({ name: 'x' })).toMatchObject({ ok: false, error: 'CREATE_FAILED', httpStatus: 200 });
+  });
+
   it('updateEntity envoie un PUT sur /entities/{id}', async () => {
     const m = mockFetch(json(200, { id: 'e1', name: 'x' }));
     await client(m.fetch).updateEntity('e1', { id: 'e1', name: 'x', purchasePrice: 9.5 });

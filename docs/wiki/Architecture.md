@@ -23,7 +23,7 @@ Popup / Options (Vue)  ──messages typés──▶  Service worker  ──HTT
 | Dossier | Rôle |
 |---------|------|
 | `assets/` | Ressources statiques du code (logo SVG). Les icônes de l'extension sont dans `public/icon/`, régénérées par `bun run icons`. |
-| `background/` | Service worker : `config/` (stockage, chiffrement, règle d'URL, handlers), `homebox/` (client typé de l'API), `import/` (orchestration, doublons, imports en attente), `detect.ts` (injection et détection), `router.ts` (validation et routage des messages). |
+| `background/` | Service worker : `config/` (stockage, chiffrement, règle d'URL, handlers), `homebox/` (client typé de l'API), `import/` (orchestration, doublons, imports en attente), `location/` (liste des emplacements : `handlers.ts` ; mémoire du dernier emplacement par instance : `last-location.ts`), `detect.ts` (injection et détection), `router.ts` (validation et routage des messages). |
 | `content/` | Extracteurs par marchand (`content/merchants/<marchand>/`) : `selectors.ts`, `parse.ts`, `extractor.ts`, `download.ts`, plus le contrat `types.ts` et le registre `registry.ts`. Sans secret ni réseau hors téléchargement de la facture. |
 | `entrypoints/` | Points d'entrée WXT, volontairement fins : `background.ts`, `popup/`, `options/` et un script injectable par marchand (`amazon-fr.content.ts`). |
 | `locales/` | Catalogue des textes de l'interface (`fr.yml`), lu par `@wxt-dev/i18n`. Voir [Translations](Translations.md). |
@@ -79,18 +79,28 @@ l'extension.
 Avant l'import, `duplicate/check` interroge HomeBox (`GET /api/v1/entities?q=…`) pour repérer un doublon
 probable (même numéro de commande dans les notes, même nom).
 
+## Emplacement
+
+`location/list` lit l'arbre `GET /entities/tree` (sans les objets), `src/shared/locations.ts` l'aplatit en liste
+triée de chemins (seuls les nœuds de type lieu, profondeur bornée) et `lastLocation.resolve` joint
+l'identifiant mémorisé s'il existe encore. Le composant `LocationPicker.vue` (combobox ARIA, sans dépendance)
+ne fait que choisir parmi les emplacements existants. À la création, l'emplacement est envoyé en **`parentId`**
+et non en `locationId` (HomeBox refuse un `locationId` inconnu avec une erreur 422) ; le `PUT` de mise à jour
+renvoie toujours `parentId`, sinon l'emplacement serait perdu. Un emplacement disparu au moment de l'envoi
+donne `LOCATION_NOT_FOUND` : rien n'est créé pour ce produit.
+
 ## Messagerie interne
 
 Les échanges passent par des messages déclarés dans `src/shared/messages.ts` : chaque type a un validateur
 exécuté à la réception (`isMessage`). Le routeur (`src/background/router.ts`) :
 
-- rejette tout message invalide ou venant d'une autre extension (`BAD_MESSAGE`) ;
-- réserve les préfixes `config/`, `session/`, `detect/`, `duplicate/` et `import/` aux pages de
+- répond `BAD_MESSAGE` à tout message invalide ou venant d'une autre extension, sans exécuter de handler ;
+- réserve les préfixes `config/`, `session/`, `detect/`, `duplicate/`, `import/` et `location/` aux pages de
   l'extension (popup, options), jamais aux scripts injectés ;
 - convertit toute exception d'un handler en erreur visible, sans détail.
 
 Familles de messages : configuration (`config/get|save|test|delete`), session (`session/unlock|lock`),
-détection (`detect/run`), doublons (`duplicate/check`), import (`import/start|retry|abandon|pending`),
+détection (`detect/run`), emplacements (`location/list`), doublons (`duplicate/check`), import (`import/start|retry|abandon|pending`),
 extraction dans l'onglet (`amazon/extract`, `amazon/download`) et progression (`import/progress`).
 Les réponses sont des `Result` : soit une valeur, soit un code d'erreur du catalogue
 (`src/shared/errors.ts`).
@@ -99,7 +109,7 @@ Les réponses sont des `Result` : soit une valeur, soit un code d'erreur du cata
 
 | Où | Quoi |
 |----|------|
-| `storage.local` | Configuration (`homeboxConfig` : adresse, clé **chiffrée**, clé masquée, dernier test) et thème (`uiTheme`). |
+| `storage.local` | Configuration (`homeboxConfig` : adresse, clé **chiffrée**, clé masquée, dernier test), thème (`uiTheme`) et dernier emplacement par instance (`lastLocationByInstance` : identifiants seulement, effacé avec la configuration). |
 | `storage.session` | Clé déchiffrée (`homeboxUnlocked`) et imports en cours (`pendingImport:<onglet>:<id>`). Mémoire, effacée à la fermeture du navigateur. |
 
 Détails de sécurité : [Security-and-privacy](Security-and-privacy.md).
