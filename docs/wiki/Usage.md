@@ -46,13 +46,17 @@ facture sont conservés : **Réessayer l'envoi de la photo** ne relance que la p
 
 ## Choisir l'emplacement
 
-Le résumé propose un champ **Emplacement pour cette commande** : commencez à taper (la casse et les accents
-sont ignorés ; « etagere » trouve « Étagère »), puis choisissez dans la liste, à la souris ou au clavier
-(flèches, Entrée, Échap). Chaque proposition montre son **chemin complet** (« Maison › Garage »), ce qui
-distingue les emplacements homonymes. Le choix s'applique à tous les produits cochés.
+Le résumé propose un champ d'emplacement, facultatif : commencez à taper (la casse et les accents sont
+ignorés ; « etagere » trouve « Étagère »), puis choisissez dans la liste, à la souris ou au clavier (flèches,
+Entrée, Échap). Chaque proposition montre son **chemin complet** (« Maison › Garage »), ce qui distingue les
+emplacements homonymes. Un objet HomeBox n'a qu'un seul emplacement.
 
-- **Un emplacement différent pour un produit** : **Modifier** sous ce produit ouvre son propre sélecteur ;
-  les autres produits gardent le choix de la commande.
+- **Un seul produit** (saisie manuelle ou commande d'un article) : un seul champ, **Emplacement (facultatif)**.
+- **Plusieurs produits** : le champ **Emplacement des produits**, placé avant la liste des produits, s'applique à
+  tous les produits cochés. Chaque produit indique *Même emplacement que les autres produits*.
+- **Un emplacement différent pour un produit** : **Modifier**, sous ce produit, ouvre son propre sélecteur ; ce
+  choix remplace celui de la commande pour ce produit seulement. **Utiliser celui de la commande** revient au
+  choix commun.
 - **Dernier emplacement** : celui du dernier import qui a créé au moins un objet sur cette instance est présélectionné ;
   **Retirer** vide le champ (l'objet sera créé sans emplacement).
 - **Liste vide ou indisponible** : si HomeBox n'a aucun emplacement, ou si la liste n'a pas pu être lue, un

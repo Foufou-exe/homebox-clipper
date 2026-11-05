@@ -7,6 +7,8 @@ const props = defineProps<{
   modelValue: LocationChoice | null;
   options: LocationOption[];
   label: string;
+  /** Id d'un élément d'aide relié au champ (aria-describedby). */
+  describedBy?: string;
   disabled?: boolean;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: LocationChoice | null] }>();
@@ -127,6 +129,7 @@ watch(active, async (index) => {
         aria-autocomplete="list"
         :aria-expanded="visible ? 'true' : 'false'"
         :aria-controls="listId"
+        :aria-describedby="describedBy"
         :aria-activedescendant="activeId"
         :placeholder="t('location.placeholder')"
         :disabled="disabled"

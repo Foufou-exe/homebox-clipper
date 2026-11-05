@@ -118,7 +118,12 @@ summary:
   photoLoadFailed: "La photo n'a pas pu être affichée : elle ne sera pas envoyée."
 
 location:
-  orderLabel: "Emplacement pour cette commande"
+  singleLabel: "Emplacement (facultatif)"
+  orderLabel: "Emplacement des produits"
+  orderHelp: "Chaque objet est rangé à un seul emplacement. Vous pouvez en choisir un autre pour un produit."
+  inherited: "Même emplacement que les autres produits : $1"
+  useOrder: "Utiliser celui de la commande"
+  useOrderFor: "Utiliser l'emplacement de la commande pour $1"
   productLabel: "Emplacement de ce produit"
   placeholder: "Rechercher un emplacement…"
   none: "Aucun emplacement"

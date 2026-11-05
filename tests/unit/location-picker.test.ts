@@ -12,7 +12,7 @@ const OPTIONS: LocationOption[] = [
 
 const mountPicker = (props: Partial<{ modelValue: LocationChoice | null; options: LocationOption[]; disabled: boolean }> = {}) =>
   mount(LocationPicker, {
-    props: { modelValue: null, options: OPTIONS, label: 'Emplacement pour cette commande', ...props },
+    props: { modelValue: null, options: OPTIONS, label: 'Emplacement des produits', ...props },
   });
 
 type W = ReturnType<typeof mountPicker>;
@@ -38,7 +38,7 @@ describe('LocationPicker : ARIA combobox + listbox (R9, FR-011, FR-013)', () => 
   it('le libellé est associé à l’input', () => {
     const w = mountPicker();
     const label = w.get('label');
-    expect(label.text()).toBe('Emplacement pour cette commande');
+    expect(label.text()).toBe('Emplacement des produits');
     expect(label.attributes('for')).toBe(input(w).attributes('id'));
   });
 

@@ -18,6 +18,7 @@ import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
+import OrderLocationField from './OrderLocationField.vue';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields } from './drafts';
@@ -89,6 +90,11 @@ function setLineLocation(line: Line, v: LocationChoice | null) {
   line.location = v;
   editingLines.delete(line.key);
 }
+/** Retour à l'héritage : le produit suit de nouveau le choix de commande (l'objet n'a toujours qu'un seul parent). */
+function useOrderLocation(line: Line) {
+  line.location = 'inherit';
+  editingLines.delete(line.key);
+}
 function toggleEdit(line: Line) {
   if (!editingLines.delete(line.key)) editingLines.add(line.key);
 }
@@ -123,6 +129,10 @@ onMounted(async () => {
     : [{ key: 'manual', product: null, selected: true, draft: draftFrom(res.value.purchase, null), location: 'inherit' as const }];
   documents.value = res.value.purchase.documents.map((doc) => ({ doc, selected: true }));
 });
+
+/** Un seul produit : un seul champ « Emplacement ». Plusieurs : champ de commande, puis une mention par produit. */
+const multi = computed(() => lines.value.length > 1);
+const productName = (line: Line) => line.draft.name || t('summary.unnamedProduct');
 
 const selectedLines = computed(() => lines.value.filter((l) => l.selected));
 const selectedDocs = computed(() => documents.value.filter((d) => d.selected).map((d) => d.doc));
@@ -215,7 +225,9 @@ function submit() {
       <ErrorBanner v-for="w in warnings" :key="w" :code="w" tone="warning" />
       <p v-if="detectError" class="muted">{{ t('summary.manualHint') }}</p>
 
-      <h2 v-if="purchase && lines.length > 1" class="section-title">{{ t('summary.detectedProducts') }}</h2>
+      <OrderLocationField v-if="multi" v-model="orderModel" :state="locState" :error="locError" :options="locations" :multi="true" />
+
+      <h2 v-if="purchase && multi" class="section-title">{{ t('summary.detectedProducts') }}</h2>
       <div v-for="line in lines" :key="line.key" class="line card">
         <label v-if="lines.length > 1" class="pick">
           <input v-model="line.selected" type="checkbox" />
@@ -233,13 +245,26 @@ function submit() {
         </div>
         <p v-else-if="line.selected && line.product" class="photo muted">{{ t('summary.photoNone') }}</p>
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
-        <div v-if="line.selected && locState === 'ready' && locations.length > 0" class="product-location">
-          <span class="muted">{{ t('location.productLabel') }}</span>
-          <strong>{{ locationText(effectiveLocation(line)) }}</strong>
+        <div v-if="multi && line.selected && locState === 'ready' && locations.length > 0" class="product-location">
+          <template v-if="line.location === 'inherit'">
+            <span class="muted">{{ effectiveLocation(line) ? t('location.inherited', [effectiveLocation(line)!.path.at(-1) ?? '']) : t('location.none') }}</span>
+          </template>
+          <template v-else>
+            <span class="muted">{{ t('location.productLabel') }} :</span>
+            <strong>{{ locationText(line.location) }}</strong>
+            <button
+              class="link"
+              type="button"
+              :aria-label="t('location.useOrderFor', [productName(line)])"
+              @click="useOrderLocation(line)"
+            >
+              {{ t('location.useOrder') }}
+            </button>
+          </template>
           <button
             class="link"
             type="button"
-            :aria-label="t('location.editFor', [line.draft.name || t('summary.unnamedProduct')])"
+            :aria-label="t('location.editFor', [productName(line)])"
             :aria-expanded="editingLines.has(line.key) ? 'true' : 'false'"
             @click="toggleEdit(line)"
           >
@@ -250,21 +275,20 @@ function submit() {
             class="line-location"
             :model-value="effectiveLocation(line)"
             :options="locations"
-            :label="t('location.productLabelFor', [line.draft.name || t('summary.unnamedProduct')])"
+            :label="t('location.productLabelFor', [productName(line)])"
             @update:model-value="setLineLocation(line, $event)"
           />
         </div>
       </div>
 
-      <div class="card location-section">
-        <p v-if="locState === 'loading'" class="muted" role="status">{{ t('location.loading') }}</p>
-        <template v-else-if="locState === 'unavailable'">
-          <ErrorBanner :code="locError" tone="warning" />
-          <p class="muted">{{ t('location.unavailableHint') }}</p>
-        </template>
-        <p v-else-if="locations.length === 0" class="muted">{{ t('location.empty') }}</p>
-        <LocationPicker v-else v-model="orderModel" class="order-location" :options="locations" :label="t('location.orderLabel')" />
-      </div>
+      <OrderLocationField
+        v-if="!multi"
+        v-model="orderModel"
+        :state="locState"
+        :error="locError"
+        :options="locations"
+        :multi="false"
+      />
 
       <h2 class="section-title">{{ t('summary.documentsTitle') }}</h2>
       <div class="card">

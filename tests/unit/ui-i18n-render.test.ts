@@ -651,18 +651,111 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderLocationId).toBeNull();
     });
 
-    it('l’emplacement retenu s’affiche parmi les champs de chaque produit avant confirmation (FR-015)', async () => {
+    it('plusieurs produits : sans choix propre, chaque produit indique qu’il partage l’emplacement des autres (FR-015)', async () => {
       wire();
       const wrapper = await mountSummary();
-      expect(wrapper.text()).toContain('Aucun emplacement');
+      // Rien de choisi : la mention le dit.
+      for (const row of wrapper.findAll('.product-location')) expect(row.text()).toContain('Aucun emplacement');
       await pick(orderPicker(wrapper), GARAGE);
       const rows = wrapper.findAll('.product-location');
       expect(rows).toHaveLength(2);
       for (const row of rows) {
-        expect(row.text()).toContain('Emplacement de ce produit');
-        expect(row.text()).toContain('Maison › Garage');
+        // La mention nomme l'emplacement suivi, sans répéter le chemin complet du champ de commande.
+        expect(row.text()).toContain('Même emplacement que les autres produits : Garage');
+        expect(row.text()).not.toContain('Maison › Garage');
+        expect(row.text()).not.toContain('Emplacement de ce produit');
       }
       expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
+    });
+
+    it('un seul produit : un seul sélecteur « Emplacement (facultatif) », aucune ligne par produit, aucun « Modifier »', async () => {
+      wire({ products: [named('a', 'Clavier')] });
+      const wrapper = await mountSummary();
+      expect(wrapper.findAllComponents(LocationPicker)).toHaveLength(1);
+      expect(wrapper.findAll('.product-location')).toHaveLength(0);
+      expect(editButtons(wrapper)).toHaveLength(0);
+      expect(wrapper.text()).not.toContain('Emplacement de ce produit');
+      expect(wrapper.text()).not.toContain('Emplacement des produits');
+      expect(wrapper.text()).not.toContain('Emplacement pour cette commande');
+      expect(orderPicker(wrapper).props('label')).toBe('Emplacement (facultatif)');
+      expect(orderPicker(wrapper).get('label').text()).toBe('Emplacement (facultatif)');
+      await pick(orderPicker(wrapper), GARAGE);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE)]);
+      expect(orderLocationId).toBe('g');
+    });
+
+    it('saisie manuelle (aucun produit détecté) : un seul sélecteur, présélection du dernier emplacement conservée', async () => {
+      wire({ products: [], list: listOk('a') });
+      const wrapper = await mountSummary();
+      await wrapper.get('input[required]').setValue('Perceuse');
+      expect(wrapper.findAllComponents(LocationPicker)).toHaveLength(1);
+      expect(wrapper.findAll('.product-location')).toHaveLength(0);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(ATELIER)]);
+      expect(orderLocationId).toBe('a');
+    });
+
+    it('plusieurs produits : le champ de la commande, intitulé et expliqué, précède les produits', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      const html = wrapper.html();
+      const orderAt = html.indexOf('order-location');
+      expect(orderAt).toBeGreaterThan(-1);
+      expect(orderAt).toBeLessThan(html.indexOf('class="line card"'));
+      expect(orderPicker(wrapper).props('label')).toBe('Emplacement des produits');
+      expect(wrapper.text()).toContain('Chaque objet est rangé à un seul emplacement. Vous pouvez en choisir un autre pour un produit.');
+      // L'aide est reliée au champ.
+      const help = wrapper.get('#' + orderPicker(wrapper).props('describedBy'));
+      expect(help.text()).toContain('Chaque objet est rangé à un seul emplacement');
+      expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
+    });
+
+    it('choix propre : « Emplacement de ce produit : X » et « Utiliser celui de la commande » nommant le produit', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[1]!.trigger('click');
+      (wrapper.findComponent('.line-location') as unknown as PickerWrapper).vm.$emit('update:modelValue', choice(ATELIER));
+      await flushPromises();
+      const rows = wrapper.findAll('.product-location');
+      expect(rows[0]!.text()).toContain('Même emplacement que les autres produits');
+      expect(rows[1]!.text()).toContain('Emplacement de ce produit');
+      expect(rows[1]!.text()).toContain('Atelier');
+      expect(rows[1]!.text()).not.toContain('Même emplacement');
+      const back = wrapper.findAll('button').filter((b) => b.text() === 'Utiliser celui de la commande');
+      expect(back).toHaveLength(1);
+      expect(back[0]!.attributes('aria-label')).toBe("Utiliser l'emplacement de la commande pour Souris");
+      expect(editButtons(wrapper)[1]!.attributes('aria-label')).toBe("Modifier l'emplacement de Souris");
+    });
+
+    it('« Utiliser celui de la commande » : retour à l’héritage, le brouillon envoyé reprend l’emplacement de la commande', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[1]!.trigger('click');
+      (wrapper.findComponent('.line-location') as unknown as PickerWrapper).vm.$emit('update:modelValue', choice(ATELIER));
+      await flushPromises();
+      await wrapper.findAll('button').find((b) => b.text() === 'Utiliser celui de la commande')!.trigger('click');
+      expect(wrapper.findAll('button').some((b) => b.text() === 'Utiliser celui de la commande')).toBe(false);
+      expect(wrapper.findAll('.product-location')[1]!.text()).toContain('Même emplacement que les autres produits');
+      // Redevenu héritier : il suit de nouveau les changements de la commande.
+      await pick(orderPicker(wrapper), MAISON);
+      const { drafts, orderLocationId } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(MAISON), choice(MAISON)]);
+      expect(orderLocationId).toBe('m');
+    });
+
+    it('retour à l’héritage après un « Retirer » propre : l’emplacement de la commande revient (et non null)', async () => {
+      wire();
+      const wrapper = await mountSummary();
+      await pick(orderPicker(wrapper), GARAGE);
+      await editButtons(wrapper)[0]!.trigger('click');
+      (wrapper.findComponent('.line-location') as unknown as PickerWrapper).vm.$emit('update:modelValue', null);
+      await flushPromises();
+      await wrapper.findAll('button').find((b) => b.text() === 'Utiliser celui de la commande')!.trigger('click');
+      const { drafts } = await confirm(wrapper);
+      expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE), choice(GARAGE)]);
     });
 
     it('les sélecteurs et boutons par produit portent le nom du produit dans leur libellé accessible', async () => {
@@ -848,7 +941,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
   describe('LocationPicker : textes', () => {
     it('tout texte rendu vient du catalogue (liste ouverte, valeur choisie, aucun résultat)', async () => {
       const wrapper = mount(LocationPicker, {
-        props: { modelValue: choice(GARAGE), options: LOCATIONS, label: 'Emplacement pour cette commande' },
+        props: { modelValue: choice(GARAGE), options: LOCATIONS, label: 'Emplacement des produits' },
       });
       expectCatalogTexts(wrapper, [DATA, ...NAMES]);
       await wrapper.get('input').setValue('ma');
