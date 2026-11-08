@@ -34,4 +34,11 @@ describe('action text contrast (--accent-text on --bg, WCAG AA 4.5:1)', () => {
     const view = readFileSync(resolve(__dirname, '../../src/ui/popup/SummaryView.vue'), 'utf8');
     expect(view).toMatch(/\.link\s*{[^}]*color:\s*var\(--accent-text\)/);
   });
+
+  it('project links (.project-link) use --accent-text on a --bg footer (004, FR-011)', () => {
+    const links = readFileSync(resolve(__dirname, '../../src/ui/components/ProjectLinks.vue'), 'utf8');
+    expect(links).toMatch(/\.project-link\s*{[^}]*color:\s*var\(--accent-text\)/);
+    const popup = readFileSync(resolve(__dirname, '../../src/ui/popup/App.vue'), 'utf8');
+    expect(popup).toMatch(/\.project-footer\s*{[^}]*background:\s*var\(--bg\)/);
+  });
 });

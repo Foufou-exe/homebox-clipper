@@ -10,6 +10,7 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ### Added
 
+- "Support" and "GitHub" links in the popup footer and in a new "Help and project" section of the settings page; they open the project's issues and repository in a new tab. No data is added to the addresses, no request is made by the extension and no permission is added.
 - Bilingual English/French interface following the browser language (English by default, French if the browser is in French); the note written in HomeBox follows the interface language ("Amazon.fr order: <number>" in English), with no effect on duplicate detection.
 - The product photo (Amazon.fr) is attached to the HomeBox item as its main image. A checkbox, ticked by default, lets you skip it; the result shows what happened to the photo for each product.
 - Recovery of an import interrupted by the extension's service worker stopping: the import becomes retryable again, without recreating the item or sending the photo twice. In-progress imports are kept in session memory: they are lost when the browser closes and when the extension is updated (check in HomeBox then). If an item's creation is uncertain (lost response, stop during the upload), the retry first looks for an item with the same name in HomeBox and refuses to retry if it finds one; this check reduces the risk of duplicates without eliminating it.

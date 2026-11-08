@@ -55,5 +55,7 @@ export const IDENTICAL_OK = [
   'popup.pageTitle', // nom propre
   'location.pathSeparator', // symbole
   'fields.description', // same word in both languages
+  'links.support', // same word in both languages
+  'links.github', // nom propre
 ];
 
