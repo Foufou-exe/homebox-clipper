@@ -1,13 +1,14 @@
 # Releasing
 
-**Local** procedure (no GitHub Actions minute is consumed), reserved for the maintainer. The format of the
+Releases are published by GitHub Actions when the maintainer pushes a version tag. The procedure is
+reserved for the maintainer. The format of the
 [changelog](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md) is
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and numbering follows
 [SemVer](https://semver.org).
 
 > [!IMPORTANT]
-> Creating a tag, pushing it and publishing a release are visible actions that are hard to undo: only do
-> them with the maintainer's explicit approval.
+> Pushing a tag publishes a release immediately, and a published release is hard to undo: only do it
+> with the maintainer's explicit approval.
 
 ## Feeding the changelog day to day
 
@@ -21,30 +22,41 @@ required:**. The pull request reminds you to do it (dedicated checkbox in the te
 
 For a version `x.y.z`:
 
-1. **Version number**: `bun pm version x.y.z --no-git-tag-version` (updates `package.json`).
-2. **Changelog**: rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, recreate an empty `[Unreleased]` above
-   it and update the comparison links at the bottom of the file (`[Unreleased]` compares `vx.y.z...HEAD`,
-   and `[x.y.z]` points to the release).
-3. **Verification**: `bun run ci` must pass.
-4. **Commit**: `chore(release): vX.Y.Z`.
-5. **Tag**: `git tag vX.Y.Z`.
-6. **Archive**: `bun run zip`. WXT produces `.output/<name>-<version>-chrome.zip`.
-7. **GitHub release** (after pushing the branch and the tag):
+1. **Branch** from an up-to-date `main`: `git switch -c chore/release-x.y.z`.
+2. **Version number**: `bun pm version x.y.z --no-git-tag-version` (updates `package.json`).
+3. **Changelog**: rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, recreate an empty `[Unreleased]` above
+   it and update the comparison links at the bottom of the file (`[Unreleased]` compares
+   `vx.y.z...HEAD`, and `[x.y.z]` compares the previous tag to `vx.y.z`).
+4. **Verification**: `bun run ci` must pass; `bun run release:notes x.y.z` must print the notes.
+5. **Pull request** to `main` (commit `chore(release): vX.Y.Z`), wait for the CI, then merge.
+6. **Tag** (maintainer), on the merge commit of `main`:
    ```bash
-   bun scripts/release-notes.ts x.y.z | gh release create vX.Y.Z .output/*-chrome.zip --notes-file -
+   git switch main && git pull
+   git tag -a vX.Y.Z -m "vX.Y.Z"
+   git push origin vX.Y.Z
    ```
-   `scripts/release-notes.ts` extracts from the changelog only the section of the requested version
-   (without title or comparison links).
 
-## First version
+## What the release workflow does
 
-The `v0.1.0` tag does not exist until the maintainer creates it on the MVP commit. As long as it is
-missing, the changelog's comparison links resolve to nothing.
+`.github/workflows/release.yml` runs on every pushed `v*.*.*` tag, with a `GITHUB_TOKEN` limited to
+`contents: write` and no other secret. It:
+
+1. runs `bun run ci` (all checks and the build);
+2. fails if the tag is not exactly `v` + the `package.json` version;
+3. fails if `CHANGELOG.md` has no non-empty section for that version;
+4. builds the archive with `bun run zip` and checks that it exists under the expected name and that its
+   `manifest.json` carries the same version;
+5. creates the GitHub release `vX.Y.Z` with the notes taken from the changelog, the SHA-256 of the
+   archive, and two attached files: `homebox-clipper-X.Y.Z-chrome.zip` and its `.sha256`.
+
+If a check fails, nothing is published. Fix the cause on `main`, then delete the tag (locally and on
+`origin`) and tag again; a release that was already created must be deleted first.
 
 ## After the release
 
-- Check that the attached archive loads in Chrome (`chrome://extensions`, developer mode, unzipped
-  folder).
+- Open the release page and check the notes, the two attached files and the checksum.
+- Check that the archive loads in Chrome: download it, verify with `sha256sum -c`, unzip it, then in
+  `chrome://extensions` enable developer mode and use **Load unpacked** on the unzipped folder.
 - If the wiki sources changed, republish it: see the next section.
 
 ## Publishing the wiki

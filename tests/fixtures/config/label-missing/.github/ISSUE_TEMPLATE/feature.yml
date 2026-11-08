@@ -1,10 +1,26 @@
-name: Modèle factice
-description: factice
+name: Dummy template
+description: dummy
 labels: ["enhancement"]
 body:
-  - type: input
-    id: besoin
+  - type: markdown
     attributes:
-      label: Champ
+      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
+  - type: input
+    id: need
+    attributes:
+      label: Field
     validations:
       required: true
+  - type: input
+    id: proposal
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Field
+      options:
+        - label: Option
+          required: true

@@ -1,28 +1,50 @@
-name: Modèle factice
-description: factice
+name: Dummy template
+description: dummy
 labels: ["merchant: detection"]
 body:
-  - type: input
-    id: marchand-domaine
+  - type: markdown
     attributes:
-      label: Champ
+      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
+  - type: input
+    id: merchant-domain
+    attributes:
+      label: Field
     validations:
       required: true
   - type: input
-    id: champs
+    id: site-language
     attributes:
-      label: Champ
+      label: Field
     validations:
       required: true
   - type: input
-    id: type-commande
+    id: fields
     attributes:
-      label: Champ
+      label: Field
     validations:
       required: true
   - type: input
-    id: version-extension
+    id: order-type
     attributes:
-      label: Champ
+      label: Field
     validations:
       required: true
+  - type: input
+    id: observed-expected
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Field
+      options:
+        - label: Option
+          required: true

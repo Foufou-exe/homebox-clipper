@@ -8,6 +8,8 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-08
+
 ### Added
 
 - "Support" and "GitHub" links in the popup footer and in a new "Help and project" section of the settings page; they open the project's issues and repository in a new tab. No data is added to the addresses, no request is made by the extension and no permission is added.
@@ -17,6 +19,8 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 - Location choice: a single "Location (optional)" field for one product, or "Location for the products" above the list when the order has several, with a "Same location as the other products" note per product (list of the instance's existing locations, with case- and accent-insensitive search, full path shown to tell namesakes apart) and per-product editing, with a way back to the order-wide choice. The location is read from the configured instance; the extension never creates, renames or deletes any. Without a choice, the item is created as before.
 - Last location remembered per instance: it is preselected on the next import ("Clear" empties it). Only an identifier is kept in `storage.local` (no location name); it is erased with "Delete settings".
 - If the chosen location has disappeared from HomeBox at upload time, no item is created: a new choice or an import without a location is offered.
+- Release workflow: pushing a `vX.Y.Z` tag runs all checks, builds the extension and publishes a GitHub release with the `.zip`, its SHA-256 checksum and the notes from this changelog.
+- New "Question" issue template and `help wanted`, `question` and `needs-triage` labels for contributors.
 
 ### Fixed
 
@@ -29,6 +33,8 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 ### Changed
 
 - **Action required:** the project is renamed **homebox-clipper** (display name "HomeBox Clipper") to avoid confusion with another project of the same name; update the repository address (`git remote set-url origin …/homebox-clipper.git`).
+- CI now also runs on every push to `main` and on pull requests from forks (read-only permissions); actions are pinned to commit SHAs.
+- Issue and pull request templates reworked for a public project: required versions, browser and language, a personal-data checkbox, `needs-triage` by default.
 
 ## [0.1.0] - 2026-10-29
 
@@ -67,5 +73,6 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 - API key encrypted at rest (AES-GCM, PBKDF2 derivation with 600,000 iterations, bound to the instance URL) (PR #1).
 
-[Unreleased]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Foufou-exe/homebox-clipper/releases/tag/v0.1.0

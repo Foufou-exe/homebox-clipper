@@ -34,8 +34,8 @@ This check, run at the head of `bun run ci` (so by the `pre-push` hook), verifie
 - that the required fields of the issue templates are really required, and that blank issues are
   disabled (`config.yml`).
 
-The files of `.github/ISSUE_TEMPLATE/` and `.github/labels.yml` do not trigger the GitHub CI (limited
-quota): `check:config`, run locally, is their only guard. Remember to run `bun run ci` before pushing.
+The files of `.github/ISSUE_TEMPLATE/` and `.github/labels.yml` do not trigger the GitHub CI:
+`check:config`, run locally, is their only guard. Remember to run `bun run ci` before pushing.
 
 The script is tested by `tests/unit/check-config.test.ts`, on dummy repositories in
 `tests/fixtures/config/`.

@@ -6,13 +6,38 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
-/** Required fields of the issue templates (`id`), copied from contracts/issue-templates.md. */
+/** Required fields of the issue templates (`id`). */
 const REQUIRED_FIELDS: Record<string, string[]> = {
-  'bug.yml': ['etapes', 'attendu-obtenu', 'versions'],
-  'merchant-detection.yml': ['marchand-domaine', 'champs', 'type-commande', 'version-extension'],
-  'merchant-request.yml': ['nom-marchand', 'domaines', 'pays', 'factures'],
-  'feature.yml': ['besoin'],
+  'bug.yml': [
+    'extension-version',
+    'browser',
+    'homebox-version',
+    'ui-language',
+    'area',
+    'steps',
+    'expected-actual',
+    'privacy',
+  ],
+  'merchant-detection.yml': [
+    'merchant-domain',
+    'site-language',
+    'fields',
+    'order-type',
+    'observed-expected',
+    'extension-version',
+    'privacy',
+  ],
+  'merchant-request.yml': ['merchant-name', 'domains', 'country', 'site-language', 'invoices', 'checks'],
+  'feature.yml': ['need', 'proposal', 'checks'],
+  'question.yml': ['question', 'checks'],
 };
+
+/** Privacy warning that every issue template must contain, word for word. */
+const PRIVACY_WARNING =
+  'Never attach raw store pages, API keys, real instance addresses (public or local) or personal data.';
+
+/** Field types accepted by GitHub issue forms. */
+const FORM_TYPES = new Set(['markdown', 'input', 'textarea', 'dropdown', 'checkboxes']);
 
 const argv = process.argv.slice(2);
 const rootIdx = argv.indexOf('--root');
@@ -174,13 +199,37 @@ if (existsSync(abs(tplDir))) {
     for (const l of tplLabels) {
       if (!labelNames.has(String(l))) fail(f, `label "${String(l)}" missing from ${labelsFile}`);
     }
+    // Issue form schema: valid types, unique ids, boolean `validations.required`.
+    const body: unknown[] = Array.isArray(doc.body) ? doc.body : [];
+    const seen = new Set<string>();
+    for (const [i, b] of body.entries()) {
+      if (!isObj(b) || typeof b.type !== 'string' || !FORM_TYPES.has(b.type)) {
+        fail(f, `body[${i}]: invalid type (expected: ${[...FORM_TYPES].join(', ')})`);
+        continue;
+      }
+      if (b.type !== 'markdown') {
+        if (typeof b.id !== 'string' || b.id === '') fail(f, `body[${i}]: \`id\` missing`);
+        else if (seen.has(b.id)) fail(f, `duplicate field id: "${b.id}"`);
+        else seen.add(b.id);
+      }
+      if (b.validations !== undefined) {
+        if (!isObj(b.validations) || typeof b.validations.required !== 'boolean') {
+          fail(f, `body[${i}]: \`validations.required\` must be a boolean`);
+        }
+      }
+    }
+    if (!JSON.stringify(body).includes(PRIVACY_WARNING)) fail(f, 'privacy warning missing');
     const expected = REQUIRED_FIELDS[name];
     if (expected) {
-      const body = Array.isArray(doc.body) ? doc.body : [];
       for (const id of expected) {
         const item = body.find((b) => isObj(b) && b.id === id);
         if (!isObj(item)) fail(f, `field "${id}" missing`);
-        else if (!isObj(item.validations) || item.validations.required !== true) {
+        else if (item.type === 'checkboxes') {
+          const opts = isObj(item.attributes) && Array.isArray(item.attributes.options) ? item.attributes.options : [];
+          if (!opts.some((o) => isObj(o) && o.required === true)) {
+            fail(f, `field "${id}" must have a checkbox with required: true`);
+          }
+        } else if (!isObj(item.validations) || item.validations.required !== true) {
           fail(f, `field "${id}" must have validations.required: true`);
         }
       }

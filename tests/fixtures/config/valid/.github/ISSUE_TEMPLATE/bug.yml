@@ -1,22 +1,56 @@
-name: Modèle factice
-description: factice
+name: Dummy template
+description: dummy
 labels: ["bug"]
 body:
-  - type: input
-    id: etapes
+  - type: markdown
     attributes:
-      label: Champ
+      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
+  - type: input
+    id: extension-version
+    attributes:
+      label: Field
     validations:
       required: true
   - type: input
-    id: attendu-obtenu
+    id: browser
     attributes:
-      label: Champ
+      label: Field
     validations:
       required: true
   - type: input
-    id: versions
+    id: homebox-version
     attributes:
-      label: Champ
+      label: Field
     validations:
       required: true
+  - type: input
+    id: ui-language
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: input
+    id: steps
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: input
+    id: expected-actual
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Field
+      options:
+        - label: Option
+          required: true

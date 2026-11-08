@@ -3,6 +3,9 @@ contact_links:
   - name: Security policy
     url: https://github.com/Foufou-exe/homebox-clipper/security/policy
     about: Report a vulnerability privately (do not open a public issue)
+  - name: Troubleshooting and FAQ
+    url: https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ
+    about: Common problems and answers, before opening an issue
   - name: HomeBox documentation
     url: https://homebox.software
     about: Questions about HomeBox itself (not the extension)
