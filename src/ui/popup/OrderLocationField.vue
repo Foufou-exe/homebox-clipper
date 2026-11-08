@@ -6,8 +6,8 @@ import LocationPicker from '@/ui/components/LocationPicker.vue';
 import { t } from '@/ui/i18n';
 
 /**
- * Le seul champ d'emplacement de la commande. Un objet HomeBox n'a qu'un parent : avec un seul produit, il
- * s'appelle « Emplacement » ; avec plusieurs, « Emplacement des produits » et une aide rappelle la règle.
+ * The order's only location field. A HomeBox object has only one parent: with a single product, it is
+ * labelled "Location"; with several, "Product location" and a hint recalls the rule.
  */
 defineProps<{
   state: 'loading' | 'ready' | 'unavailable';

@@ -3,7 +3,7 @@ export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
 const PDF_HEADER_WINDOW = 1024;
 
-/** Vrai si la signature `%PDF-` apparaît dans les 1024 premiers octets (R10). */
+/** True if the `%PDF-` signature appears in the first 1024 bytes (R10). */
 export function isPdf(bytes: Uint8Array): boolean {
   const limit = Math.min(bytes.length, PDF_HEADER_WINDOW) - PDF_MAGIC.length;
   for (let i = 0; i <= limit; i++) {
@@ -28,7 +28,7 @@ export function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
-/** Taille décodée d'une chaîne base64, sans la décoder. */
+/** Decoded size of a base64 string, without decoding it. */
 export function base64Size(base64: string): number {
   const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
   return Math.floor((base64.length * 3) / 4) - padding;

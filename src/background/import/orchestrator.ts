@@ -23,13 +23,13 @@ export interface OrchestratorDeps {
     get(id: string): Promise<PendingImport | null>;
     purge(p: PendingImport): Promise<void>;
   };
-  /** Télécharge un document détecté via le script injecté dans l'onglet amazon.fr. */
+  /** Downloads a detected document via the script injected in the amazon.fr tab. */
   downloadDetected(tabId: number, url: string): Promise<Result<{ base64: string }>>;
-  /** Récupère la photo sur le serveur du marchand (module séparé : il n'a jamais accès à la clé). */
+  /** Fetches the photo from the merchant's server (separate module: it never has access to the key). */
   fetchPhoto(photo: DraftPhoto): Promise<Result<FetchedPhoto>>;
   /**
-   * Mémorise le dernier emplacement utilisé avec cette instance (R10) : identifiant seul. Optionnel, et une
-   * erreur d'écriture n'interrompt jamais l'import.
+   * Remembers the last location used with this instance (R10): identifier only. Optional, and a
+   * write error never interrupts the import.
    */
   rememberLocation?(locationId: string): Promise<void>;
   notify(p: PendingImport): void;
@@ -37,7 +37,7 @@ export interface OrchestratorDeps {
 }
 
 type FileMap = Map<string, Result<Uint8Array>>;
-/** Photos récupérées pendant un appel, par URL : une commande de plusieurs produits ne télécharge l'image qu'une fois. */
+/** Photos fetched during a call, by URL: an order with several products downloads the image only once. */
 type PhotoMap = Map<string, Result<FetchedPhoto>>;
 
 function initialPhotoStep(photo: DraftPhoto | null): PhotoStep {
@@ -53,7 +53,7 @@ export function buildNotes(draft: ImportDraft): string | undefined {
 function manualBytes(file: ManualFile): Result<Uint8Array> {
   if (base64Size(file.base64) > MAX_DOCUMENT_BYTES) return fail('FILE_TOO_LARGE');
   const bytes = base64ToBytes(file.base64);
-  // Revérification côté service worker, même si l'UI a déjà contrôlé le fichier (R10).
+  // Re-check on the service worker side, even if the UI has already checked the file (R10).
   return isPdf(bytes) ? ok(bytes) : fail('NOT_A_PDF');
 }
 
@@ -79,12 +79,12 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       const res = await deps.downloadDetected(p.tabId, doc.url);
       result = res.ok ? ok(base64ToBytes(res.value.base64)) : res;
     }
-    // Un même document peut être joint à plusieurs objets : un seul téléchargement.
+    // The same document can be attached to several objects: a single download.
     files.set(doc.id, result);
     return result;
   }
 
-  /** Télécharge la photo une seule fois par URL pendant un appel. */
+  /** Downloads the photo only once per URL during a call. */
   async function photoFor(photo: DraftPhoto, photos: PhotoMap): Promise<Result<FetchedPhoto>> {
     const cached = photos.get(photo.url);
     if (cached) return cached;
@@ -94,8 +94,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   }
 
   /**
-   * Anti-double (R8) : après une tentative d'envoi dont l'issue est inconnue, on relit l'objet. Une photo
-   * déjà jointe (`type`, jamais `primary`) clôt l'étape ; une lecture impossible l'échoue sans envoyer.
+   * Duplicate guard (R8): after a send attempt with an unknown outcome, the object is read again. A photo
+   * already attached (`type`, never `primary`) closes the step; a failed read fails it without sending.
    */
   async function reconcilePhoto(p: PendingImport, entityId: string): Promise<void> {
     const step = p.steps.photo;
@@ -125,7 +125,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       p.photoError = fetched.error;
       return;
     }
-    // Écriture anticipée : si le service worker s'arrête pendant le POST, la reprise relira l'objet.
+    // Early write: if the service worker stops during the POST, the resume will read the object again.
     p.steps.photo = 'sending';
     p.photoAttempted = true;
     await persist(p);
@@ -141,9 +141,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   }
 
   /**
-   * Un échec certain du POST avec emplacement choisi : HomeBox répond 404 sans rien créer si le `parentId`
-   * est inconnu (V4), mais ce statut seul ne dit pas si c'est le parent qui manque. On relit l'arbre :
-   * identifiant absent → `LOCATION_NOT_FOUND`, présent ou relecture impossible → `CREATE_FAILED` (R3).
+   * A definite POST failure with a chosen location: HomeBox answers 404 without creating anything if the `parentId`
+   * is unknown (V4), but this status alone does not tell whether the parent is the missing piece. The tree is read again:
+   * identifier absent → `LOCATION_NOT_FOUND`, present or re-read impossible → `CREATE_FAILED` (R3).
    */
   async function creationFailureFor(location: LocationChoice | null | undefined): Promise<ErrorCode> {
     if (!location) return 'CREATE_FAILED';
@@ -152,19 +152,19 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return flattenTree(tree.value).some((l) => l.id === location.id) ? 'CREATE_FAILED' : 'LOCATION_NOT_FOUND';
   }
 
-  /** Écrit la mémoire du dernier emplacement ; ne bloque jamais l'import. */
+  /** Writes the last-location memory; never blocks the import. */
   async function remember(locationId: string | null | undefined, results: PendingImport[]): Promise<void> {
     if (!locationId || !deps.rememberLocation || !results.some((r) => r.entityId)) return;
     try {
       await deps.rememberLocation(locationId);
     } catch {
-      // mémoire non écrite : sans conséquence pour l'import
+      // memory not written: no consequence for the import
     }
   }
 
   /**
-   * Exécute les étapes restantes d'un import. Invariant (FR-021) : une fois `entityId`
-   * renseigné, l'objet n'est jamais recréé.
+   * Runs the remaining steps of an import. Invariant (FR-021): once `entityId`
+   * is set, the object is never created again.
    */
   async function run(p: PendingImport, files: FileMap, photos: PhotoMap): Promise<PendingImport> {
     delete p.orphaned;
@@ -174,8 +174,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
 
     let created: EntityOut | null = null;
     if (!p.entityId) {
-      // Écriture anticipée (R8) : si le service worker s'arrête pendant le POST, l'import orphelin saura
-      // que l'objet a pu être créé.
+      // Early write (R8): if the service worker stops during the POST, the orphaned import will know
+      // that the object may have been created.
       p.createAttempted = true;
       delete p.createUncertain;
       await persist(p);
@@ -183,15 +183,15 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         name: p.draft.name,
         description: p.draft.description || undefined,
         quantity: p.draft.quantity,
-        // `parentId` seulement si un emplacement est choisi : sans choix, le corps reste celui de la spec 001.
+        // `parentId` only when a location is chosen: with no choice, the body stays that of spec 001.
         ...(p.draft.location ? { parentId: p.draft.location.id } : {}),
       });
       if (!res.ok) {
         p.steps.create = 'failed';
         p.status = 'failed';
         p.error = res.error === 'CREATE_FAILED' ? await creationFailureFor(p.draft.location) : res.error;
-        // Réponse perdue (réseau, délai) : le POST a pu aboutir. Une erreur HTTP explicite est un échec certain.
-        // Réponse 2xx illisible ou sans `id` : l'objet existe peut-être aussi, même traitement.
+        // Lost response (network, timeout): the POST may have succeeded. An explicit HTTP error is a definite failure.
+        // Unreadable 2xx response or one without `id`: the object may exist too, same handling.
         const acceptedButUnreadable = res.httpStatus !== undefined && res.httpStatus >= 200 && res.httpStatus < 300;
         if (res.error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
         else p.createAttempted = false;
@@ -217,7 +217,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
               purchaseDate: p.draft.purchaseDate ?? undefined,
               purchaseFrom: p.draft.purchaseFrom || undefined,
               notes: buildNotes(p.draft),
-              // Un PUT sans `parentId` ferait perdre l'emplacement (V3) : on le renvoie toujours.
+              // A PUT without `parentId` would lose the location (V3): it is always sent.
               parentId: current.value.parent?.id ?? p.draft.location?.id,
             }),
           )
@@ -255,7 +255,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       await sendPhoto(p, entityId, photos);
       await persist(p);
     }
-    // Tant que la photo n'est pas en échec, aucune erreur de photo n'est conservée.
+    // As long as the photo has not failed, no photo error is kept.
     if (p.steps.photo !== 'failed') p.photoError = null;
     else partialError ??= p.photoError;
 
@@ -267,7 +267,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     }
     p.status = 'success';
     notify(p);
-    // FR-025 : les données d'achat sont effacées dès que l'import a réussi.
+    // FR-025: purchase data is erased as soon as the import has succeeded.
     await store.purge(p);
     return p;
   }
@@ -281,17 +281,17 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       tabId: number,
       drafts: ImportDraft[],
       manualFiles: ManualFile[],
-      /** Choix au niveau de la commande, pour la mémoire du dernier emplacement (R10). */
+      /** Order-level choice, for the last-location memory (R10). */
       orderLocationId: string | null = null,
     ): Promise<Result<PendingImport[]>> {
       if (drafts.some((d) => d.name.trim() === '')) return fail('PRODUCT_NOT_FOUND');
       const files = filesFrom(manualFiles);
       const photos: PhotoMap = new Map();
-      // Rejet des fichiers manuels invalides avant tout appel HomeBox.
+      // Invalid manual files are rejected before any HomeBox call.
       for (const result of files.values()) if (!result.ok) return result;
 
-      // Tous les imports du lot sont persistés avant le premier POST : si le service worker s'arrête pendant
-      // le premier, les suivants restent visibles et réessayables.
+      // All imports of the batch are persisted before the first POST: if the service worker stops during
+      // the first one, the following ones remain visible and retryable.
       const pendings: PendingImport[] = drafts.map((draft) => ({
         id: deps.newId(),
         tabId,
@@ -320,19 +320,19 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     async retryImport(
       pendingId: string,
       manualFiles: ManualFile[] = [],
-      /** Absent : choix inchangé ; `null` : sans emplacement ; sinon nouveau choix (FR-018). */
+      /** Absent: choice unchanged; `null`: no location; otherwise a new choice (FR-018). */
       location?: LocationChoice | null,
     ): Promise<Result<PendingImport>> {
       const pending = await store.get(pendingId);
       if (!pending) return fail('BAD_MESSAGE');
-      // Invariant 3 : l'objet existe déjà, son emplacement ne se change plus ici. Refus avant toute requête.
+      // Invariant 3: the object already exists, its location can no longer be changed here. Refused before any request.
       if (location !== undefined && pending.entityId) return fail('BAD_MESSAGE');
       if (location !== undefined) pending.draft = { ...pending.draft, location };
       const files = filesFrom(manualFiles);
       for (const result of files.values()) if (!result.ok) return result;
-      // Création incertaine (réponse perdue, ou arrêt du service worker pendant le POST) : l'objet a pu être
-      // créé sans que son identifiant soit enregistré. On cherche son nom exact avant de renvoyer un POST ;
-      // le risque de doublon n'est réduit que, pas supprimé (objet renommé, index de recherche en retard).
+      // Uncertain creation (lost response, or service worker stopped during the POST): the object may have been
+      // created without its identifier being saved. Its exact name is searched for before sending another POST;
+      // the duplicate risk is only reduced, not eliminated (renamed object, lagging search index).
       const uncertain = pending.createUncertain || (pending.orphaned && pending.createAttempted);
       if (!pending.entityId && uncertain) {
         const dup = await findDuplicatesByName(client, pending.draft.name);

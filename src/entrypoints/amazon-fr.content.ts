@@ -5,8 +5,8 @@ import { fail, ok } from '@/shared/errors';
 import { isMessage } from '@/shared/messages';
 
 /**
- * Script injecté à la demande (scripting.executeScript, R9) dans l'onglet amazon.fr actif.
- * Il n'a accès ni au stockage ni à la configuration HomeBox (principe I).
+ * Script injected on demand (scripting.executeScript, R9) in the active amazon.fr tab.
+ * It has no access to storage or to the HomeBox configuration (principle I).
  */
 export default defineContentScript({
   matches: ['https://www.amazon.fr/*'],

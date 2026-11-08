@@ -1,67 +1,67 @@
-# Publier une version
+# Releasing
 
-Procédure **locale** (aucune minute de GitHub Actions n'est consommée), réservée au mainteneur. Le format
-du [journal des modifications](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md) est celui de
-[Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), la numérotation suit
+**Local** procedure (no GitHub Actions minute is consumed), reserved for the maintainer. The format of the
+[changelog](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md) is
+[Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and numbering follows
 [SemVer](https://semver.org).
 
 > [!IMPORTANT]
-> Créer un tag, le pousser et publier une release sont des actions visibles et difficiles à annuler : ne
-> les faites qu'avec l'accord explicite du mainteneur.
+> Creating a tag, pushing it and publishing a release are visible actions that are hard to undo: only do
+> them with the maintainer's explicit approval.
 
-## Alimenter le changelog au quotidien
+## Feeding the changelog day to day
 
-Tout changement visible par un utilisateur ou un contributeur (fonctionnalité, correction, sécurité,
-permission, procédure de développement) ajoute une ligne dans la section `[Unreleased]` de
-`CHANGELOG.md`, sous le bon type : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` ou `Security`
-(noms standard, conservés en anglais). Les refactorings internes et les tests seuls n'y vont pas. Un
-changement qui demande une action de l'utilisateur est préfixé par **Action requise :**. La pull request
-rappelle de le faire (case dédiée du modèle).
+Every change visible to a user or a contributor (feature, fix, security, permission, development
+procedure) adds a line in the `[Unreleased]` section of `CHANGELOG.md`, under the right type: `Added`,
+`Changed`, `Deprecated`, `Removed`, `Fixed` or `Security` (standard names). Internal refactorings and
+tests alone do not go there. A change that requires an action from the user is prefixed with **Action
+required:**. The pull request reminds you to do it (dedicated checkbox in the template).
 
-## Procédure de publication
+## Release procedure
 
-Pour une version `x.y.z` :
+For a version `x.y.z`:
 
-1. **Numéro de version** : `bun pm version x.y.z --no-git-tag-version` (met à jour `package.json`).
-2. **Changelog** : renommez `[Unreleased]` en `[x.y.z] - AAAA-MM-JJ`, recréez un `[Unreleased]` vide au-dessus
-   et mettez à jour les liens de comparaison en bas du fichier (`[Unreleased]` compare `vx.y.z...HEAD`, et
-   `[x.y.z]` pointe vers la release).
-3. **Vérification** : `bun run ci` doit passer.
-4. **Commit** : `chore(release): vX.Y.Z`.
-5. **Tag** : `git tag vX.Y.Z`.
-6. **Archive** : `bun run zip`. WXT produit `.output/<nom>-<version>-chrome.zip`.
-7. **Release GitHub** (après push de la branche et du tag) :
+1. **Version number**: `bun pm version x.y.z --no-git-tag-version` (updates `package.json`).
+2. **Changelog**: rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, recreate an empty `[Unreleased]` above
+   it and update the comparison links at the bottom of the file (`[Unreleased]` compares `vx.y.z...HEAD`,
+   and `[x.y.z]` points to the release).
+3. **Verification**: `bun run ci` must pass.
+4. **Commit**: `chore(release): vX.Y.Z`.
+5. **Tag**: `git tag vX.Y.Z`.
+6. **Archive**: `bun run zip`. WXT produces `.output/<name>-<version>-chrome.zip`.
+7. **GitHub release** (after pushing the branch and the tag):
    ```bash
    bun scripts/release-notes.ts x.y.z | gh release create vX.Y.Z .output/*-chrome.zip --notes-file -
    ```
-   `scripts/release-notes.ts` extrait du changelog uniquement la section de la version demandée (sans
-   titre ni liens de comparaison).
+   `scripts/release-notes.ts` extracts from the changelog only the section of the requested version
+   (without title or comparison links).
 
-## Première version
+## First version
 
-Le tag `v0.1.0` n'existe pas tant que le mainteneur ne l'a pas créé sur le commit du MVP. Tant qu'il est
-absent, les liens de comparaison du changelog ne résolvent rien.
+The `v0.1.0` tag does not exist until the maintainer creates it on the MVP commit. As long as it is
+missing, the changelog's comparison links resolve to nothing.
 
-## Après la release
+## After the release
 
-- Vérifiez que l'archive jointe se charge dans Chrome (`chrome://extensions`, mode développeur, dossier
-  décompressé).
-- Si les sources du wiki ont changé, republiez-le : voir la section suivante.
+- Check that the attached archive loads in Chrome (`chrome://extensions`, developer mode, unzipped
+  folder).
+- If the wiki sources changed, republish it: see the next section.
 
-## Publier le wiki
+## Publishing the wiki
 
-Les pages sont versionnées dans `docs/wiki/` ; le wiki GitHub n'en est qu'une copie.
+The pages are versioned in `docs/wiki/`; the GitHub wiki is only a copy.
 
 ```bash
-bun run wiki:publish -- --dry-run   # contrôles et réécriture des liens, 100 % local, sans réseau
-bun run wiki:publish                # clone du wiki, synchronisation, git diff --stat, confirmation y/N, commit, push
+bun run wiki:publish -- --dry-run   # checks and link rewriting, 100% local, no network
+bun run wiki:publish                # wiki clone, synchronization, git diff --stat, y/N confirmation, commit, push
 ```
 
-Le script vérifie que chaque page (hors `_*.md`) figure dans `_Sidebar.md`, que chaque lien interne
-pointe vers une page existante et qu'**aucun lien relatif ne sort de `docs/wiki/`** (les cibles hors du wiki
-comme `MERCHANTS.md` ou `CHANGELOG.md` sont des URL absolues `blob/main`). Il réécrit ensuite les liens internes pour retirer l'extension `.md` de la cible (l'ancre éventuelle est
-conservée), comme l'attend le wiki GitHub.
+The script checks that each page (except `_*.md`) is in `_Sidebar.md`, that each internal link points to
+an existing page and that **no relative link leaves `docs/wiki/`** (targets outside the wiki such as
+`MERCHANTS.md` or `CHANGELOG.md` are absolute `blob/main` URLs). It then rewrites the internal links to
+remove the `.md` extension from the target (any anchor is kept), as the GitHub wiki expects.
 
-Prérequis de la publication réelle : le wiki doit être activé et sa **première page créée à la main** depuis
-l'onglet « Wiki » du dépôt (GitHub n'initialise pas le dépôt `.wiki.git` avant), et votre accès SSH au dépôt
-doit fonctionner. Sans confirmation `y`, rien n'est poussé ; l'option `--yes` est réservée au mainteneur.
+Prerequisites for the real publication: the wiki must be enabled and its **first page created by hand**
+from the repository's "Wiki" tab (GitHub does not initialize the `.wiki.git` repository before that), and
+your SSH access to the repository must work. Without a `y` confirmation, nothing is pushed; the `--yes`
+option is reserved for the maintainer.

@@ -6,8 +6,8 @@ import { flattenTree } from '@/shared/locations';
 import { lastLocation } from './last-location';
 
 /**
- * `location/list` : lecture seule (FR-022). Déverrouillage requis ; aucune écriture HomeBox, aucun nom
- * d'emplacement journalisé. Le dernier emplacement utilisé est ignoré (et retiré) s'il a disparu.
+ * `location/list`: read-only (FR-022). Unlocking required; no HomeBox write, no location name
+ * logged. The last location used is ignored (and removed) if it has disappeared.
  */
 export function registerLocationHandlers(): void {
   register('location/list', async () => {

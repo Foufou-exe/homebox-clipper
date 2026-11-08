@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/* Icônes au trait inspirées de Feather Icons (MIT, https://feathericons.com). */
+/* Line icons inspired by Feather Icons (MIT, https://feathericons.com). */
 defineProps<{ name: 'settings' | 'lock' | 'sun' | 'moon' | 'auto' | 'pin' | 'plus'; size?: number }>();
 </script>
 

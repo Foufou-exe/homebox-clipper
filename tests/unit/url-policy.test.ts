@@ -13,7 +13,7 @@ describe('normalizeBaseUrl', () => {
     expect(r.ok && r.value.baseUrl).toBe(expected);
   });
 
-  it("renvoie l'origine pour la demande de permission", () => {
+  it("returns the origin for the permission request", () => {
     const r = normalizeBaseUrl('https://example.com/homebox');
     expect(r.ok && r.value.origin).toBe('https://example.com');
   });
@@ -25,7 +25,7 @@ describe('normalizeBaseUrl', () => {
     },
   );
 
-  it('accepte HTTPS sans avertissement', () => {
+  it('accepts HTTPS without a warning', () => {
     const r = normalizeBaseUrl('https://homebox.example.com');
     expect(r.ok && r.value.warning).toBeUndefined();
   });
@@ -44,7 +44,7 @@ describe('normalizeBaseUrl', () => {
     'http://homebox.internal',
     'http://homebox:7745',
     'http://[fd12:3456::1]:3100',
-  ])('HTTP réseau privé %s → accepté avec avertissement', (input) => {
+  ])('HTTP private network %s → accepted with a warning', (input) => {
     const r = normalizeBaseUrl(input);
     expect(r.ok && r.value.warning).toBe('local_http');
   });
@@ -64,7 +64,7 @@ describe('normalizeBaseUrl', () => {
 });
 
 describe('isPrivateHost', () => {
-  it('ne se laisse pas tromper par un domaine public qui ressemble à une IP privée', () => {
+  it('is not fooled by a public domain that looks like a private IP', () => {
     expect(isPrivateHost('192.168.1.1.example.com')).toBe(false);
     expect(isPrivateHost('10.0.0.1.nip.io')).toBe(false);
   });

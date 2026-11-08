@@ -1,19 +1,20 @@
-## Objet
+## Purpose
 
-<!-- Quoi et pourquoi, en quelques lignes. Lier l'issue si elle existe : « Closes #… » -->
+<!-- What and why, in a few lines. Link the issue if there is one: "Closes #…" -->
 
-## Vérifications
+## Checks
 
-- [ ] `bun run ci` passe en local (typecheck, lint, tests, build, manifeste)
-- [ ] Testé dans Chrome contre une instance HomeBox locale (`bun run homebox:up`), si l'interface ou l'import sont touchés
-- [ ] Interface vérifiée en thème clair **et** sombre, si l'UI est touchée
-- [ ] Aucune page brute d'un site marchand, clé API, pepper ni adresse d'instance réelle dans les fichiers
-- [ ] Marchand ajouté ou modifié → `MERCHANTS.md` mis à jour
-- [ ] `CHANGELOG.md` → `[Unreleased]` mis à jour (ou changement non visible par un utilisateur ou un contributeur)
+- [ ] `bun run ci` passes locally (typecheck, lint, tests, build, manifest)
+- [ ] Tested in Chrome against a local HomeBox instance (`bun run homebox:up`), if the interface or the import are affected
+- [ ] Interface checked in the light **and** dark themes, if the UI is affected
+- [ ] No raw merchant page, API key, pepper or real instance address in the files
+- [ ] Merchant added or changed → `MERCHANTS.md` updated
+- [ ] `CHANGELOG.md` → `[Unreleased]` updated (or the change is not visible to users or contributors)
+- [ ] New interface text added to both `src/locales/en.yml` and `src/locales/fr.yml`, if the UI is affected
 
-## Points d'attention
+## Points of attention
 
-- [ ] Ce changement modifie le manifeste (permissions, `host_permissions`, CSP) : justification ci-dessous
-- [ ] Ce changement touche la clé API, le stockage ou la messagerie interne
+- [ ] This change modifies the manifest (permissions, `host_permissions`, CSP): justification below
+- [ ] This change touches the API key, storage or internal messaging
 
-<!-- Justification / remarques pour la relecture -->
+<!-- Justification / notes for the review -->

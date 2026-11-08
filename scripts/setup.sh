@@ -1,8 +1,8 @@
 #!/bin/sh
-# Prépare un poste (ou un conteneur) pour contribuer à homebox-clipper.
-#   sh scripts/setup.sh              poste local (interactif)
-#   sh scripts/setup.sh --container  conteneur de développement (pas de navigateur)
-#   sh scripts/setup.sh --hook       installe aussi le hook pre-push sans le demander
+# Prepares a machine (or a container) to contribute to homebox-clipper.
+#   sh scripts/setup.sh              local machine (interactive)
+#   sh scripts/setup.sh --container  development container (no browser)
+#   sh scripts/setup.sh --hook       also installs the pre-push hook without asking
 set -e
 cd "$(dirname "$0")/.."
 
@@ -12,7 +12,7 @@ for arg in "$@"; do
   case "$arg" in
     --container) CONTAINER=1; HOOK=no ;;
     --hook) HOOK=yes ;;
-    *) echo "Option inconnue : $arg" >&2; exit 2 ;;
+    *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
 
@@ -20,20 +20,20 @@ ok() { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31m✗\033[0m %s\n' "$1"; exit 1; }
 
-echo "1. Outils"
-command -v bun >/dev/null || fail "Bun est requis : https://bun.sh (ou « mise install » avec mise.toml)"
+echo "1. Tools"
+command -v bun >/dev/null || fail "Bun is required: https://bun.sh (or \"mise install\" with mise.toml)"
 ok "Bun $(bun --version)"
-if command -v node >/dev/null; then ok "Node $(node --version)"; else fail "Node.js LTS est requis (utilisé par Vite/WXT)"; fi
-if command -v docker >/dev/null; then ok "Docker (instance HomeBox locale)"; else warn "Docker absent : l'instance HomeBox locale (compose.yaml) ne pourra pas être lancée"; fi
-if command -v rsvg-convert >/dev/null; then ok "rsvg-convert (bun run icons)"; else warn "rsvg-convert absent : seulement nécessaire pour régénérer les icônes"; fi
+if command -v node >/dev/null; then ok "Node $(node --version)"; else fail "Node.js LTS is required (used by Vite/WXT)"; fi
+if command -v docker >/dev/null; then ok "Docker (local HomeBox instance)"; else warn "Docker not found: the local HomeBox instance (compose.yaml) cannot be started"; fi
+if command -v rsvg-convert >/dev/null; then ok "rsvg-convert (bun run icons)"; else warn "rsvg-convert not found: only needed to regenerate the icons"; fi
 
-echo "2. Dépendances"
+echo "2. Dependencies"
 bun install --frozen-lockfile
 ok "bun install"
 
-echo "3. Instance HomeBox locale (.env)"
+echo "3. Local HomeBox instance (.env)"
 if [ -f .env ]; then
-  ok ".env existe déjà (pepper conservé)"
+  ok ".env already exists (pepper kept)"
 else
   cp .env.example .env
   if command -v openssl >/dev/null; then
@@ -42,39 +42,39 @@ else
     pepper=$(bun -e 'console.log(Buffer.from(crypto.getRandomValues(new Uint8Array(48))).toString("base64"))')
   fi
   sed -i.bak "s|^HBOX_AUTH_API_KEY_PEPPER=.*|HBOX_AUTH_API_KEY_PEPPER=$pepper|" .env && rm -f .env.bak
-  ok ".env créé avec un pepper aléatoire (ne pas le commiter, ne pas le changer ensuite)"
+  ok ".env created with a random pepper (do not commit it, do not change it afterwards)"
 fi
 
-echo "4. Mode dev"
+echo "4. Dev mode"
 if [ "$CONTAINER" = 1 ] && [ ! -f web-ext.config.ts ]; then
   cp web-ext.config.example.ts web-ext.config.ts
   sed -i.bak 's|// disabled: true,|disabled: true,|' web-ext.config.ts && rm -f web-ext.config.ts.bak
-  ok "web-ext.config.ts : pas d'ouverture de navigateur dans le conteneur"
+  ok "web-ext.config.ts: no browser opened in the container"
 else
-  ok "bun run dev ouvrira un Chrome de développement (personnalisable : web-ext.config.example.ts)"
+  ok "bun run dev will open a development Chrome (customizable: web-ext.config.example.ts)"
 fi
 
-echo "5. Hook pre-push (bun run ci avant chaque push, le quota de CI GitHub étant limité)"
+echo "5. pre-push hook (bun run ci before every push, as the GitHub CI quota is limited)"
 if [ "$HOOK" = ask ] && [ -t 0 ]; then
-  printf "  Installer le hook ? [o/N] "
+  printf "  Install the hook? [y/N] "
   read -r answer
-  case "$answer" in o|O|oui|y|Y|yes) HOOK=yes ;; *) HOOK=no ;; esac
+  case "$answer" in y|Y|yes|o|O|oui) HOOK=yes ;; *) HOOK=no ;; esac
 fi
 if [ "$HOOK" = yes ]; then
   printf '#!/bin/sh\nexec bun run ci\n' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push
-  ok "hook installé dans .git/hooks/pre-push"
+  ok "hook installed in .git/hooks/pre-push"
 else
-  ok "hook non installé (relancer avec --hook pour l'installer)"
+  ok "hook not installed (re-run with --hook to install it)"
 fi
 
 cat <<'MSG'
 
-Prêt. Ensuite :
-  bun run homebox:up     démarrer HomeBox sur http://localhost:3100 (guide : docs/local-homebox.md)
-  bun run dev            développer avec rechargement automatique
-  bun run build          build → .output/chrome-mv3/ (à charger dans chrome://extensions)
-  bun run check:config   valide les fichiers de réglage (JSON, YAML, versions de Bun, modèles d'issue)
-  bun run ci             toutes les vérifications (dont check:config), avant chaque push
-Maintenance de l'environnement : https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment
-Guide de contribution : CONTRIBUTING.md
+Ready. Next:
+  bun run homebox:up     start HomeBox on http://localhost:3100 (guide: docs/local-homebox.md)
+  bun run dev            develop with automatic reload
+  bun run build          build → .output/chrome-mv3/ (to load in chrome://extensions)
+  bun run check:config   validate the settings files (JSON, YAML, Bun versions, issue templates)
+  bun run ci             all checks (including check:config), before every push
+Environment maintenance: https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment
+Contribution guide: CONTRIBUTING.md
 MSG

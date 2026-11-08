@@ -1,69 +1,70 @@
-# Tests et fixtures
+# Tests and fixtures
 
-## Lancer les vérifications
+## Run the checks
 
-| Commande | Rôle |
-|----------|------|
-| `bun run test` | Tests unitaires et de contrat (Vitest, environnement happy-dom). **Pas** `bun test`. |
-| `bun run test:watch` | Mode continu. |
-| `bun run test:build` | Vérifie le manifeste de production (permissions, CSP) ; à lancer **après** `bun run build`. |
+| Command | Role |
+|---------|------|
+| `bun run test` | Unit and contract tests (Vitest, happy-dom environment). **Not** `bun test`. |
+| `bun run test:watch` | Watch mode. |
+| `bun run test:build` | Checks the production manifest (permissions, CSP); run **after** `bun run build`. |
 | `bun run typecheck` | Types (`vue-tsc --noEmit`). |
 | `bun run lint` | ESLint. |
-| `bun run check:config` | Réglages du dépôt : JSON(C), YAML, version de Bun, modèles d'issue et étiquettes. |
-| `bun run ci` | Tout, dans l'ordre : check:config, typecheck, lint, test, build, test:build. |
+| `bun run check:config` | Repository settings: JSON(C), YAML, Bun version, issue templates and labels, `en`/`fr` catalog parity. |
+| `bun run ci` | Everything, in order: check:config, typecheck, lint, test, build, test:build. |
 
-Le quota de GitHub Actions est limité : la référence est **`bun run ci` en local, avant chaque push**. Un
-hook `pre-push` facultatif peut le lancer automatiquement (`bun run setup` le propose).
+The GitHub Actions quota is limited: the reference is **`bun run ci` locally, before every push**. An
+optional `pre-push` hook can run it automatically (`bun run setup` offers it).
 
-## Organisation de `tests/`
+## Layout of `tests/`
 
-| Dossier | Contenu |
-|---------|---------|
-| `tests/unit/` | Parseurs, extracteur Amazon.fr, téléchargement, PDF, règle d'URL, chiffrement de la clé, stockage de la configuration, routeur, doublons, thème, catalogue de traduction, confidentialité, rendu des textes. |
-| `tests/contract/` | Client HomeBox et orchestrateur d'import contre une API **simulée** (succès, 401, erreur réseau, réponse non JSON, échec de la pièce jointe après création, reprise). |
-| `tests/build/` | Contrôle du manifeste produit (permissions exactes, absence de `host_permissions` statiques, permissions d'hôte optionnelles, CSP). |
-| `tests/fixtures/` | Pages de commande anonymisées (voir ci-dessous). |
+| Folder | Content |
+|--------|---------|
+| `tests/unit/` | Parsers, Amazon.fr extractor, download, PDF, URL rule, key encryption, settings storage, router, duplicates, theme, translation catalogs (including `en`/`fr` parity), privacy, text rendering. |
+| `tests/contract/` | HomeBox client and import orchestrator against a **simulated** API (success, 401, network error, non-JSON response, attachment failure after creation, recovery). |
+| `tests/build/` | Check of the produced manifest (exact permissions, no static `host_permissions`, optional host permissions, CSP). |
+| `tests/fixtures/` | Anonymized order pages (see below). |
 
-## Fixtures anonymisées
+## Anonymized fixtures
 
-Chaque extracteur est testé sur des pages HTML enregistrées. Pour Amazon.fr, elles sont dans
-`tests/fixtures/amazon-fr/` : page à un article avec facture, plusieurs articles, plusieurs expéditions,
-sans facture, vendeur tiers, ancienne mise en page, page qui n'est pas une commande, contenu du menu
-« Facture ». Les fichiers actuels sont **synthétiques** (écrits à la main d'après la structure connue des
-pages) : ils n'ont pas encore été confrontés à de vraies pages anonymisées.
+Each extractor is tested on recorded HTML pages. For Amazon.fr, they are in `tests/fixtures/amazon-fr/`:
+single-item page with invoice, several items, several shipments, no invoice, third-party seller, old
+layout, page that is not an order, content of the "Invoice" menu. The current files are **synthetic**
+(written by hand from the known structure of the pages): they have not yet been compared with real
+anonymized pages.
 
-### Ajouter ou remplacer une fixture
+### Add or replace a fixture
 
-1. Sur une page de détail de commande : clic droit, « Enregistrer sous », *Page web, HTML uniquement*, dans
-   `tests/fixtures/amazon-fr/raw/` (dossier **ignoré par git**, ne jamais le commiter).
-2. Copiez le fichier hors de `raw/`, puis :
-   - supprimez les balises `<script>`, `<style>`, `<link>`, `<iframe>` et les commentaires ;
-   - remplacez le nom, l'adresse de livraison et le moyen de paiement par des valeurs fictives
-     (`Jean Exemple`, `1 rue Fictive`, `Carte se terminant par 0000`) ;
-   - remplacez le numéro de commande par `999-0000000-00000NN` et les identifiants de documents
-     (`/documents/download/<uuid>/`) par des UUID fictifs ;
-   - conservez la structure DOM (balises, classes, attributs `data-*`).
-3. Vérifiez qu'il ne reste rien de personnel :
-   `grep -iE "@|\b0[67][0-9 ]{8}\b|<script" fichier.html` ne doit rien renvoyer.
-4. Notez la date de capture et le type de page dans le README du dossier (jamais l'adresse réelle).
+1. On an order details page: right-click, "Save as", *Webpage, HTML only*, into
+   `tests/fixtures/amazon-fr/raw/` (folder **ignored by git**, never commit it).
+2. Copy the file out of `raw/`, then:
+   - remove the `<script>`, `<style>`, `<link>`, `<iframe>` tags and the comments;
+   - replace the name, the delivery address and the payment method with fictitious values
+     (`Jean Exemple`, `1 rue Fictive`, `Carte se terminant par 0000`, the placeholders already used by the
+     existing fixtures, since the Amazon.fr pages are in French);
+   - replace the order number with `999-0000000-00000NN` and the document identifiers
+     (`/documents/download/<uuid>/`) with fictitious UUIDs;
+   - keep the DOM structure (tags, classes, `data-*` attributes).
+3. Check that nothing personal remains:
+   `grep -iE "@|\b0[67][0-9 ]{8}\b|<script" file.html` must return nothing.
+4. Note the capture date and the page type in the folder's README (never the real address).
 
-### Quand Amazon change sa mise en page
+### When Amazon changes its layout
 
-1. Capturez et anonymisez la nouvelle page comme ci-dessus.
-2. Ajoutez un test qui **échoue** sur cette fixture (`tests/unit/amazon-fr-extractor.test.ts`).
-3. Corrigez **uniquement** `src/content/merchants/amazon-fr/selectors.ts`, en ajoutant des sélecteurs de
-   secours plutôt qu'en remplaçant les anciens quand c'est possible.
+1. Capture and anonymize the new page as above.
+2. Add a test that **fails** on this fixture (`tests/unit/amazon-fr-extractor.test.ts`).
+3. Fix **only** `src/content/merchants/amazon-fr/selectors.ts`, adding fallback selectors rather than
+   replacing the old ones when possible.
 
-Une correction de sélecteur sans fixture qui reproduit la nouvelle structure n'est pas acceptée.
+A selector fix without a fixture reproducing the new structure is not accepted.
 
-## Contrôles automatiques notables
+## Notable automatic checks
 
-- Les clés de traduction littérales utilisées dans `src/` existent dans `fr.yml`, chaque code d'erreur a son
-  message, aucune valeur du catalogue n'est vide.
-- Le rendu de l'avertissement « HTTP non chiffré » reprend exactement le catalogue.
-- La recherche de doublons cherche le numéro de commande entre guillemets et compare les noms normalisés.
-- La règle d'URL est testée y compris contre les noms publics qui imitent une IP privée.
-- Le manifeste de production est comparé à la liste exacte des permissions autorisées.
+- The `en` and `fr` catalogs have the same keys and the same substitutions; the literal translation keys
+  used in `src/` exist in the catalog, each error code has its message, no catalog value is empty.
+- The rendering of the "Unencrypted HTTP" warning matches the catalog exactly.
+- The duplicate search looks for the order number in quotes and compares normalized names.
+- The URL rule is tested, including against public names that imitate a private IP.
+- The production manifest is compared with the exact list of allowed permissions.
 
-Pour monter une instance HomeBox de test et dérouler les scénarios à la main :
-[Local-HomeBox-instance](Local-HomeBox-instance.md). Pour ajouter un marchand : [Adding-a-merchant](Adding-a-merchant.md).
+To set up a test HomeBox instance and walk through the scenarios by hand:
+[Local-HomeBox-instance](Local-HomeBox-instance.md). To add a merchant: [Adding-a-merchant](Adding-a-merchant.md).

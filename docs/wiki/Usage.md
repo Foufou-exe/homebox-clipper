@@ -1,132 +1,132 @@
 # Usage
 
-Prérequis : l'extension est [installée](Installation.md) et [configurée](Configuration.md), et
-déverrouillée pour la session en cours.
+Prerequisite: the extension is [installed](Installation.md) and [configured](Configuration.md), and
+unlocked for the current session.
 
-## Importer un achat Amazon.fr
+## Import an Amazon.fr purchase
 
-1. Sur Amazon.fr, ouvrez **Vos commandes** puis **Afficher les détails de la commande**.
-2. Cliquez sur l'icône de l'extension. À ce moment seulement, l'extension injecte son code de détection
-   dans cet onglet (permission `activeTab`) et affiche le résumé de l'achat.
-3. Vérifiez et corrigez les champs : nom du produit (obligatoire), description, prix d'achat, quantité,
-   date d'achat, numéro de commande, vendeur. Les champs non détectés sont signalés « non détecté ».
-4. Contrôlez les documents à joindre (facture détectée ou fichier local).
-5. Pour chaque produit, la photo détectée s'affiche (64 px) avec la case **Envoyer cette photo avec l'objet**,
-   cochée par défaut : décochez-la pour ne rien envoyer. Sans photo, le résumé l'indique.
-6. Cliquez sur **Ajouter à HomeBox**. Un message confirme l'ajout, avec le lien **Ouvrir dans HomeBox**.
+1. On Amazon.fr, open your orders, then the order details page ("Order Details").
+2. Click the extension icon. Only at that moment does the extension inject its detection code into that
+   tab (`activeTab` permission) and display the purchase summary.
+3. Check and fix the fields: product name (required), description, purchase price, quantity, purchase
+   date, order number, seller. Fields that were not detected are marked "not detected".
+4. Review the documents to attach (detected invoice or local file).
+5. For each product, the detected photo is shown (64 px) with the **Upload this photo with the item**
+   checkbox, checked by default: uncheck it to send nothing. Without a photo, the summary says so.
+6. Click **Add to HomeBox**. A message confirms the addition, with the **Open in HomeBox** link.
 
-Aucune écriture n'a lieu dans HomeBox avant ce clic. Le popup affiche en permanence l'instance ciblée
-(« HomeBox : <adresse> »), avec la mention « HTTP non chiffré » si elle est en HTTP.
+Nothing is written to HomeBox before this click. The popup always shows the targeted instance
+("HomeBox: <address>"), with the "Unencrypted HTTP" label if it uses HTTP.
 
-## Ce qui est créé dans HomeBox
+## What is created in HomeBox
 
-| Information du résumé | Champ HomeBox |
-|-----------------------|---------------|
-| Nom du produit | Nom |
-| Description (par défaut « Acheté sur Amazon.fr le JJ/MM/AAAA ») | Description |
-| Quantité | Quantité |
-| Prix unitaire | Prix d'achat |
-| Date d'achat | Date d'achat |
-| Vendeur (par défaut « Amazon.fr ») | Acheté chez |
-| N° de commande et lien de la page de commande | Notes (« Commande Amazon.fr : <numéro> » puis l'adresse de la page) |
-| Facture PDF | Pièce jointe de type **Reçu** |
-| Bon de commande ajouté à la main | Pièce jointe de type **Pièce jointe** |
-| Photo du produit (case cochée) | Pièce jointe de type **Photo**, image principale de l'objet |
+| Summary information | HomeBox field |
+|---------------------|---------------|
+| Product name | Name |
+| Description (default "Purchased on Amazon.fr on 22 October 2026", date in the interface language) | Description |
+| Quantity | Quantity |
+| Unit price | Purchase price |
+| Purchase date | Purchase date |
+| Seller (default "Amazon.fr") | Purchased from |
+| Order number and order page link | Notes ("Amazon.fr order: <number>" then the page address) |
+| PDF invoice | Attachment of type **Receipt** |
+| Order document added by hand | Attachment of type **Attachment** |
+| Product photo (box checked) | Attachment of type **Photo**, the item's primary image |
 
-L'objet est créé avec le type par défaut de HomeBox, sans étiquette. L'emplacement est celui que vous avez
-choisi (voir [Choisir l'emplacement](#choisir-lemplacement)) ; sans choix, l'objet est créé sans emplacement.
+The item is created with HomeBox's default type, without a label. The location is the one you chose (see
+[Choose the location](#choose-the-location)); without a choice, the item is created without a location.
 
-## La photo du produit
+## The product photo
 
-La photo est récupérée sur le serveur du marchand au moment de l'import (seulement si la case est cochée),
-vérifiée (JPEG, PNG ou WebP, 5 Mo au plus, d'après le contenu réel du fichier) puis envoyée à HomeBox. Elle
-n'est jamais conservée par l'extension. Le résultat indique, par produit : *Photo ajoutée*, *Photo non
-demandée*, *Aucune photo disponible* ou *Échec de l'envoi de la photo*. Si la photo échoue, l'objet et sa
-facture sont conservés : **Réessayer l'envoi de la photo** ne relance que la photo, sans recréer l'objet.
+The photo is retrieved from the merchant's server at import time (only if the box is checked), checked
+(JPEG, PNG or WebP, 5 MB at most, based on the real content of the file) and then sent to HomeBox. It is
+never kept by the extension. The result shows, per product: *Photo added.*, *Photo not requested.*, *No
+photo available.* or *Photo upload failed.* If the photo fails, the item and its invoice are kept:
+**Retry the photo upload** reruns only the photo, without recreating the item.
 
-## Choisir l'emplacement
+## Choose the location
 
-Le résumé propose un champ d'emplacement, facultatif : commencez à taper (la casse et les accents sont
-ignorés ; « etagere » trouve « Étagère »), puis choisissez dans la liste, à la souris ou au clavier (flèches,
-Entrée, Échap). Chaque proposition montre son **chemin complet** (« Maison › Garage »), ce qui distingue les
-emplacements homonymes. Un objet HomeBox n'a qu'un seul emplacement.
+The summary offers an optional location field: start typing (case and accents are ignored; "etagere"
+finds "Étagère"), then pick from the list with the mouse or keyboard (arrows, Enter, Escape). Each
+suggestion shows its **full path** ("Home › Garage"), which tells apart locations with the same name. A
+HomeBox item has only one location.
 
-- **Un seul produit** (saisie manuelle ou commande d'un article) : un seul champ, **Emplacement (facultatif)**.
-- **Plusieurs produits** : le champ **Emplacement des produits**, placé avant la liste des produits, s'applique à
-  tous les produits cochés. Chaque produit indique *Même emplacement que les autres produits*.
-- **Un emplacement différent pour un produit** : **Modifier**, sous ce produit, ouvre son propre sélecteur ; ce
-  choix remplace celui de la commande pour ce produit seulement. **Utiliser celui de la commande** revient au
-  choix commun.
-- **Dernier emplacement** : celui du dernier import qui a créé au moins un objet sur cette instance est présélectionné ;
-  **Retirer** vide le champ (l'objet sera créé sans emplacement).
-- **Liste vide ou indisponible** : si HomeBox n'a aucun emplacement, ou si la liste n'a pas pu être lue, un
-  message l'indique et l'import reste possible sans emplacement. Créez les emplacements dans HomeBox : l'extension
-  n'en crée, n'en renomme et n'en supprime aucun.
-- **Emplacement disparu** : s'il a été supprimé dans HomeBox entre le choix et l'envoi, aucun objet n'est
-  créé pour ce produit. Choisissez un autre emplacement puis réessayez, ou **Importer sans emplacement**.
+- **A single product** (manual entry or a one-item order): a single field, **Location (optional)**.
+- **Several products**: the **Location for the products** field, placed before the product list, applies
+  to all checked products. Each product shows *Same location as the other products*.
+- **A different location for one product**: **Change**, under that product, opens its own picker; this
+  choice replaces the order's for that product only. **Use the order's location** goes back to the shared
+  choice.
+- **Last location**: the one from the last import that created at least one item on this instance is
+  preselected; **Clear** empties the field (the item will be created without a location).
+- **Empty or unavailable list**: if HomeBox has no location, or if the list could not be read, a message
+  says so and the import remains possible without a location. Create the locations in HomeBox: the
+  extension never creates, renames or deletes any.
+- **Location gone**: if it was deleted in HomeBox between the choice and the submission, no item is
+  created for that product. Choose another location and retry, or **Import without a location**.
 
-## Commande à plusieurs articles
+## Multi-item orders
 
-Le popup liste les « Produits détectés » : cochez ceux à importer. Chacun devient un objet HomeBox, avec
-les documents sélectionnés joints.
+The popup lists the "Detected products": check the ones to import. Each becomes a HomeBox item, with the
+selected documents attached.
 
-## Saisie manuelle
+## Manual entry
 
-Sur une page qui n'est pas une commande Amazon (page produit, autre site), l'extension indique
-« Aucun achat détecté sur cette page » et propose un formulaire vide. Remplissez-le et, si besoin, joignez
-un PDF depuis votre ordinateur avec **Choisir un PDF…** (type : *Facture* ou *Bon de commande*).
+On a page that is not an Amazon order (product page, another site), the extension shows "No purchase
+detected on this page." and offers an empty form. Fill it in and, if needed, attach a PDF from your
+computer with **Choose a PDF...** (type: *Invoice* or *Order document*).
 
-La saisie manuelle sert aussi quand la détection se trompe : vous pouvez corriger chaque champ, ou
-**remplacer la facture détectée** par un fichier local plutôt que de l'ajouter.
+Manual entry is also useful when detection gets it wrong: you can fix each field, or **replace the
+detected invoice** with a local file instead of adding to it.
 
-## Fichiers acceptés
+## Accepted files
 
-Seuls de vrais PDF sont envoyés : signature `%PDF-` vérifiée, **15 Mo maximum**. Les fichiers locaux sont
-revérifiés par le service worker avant tout appel à HomeBox, même si l'interface les a déjà contrôlés.
+Only real PDFs are sent: `%PDF-` signature checked, **15 MB maximum**. Local files are checked again by
+the service worker before any call to HomeBox, even if the interface already checked them.
 
-## Doublons
+## Duplicates
 
-Avant l'envoi, l'extension cherche dans HomeBox un objet dont les notes contiennent le même numéro de
-commande et qui porte le même nom (comparaison insensible à la casse et aux espaces). Si elle en trouve un,
-elle vous avertit (« Un objet semblable existe déjà dans HomeBox. ») avec un lien vers l'objet existant, et
-vous laisse choisir. Si la vérification échoue (« La vérification des doublons n'a pas pu être effectuée. »),
-l'import reste possible.
+Before sending, the extension looks in HomeBox for an item whose notes contain the same order number and
+that has the same name (comparison is case- and whitespace-insensitive). If it finds one, it warns you
+("A similar item already exists in HomeBox.") with a link to the existing item, and lets you choose. If
+the check fails ("The duplicate check could not be performed."), the import remains possible.
 
-## Pas de facture
+## No invoice
 
-Si aucun document n'est joint, l'extension demande « Aucune facture ne sera jointe. Créer l'objet quand
-même ? » avant de créer l'objet.
+If no document is attached, the extension asks "No invoice will be attached. Create the item anyway?"
+before creating the item.
 
-## Reprise sur erreur
+## Recovery after an error
 
-Un import se fait en plusieurs appels (voir [Architecture](Architecture.md)). Si l'objet est créé mais que
-la suite échoue (informations d'achat ou facture), le popup l'indique et propose **Réessayer l'envoi de la
-facture**, **Réessayer l'envoi de la photo** ou **Réessayer l'import**, **sans recréer l'objet**. Si vous fermez le popup, la reprise vous est
-reproposée à sa prochaine ouverture sur le même onglet. Pour un fichier ajouté à la main, il faut le
-sélectionner à nouveau (les octets des fichiers ne sont jamais conservés). **Abandonner** efface l'import
-en cours sans contacter HomeBox, même extension verrouillée (l'objet déjà créé est conservé).
+An import is made of several calls (see [Architecture](Architecture.md)). If the item is created but the
+rest fails (purchase details or invoice), the popup says so and offers **Retry the invoice upload**,
+**Retry the photo upload** or **Retry the import**, **without recreating the item**. If you close the
+popup, the recovery is offered again the next time you open it on the same tab. For a file added by hand,
+you must select it again (file bytes are never kept). **Abandon** clears the in-progress import without
+contacting HomeBox, even when the extension is locked (the item already created is kept).
 
-Si le service worker de l'extension s'est arrêté pendant un import, le popup l'indique (« L'import a été
-interrompu avant la fin. ») et propose de le reprendre. Cette reprise ne vaut que pour cet arrêt : les imports
-en cours sont gardés en mémoire de session, vidée à la fermeture du navigateur et à la mise à jour de
-l'extension. Dans ces deux cas, rien n'est repris : vérifiez dans HomeBox si l'objet a été créé.
+If the extension's service worker stopped during an import, the popup says so ("The import was
+interrupted before it finished.") and offers to resume it. This recovery only covers that stop:
+in-progress imports are kept in session memory, which is cleared when the browser closes and when the
+extension is updated. In those two cases, nothing is resumed: check in HomeBox whether the item was
+created.
 
-Quand la création d'un objet est incertaine (réponse perdue, délai dépassé, arrêt pendant l'envoi), la reprise
-cherche d'abord dans HomeBox un objet de **même nom**. S'il en existe un, elle refuse de réessayer (faux
-positif possible : le même produit acheté une autre fois). Si cette recherche échoue, elle refuse aussi.
-Dans les deux cas, vérifiez dans HomeBox, puis abandonnez et relancez l'import depuis le résumé, qui demande
-confirmation en cas de doublon. Ce contrôle réduit le risque sans l'éliminer : un doublon reste possible si
-l'objet a été renommé ou si la recherche ne le voit pas.
+When the creation of an item is uncertain (lost response, timeout, stop during the upload), the recovery
+first looks in HomeBox for an item with the **same name**. If one exists, it refuses to retry (a false
+positive is possible: the same product bought another time). If this search fails, it also refuses. In
+both cases, check in HomeBox, then abandon and restart the import from the summary, which asks for
+confirmation in case of a duplicate. This check reduces the risk without eliminating it: a duplicate
+remains possible if the item was renamed or if the search does not see it.
 
-## Thèmes
+## Themes
 
-Le popup suit le thème du système par défaut. Le bouton de la barre d'en-tête fait défiler
-*Automatique*, *Clair* et *Sombre*; le choix est mémorisé.
+The popup follows the system theme by default. The toolbar button cycles through *Automatic (system)*,
+*Light* and *Dark*; the choice is remembered.
 
-## Limites
+## Limits
 
-- Amazon.fr uniquement, et seulement la page « Détails de la commande » : voir [Supported-merchants](Supported-merchants.md).
-- HomeBox enregistre un montant sans devise : pour un achat dans une autre devise que l'euro, l'extension
-  vous prévient (« Devise détectée : … ») mais ne convertit pas.
-- La détection dépend du HTML d'Amazon, qui change régulièrement : en cas de champ non détecté, utilisez la
-  saisie manuelle et [signalez la page mal détectée](https://github.com/Foufou-exe/homebox-clipper/issues).
+- Amazon.fr only, and only the "Order Details" page: see [Supported-merchants](Supported-merchants.md).
+- HomeBox stores an amount without a currency: for a purchase in a currency other than the euro, the
+  extension warns you ("Detected currency: ...") but does not convert.
+- Detection depends on Amazon's HTML, which changes regularly: if a field is not detected, use manual
+  entry and [report the badly detected page](https://github.com/Foufou-exe/homebox-clipper/issues).

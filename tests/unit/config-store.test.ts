@@ -9,10 +9,10 @@ const save = (over: Partial<{ baseUrl: string; apiKey: string; passphrase: strin
 
 const local = async () => JSON.stringify(await fakeBrowser.storage.local.get(null));
 
-describe('config-store (clé chiffrée)', () => {
+describe('config-store (encrypted key)', () => {
   beforeEach(() => fakeBrowser.reset());
 
-  it("la clé n'est jamais écrite en clair dans storage.local", async () => {
+  it("the key is never written in plaintext to storage.local", async () => {
     await save();
     const stored = await local();
     expect(stored).toContain(URL);
@@ -20,13 +20,13 @@ describe('config-store (clé chiffrée)', () => {
     expect(stored).toContain('"ct"');
   });
 
-  it('après enregistrement, la session est déverrouillée', async () => {
+  it('after saving, the session is unlocked', async () => {
     await save();
     expect(await configStore.getCredentials()).toEqual({ ok: true, value: { baseUrl: URL, apiKey: KEY } });
     expect(await configStore.getView()).toMatchObject({ configured: true, locked: false, needsPassphrase: false });
   });
 
-  it('verrouiller retire la clé de la session ; déverrouiller la restaure', async () => {
+  it('locking removes the key from the session; unlocking restores it', async () => {
     await save();
     await configStore.lock();
     expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'LOCKED' });
@@ -37,13 +37,13 @@ describe('config-store (clé chiffrée)', () => {
     expect(await configStore.getCredentials()).toMatchObject({ ok: true, value: { apiKey: KEY } });
   });
 
-  it('fermeture du navigateur (session vidée) → verrouillé', async () => {
+  it('browser closed (session cleared) → locked', async () => {
     await save();
     await fakeBrowser.storage.session.clear();
     expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'LOCKED' });
   });
 
-  it("une URL modifiée directement dans le stockage empêche le déverrouillage", async () => {
+  it("a URL modified directly in storage prevents unlocking", async () => {
     await save();
     await configStore.lock();
     const stored = (await fakeBrowser.storage.local.get('homeboxConfig')).homeboxConfig as Record<string, unknown>;
@@ -51,14 +51,14 @@ describe('config-store (clé chiffrée)', () => {
     expect(await configStore.unlock(PASS)).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
   });
 
-  it('currentKey : déchiffre avec la phrase de passe', async () => {
+  it('currentKey: decrypts with the passphrase', async () => {
     await save();
     await configStore.lock();
     expect(await configStore.currentKey(PASS)).toEqual({ ok: true, value: KEY });
     expect(await configStore.currentKey('mauvaise phrase')).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
   });
 
-  it('la vue exposée à l’UI ne contient jamais la clé', async () => {
+  it('the view exposed to the UI never contains the key', async () => {
     await save();
     const view = await configStore.getView();
     expect(view).toEqual({
@@ -72,42 +72,42 @@ describe('config-store (clé chiffrée)', () => {
     expect(JSON.stringify(view)).not.toContain('secret');
   });
 
-  it('masque la clé : 3 premiers caractères + •••• + 4 derniers', () => {
+  it('masks the key: first 3 characters + •••• + last 4', () => {
     expect(maskKey('hb_0123456789abcd')).toBe('hb_••••abcd');
     expect(maskKey('court')).toBe('••••');
   });
 
-  it('refuse une clé vide ou contenant des espaces', async () => {
+  it('rejects an empty key or one containing spaces', async () => {
     await expect(save({ apiKey: '  ' })).rejects.toThrow('invalid API key');
     await expect(save({ apiKey: 'hb a' })).rejects.toThrow('invalid API key');
   });
 
-  describe('migration depuis l’ancien format en clair', () => {
+  describe('migration from the old plaintext format', () => {
     beforeEach(async () => {
       await fakeBrowser.storage.local.set({ homeboxConfig: { baseUrl: URL, apiKey: KEY, lastCheck: null } });
       await configStore.migrateLegacy();
     });
 
-    it('retire la clé du disque et la garde en mémoire de session', async () => {
+    it('removes the key from disk and keeps it in session memory', async () => {
       expect(await local()).not.toContain(KEY);
       expect(await configStore.getCredentials()).toMatchObject({ ok: true, value: { apiKey: KEY } });
       expect(await configStore.getView()).toMatchObject({ needsPassphrase: true, locked: false, maskedKey: 'hb_••••a1b2' });
     });
 
-    it('currentKey renvoie la clé migrée pour la chiffrer avec une nouvelle phrase de passe', async () => {
+    it('currentKey returns the migrated key so it can be encrypted with a new passphrase', async () => {
       expect(await configStore.currentKey('peu importe')).toEqual({ ok: true, value: KEY });
       await save();
       expect(await configStore.getView()).toMatchObject({ needsPassphrase: false });
     });
 
-    it('si la session est perdue avant la phrase de passe, il faut ressaisir la clé', async () => {
+    it('if the session is lost before the passphrase, the key must be re-entered', async () => {
       await fakeBrowser.storage.session.clear();
       expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'NOT_CONFIGURED' });
       expect(await configStore.currentKey('x')).toEqual({ ok: false, error: 'NOT_CONFIGURED' });
     });
   });
 
-  it('la suppression efface toute la clé lastLocationByInstance, toutes instances confondues (FR-021, scénario 21)', async () => {
+  it('deletion erases the whole lastLocationByInstance key, all instances included (FR-021, scenario 21)', async () => {
     await save();
     vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);
     await fakeBrowser.storage.local.set({
@@ -120,7 +120,7 @@ describe('config-store (clé chiffrée)', () => {
     expect(await fakeBrowser.storage.local.get(null)).toEqual({});
   });
 
-  it("la suppression efface tout : config, clé de session, imports, permission d'origine", async () => {
+  it("deletion erases everything: config, session key, imports, origin permission", async () => {
     await save({ baseUrl: 'https://homebox.example.com/sub' });
     const remove = vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);
     await fakeBrowser.storage.session.set({ 'pendingImport:1': { id: 'x' }, other: 1 });

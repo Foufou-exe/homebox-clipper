@@ -13,8 +13,8 @@ import { dispatch } from '@/background/router';
 const KEY = 'hb_super_secret_key_9876';
 const SENSITIVE = [KEY, 'Clavier sans fil Exemple Pro', '999-0000000-0000001', '99.99', '99,99'];
 
-describe('confidentialité des journaux (SC-004, principe I)', () => {
-  it("aucune sortie console ne contient la clé ni les données d'achat", async () => {
+describe('log privacy (SC-004, principle I)', () => {
+  it("no console output contains the key or the purchase data", async () => {
     fakeBrowser.reset();
     const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) =>
       vi.spyOn(console, k).mockImplementation(() => undefined),
@@ -37,11 +37,11 @@ describe('confidentialité des journaux (SC-004, principe I)', () => {
     expect(r.ok && r.value[0]?.status).toBe('partial');
 
     const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
-    expect(output.length).toBeGreaterThan(2); // le logger a bien été appelé
+    expect(output.length).toBeGreaterThan(2); // the logger was indeed called
     for (const value of SENSITIVE) expect(output).not.toContain(value);
   });
 
-  it("l'en-tête Authorization n'est envoyé qu'à l'instance HomeBox", async () => {
+  it("the Authorization header is only sent to the HomeBox instance", async () => {
     const m = mockFetch(json(201, { id: 'e1', name: 'x' }));
     await createHomeBoxClient({ baseUrl: 'https://homebox.example.com', apiKey: KEY, fetchImpl: m.fetch }).createEntity({
       name: 'x',
@@ -55,7 +55,7 @@ describe('confidentialité des journaux (SC-004, principe I)', () => {
 const PHOTO_URL = 'https://m.media-amazon.com/images/I/test-secret-photo._SL1000_.jpg';
 const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7, 7, 7, 7]);
 
-/** Parcours complet avec le vrai `fetchPhoto` : un seul `fetch` simulé sert HomeBox et l'image. */
+/** Full flow with the real `fetchPhoto`: a single mocked `fetch` serves both HomeBox and the image. */
 function photoRun(
   imageResponse: () => Response,
   homebox: Parameters<typeof mockFetch>,
@@ -83,14 +83,14 @@ function photoRun(
 
 const jpeg = () => new Response(JPEG_BYTES as BodyInit, { status: 200, headers: { 'Content-Type': 'image/jpeg' } });
 
-describe('confidentialité de la photo (FR-022 à FR-027)', () => {
+describe('photo privacy (FR-022 to FR-027)', () => {
   const spyConsole = () =>
     (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
 
-  it("scénario 24 : ni clé, ni URL d'image dans les journaux, échecs compris", async () => {
+  it("scenario 24: neither key nor image URL in the logs, failures included", async () => {
     fakeBrowser.reset();
     const spies = spyConsole();
-    // réussite, puis échec de récupération (404), puis échec d'envoi (HomeBox 500)
+    // success, then fetch failure (404), then upload failure (HomeBox 500)
     const ok1 = photoRun(jpeg, [json(201, { id: 'e1', name: 'x' }), json(200, {}), json(201, {}), json(201, {})]);
     await ok1.orchestrator.startImport(1, [draft({ photo: draftPhoto({ url: PHOTO_URL }) })], []);
     const ko = photoRun(() => new Response('x', { status: 404 }), [json(201, { id: 'e2', name: 'x' }), json(200, {}), json(201, {})]);
@@ -103,7 +103,7 @@ describe('confidentialité de la photo (FR-022 à FR-027)', () => {
     for (const value of [KEY, PHOTO_URL, 'test-secret-photo', 'media-amazon']) expect(output).not.toContain(value);
   });
 
-  it("scénario 23 : la requête d'image n'a ni Authorization ni cookies ; la clé ne va qu'à HomeBox", async () => {
+  it("scenario 23: the image request has neither Authorization nor cookies; the key only goes to HomeBox", async () => {
     fakeBrowser.reset();
     const run = photoRun(jpeg, [json(201, { id: 'e1', name: 'x' }), json(200, {}), json(201, {}), json(201, {})]);
     await run.orchestrator.startImport(1, [draft({ photo: draftPhoto({ url: PHOTO_URL }) })], []);
@@ -119,7 +119,7 @@ describe('confidentialité de la photo (FR-022 à FR-027)', () => {
     }
   });
 
-  it("scénario 11 : aucun octet d'image en storage après réussite, échec d'envoi et abandon ; l'URL est purgée", async () => {
+  it("scenario 11: no image byte in storage after success, upload failure and abandon; the URL is purged", async () => {
     const dump = async () =>
       JSON.stringify([await fakeBrowser.storage.session.get(null), await fakeBrowser.storage.local.get(null)]);
     const bytes = JSON.stringify(Array.from(JPEG_BYTES));
@@ -135,7 +135,7 @@ describe('confidentialité de la photo (FR-022 à FR-027)', () => {
     const failed = photoRun(jpeg, [json(201, { id: 'e2', name: 'x' }), json(200, {}), json(201, {}), json(500, {})]);
     const r = await failed.orchestrator.startImport(1, [draft({ photo: draftPhoto({ url: PHOTO_URL }) })], []);
     stored = await dump();
-    expect(stored).toContain('test-secret-photo'); // l'URL sert à la reprise
+    expect(stored).toContain('test-secret-photo'); // the URL is used for the resume
     expect(stored).not.toContain(bytes);
     expect(stored).not.toContain('"bytes"');
 
@@ -146,7 +146,7 @@ describe('confidentialité de la photo (FR-022 à FR-027)', () => {
   });
 });
 
-describe('confidentialité des emplacements (scénario 24, SC-008)', () => {
+describe('location privacy (scenario 24, SC-008)', () => {
   const NAMES = ['Cave secrète Dupont', 'Garage Martin privé', 'Étagère de Léa'];
   const CHOICE = { id: 'loc-1', path: [NAMES[0]!, NAMES[1]!] };
   const TREE = [
@@ -168,17 +168,17 @@ describe('confidentialité des emplacements (scénario 24, SC-008)', () => {
     });
   };
 
-  it('aucun nom ni chemin d’emplacement dans les journaux : import réussi, emplacement disparu, arbre illisible, réseau perdu', async () => {
+  it('no location name or path in the logs: successful import, disappeared location, unreadable tree, lost network', async () => {
     fakeBrowser.reset();
     const spies = spyConsole();
     const d = () => draft({ location: CHOICE, documents: [] });
-    // réussite
+    // success
     await run(json(201, { id: 'e1', name: 'x' }), json(200, {})).startImport(1, [d()], [], CHOICE.id);
-    // emplacement disparu : 404 puis arbre qui ne le contient plus
+    // disappeared location: 404 then a tree that no longer contains it
     await run(json(404, { error: 'Not Found' }), json(200, [{ id: 'autre', name: NAMES[2], type: 'location' }])).startImport(1, [d()], []);
-    // arbre en échec après l'échec du POST
+    // tree failure after the POST failure
     await run(json(500, {}), json(500, { name: NAMES[0] })).startImport(1, [d()], []);
-    // réponse du POST perdue
+    // lost POST response
     await run(networkError()).startImport(1, [d()], []);
 
     const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
@@ -187,7 +187,7 @@ describe('confidentialité des emplacements (scénario 24, SC-008)', () => {
     for (const name of [...NAMES, KEY]) expect(output).not.toContain(name);
   });
 
-  it('aucun nom d’emplacement dans les journaux du handler location/list (succès et échecs)', async () => {
+  it('no location name in the location/list handler logs (success and failures)', async () => {
     fakeBrowser.reset();
     const spies = spyConsole();
     const ext = 'chrome-extension://abcdefghijklmnop/';

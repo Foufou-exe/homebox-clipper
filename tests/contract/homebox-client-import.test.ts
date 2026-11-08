@@ -5,7 +5,7 @@ const BASE = 'https://homebox.example.com';
 const client = (f: typeof fetch) => createHomeBoxClient({ baseUrl: BASE, apiKey: 'hb_x', fetchImpl: f });
 
 describe('client HomeBox — import', () => {
-  it('createEntity 201 → EntityOut avec id', async () => {
+  it('createEntity 201 → EntityOut with id', async () => {
     const m = mockFetch(json(201, { id: 'e1', name: 'Clavier' }));
     const r = await client(m.fetch).createEntity({ name: 'Clavier', description: 'd', quantity: 1 });
     expect(r).toEqual({ ok: true, value: { id: 'e1', name: 'Clavier' } });
@@ -20,19 +20,19 @@ describe('client HomeBox — import', () => {
     expect(await client(m.fetch).createEntity({ name: 'x' })).toMatchObject({ ok: false, error: 'CREATE_FAILED' });
   });
 
-  it('createEntity 201 sans id → CREATE_FAILED', async () => {
+  it('createEntity 201 without id → CREATE_FAILED', async () => {
     const m = mockFetch(json(201, {}));
     expect(await client(m.fetch).createEntity({ name: 'x' })).toMatchObject({ ok: false, error: 'CREATE_FAILED' });
   });
 
-  it('createEntity 201 sans id ou JSON illisible → CREATE_FAILED avec le statut 2xx (création incertaine)', async () => {
+  it('createEntity 201 without id or unreadable JSON → CREATE_FAILED with the 2xx status (uncertain creation)', async () => {
     const noId = mockFetch(json(201, {}));
     expect(await client(noId.fetch).createEntity({ name: 'x' })).toMatchObject({ ok: false, error: 'CREATE_FAILED', httpStatus: 201 });
     const bad = mockFetch(() => new Response('pas du json', { status: 200 }));
     expect(await client(bad.fetch).createEntity({ name: 'x' })).toMatchObject({ ok: false, error: 'CREATE_FAILED', httpStatus: 200 });
   });
 
-  it('updateEntity envoie un PUT sur /entities/{id}', async () => {
+  it('updateEntity sends a PUT to /entities/{id}', async () => {
     const m = mockFetch(json(200, { id: 'e1', name: 'x' }));
     await client(m.fetch).updateEntity('e1', { id: 'e1', name: 'x', purchasePrice: 9.5 });
     expect(m.calls[0]?.method).toBe('PUT');
@@ -47,7 +47,7 @@ describe('client HomeBox — import', () => {
     });
   });
 
-  it('addAttachment envoie un multipart avec file, name et type=receipt', async () => {
+  it('addAttachment sends a multipart with file, name and type=receipt', async () => {
     const m = mockFetch(json(201, { id: 'e1' }));
     const bytes = new TextEncoder().encode('%PDF-1.7');
     const r = await client(m.fetch).addAttachment('e1', { bytes, filename: 'facture.pdf', type: 'receipt', mimeType: 'application/pdf' });
@@ -60,13 +60,13 @@ describe('client HomeBox — import', () => {
     const file = form.get('file') as File;
     expect(file.type).toBe('application/pdf');
     expect(new Uint8Array(await file.arrayBuffer())).toEqual(bytes);
-    // Le navigateur fixe lui-même la frontière multipart.
+    // The browser sets the multipart boundary itself.
     expect(m.calls[0]?.headers.has('Content-Type')).toBe(false);
-    // SC-006 : un PDF n'envoie jamais `primary`.
+    // SC-006: a PDF never sends `primary`.
     expect(form.has('primary')).toBe(false);
   });
 
-  it('addAttachment photo envoie type=photo, primary=true et le type MIME de l’image', async () => {
+  it("addAttachment photo sends type=photo, primary=true and the image's MIME type", async () => {
     const m = mockFetch(json(201, { id: 'e1' }));
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
     const r = await client(m.fetch).addAttachment('e1', {
@@ -86,7 +86,7 @@ describe('client HomeBox — import', () => {
     expect(new Uint8Array(await file.arrayBuffer())).toEqual(bytes);
   });
 
-  it('addAttachment n’envoie pas primary quand il est faux ou absent', async () => {
+  it('addAttachment does not send primary when it is false or absent', async () => {
     const m = mockFetch(json(201, {}), json(201, {}));
     const c = client(m.fetch);
     const base = { bytes: new Uint8Array([1]), filename: 'f.pdf', type: 'attachment' as const, mimeType: 'application/pdf' };
@@ -111,7 +111,7 @@ describe('client HomeBox — import', () => {
     expect(r).toEqual({ ok: false, error: 'ATTACHMENT_FAILED', httpStatus: 422 });
   });
 
-  it('entityOutToUpdate recopie l’objet créé et applique les champs d’achat', () => {
+  it('entityOutToUpdate copies the created object and applies the purchase fields', () => {
     const update = entityOutToUpdate(
       {
         id: 'e1',
@@ -141,7 +141,7 @@ describe('client HomeBox — import', () => {
     });
   });
 
-  it('entityOutToUpdate n’épingle pas un emplacement hérité (location résolu, sans locationId)', () => {
+  it('entityOutToUpdate does not pin an inherited location (resolved location, no locationId)', () => {
     const update = entityOutToUpdate(
       { id: 'e1', name: 'Clavier', location: { id: 'loc-herite' }, parent: null },
       {},
@@ -150,7 +150,7 @@ describe('client HomeBox — import', () => {
     expect(update).not.toHaveProperty('parentId');
   });
 
-  it('entityOutToUpdate conserve le locationId et le parentId propres à l’entité', () => {
+  it("entityOutToUpdate keeps the entity's own locationId and parentId", () => {
     const update = entityOutToUpdate(
       { id: 'e1', name: 'Clavier', locationId: 'loc-propre', location: { id: 'loc-propre' }, parent: { id: 'p1' } },
       {},
@@ -158,13 +158,13 @@ describe('client HomeBox — import', () => {
     expect(update).toMatchObject({ locationId: 'loc-propre', parentId: 'p1' });
   });
 
-  it('itemUrl pointe vers la page objet de HomeBox', () => {
+  it('itemUrl points to the HomeBox item page', () => {
     expect(itemUrl(BASE, 'e1')).toBe(`${BASE}/item/e1`);
   });
 });
 
 describe('client HomeBox — recherche (US5)', () => {
-  it('searchEntities encode q et limite pageSize à 20', async () => {
+  it('searchEntities encodes q and limits pageSize to 20', async () => {
     const m = mockFetch(json(200, { items: [{ id: 'a', name: 'x' }], page: 1, pageSize: 20, total: 1 }));
     const r = await client(m.fetch).searchEntities('"999-0000000-0000001"');
     expect(r).toEqual({ ok: true, value: [{ id: 'a', name: 'x' }] });
@@ -183,7 +183,7 @@ describe('client HomeBox — recherche (US5)', () => {
 describe('client HomeBox — emplacements (US2)', () => {
   const TREE = [{ id: 'l1', name: 'Maison', type: 'location', children: [] }];
 
-  it('listLocations : GET /entities/tree sans paramètre, avec le jeton', async () => {
+  it('listLocations: GET /entities/tree without parameters, with the token', async () => {
     const m = mockFetch(json(200, TREE));
     const r = await client(m.fetch).listLocations();
     expect(r).toEqual({ ok: true, value: TREE });
@@ -192,7 +192,7 @@ describe('client HomeBox — emplacements (US2)', () => {
     expect(m.calls[0]?.headers.get('Authorization')).toBe('Bearer hb_x');
   });
 
-  it('listLocations : erreur réseau → HOMEBOX_UNREACHABLE', async () => {
+  it('listLocations: network error → HOMEBOX_UNREACHABLE', async () => {
     const m = mockFetch(networkError());
     expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'HOMEBOX_UNREACHABLE' });
   });
@@ -202,7 +202,7 @@ describe('client HomeBox — emplacements (US2)', () => {
     expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'UNAUTHORIZED' });
   });
 
-  it('listLocations : autre statut → LOCATIONS_UNAVAILABLE', async () => {
+  it('listLocations: other status → LOCATIONS_UNAVAILABLE', async () => {
     const m = mockFetch(json(500, {}));
     expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
   });
@@ -212,12 +212,12 @@ describe('client HomeBox — emplacements (US2)', () => {
     expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
   });
 
-  it('listLocations : réponse non tableau → LOCATIONS_UNAVAILABLE', async () => {
+  it('listLocations: non-array response → LOCATIONS_UNAVAILABLE', async () => {
     const m = mockFetch(json(200, { items: [] }));
     expect(await client(m.fetch).listLocations()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
   });
 
-  it('listLocations : aucun nom d’emplacement journalisé (succès, échec, réponse anormale)', async () => {
+  it('listLocations: no location name logged (success, failure, abnormal response)', async () => {
     const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) =>
       vi.spyOn(console, k).mockImplementation(() => undefined),
     );
@@ -231,7 +231,7 @@ describe('client HomeBox — emplacements (US2)', () => {
     expect(output).toContain('GET /entities/tree');
   });
 
-  it('createEntity avec emplacement : parentId présent dans le corps, jamais locationId', async () => {
+  it('createEntity with a location: parentId present in the body, never locationId', async () => {
     const m = mockFetch(json(201, { id: 'e1', name: 'Clavier' }));
     await client(m.fetch).createEntity({ name: 'Clavier', quantity: 1, parentId: 'l1' });
     const body = JSON.parse(String(m.calls[0]?.body));
@@ -239,7 +239,7 @@ describe('client HomeBox — emplacements (US2)', () => {
     expect(body).not.toHaveProperty('locationId');
   });
 
-  it('createEntity sans choix : corps strictement identique à l’existant (SC-006, scénario 15)', async () => {
+  it('createEntity with no choice: body strictly identical to the existing one (SC-006, scenario 15)', async () => {
     const m = mockFetch(json(201, { id: 'e1', name: 'Clavier' }));
     await client(m.fetch).createEntity({ name: 'Clavier', description: 'd', quantity: 1 });
     expect(String(m.calls[0]?.body)).toBe('{"name":"Clavier","description":"d","quantity":1}');

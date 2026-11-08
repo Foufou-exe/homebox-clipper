@@ -11,7 +11,7 @@ function respond(body: BodyInit | null, init: ResponseInit & { url?: string } = 
 }
 
 describe('downloadDocument', () => {
-  it('PDF 200 → base64 et taille', async () => {
+  it('PDF 200 → base64 and size', async () => {
     const f = respond(PDF, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
     const r = await downloadDocument(URL_PDF, f);
     expect(r.ok).toBe(true);
@@ -22,17 +22,17 @@ describe('downloadDocument', () => {
     expect(f).toHaveBeenCalledWith(URL_PDF, { credentials: 'include', redirect: 'follow' });
   });
 
-  it('HTML 200 (récapitulatif imprimable) → NOT_A_PDF', async () => {
+  it('HTML 200 (printable summary) → NOT_A_PDF', async () => {
     const f = respond('<html>Récapitulatif</html>', { status: 200, headers: { 'Content-Type': 'text/html' } });
     expect(await downloadDocument(URL_PDF, f)).toMatchObject({ ok: false, error: 'NOT_A_PDF' });
   });
 
-  it('octet-stream sans signature PDF → NOT_A_PDF', async () => {
+  it('octet-stream without PDF signature → NOT_A_PDF', async () => {
     const f = respond('PK\u0003\u0004', { status: 200, headers: { 'Content-Type': 'application/octet-stream' } });
     expect(await downloadDocument(URL_PDF, f)).toMatchObject({ ok: false, error: 'NOT_A_PDF' });
   });
 
-  it('redirection vers la page de connexion → DOWNLOAD_REFUSED', async () => {
+  it('redirect to the login page → DOWNLOAD_REFUSED', async () => {
     const f = respond('<html>Identifiez-vous</html>', {
       status: 200,
       headers: { 'Content-Type': 'text/html' },
@@ -62,7 +62,7 @@ describe('downloadDocument', () => {
     expect(await downloadDocument(URL_PDF, f)).toMatchObject({ ok: false, error: 'FILE_TOO_LARGE' });
   });
 
-  it('URL hors amazon.fr → refusée sans appel réseau', async () => {
+  it('URL outside amazon.fr → refused without a network call', async () => {
     const f = respond(PDF, { status: 200 });
     expect(await downloadDocument('https://evil.example.com/invoice.pdf', f)).toMatchObject({
       ok: false,

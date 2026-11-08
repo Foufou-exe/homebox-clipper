@@ -6,8 +6,8 @@ import { AMAZON_FR_ORIGIN } from './extractor';
 const PDF_CONTENT_TYPES = ['application/pdf', 'application/octet-stream', 'binary/octet-stream'];
 
 /**
- * Télécharge un document dans le contexte de la page amazon.fr (cookies de première partie, R10),
- * vérifie qu'il s'agit d'un vrai PDF puis l'encode en base64 pour le service worker.
+ * Downloads a document in the context of the amazon.fr page (first-party cookies, R10),
+ * checks that it is a real PDF, then encodes it as base64 for the service worker.
  */
 export async function downloadDocument(
   rawUrl: string,

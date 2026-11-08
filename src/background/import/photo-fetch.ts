@@ -5,20 +5,20 @@ import { log } from '@/shared/logger';
 import type { DraftPhoto } from '@/shared/types';
 
 /*
- * Module volontairement séparé du client HomeBox : la clé API n'y est pas accessible (FR-023).
- * Il n'importe ni le coffre, ni la configuration, ni le client.
+ * Module deliberately separate from the HomeBox client: the API key is not accessible here (FR-023).
+ * It imports neither the vault, nor the configuration, nor the client.
  */
 
 export const PHOTO_TIMEOUT_MS = 15_000;
 
 export interface FetchedPhoto {
   bytes: Uint8Array;
-  /** Fixé par la signature des octets, pas par l'en-tête de la réponse. */
+  /** Set from the byte signature, not from the response header. */
   mimeType: string;
   filename: string;
 }
 
-/** Lit le corps en s'arrêtant dès que la limite est dépassée (flux sans `Content-Length`). */
+/** Reads the body, stopping as soon as the limit is exceeded (stream without `Content-Length`). */
 async function readLimited(res: Response): Promise<Uint8Array | null> {
   if (!res.body) {
     const all = new Uint8Array(await res.arrayBuffer());
@@ -47,9 +47,9 @@ async function readLimited(res: Response): Promise<Uint8Array | null> {
 }
 
 /**
- * Récupère la photo du produit sur le serveur du marchand : GET anonyme (R5, R6). L'URL est recontrôlée ici,
- * avec la liste du marchand, même si l'extracteur l'a déjà filtrée. Journalise `{ endpoint, status, ms }`,
- * jamais l'URL.
+ * Fetches the product photo from the merchant's server: anonymous GET (R5, R6). The URL is re-checked here,
+ * against the merchant's list, even if the extractor has already filtered it. Logs `{ endpoint, status, ms }`,
+ * never the URL.
  */
 export async function fetchPhoto(photo: DraftPhoto, fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<Result<FetchedPhoto>> {
   const hosts = MERCHANTS.find((m) => m.id === photo.merchantId)?.imageHosts;

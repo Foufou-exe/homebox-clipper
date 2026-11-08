@@ -7,32 +7,32 @@ describe('isAllowedImageUrl (R6)', () => {
     'https://m.media-amazon.com/images/I/test-1.jpg',
     'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg?x=1',
     'https://M.MEDIA-AMAZON.COM/images/I/test-1.jpg',
-    'https://m.media-amazon.com:443/images/I/test-1.jpg', // port par défaut, normalisé par new URL
+    'https://m.media-amazon.com:443/images/I/test-1.jpg', // default port, normalized by new URL
   ])('accepte %s', (url) => {
     expect(isAllowedImageUrl(url, HOSTS)).toBe(true);
   });
 
   it.each([
-    ['suffixe de domaine', 'https://m.media-amazon.com.evil.example/images/I/x.jpg'],
-    ['sous-domaine', 'https://cdn.m.media-amazon.com/images/I/x.jpg'],
-    ['autre hôte', 'https://images.example.invalid/1.jpg'],
-    ['identifiants (user@)', 'https://m.media-amazon.com@evil.example/x.jpg'],
-    ['utilisateur', 'https://user@m.media-amazon.com/images/I/x.jpg'],
-    ['utilisateur et mot de passe', 'https://user:pw@m.media-amazon.com/images/I/x.jpg'],
+    ['domain suffix', 'https://m.media-amazon.com.evil.example/images/I/x.jpg'],
+    ['subdomain', 'https://cdn.m.media-amazon.com/images/I/x.jpg'],
+    ['other host', 'https://images.example.invalid/1.jpg'],
+    ['credentials (user@)', 'https://m.media-amazon.com@evil.example/x.jpg'],
+    ['user', 'https://user@m.media-amazon.com/images/I/x.jpg'],
+    ['user and password', 'https://user:pw@m.media-amazon.com/images/I/x.jpg'],
     ['http:', 'http://m.media-amazon.com/images/I/x.jpg'],
     ['data:', 'data:image/png;base64,iVBORw0KGgo='],
-    ['port explicite', 'https://m.media-amazon.com:8443/images/I/x.jpg'],
+    ['explicit port', 'https://m.media-amazon.com:8443/images/I/x.jpg'],
     ['URL invalide', 'pas une url'],
-    ['vide', ''],
+    ['empty', ''],
   ])('refuse : %s', (_label, url) => {
     expect(isAllowedImageUrl(url, HOSTS)).toBe(false);
   });
 
-  it('liste vide : aucune photo', () => {
+  it('empty list: no photo', () => {
     expect(isAllowedImageUrl('https://m.media-amazon.com/images/I/x.jpg', [])).toBe(false);
   });
 
-  it('pas de joker dans la liste : « *.exemple.fr » ne correspond à rien', () => {
+  it('no wildcard in the list: "*.exemple.fr" matches nothing', () => {
     expect(isAllowedImageUrl('https://cdn.exemple.fr/x.jpg', ['*.exemple.fr'])).toBe(false);
   });
 });
@@ -40,7 +40,7 @@ describe('isAllowedImageUrl (R6)', () => {
 const bytes = (...b: number[]) => new Uint8Array(b);
 const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
 
-describe('sniffImage (R7) : la signature fait foi', () => {
+describe('sniffImage (R7): the signature is authoritative', () => {
   it('JPEG', () => {
     expect(sniffImage(bytes(0xff, 0xd8, 0xff, 0xe0, 0, 0))).toEqual({ mimeType: 'image/jpeg', extension: 'jpg' });
   });
@@ -59,15 +59,15 @@ describe('sniffImage (R7) : la signature fait foi', () => {
 
   it.each([
     ['SVG', new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>')],
-    ['SVG avec prologue XML', new TextEncoder().encode('<?xml version="1.0"?><svg></svg>')],
+    ['SVG with XML prolog', new TextEncoder().encode('<?xml version="1.0"?><svg></svg>')],
     ['GIF', new TextEncoder().encode('GIF89a\u0001\u0000')],
     ['HTML', new TextEncoder().encode('<!doctype html><html></html>')],
-    ['vide', new Uint8Array(0)],
+    ['empty', new Uint8Array(0)],
     ['PDF', new TextEncoder().encode('%PDF-1.7\n')],
-    ['RIFF qui n’est pas du WebP (WAV)', bytes(...ascii('RIFF'), 1, 2, 3, 4, ...ascii('WAVE'))],
-    ['PNG tronqué', bytes(0x89, 0x50, 0x4e, 0x47)],
-    ['JPEG tronqué', bytes(0xff, 0xd8)],
-  ])('refuse %s', (_label, data) => {
+    ['RIFF that is not WebP (WAV)', bytes(...ascii('RIFF'), 1, 2, 3, 4, ...ascii('WAVE'))],
+    ['truncated PNG', bytes(0x89, 0x50, 0x4e, 0x47)],
+    ['truncated JPEG', bytes(0xff, 0xd8)],
+  ])('rejects %s', (_label, data) => {
     expect(sniffImage(data)).toBeNull();
   });
 });

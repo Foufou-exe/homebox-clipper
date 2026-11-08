@@ -12,7 +12,7 @@ const call = (msg: unknown) => dispatch(msg, { id: fakeBrowser.runtime.id, url: 
 const reply = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-/** fetch simulé dont le POST /entities attend `release()` ; compte les POST. */
+/** Mocked fetch whose POST /entities waits for `release()`; counts the POSTs. */
 function blockedHomebox() {
   let release!: () => void;
   const gate = new Promise<void>((r) => (release = r));
@@ -43,7 +43,7 @@ const failedPending = (): PendingImport => ({
   error: 'CREATE_FAILED',
 });
 
-describe('handlers import/start et import/retry : imports actifs et reprise concurrente', () => {
+describe('import/start and import/retry handlers: active imports and concurrent resume', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
@@ -55,7 +55,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('import/start tient activeImports pendant l’import, pour chaque produit du lot, et le libère à la fin', async () => {
+  it('import/start holds activeImports during the import, for each product of the batch, and releases it at the end', async () => {
     const hb = blockedHomebox();
     vi.stubGlobal('fetch', hb.fetchMock);
     const started = call({
@@ -65,7 +65,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
       drafts: [draft({ name: 'A', documents: [] }), draft({ name: 'B', documents: [] })],
     });
     await vi.waitFor(() => expect(hb.posts).toHaveLength(1));
-    // Les deux imports du lot sont déjà actifs, et déjà persistés (le second n'a pas encore de POST).
+    // Both imports of the batch are already active, and already persisted (the second has no POST yet).
     expect(activeImports.size).toBe(2);
     expect((await pendingStore.listByTab(5)).map((p) => p.status)).toEqual(['running', 'running']);
     hb.release();
@@ -73,7 +73,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
     expect(activeImports.size).toBe(0);
   });
 
-  it('import/retry tient activeImports pendant la reprise et le libère à la fin', async () => {
+  it('import/retry holds activeImports during the resume and releases it at the end', async () => {
     await pendingStore.save(failedPending());
     const hb = blockedHomebox();
     vi.stubGlobal('fetch', hb.fetchMock);
@@ -85,7 +85,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
     expect(activeImports.has('r1')).toBe(false);
   });
 
-  it('deux import/retry simultanés → un seul POST /entities ; le second renvoie l’état courant sans retirer l’identifiant du premier', async () => {
+  it("two simultaneous import/retry → a single POST /entities; the second returns the current state without removing the first's identifier", async () => {
     await pendingStore.save(failedPending());
     const hb = blockedHomebox();
     vi.stubGlobal('fetch', hb.fetchMock);
@@ -98,7 +98,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
     expect(second.ok).toBe(true);
     expect(second.value).toMatchObject({ id: 'r1', status: 'running' });
     expect(hb.posts).toHaveLength(1);
-    // Le second appel n'a pas retiré l'identifiant : l'import reste actif et n'est pas pris pour un orphelin.
+    // The second call did not remove the identifier: the import stays active and is not mistaken for an orphan.
     expect(activeImports.has('r1')).toBe(true);
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list[0]).toMatchObject({ id: 'r1', status: 'running' });
@@ -125,7 +125,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
     }
     const memory = async () => (await fakeBrowser.storage.local.get('lastLocationByInstance')).lastLocationByInstance;
 
-    it('import/start : le choix part en parentId et orderLocationId est mémorisé pour cette instance', async () => {
+    it('import/start: the choice is sent as parentId and orderLocationId is remembered for this instance', async () => {
       vi.stubGlobal('fetch', homebox());
       await call({
         type: 'import/start',
@@ -138,7 +138,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
       expect(await memory()).toEqual({ [ORIGIN]: 'loc-g' });
     });
 
-    it('import/start sans emplacement : corps sans parentId, mémoire inchangée', async () => {
+    it('import/start without location: body without parentId, memory unchanged', async () => {
       vi.stubGlobal('fetch', homebox());
       await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'ancien' } });
       await call({ type: 'import/start', tabId: 5, manualFiles: [], drafts: [draft({ documents: [] })] });
@@ -146,7 +146,7 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
       expect(await memory()).toEqual({ [ORIGIN]: 'ancien' });
     });
 
-    it('import/start dont la création échoue : mémoire inchangée', async () => {
+    it('import/start whose creation fails: memory unchanged', async () => {
       vi.stubGlobal('fetch', homebox(500));
       await call({
         type: 'import/start',
@@ -158,14 +158,14 @@ describe('handlers import/start et import/retry : imports actifs et reprise conc
       expect(await memory()).toBeUndefined();
     });
 
-    it('import/retry transmet le nouveau choix à l’orchestrateur', async () => {
+    it('import/retry passes the new choice to the orchestrator', async () => {
       await pendingStore.save(failedPending());
       vi.stubGlobal('fetch', homebox());
       await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [], location: GARAGE });
       expect(bodies[0]).toMatchObject({ parentId: 'loc-g' });
     });
 
-    it('import/retry avec location alors que l’objet existe : BAD_MESSAGE, aucune requête', async () => {
+    it('import/retry with location while the object exists: BAD_MESSAGE, no request', async () => {
       await pendingStore.save({ ...failedPending(), entityId: 'e9', status: 'partial' });
       const fetchMock = homebox();
       vi.stubGlobal('fetch', fetchMock);

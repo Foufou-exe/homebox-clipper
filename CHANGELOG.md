@@ -1,70 +1,70 @@
 # Changelog
 
-Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
+All notable changes to this project are documented in this file.
 
-Le format suit [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) et le projet respecte
-la numérotation [SemVer](https://semver.org). Les types de changement (`Added`, `Changed`,
-`Deprecated`, `Removed`, `Fixed`, `Security`) gardent leurs noms standard en anglais.
+The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project
+adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `Changed`,
+`Deprecated`, `Removed`, `Fixed`, `Security`) keep their standard names.
 
 ## [Unreleased]
 
 ### Added
 
-- Interface bilingue anglais/français selon la langue du navigateur (anglais par défaut, français si le navigateur est en français) ; la note écrite dans HomeBox suit la langue de l'interface (« Amazon.fr order: <n°> » en anglais), sans effet sur la détection des doublons.
-- La photo du produit (Amazon.fr) est jointe à l'objet HomeBox comme image principale. Une case, cochée par défaut, permet de ne pas l'envoyer ; le résultat indique le sort de la photo pour chaque produit.
-- Reprise d'un import interrompu par l'arrêt du service worker de l'extension : l'import redevient réessayable, sans recréer l'objet ni renvoyer deux fois la photo. Les imports en cours sont conservés en mémoire de session : ils sont perdus à la fermeture du navigateur et à la mise à jour de l'extension (vérifiez alors dans HomeBox). Si la création d'un objet est incertaine (réponse perdue, arrêt pendant l'envoi), la reprise cherche d'abord un objet de même nom dans HomeBox et refuse de réessayer s'il en trouve un ; ce contrôle réduit le risque de doublon sans l'éliminer.
-- Choix de l'emplacement : un seul champ « Emplacement » pour un produit, ou « Emplacement des produits » avant la liste quand la commande en compte plusieurs, avec une mention « Même emplacement que les autres produits » par produit (liste des emplacements existants de l'instance, avec recherche insensible à la casse et aux accents, chemin complet affiché pour distinguer les homonymes) et une modification possible produit par produit, avec retour au choix de la commande. L'emplacement est lu sur l'instance configurée ; l'extension n'en crée, n'en renomme et n'en supprime aucun. Sans choix, l'objet est créé comme avant.
-- Dernier emplacement mémorisé par instance : il est présélectionné à l'import suivant (« Retirer » le vide). Seul un identifiant est conservé dans `storage.local` (aucun nom d'emplacement) ; il est effacé avec « Supprimer la configuration ».
-- Si l'emplacement choisi a disparu de HomeBox au moment de l'envoi, aucun objet n'est créé : un nouveau choix ou l'import sans emplacement est proposé.
+- Bilingual English/French interface following the browser language (English by default, French if the browser is in French); the note written in HomeBox follows the interface language ("Amazon.fr order: <number>" in English), with no effect on duplicate detection.
+- The product photo (Amazon.fr) is attached to the HomeBox item as its main image. A checkbox, ticked by default, lets you skip it; the result shows what happened to the photo for each product.
+- Recovery of an import interrupted by the extension's service worker stopping: the import becomes retryable again, without recreating the item or sending the photo twice. In-progress imports are kept in session memory: they are lost when the browser closes and when the extension is updated (check in HomeBox then). If an item's creation is uncertain (lost response, stop during the upload), the retry first looks for an item with the same name in HomeBox and refuses to retry if it finds one; this check reduces the risk of duplicates without eliminating it.
+- Location choice: a single "Location (optional)" field for one product, or "Location for the products" above the list when the order has several, with a "Same location as the other products" note per product (list of the instance's existing locations, with case- and accent-insensitive search, full path shown to tell namesakes apart) and per-product editing, with a way back to the order-wide choice. The location is read from the configured instance; the extension never creates, renames or deletes any. Without a choice, the item is created as before.
+- Last location remembered per instance: it is preselected on the next import ("Clear" empties it). Only an identifier is kept in `storage.local` (no location name); it is erased with "Delete settings".
+- If the chosen location has disappeared from HomeBox at upload time, no item is created: a new choice or an import without a location is offered.
 
 ### Fixed
 
-- Sélecteur d'emplacement : sur un champ prérempli, taper lance une recherche au lieu de s'ajouter au chemin affiché ; la liste s'ouvre au clic et au focus ; « oeuvres » trouve « Œuvres » ; le nom du produit figure dans le libellé accessible des sélecteurs par produit ; le bouton « Modifier » respecte le contraste 4,5:1 dans les deux thèmes.
-- Un message interne mal formé reçoit désormais la réponse `BAD_MESSAGE` au lieu de rester sans réponse.
-- Si HomeBox répond avec succès à la création mais que la réponse est illisible ou sans identifiant, la création est traitée comme incertaine : la reprise cherche d'abord un objet de même nom au lieu de recréer l'objet.
-- Amazon.fr : l'image du produit et le bouton « Facture » sont de nouveau détectés sur la page de détail de commande actuelle (image dans la colonne de gauche, menu « Facture » chargé via `data-a-popover`).
-- Amazon.fr : la quantité affichée dans le badge de la colonne image (articles commandés en plusieurs exemplaires) est lue au lieu de retomber sur 1.
+- Location picker: on a prefilled field, typing starts a search instead of being appended to the displayed path; the list opens on click and on focus; "oeuvres" finds "Œuvres"; the product name is part of the accessible label of per-product pickers; the "Change" button meets the 4.5:1 contrast ratio in both themes.
+- A malformed internal message now gets a `BAD_MESSAGE` reply instead of going unanswered.
+- If HomeBox answers the creation successfully but the response is unreadable or has no identifier, the creation is treated as uncertain: the retry first looks for an item with the same name instead of recreating it.
+- Amazon.fr: the product image and the "Invoice" button are detected again on the current order detail page (image in the left column, "Invoice" menu loaded via `data-a-popover`).
+- Amazon.fr: the quantity shown in the image column badge (items ordered in several copies) is read instead of falling back to 1.
 
 ### Changed
 
-- **Action requise :** le projet est renommé **homebox-clipper** (nom affiché « HomeBox Clipper »), pour éviter la confusion avec un autre projet du même nom ; mettez à jour l'adresse du dépôt (`git remote set-url origin …/homebox-clipper.git`).
+- **Action required:** the project is renamed **homebox-clipper** (display name "HomeBox Clipper") to avoid confusion with another project of the same name; update the repository address (`git remote set-url origin …/homebox-clipper.git`).
 
 ## [0.1.0] - 2026-10-29
 
 ### Added
 
-- MVP Amazon.fr : détection d'une page de détail de commande, confirmation avant tout import.
-- Import en 3 étapes vers HomeBox, avec reprise après interruption.
-- Téléchargement et rattachement de la facture PDF.
-- Détection des doublons.
-- Chiffrement de la clé API par phrase de passe, avec verrouillage de l'extension (PR #1).
-- Interface aux couleurs de HomeBox : thèmes clair, sombre et automatique, nouveau logo (PR #6).
-- Environnement HomeBox local via Docker Compose et guide de test local (PR #3).
-- Environnement de contribution (devcontainer, configuration de développement) et guide de contribution (PR #7, #8).
-- Commande `bun run ci` : vérification locale équivalente à la CI (PR #4).
-- Interface traduisible : tous les textes passent par des clés `t()` et un catalogue français unique `src/locales/fr.yml` (PR #9).
-- `MERCHANTS.md` : liste des marchands pris en charge, prévus et demandés, vérifiée par un test contre le registre `src/content/merchants/registry.ts`.
-- Wiki du projet dans `docs/wiki/` (installation, configuration, architecture, ajout d'un marchand, dépannage…), publiable avec `bun run wiki:publish`.
-- Modèles d'issue en français (bug, suggestion, détection de marchand, demande de marchand), étiquettes dans `.github/labels.yml` et `SECURITY.md`.
-- `bun run check:config` : validation des fichiers de réglage et des modèles d'issue, lancée en tête de `bun run ci`.
-- `bun run release:notes` : extraction des notes d'une version depuis `CHANGELOG.md`.
+- Amazon.fr MVP: detection of an order detail page, confirmation before any import.
+- 3-step import into HomeBox, with recovery after interruption.
+- Download and attachment of the PDF invoice.
+- Duplicate detection.
+- API key encryption with a passphrase, with extension locking (PR #1).
+- HomeBox-colored interface: light, dark and automatic themes, new logo (PR #6).
+- Local HomeBox environment via Docker Compose and local testing guide (PR #3).
+- Contribution environment (devcontainer, development configuration) and contribution guide (PR #7, #8).
+- `bun run ci` command: local check equivalent to CI (PR #4).
+- Translatable interface: all texts go through `t()` keys and a single French catalog `src/locales/fr.yml` (PR #9).
+- `MERCHANTS.md`: list of supported, planned and requested merchants, checked by a test against the `src/content/merchants/registry.ts` registry.
+- Project wiki in `docs/wiki/` (installation, configuration, architecture, adding a merchant, troubleshooting…), publishable with `bun run wiki:publish`.
+- Issue templates (bug, feature idea, merchant detection, merchant request), labels in `.github/labels.yml` and `SECURITY.md`.
+- `bun run check:config`: validation of the settings files and issue templates, run at the start of `bun run ci`.
+- `bun run release:notes`: extraction of a version's notes from `CHANGELOG.md`.
 
 ### Changed
 
-- **Action requise :** définir une phrase de passe au premier lancement ; la clé API existante est migrée vers le stockage chiffré (PR #1).
-- **Action requise :** build unique ; retirer l'ancienne extension « homelab » du navigateur puis reconfigurer l'extension (PR #5).
-- HTTP n'est accepté que pour les adresses du réseau local ; HTTPS est exigé ailleurs (PR #5).
-- La note HomeBox d'un objet importé (« Commande Amazon.fr : <n°> ») est construite à partir du catalogue de traduction (PR #9).
-- `README.md` réécrit en version courte et multi-marchands ; le détail est dans le wiki.
-- Modèles d'issue généralisés à tous les marchands (l'ancien modèle « page mal détectée » est remplacé).
+- **Action required:** set a passphrase on first launch; the existing API key is migrated to encrypted storage (PR #1).
+- **Action required:** single build; remove the old "homelab" extension from the browser, then reconfigure the extension (PR #5).
+- HTTP is only accepted for local network addresses; HTTPS is required elsewhere (PR #5).
+- The HomeBox note of an imported item ("Commande Amazon.fr : <number>") is built from the translation catalog (PR #9).
+- `README.md` rewritten as a short, multi-merchant version; the details are in the wiki.
+- Issue templates generalized to all merchants (the old "misdetected page" template is replaced).
 
 ### Fixed
 
-- Le client HomeBox manquait dans les commits à cause d'une règle `.gitignore` trop large (PR #2).
+- The HomeBox client was missing from commits because of an overly broad `.gitignore` rule (PR #2).
 
 ### Security
 
-- Clé API chiffrée au repos (AES-GCM, dérivation PBKDF2 à 600 000 itérations, liée à l'URL de l'instance) (PR #1).
+- API key encrypted at rest (AES-GCM, PBKDF2 derivation with 600,000 iterations, bound to the instance URL) (PR #1).
 
 [Unreleased]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Foufou-exe/homebox-clipper/releases/tag/v0.1.0

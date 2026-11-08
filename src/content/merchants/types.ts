@@ -1,21 +1,21 @@
 import type { DetectedPurchase, DocumentRef } from '@/shared/types';
 
-/** Contrat d'un extracteur marchand (contracts/merchant-extractor.md). */
+/** Contract of a merchant extractor (contracts/merchant-extractor.md). */
 export interface MerchantExtractor {
   id: DetectedPurchase['source'];
-  /** Noms d'hôte pris en charge (utilisés pour garder MERCHANTS.md cohérent avec le code). */
+  /** Supported host names (used to keep MERCHANTS.md consistent with the code). */
   domains: readonly string[];
   /**
-   * Hôtes exacts autorisés pour la photo du produit. Obligatoire : chaque marchand doit se prononcer.
-   * Une liste vide signifie « ce marchand ne fournit pas de photo ».
+   * Exact hosts allowed for the product photo. Required: every merchant must declare one.
+   * An empty list means "this merchant provides no photo".
    */
   imageHosts: readonly string[];
-  /** Vrai si l'URL relève de ce marchand (testé avant toute injection). */
+  /** True if the URL belongs to this merchant (tested before any injection). */
   matchesUrl(url: URL): boolean;
-  /** Vrai si le document est une page de détail de commande. */
+  /** True if the document is an order detail page. */
   isOrderPage(doc: Document): boolean;
-  /** Extraction pure, sans réseau ni effet de bord. Ne lève jamais d'exception. */
+  /** Pure extraction, with no network access or side effect. Never throws. */
   extract(doc: Document, pageUrl: URL): DetectedPurchase;
-  /** Résout les URL réelles de PDF (ex. menu « Facture »). Même origine uniquement. */
+  /** Resolves the real PDF URLs (e.g. the "Facture" menu). Same origin only. */
   resolveDocuments(doc: Document, pageUrl: URL, fetchSameOrigin: typeof fetch): Promise<DocumentRef[]>;
 }

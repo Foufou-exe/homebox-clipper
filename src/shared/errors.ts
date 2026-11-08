@@ -1,4 +1,4 @@
-/** Les codes d'erreur ; le texte affiché vient du catalogue (`error.<CODE>`, src/locales/fr.yml). */
+/** The error codes; the displayed text comes from the catalog (`error.<CODE>`, src/locales/*.yml). */
 export const ERROR_CODES = [
   'INVALID_URL',
   'INSECURE_URL',

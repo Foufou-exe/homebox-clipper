@@ -33,7 +33,7 @@ interface Line {
   product: DetectedProduct | null;
   selected: boolean;
   draft: ImportDraft;
-  /** `inherit` suit le choix de commande ; `null` retire l'emplacement pour ce produit (FR-014). */
+  /** `inherit` follows the order choice; `null` removes the location for this product (FR-014). */
   location: 'inherit' | LocationChoice | null;
 }
 
@@ -44,15 +44,15 @@ const purchase = ref<DetectedPurchase | null>(null);
 const lines = ref<Line[]>([]);
 const documents = ref<{ doc: DocumentRef; selected: boolean }[]>([]);
 const manualFiles = reactive(new Map<string, ManualFile>());
-/** Lignes dont l'image n'a pas pu être affichée : la photo n'est alors pas envoyée. */
+/** Rows whose image could not be displayed: the photo is then not sent. */
 const photoErrors = reactive(new Set<string>());
 
-/** Emplacements : chargés en parallèle de la détection, sans jamais bloquer le résumé (FR-017). */
+/** Locations: loaded in parallel with detection, never blocking the summary (FR-017). */
 const locState = ref<'loading' | 'ready' | 'unavailable'>('loading');
 const locError = ref<ErrorCode>('LOCATIONS_UNAVAILABLE');
 const locations = ref<LocationOption[]>([]);
 const orderLocation = ref<LocationChoice | null>(null);
-/** Vrai dès que l'utilisateur agit sur le choix de commande : la présélection ne l'écrase plus. */
+/** True as soon as the user acts on the order choice: the preselection no longer overwrites it. */
 let orderTouched = false;
 const orderModel = computed({
   get: () => orderLocation.value,
@@ -61,7 +61,7 @@ const orderModel = computed({
     orderLocation.value = v;
   },
 });
-/** Lignes dont le sélecteur d'emplacement est ouvert. */
+/** Rows whose location picker is open. */
 const editingLines = reactive(new Set<string>());
 
 async function loadLocations() {
@@ -74,7 +74,7 @@ async function loadLocations() {
     }
     locations.value = res.value.locations;
     locState.value = 'ready';
-    // Dernier emplacement utilisé (FR-020) : présélectionné s'il est dans la liste, sans écraser un choix déjà fait.
+    // Last location used (FR-020): preselected if it is in the list, without overwriting a choice already made.
     const last = res.value.lastUsedId ? locations.value.find((l) => l.id === res.value.lastUsedId) : undefined;
     if (last && !orderTouched) orderLocation.value = { id: last.id, path: [...last.path] };
   } catch {
@@ -90,7 +90,7 @@ function setLineLocation(line: Line, v: LocationChoice | null) {
   line.location = v;
   editingLines.delete(line.key);
 }
-/** Retour à l'héritage : le produit suit de nouveau le choix de commande (l'objet n'a toujours qu'un seul parent). */
+/** Back to inheritance: the product follows the order choice again (the object still has only one parent). */
 function useOrderLocation(line: Line) {
   line.location = 'inherit';
   editingLines.delete(line.key);
@@ -130,7 +130,7 @@ onMounted(async () => {
   documents.value = res.value.purchase.documents.map((doc) => ({ doc, selected: true }));
 });
 
-/** Un seul produit : un seul champ « Emplacement ». Plusieurs : champ de commande, puis une mention par produit. */
+/** A single product: a single "Location" field. Several: an order field, then one mention per product. */
 const multi = computed(() => lines.value.length > 1);
 const productName = (line: Line) => line.draft.name || t('summary.unnamedProduct');
 
@@ -157,7 +157,7 @@ function removeManual(id: string) {
 }
 
 function cancel() {
-  // Annuler : rien n'est envoyé, les données détectées sont oubliées.
+  // Cancel: nothing is sent, the detected data is forgotten.
   purchase.value = null;
   lines.value = [];
   documents.value = [];
@@ -200,7 +200,7 @@ function submit() {
     drafts: selectedLines.value.map((l) => ({
       ...l.draft,
       documents: docs,
-      // Aperçu en échec : la photo est « indisponible » (FR-009), pas « non demandée ».
+      // Preview failed: the photo is "unavailable" (FR-009), not "not requested".
       photo: l.draft.photo && !photoErrors.has(l.key) ? { ...l.draft.photo } : null,
       location: copyOf(effectiveLocation(l)),
     })),
@@ -208,7 +208,7 @@ function submit() {
       const f = manualFiles.get(d.id);
       return f ? [f] : [];
     }),
-    // Choix de commande seul : le service worker s'en sert pour mémoriser le dernier emplacement (R10).
+    // Order choice alone: the service worker uses it to remember the last location (R10).
     orderLocationId: orderLocation.value?.id ?? null,
   });
 }

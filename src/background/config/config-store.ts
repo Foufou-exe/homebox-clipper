@@ -5,20 +5,20 @@ import { DEFAULT_ITERATIONS, decryptApiKey, encryptApiKey, type EncryptedKey } f
 import { originOf } from './url-policy';
 
 const KEY = 'homeboxConfig';
-/** Clé API déchiffrée : storage.session uniquement (mémoire, effacée à la fermeture du navigateur). */
+/** Decrypted API key: storage.session only (in memory, cleared when the browser closes). */
 const SESSION_KEY = 'homeboxUnlocked';
 export const PENDING_PREFIX = 'pendingImport:';
-/** Dernier emplacement par instance (storage.local) : identifiants seuls, effacé avec la configuration (FR-021). */
+/** Last location per instance (storage.local): identifiers only, cleared along with the configuration (FR-021). */
 export const LAST_LOCATION_KEY = 'lastLocationByInstance';
 
-/** Configuration persistée dans storage.local : la clé n'y figure que chiffrée. */
+/** Configuration persisted in storage.local: the key is only stored encrypted. */
 interface StoredConfig {
   baseUrl: string;
-  /** null : clé migrée depuis l'ancien format, en attente d'une phrase de passe. */
+  /** null: key migrated from the old format, awaiting a passphrase. */
   encryptedKey: EncryptedKey | null;
   maskedKey: string;
   lastCheck: LastCheck | null;
-  /** Ancien format (v0.1.0) : clé en clair. Supprimé par `migrateLegacy`. */
+  /** Old format (v0.1.0): plaintext key. Removed by `migrateLegacy`. */
   apiKey?: string;
 }
 
@@ -47,11 +47,11 @@ async function readSessionKey(): Promise<string | null> {
 }
 
 /**
- * Stockage de la configuration HomeBox (R12, principe I).
- * Seul le service worker l'utilise ; l'UI ne reçoit que `getView`, sans la clé.
+ * HomeBox configuration storage (R12, principle I).
+ * Only the service worker uses it; the UI only receives `getView`, without the key.
  */
 export const configStore = {
-  /** Identifiants utilisables : uniquement si l'extension est déverrouillée. */
+  /** Usable credentials: only when the extension is unlocked. */
   async getCredentials(): Promise<Result<Credentials>> {
     const config = await readStored();
     if (!config) return fail('NOT_CONFIGURED');
@@ -74,7 +74,7 @@ export const configStore = {
     };
   },
 
-  /** Chiffre et enregistre la clé, puis déverrouille la session. */
+  /** Encrypts and saves the key, then unlocks the session. */
   async save(
     { baseUrl, apiKey, passphrase }: { baseUrl: string; apiKey: string; passphrase: string },
     iterations = DEFAULT_ITERATIONS,
@@ -92,8 +92,8 @@ export const configStore = {
   },
 
   /**
-   * Clé actuelle, pour réenregistrer la configuration sans la ressaisir :
-   * déchiffrée avec la phrase de passe, ou clé migrée encore en mémoire.
+   * Current key, to re-save the configuration without retyping it:
+   * decrypted with the passphrase, or a migrated key still in memory.
    */
   async currentKey(passphrase: string): Promise<Result<string>> {
     const config = await readStored();
@@ -120,7 +120,7 @@ export const configStore = {
     await browser.storage.session.remove(SESSION_KEY);
   },
 
-  /** Ancien format en clair : la clé quitte le disque et reste en mémoire jusqu'au choix d'une phrase de passe. */
+  /** Old plaintext format: the key leaves the disk and stays in memory until a passphrase is chosen. */
   async migrateLegacy(): Promise<void> {
     const config = await readStored();
     if (!config?.apiKey) return;
@@ -144,7 +144,7 @@ export const configStore = {
       try {
         await removeOrigin(originOf(config.baseUrl));
       } catch {
-        // permission déjà absente
+        // permission already absent
       }
     }
     const session = await browser.storage.session.get(null);

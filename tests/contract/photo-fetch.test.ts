@@ -15,7 +15,7 @@ const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2
 const WEBP = new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x45, 0x42, 0x50, 9]);
 
 type Init = RequestInit & { headers?: unknown };
-/** fetch simulé qui garde l'URL et les options exactes de chaque appel. */
+/** Mocked fetch that keeps the exact URL and options of each call. */
 function fakeFetch(respond: () => Response | Promise<Response>) {
   const calls: { url: string; init: Init }[] = [];
   const fn = vi.fn(async (input: RequestInfo | URL, init: Init = {}) => {
@@ -29,8 +29,8 @@ const image = (body: Uint8Array, type = 'image/jpeg', headers: Record<string, st
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('photo-fetch : options de la requête (R6)', () => {
-  it('credentials omit, redirect error, no-referrer, no-store, délai de 15 s, aucun en-tête', async () => {
+describe('photo-fetch: request options (R6)', () => {
+  it('credentials omit, redirect error, no-referrer, no-store, 15 s timeout, no header', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const f = fakeFetch(() => image(JPEG));
     const res = await fetchPhoto(photo(), f.fetch);
@@ -53,29 +53,29 @@ describe('photo-fetch : options de la requête (R6)', () => {
   });
 });
 
-describe('photo-fetch : refus avant toute requête', () => {
+describe('photo-fetch: refusal before any request', () => {
   it.each([
-    ['hôte non autorisé', photo({ url: 'https://evil.example/x.jpg' })],
-    ['hôte lookalike', photo({ url: 'https://m.media-amazon.com.evil.example/x.jpg' })],
+    ['disallowed host', photo({ url: 'https://evil.example/x.jpg' })],
+    ['lookalike host', photo({ url: 'https://m.media-amazon.com.evil.example/x.jpg' })],
     ['http:', photo({ url: 'http://m.media-amazon.com/x.jpg' })],
-    ['identifiants dans l’URL', photo({ url: 'https://u:p@m.media-amazon.com/x.jpg' })],
+    ['credentials in the URL', photo({ url: 'https://u:p@m.media-amazon.com/x.jpg' })],
     ['merchantId inconnu', photo({ merchantId: 'inconnu.example' as DraftPhoto['merchantId'] })],
-  ])('%s → PHOTO_UNAVAILABLE sans requête', async (_label, p) => {
+  ])('%s → PHOTO_UNAVAILABLE without a request', async (_label, p) => {
     const f = fakeFetch(() => image(JPEG));
     expect(await fetchPhoto(p, f.fetch)).toEqual({ ok: false, error: 'PHOTO_UNAVAILABLE' });
     expect(f.fetch).not.toHaveBeenCalled();
   });
 });
 
-describe('photo-fetch : échecs réseau', () => {
-  it('TypeError (réseau, CORS, redirection refusée) → PHOTO_UNAVAILABLE', async () => {
+describe('photo-fetch: network failures', () => {
+  it('TypeError (network, CORS, redirect refused) → PHOTO_UNAVAILABLE', async () => {
     const f = fakeFetch(() => {
       throw new TypeError('Failed to fetch');
     });
     expect(await fetchPhoto(photo(), f.fetch)).toEqual({ ok: false, error: 'PHOTO_UNAVAILABLE' });
   });
 
-  it('délai dépassé → PHOTO_UNAVAILABLE', async () => {
+  it('timeout exceeded → PHOTO_UNAVAILABLE', async () => {
     const f = fakeFetch(() => {
       throw new DOMException('The operation timed out.', 'TimeoutError');
     });
@@ -88,14 +88,14 @@ describe('photo-fetch : échecs réseau', () => {
   });
 });
 
-describe('photo-fetch : contenu refusé (FR-006)', () => {
-  it('réponse HTML (scénario 5) → PHOTO_NOT_IMAGE', async () => {
+describe('photo-fetch: content refused (FR-006)', () => {
+  it('HTML response (scenario 5) → PHOTO_NOT_IMAGE', async () => {
     const html = new TextEncoder().encode('<!doctype html><html></html>');
     const f = fakeFetch(() => image(html, 'text/html; charset=utf-8'));
     expect(await fetchPhoto(photo(), f.fetch)).toEqual({ ok: false, error: 'PHOTO_NOT_IMAGE' });
   });
 
-  it('Content-Type image/* mais signature HTML → PHOTO_NOT_IMAGE', async () => {
+  it('Content-Type image/* but HTML signature → PHOTO_NOT_IMAGE', async () => {
     const html = new TextEncoder().encode('<!doctype html><html></html>');
     const f = fakeFetch(() => image(html, 'image/jpeg'));
     expect(await fetchPhoto(photo(), f.fetch)).toEqual({ ok: false, error: 'PHOTO_NOT_IMAGE' });
@@ -109,7 +109,7 @@ describe('photo-fetch : contenu refusé (FR-006)', () => {
   it.each([
     ['SVG', new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'image/svg+xml'],
     ['GIF', new TextEncoder().encode('GIF89a\u0001\u0000'), 'image/gif'],
-    ['corps vide', new Uint8Array(0), 'image/jpeg'],
+    ['empty body', new Uint8Array(0), 'image/jpeg'],
   ])('%s → PHOTO_NOT_IMAGE', async (_label, body, type) => {
     const f = fakeFetch(() => image(body, type));
     expect(await fetchPhoto(photo(), f.fetch)).toEqual({ ok: false, error: 'PHOTO_NOT_IMAGE' });
@@ -117,12 +117,12 @@ describe('photo-fetch : contenu refusé (FR-006)', () => {
 });
 
 describe('photo-fetch : taille (R7)', () => {
-  it('Content-Length excessif → PHOTO_TOO_LARGE sans lire le corps', async () => {
+  it('excessive Content-Length → PHOTO_TOO_LARGE without reading the body', async () => {
     const f = fakeFetch(() => image(JPEG, 'image/jpeg', { 'Content-Length': String(MAX_IMAGE_BYTES + 1) }));
     expect(await fetchPhoto(photo(), f.fetch)).toEqual({ ok: false, error: 'PHOTO_TOO_LARGE' });
   });
 
-  it('flux sans Content-Length qui dépasse 5 Mio → PHOTO_TOO_LARGE, lecture interrompue', async () => {
+  it('stream without Content-Length exceeding 5 MiB → PHOTO_TOO_LARGE, read interrupted', async () => {
     const chunk = new Uint8Array(1024 * 1024);
     chunk.set(JPEG);
     let pulled = 0;
@@ -143,7 +143,7 @@ describe('photo-fetch : taille (R7)', () => {
     expect(cancelled).toBe(true);
   });
 
-  it('exactement 5 Mio : accepté', async () => {
+  it('exactly 5 MiB: accepted', async () => {
     const body = new Uint8Array(MAX_IMAGE_BYTES);
     body.set(JPEG);
     const f = fakeFetch(() => image(body));
@@ -152,7 +152,7 @@ describe('photo-fetch : taille (R7)', () => {
   });
 });
 
-describe('photo-fetch : succès, type et nom fixés par la signature', () => {
+describe('photo-fetch: success, type and name set by the signature', () => {
   it.each([
     ['JPEG', JPEG, 'image/jpeg', 'photo-produit.jpg'],
     ['PNG', PNG, 'image/png', 'photo-produit.png'],
@@ -163,15 +163,15 @@ describe('photo-fetch : succès, type et nom fixés par la signature', () => {
     expect(res).toEqual({ ok: true, value: { bytes, mimeType, filename } });
   });
 
-  it('un Content-Type mensonger ne change pas le type : la signature fait foi', async () => {
+  it('a misleading Content-Type does not change the type: the signature is authoritative', async () => {
     const f = fakeFetch(() => image(PNG, 'image/jpeg'));
     const res = await fetchPhoto(photo(), f.fetch);
     expect(res.ok && res.value).toMatchObject({ mimeType: 'image/png', filename: 'photo-produit.png' });
   });
 });
 
-describe('photo-fetch : journaux et isolation de la clé (FR-023, FR-026)', () => {
-  it('ne journalise jamais l’URL, seulement { endpoint, status, ms }', async () => {
+describe('photo-fetch: logs and key isolation (FR-023, FR-026)', () => {
+  it('never logs the URL, only { endpoint, status, ms }', async () => {
     const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) =>
       vi.spyOn(console, k).mockImplementation(() => undefined),
     );
@@ -185,7 +185,7 @@ describe('photo-fetch : journaux et isolation de la clé (FR-023, FR-026)', () =
     expect(output).not.toContain('test-1');
   });
 
-  it('le module n’importe ni le client HomeBox ni le coffre de la clé', async () => {
+  it('the module imports neither the HomeBox client nor the key vault', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(resolve(__dirname, '../../src/background/import/photo-fetch.ts'), 'utf8');

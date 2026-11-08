@@ -1,6 +1,6 @@
 {
   "name": "homebox-clipper",
-  "description": "Importez vos achats en ligne dans votre inventaire HomeBox.",
+  "description": "Import your online purchases into your HomeBox inventory.",
   "private": true,
   "version": "0.1.0",
   "type": "module",

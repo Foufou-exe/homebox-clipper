@@ -1,4 +1,4 @@
-/** Parseurs purs pour les valeurs affichées par Amazon.fr (R6, R7). Sans accès au DOM. */
+/** Pure parsers for the values displayed by Amazon.fr (R6, R7). No DOM access. */
 
 const SPACES = /[\s\u00a0\u202f\u2009]+/g;
 
@@ -55,7 +55,7 @@ const MONTHS: Record<string, number> = {
 
 const stripAccents = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 
-/** « 22 octobre 2026 », « 1er févr. 2026 » → « 2026-10-22 » */
+/** "22 octobre 2026", "1er févr. 2026" → "2026-10-22" */
 export function parseDateFr(input: string): string | null {
   const text = stripAccents(input.replace(SPACES, ' ')).toLowerCase();
   const match = text.match(/(\d{1,2})(?:er)?\s+([a-z]+)\.?\s+(\d{4})/);
@@ -70,7 +70,7 @@ export function parseDateFr(input: string): string | null {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-/** Numéro de commande physique (123-1234567-1234567) ou numérique (D01-…). */
+/** Physical (123-1234567-1234567) or digital (D01-…) order number. */
 export function parseOrderNumber(input: string): string | null {
   return input.match(/(?<![\d-])(?:\d{3}|D\d{2})-\d{7}-\d{7}(?![\d-])/)?.[0] ?? null;
 }
@@ -83,8 +83,8 @@ export function parseQuantity(input: string): number | null {
 const SIZE_TOKEN = /^(https:\/\/[^/]+\/images\/I\/[^/.]+)\._[^/]*_\.([a-z0-9]+)$/;
 
 /**
- * Remplace le jeton de taille d'une URL d'image Amazon par `_SL1000_` (côté long de 1000 px au plus, R7).
- * Sans jeton, l'URL est renvoyée telle quelle.
+ * Replaces the size token of an Amazon image URL with `_SL1000_` (long side of 1000 px at most, R7).
+ * Without a token, the URL is returned as is.
  */
 export function toPhotoUrl(src: string): string {
   return src.replace(SIZE_TOKEN, '$1._SL1000_.$2');

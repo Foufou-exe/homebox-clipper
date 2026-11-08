@@ -1,167 +1,167 @@
-# Contribuer à homebox-clipper
+# Contributing to homebox-clipper
 
-Merci de votre intérêt ! Ce guide permet d'être opérationnel en quelques minutes.
+Thank you for your interest! This guide gets you up and running in a few minutes.
 
-## Démarrage rapide
+## Quick start
 
-**Option A : sur votre poste**
+**Option A: on your machine**
 
 ```bash
 git clone https://github.com/Foufou-exe/homebox-clipper.git
 cd homebox-clipper
-mise install          # facultatif : installe Bun et Node aux versions du projet (mise.toml)
-bun run setup         # dépendances, .env de l'instance HomeBox, hook pre-push (au choix)
-bun run homebox:up    # HomeBox sur http://localhost:3100
-bun run dev           # ouvre un Chrome de développement avec l'extension
+mise install          # optional: installs Bun and Node at the project's versions (mise.toml)
+bun run setup         # dependencies, HomeBox instance .env, pre-push hook (optional)
+bun run homebox:up    # HomeBox on http://localhost:3100
+bun run dev           # opens a development Chrome with the extension
 ```
 
-**Option B : conteneur de développement (VS Code / GitHub Codespaces)**
+**Option B: development container (VS Code / GitHub Codespaces)**
 
-Ouvrez le dépôt dans VS Code, puis *Reopen in Container*. Le conteneur installe Bun, les
-dépendances et le `.env`, et dispose de son propre Docker pour HomeBox (port 3100 redirigé vers
-votre poste). Il n'y a pas de navigateur dans le conteneur : lancez `bun run build` (ou
-`bun run dev`, qui reconstruit en continu) et chargez le dossier `.output/chrome-mv3/` (ou
-`.output/chrome-mv3-dev/`) dans le Chrome de votre poste.
+Open the repository in VS Code, then *Reopen in Container*. The container installs Bun, the
+dependencies and the `.env`, and has its own Docker for HomeBox (port 3100 forwarded to your
+machine). There is no browser in the container: run `bun run build` (or `bun run dev`, which
+rebuilds continuously) and load the `.output/chrome-mv3/` folder (or `.output/chrome-mv3-dev/`)
+in the Chrome on your machine.
 
-Ensuite :
+Then:
 
-1. Ouvrez <http://localhost:3100>, créez un compte de test et une clé API
-   (détails : [docs/local-homebox.md](docs/local-homebox.md)).
-2. Configurez l'extension (adresse `http://localhost:3100`, clé, phrase de passe).
+1. Open <http://localhost:3100>, create a test account and an API key
+   (details: [docs/local-homebox.md](docs/local-homebox.md)).
+2. Configure the extension (address `http://localhost:3100`, key, passphrase).
 
-### Prérequis
+### Prerequisites
 
-| Outil | Version | Remarque |
+| Tool | Version | Note |
 |-------|---------|----------|
-| [Bun](https://bun.sh) | 1.4 (`packageManager` dans `package.json`) | gestionnaire de paquets et scripts |
-| [Node.js](https://nodejs.org) | LTS | utilisé par Vite / WXT |
-| Docker + Compose | récent | instance HomeBox locale |
-| Chrome ou Chromium | récent | pour charger l'extension |
-| `rsvg-convert` (librsvg) | facultatif | seulement pour `bun run icons` |
+| [Bun](https://bun.sh) | 1.4 (`packageManager` in `package.json`) | package manager and scripts |
+| [Node.js](https://nodejs.org) | LTS | used by Vite / WXT |
+| Docker + Compose | recent | local HomeBox instance |
+| Chrome or Chromium | recent | to load the extension |
+| `rsvg-convert` (librsvg) | optional | only for `bun run icons` |
 
-[mise](https://mise.jdx.dev) installe Bun et Node aux bonnes versions grâce à `mise.toml`.
+[mise](https://mise.jdx.dev) installs Bun and Node at the right versions thanks to `mise.toml`.
 
-### Éditeur
+### Editor
 
-VS Code propose les extensions recommandées (`.vscode/extensions.json`) : Vue (Volar), ESLint,
-Prettier, Vitest, EditorConfig, Bun. Le formatage et les corrections ESLint s'appliquent à
-l'enregistrement. Les tâches courantes sont dans *Terminal → Run Task*
-(vérifications, mode dev, build, tests en continu, HomeBox local).
+VS Code suggests the recommended extensions (`.vscode/extensions.json`): Vue (Volar), ESLint,
+Prettier, Vitest, EditorConfig, Bun. Formatting and ESLint fixes are applied on save. Common
+tasks are in *Terminal → Run Task* (checks, dev mode, build, test watch, local HomeBox).
 
-## Commandes
+## Commands
 
-Chaque commande se lance avec `bun run <script>`.
+Every command is run with `bun run <script>`.
 
-| Commande | Rôle |
+| Command | Purpose |
 |----------|------|
-| `bun run setup` | Préparation du poste (relançable sans risque) |
-| `bun run dev` | Mode dev avec rechargement automatique |
+| `bun run setup` | Prepares your machine (safe to re-run) |
+| `bun run dev` | Dev mode with automatic reload |
 | `bun run build` | Build → `.output/chrome-mv3/` |
-| `bun run zip` | Archive prête à publier |
-| `bun run test` | Tests unitaires et de contrat (Vitest, **pas** `bun test`) |
-| `bun run test:watch` | Tests en continu |
-| `bun run test:build` | Vérifie le manifeste produit (permissions, CSP), après `bun run build` |
-| `bun run typecheck` | Vérification des types (`vue-tsc`) |
+| `bun run zip` | Archive ready to publish |
+| `bun run test` | Unit and contract tests (Vitest, **not** `bun test`) |
+| `bun run test:watch` | Tests in watch mode |
+| `bun run test:build` | Checks the built manifest (permissions, CSP), after `bun run build` |
+| `bun run typecheck` | Type checking (`vue-tsc`) |
 | `bun run lint` | ESLint |
-| `bun run check:config` | Valide les fichiers de réglage : JSON/YAML, version de Bun identique partout, modèles d'issue et étiquettes |
-| `bun run ci` | **Toutes les vérifications** : `check:config`, typecheck, lint, tests, build, manifeste |
-| `bun run homebox:up` | Démarre l'instance HomeBox locale |
-| `bun run homebox:down` | Arrête l'instance HomeBox locale |
-| `bun run homebox:logs` | Suit les journaux de HomeBox |
-| `bun run icons` | Régénère `public/icon/*.png` depuis `src/assets/logo.svg` |
-| `bun run release:notes` | Affiche la section d'une version de `CHANGELOG.md` (voir « Changelog ») |
-| `bun run wiki:publish` | Publie `docs/wiki/` vers le wiki GitHub (action manuelle, voir « Documentation et wiki ») |
+| `bun run check:config` | Validates the settings files: JSON/YAML, same Bun version everywhere, issue templates and labels |
+| `bun run ci` | **All checks**: `check:config`, typecheck, lint, tests, build, manifest |
+| `bun run homebox:up` | Starts the local HomeBox instance |
+| `bun run homebox:down` | Stops the local HomeBox instance |
+| `bun run homebox:logs` | Follows the HomeBox logs |
+| `bun run icons` | Regenerates `public/icon/*.png` from `src/assets/logo.svg` |
+| `bun run release:notes` | Prints a version's section of `CHANGELOG.md` (see "Changelog") |
+| `bun run wiki:publish` | Publishes `docs/wiki/` to the GitHub wiki (manual action, see "Documentation and wiki") |
 
-`bun run dev` se personnalise avec un fichier local `web-ext.config.ts` : autre navigateur, pas
-de navigateur, page de démarrage. Voir `web-ext.config.example.ts`.
+`bun run dev` can be customized with a local `web-ext.config.ts` file: another browser, no
+browser, start page. See `web-ext.config.example.ts`.
 
-## Façon de travailler
+## Workflow
 
-1. **Une branche par sujet**, créée depuis `main` à jour : `feat/…`, `fix/…`, `docs/…`,
+1. **One branch per topic**, created from an up-to-date `main`: `feat/…`, `fix/…`, `docs/…`,
    `chore/…`, `ci/…`.
-2. **Commits** au format [Conventional Commits](https://www.conventionalcommits.org/fr/)
-   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), en français ou en anglais.
-3. **`bun run ci` doit passer en local avant chaque push.** Le quota de GitHub Actions du dépôt
-   est limité : la CI GitHub ne tourne que sur les pull requests de code vers `main`, et la
-   vérification de référence est locale. `bun run setup` peut installer un hook `pre-push` qui la
-   lance automatiquement.
-4. Ouvrez une **pull request** vers `main` en remplissant le modèle.
+2. **Commits** in [Conventional Commits](https://www.conventionalcommits.org/en/) format
+   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), in English or French.
+3. **`bun run ci` must pass locally before every push.** The repository's GitHub Actions quota
+   is limited: GitHub CI only runs on code pull requests to `main`, and the reference check is
+   local. `bun run setup` can install a `pre-push` hook that runs it automatically.
+4. Open a **pull request** to `main` and fill in the template.
 
-## Règles du projet
+## Project rules
 
-Les principes complets sont dans la constitution du projet. Les essentiels :
+The full principles are in the project constitution. The essentials:
 
-- **Clé API** : seul le service worker l'utilise. Elle est chiffrée au repos, jamais envoyée
-  ailleurs qu'à l'instance HomeBox et jamais journalisée. Pas de `console.*` hors de
-  `src/shared/logger.ts` (règle ESLint).
-- **Confirmation explicite** : aucune écriture dans HomeBox sans clic de l'utilisateur.
-- **Permissions minimales** : toute modification du manifeste (permissions, CSP) doit être
-  signalée et justifiée dans la PR. `bun run test:build` vérifie le manifeste produit.
-- **Sélecteurs d'un marchand** : uniquement dans le `selectors.ts` de son dossier (par exemple
-  `src/content/merchants/amazon-fr/selectors.ts`), avec plusieurs sélecteurs par champ.
-- **Tests** : chaque extracteur est testé sur des pages **anonymisées**
-  (par exemple `tests/fixtures/amazon-fr/`, procédure dans le README de ce dossier). **Ne commitez jamais**
-  de page brute d'un marchand, de clé API, de pepper ni d'adresse d'instance réelle.
+- **API key**: only the service worker uses it. It is encrypted at rest, never sent anywhere
+  other than the HomeBox instance and never logged. No `console.*` outside
+  `src/shared/logger.ts` (ESLint rule).
+- **Explicit confirmation**: no write to HomeBox without a user click.
+- **Minimal permissions**: any manifest change (permissions, CSP) must be flagged and justified
+  in the PR. `bun run test:build` checks the built manifest.
+- **Merchant selectors**: only in the `selectors.ts` of its folder (for example
+  `src/content/merchants/amazon-fr/selectors.ts`), with several selectors per field.
+- **Tests**: each extractor is tested on **anonymized** pages
+  (for example `tests/fixtures/amazon-fr/`, procedure in that folder's README). **Never commit**
+  a raw merchant page, an API key, a pepper or a real instance address.
+- **Interface texts**: any interface text you add goes into both `src/locales/en.yml` **and**
+  `src/locales/fr.yml` in the same contribution (same keys, same `$n` substitutions);
+  `bun run check:config` checks this.
 
-## Cas fréquents
+## Common cases
 
-**Amazon a changé sa mise en page** : capturez la page dans `tests/fixtures/amazon-fr/raw/`
-(ignoré par git), anonymisez-la, ajoutez un test qui échoue, puis corrigez `selectors.ts`.
+**Amazon changed its layout**: capture the page in `tests/fixtures/amazon-fr/raw/`
+(ignored by git), anonymize it, add a failing test, then fix `selectors.ts`.
 
-**Ajouter un marchand** : un dossier `src/content/merchants/<marchand>/` qui implémente
-`MerchantExtractor` (`src/content/merchants/types.ts`), avec ses sélecteurs, ses fixtures et un
-point d'entrée injectable dans `src/entrypoints/`. Ni l'orchestrateur d'import, ni le client
-HomeBox, ni l'interface n'ont à changer.
+**Adding a merchant**: a `src/content/merchants/<merchant>/` folder that implements
+`MerchantExtractor` (`src/content/merchants/types.ts`), with its selectors, its fixtures and an
+injectable entry point in `src/entrypoints/`. Neither the import orchestrator, nor the HomeBox
+client, nor the interface needs to change.
 
-**Modifier l'interface** : les couleurs sont des variables CSS dans `src/ui/theme.css`.
-Vérifiez vos changements dans les thèmes clair et sombre.
+**Changing the interface**: colors are CSS variables in `src/ui/theme.css`.
+Check your changes in both the light and dark themes.
 
 ## Changelog
 
-Toute évolution visible par un utilisateur est ajoutée à la section `[Unreleased]` de
-[CHANGELOG.md](CHANGELOG.md) (format [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/)),
-dans la même PR. `bun run release:notes Unreleased` affiche cette section ; la procédure de
-publication est dans le wiki : [Releasing](https://github.com/Foufou-exe/homebox-clipper/wiki/Releasing).
+Every user-visible change is added to the `[Unreleased]` section of
+[CHANGELOG.md](CHANGELOG.md) (format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)),
+in the same PR. `bun run release:notes Unreleased` prints that section; the release procedure is
+in the wiki: [Releasing](https://github.com/Foufou-exe/homebox-clipper/wiki/Releasing).
 
-## Marchands pris en charge
+## Supported merchants
 
-L'extension vise **tous les sites marchands**, pas seulement Amazon. La liste des marchands est
-dans [MERCHANTS.md](MERCHANTS.md), tenue à la main et vérifiée par un test contre
-`src/content/merchants/registry.ts` : ajoutez votre marchand au registre, puis mettez à jour `MERCHANTS.md`.
-Pas à pas : [Adding-a-merchant](https://github.com/Foufou-exe/homebox-clipper/wiki/Adding-a-merchant) et [Supported-merchants](https://github.com/Foufou-exe/homebox-clipper/wiki/Supported-merchants).
+The extension targets **all online stores**, not just Amazon. The merchant list is in
+[MERCHANTS.md](MERCHANTS.md), maintained by hand and checked by a test against
+`src/content/merchants/registry.ts`: add your merchant to the registry, then update `MERCHANTS.md`.
+Step by step: [Adding-a-merchant](https://github.com/Foufou-exe/homebox-clipper/wiki/Adding-a-merchant) and [Supported-merchants](https://github.com/Foufou-exe/homebox-clipper/wiki/Supported-merchants).
 
-## Traductions
+## Translations
 
-Tous les textes visibles passent par `t()` (clés du catalogue `src/locales/fr.yml`) : aucun texte
-en dur dans les composants. Le catalogue est pour l'instant uniquement français ; l'anglais est
-prévu dans une étape ultérieure. Détails : [Translations](https://github.com/Foufou-exe/homebox-clipper/wiki/Translations).
+All visible texts go through `t()` (keys of the `src/locales/en.yml` and `src/locales/fr.yml`
+catalogs): no hard-coded text in components. English is the reference catalog; French must have
+the same keys and substitutions, and `bun run check:config` fails otherwise. Details: [Translations](https://github.com/Foufou-exe/homebox-clipper/wiki/Translations).
 
-## Documentation et wiki
+## Documentation and wiki
 
-Les pages du wiki vivent dans `docs/wiki/` (en français) et sont revues comme le reste du code.
-`bun run wiki:publish` les pousse vers le wiki GitHub ; c'est une action manuelle, à ne lancer
-qu'avec l'accord du mainteneur. Les liens du wiki vers des fichiers du dépôt sont des URL
-absolues (`blob/main`).
+Wiki pages live in `docs/wiki/` (in English) and are reviewed like the rest of the code.
+`bun run wiki:publish` pushes them to the GitHub wiki; it is a manual action, to be run only
+with the maintainer's approval. Wiki links to repository files are absolute URLs (`blob/main`).
 
-## Maintenir l'environnement de dev
+## Maintaining the dev environment
 
-Quand Bun, Node, HomeBox, une extension VS Code ou WXT change, plusieurs fichiers doivent évoluer
-ensemble. La liste de contrôle est dans le wiki :
-[Maintaining-the-dev-environment](https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment), et
-`bun run check:config` détecte une partie des oublis. Les modèles d'issue et `labels.yml` ne
-déclenchent pas la CI GitHub : `bun run ci` en local est leur seule garde.
+When Bun, Node, HomeBox, a VS Code extension or WXT changes, several files must change
+together. The checklist is in the wiki:
+[Maintaining-the-dev-environment](https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment), and
+`bun run check:config` catches some of the omissions. Issue templates and `labels.yml` do not
+trigger GitHub CI: running `bun run ci` locally is their only guard.
 
-## Signaler un problème
+## Reporting a problem
 
-Utilisez les modèles d'issue : bug, suggestion, **page de marchand mal détectée** ou **demande de
-nouveau marchand**. Pour une détection erronée, indiquez le marchand, le type de commande (vendeur
-tiers, plusieurs articles…) et le champ concerné, **sans** joindre la page brute.
+Use the issue templates: bug, feature idea, **misdetected merchant page** or **new merchant
+request**. For a wrong detection, state the merchant, the order type (third-party seller,
+multiple items…) and the affected field, **without** attaching the raw page.
 
-Pour une **vulnérabilité**, n'ouvrez pas d'issue publique : suivez [SECURITY.md](SECURITY.md).
-Mainteneur : activez *Private vulnerability reporting* dans *Settings → Code security* du dépôt si
-le dépôt le permet ; sinon, le repli décrit dans `SECURITY.md` s'applique.
+For a **vulnerability**, do not open a public issue: follow [SECURITY.md](SECURITY.md).
+Maintainer: enable *Private vulnerability reporting* in the repository's *Settings → Code security*
+if the repository allows it; otherwise the fallback described in `SECURITY.md` applies.
 
-## Aller plus loin
+## Going further
 
-Le [wiki](https://github.com/Foufou-exe/homebox-clipper/wiki/Home) détaille l'[architecture](https://github.com/Foufou-exe/homebox-clipper/wiki/Architecture), les
-[tests et fixtures](https://github.com/Foufou-exe/homebox-clipper/wiki/Testing-and-fixtures) et la [configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration).
+The [wiki](https://github.com/Foufou-exe/homebox-clipper/wiki/Home) details the [architecture](https://github.com/Foufou-exe/homebox-clipper/wiki/Architecture), the
+[tests and fixtures](https://github.com/Foufou-exe/homebox-clipper/wiki/Testing-and-fixtures) and the [configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration).

@@ -1,6 +1,6 @@
 /**
- * Affiche la section d'une version de CHANGELOG.md (sans le titre de version ni les liens de
- * comparaison). Usage : bun scripts/release-notes.ts <version|Unreleased> [--file <chemin>]
+ * Prints a version's section of CHANGELOG.md (without the version heading or the comparison
+ * links). Usage: bun scripts/release-notes.ts <version|Unreleased> [--file <path>]
  */
 import { readFileSync } from 'node:fs';
 
@@ -10,7 +10,7 @@ const file = fileIdx >= 0 ? args[fileIdx + 1] : 'CHANGELOG.md';
 const version = args.filter((_, i) => fileIdx < 0 || (i !== fileIdx && i !== fileIdx + 1))[0]?.replace(/^v/, '');
 
 if (!version || !file) {
-  console.error('Usage : release-notes <version|Unreleased> [--file <chemin>]');
+  console.error('Usage: release-notes <version|Unreleased> [--file <path>]');
   process.exit(2);
 }
 
@@ -20,7 +20,7 @@ const isLink = (l: string) => /^\[[^\]]+\]:\s/.test(l);
 const start = lines.findIndex((l) => l.toLowerCase().startsWith(`## [${version.toLowerCase()}]`));
 
 if (start < 0) {
-  console.error(`Version introuvable dans ${file} : ${version}`);
+  console.error(`Version not found in ${file}: ${version}`);
   process.exit(1);
 }
 

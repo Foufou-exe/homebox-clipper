@@ -9,8 +9,8 @@ const manualOrderDoc: DocumentRef = {
   label: 'bon-de-commande.pdf',
 };
 
-describe('orchestrateur — saisie et fichiers manuels (US3)', () => {
-  it('un bon de commande manuel est envoyé avec type=attachment', async () => {
+describe('orchestrator — manual entry and files (US3)', () => {
+  it('a manual order form is uploaded with type=attachment', async () => {
     const { client, orchestrator } = setup();
     const r = await orchestrator.startImport(3, [draft({ documents: [manualOrderDoc] })], [
       { docId: 'manual-1', filename: 'bon-de-commande.pdf', base64: PDF_B64 },
@@ -24,7 +24,7 @@ describe('orchestrateur — saisie et fichiers manuels (US3)', () => {
     });
   });
 
-  it('un fichier manuel non PDF est rejeté côté service worker avant tout appel HomeBox', async () => {
+  it('a non-PDF manual file is rejected on the service worker side before any HomeBox call', async () => {
     const { client, orchestrator } = setup();
     const r = await orchestrator.startImport(3, [draft({ documents: [manualOrderDoc] })], [
       { docId: 'manual-1', filename: 'x.pdf', base64: bytesToBase64(new TextEncoder().encode('<html>')) },
@@ -33,14 +33,14 @@ describe('orchestrateur — saisie et fichiers manuels (US3)', () => {
     expect(client.createEntity).not.toHaveBeenCalled();
   });
 
-  it('import sans document : objet créé, aucune pièce jointe, succès', async () => {
+  it('import without document: object created, no attachment, success', async () => {
     const { client, orchestrator } = setup();
     const r = await orchestrator.startImport(3, [draft({ documents: [] })], []);
     expect(r.ok && r.value[0]?.status).toBe('success');
     expect(client.addAttachment).not.toHaveBeenCalled();
   });
 
-  it('saisie manuelle complète (aucune détection) : brouillon sans commande ni page', async () => {
+  it('full manual entry (no detection): draft without order or page', async () => {
     const { client, orchestrator } = setup();
     const r = await orchestrator.startImport(3, [
       draft({ orderNumber: null, pageUrl: null, purchaseDate: null, purchasePrice: null, documents: [] }),

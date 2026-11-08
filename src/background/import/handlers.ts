@@ -13,16 +13,16 @@ import { fetchPhoto } from './photo-fetch';
 import { pendingStore } from './pending-store';
 
 /**
- * Imports en cours dans CE service worker. En mémoire, donc vide après un redémarrage : un `running`
- * persisté mais absent de l'ensemble n'a plus de processus derrière lui (R8).
+ * Imports in progress in THIS service worker. In memory, so empty after a restart: a persisted
+ * `running` import missing from the set has no process behind it anymore (R8).
  */
 export const activeImports = new Set<string>();
 
-/** Rend réessayable un import `running` orphelin, et le persiste. */
+/** Makes an orphaned `running` import retryable, and persists it. */
 async function recoverOrphan(p: PendingImport): Promise<PendingImport> {
   if (p.status !== 'running' || activeImports.has(p.id)) return p;
   const recovered: PendingImport = { ...p, status: p.entityId ? 'partial' : 'failed', orphaned: true };
-  // Seul un import dont le POST de création a démarré est incertain ; les suivants d'un lot ne le sont pas.
+  // Only an import whose creation POST has started is uncertain; the following ones in a batch are not.
   if (!p.entityId && p.createAttempted) recovered.createUncertain = true;
   await pendingStore.save(recovered);
   return recovered;
@@ -36,25 +36,25 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
     client: createHomeBoxClient({ baseUrl: config.baseUrl, apiKey: config.apiKey }),
     store: pendingStore,
     async downloadDetected(tabId, url) {
-      // L'onglet a pu être rechargé depuis la détection (reprise US4) : on réinjecte le script.
+      // The tab may have been reloaded since detection (US4 resume): the script is injected again.
       if (!(await injectExtractor(tabId))) return fail('DOWNLOAD_REFUSED');
       try {
         return await sendToTab(tabId, { type: 'amazon/download', url });
       } catch {
-        // onglet fermé ou rechargé : le script injecté n'est plus là
+        // tab closed or reloaded: the injected script is gone
         return fail('DOWNLOAD_REFUSED');
       }
     },
     fetchPhoto,
-    // Dernier emplacement utilisé, propre à cette instance (R10) : identifiant seul.
+    // Last location used, specific to this instance (R10): identifier only.
     rememberLocation: (id) => lastLocation.set(config.baseUrl, id),
     notify(pending) {
       browser.runtime.sendMessage({ type: 'import/progress', pending }).catch(() => {
-        // popup fermé : l'état reste lisible via import/pending
+        // popup closed: the state remains readable via import/pending
       });
     },
     newId() {
-      // L'identifiant est déclaré actif avant que l'import puisse être persisté.
+      // The identifier is declared active before the import can be persisted.
       const id = crypto.randomUUID();
       started.push(id);
       activeImports.add(id);
@@ -75,8 +75,8 @@ export function registerImportHandlers(): void {
   });
 
   register('import/retry', async ({ pendingId, manualFiles, location }) => {
-    // Reprise déjà en cours (double clic, deux popups) : pas de deuxième exécution, et ce second appel ne
-    // retire pas l'identifiant du premier.
+    // Resume already in progress (double click, two popups): no second run, and this second call does not
+    // remove the first call's identifier.
     if (activeImports.has(pendingId)) {
       const current = await pendingStore.get(pendingId);
       return current ? ok(current) : fail('BAD_MESSAGE');
@@ -91,7 +91,7 @@ export function registerImportHandlers(): void {
   });
 
   register('import/abandon', async ({ pendingId }) => {
-    // Abandonner ne contacte pas HomeBox : possible même extension verrouillée.
+    // Abandoning does not contact HomeBox: possible even while the extension is locked.
     const pending = await pendingStore.get(pendingId);
     if (pending) await pendingStore.purge(pending);
     return ok(undefined);

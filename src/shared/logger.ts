@@ -1,14 +1,14 @@
 import type { ErrorCode } from './errors';
 
 /**
- * Seul point d'accès à la console (R14, principe I).
- * La signature est fermée : aucune valeur arbitraire (clé, données d'achat) ne peut être journalisée.
+ * The only access point to the console (R14, principle I).
+ * The signature is closed: no arbitrary value (key, purchase data) can be logged.
  */
 export interface LogMeta {
   code?: ErrorCode;
   status?: number;
   ms?: number;
-  /** Gabarit d'endpoint, ex. `POST /entities/{id}/attachments` — jamais d'URL réelle. */
+  /** Endpoint template, e.g. `POST /entities/{id}/attachments` — never a real URL. */
   endpoint?: string;
 }
 

@@ -1,52 +1,55 @@
+**English** | [Français](README.fr.md)
+
 <div align="center">
 
 <img src="public/icon/128.png" alt="" width="96" height="96">
 
 # homebox-clipper
 
-**Transformez un achat en ligne en objet d'inventaire [HomeBox](https://github.com/sysadminsmedia/homebox), facture comprise, en un clic.**
+**Turn an online purchase into a [HomeBox](https://github.com/sysadminsmedia/homebox) inventory item, invoice included, in one click.**
 
 [![CI](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml/badge.svg)](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
-![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supporté-success)
-![Statut](https://img.shields.io/badge/statut-MVP-orange)
+![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supported-success)
+![Status](https://img.shields.io/badge/status-MVP-orange)
 
 </div>
 
 ---
 
-**homebox-clipper** est un compagnon d'import pour les sites marchands en ligne : depuis la page
-de commande, il détecte le produit, le prix, la date, le numéro de commande, le vendeur et la
-facture PDF, puis crée l'objet dans votre instance HomeBox. Vous vérifiez, vous confirmez, c'est
-rangé. **Amazon.fr est le premier site pris en charge** ; d'autres marchands sont prévus et
-l'architecture est faite pour en ajouter facilement.
+**homebox-clipper** is an import companion for online stores: from the order page, it detects the
+product, price, date, order number, seller and PDF invoice, then creates the item in your HomeBox
+instance. You review, you confirm, it is filed away. **Amazon.fr is the first supported store**;
+more merchants are planned and the architecture is built to add them easily.
 
 > [!NOTE]
-> Rien n'est jamais envoyé sans votre confirmation, et rien n'est envoyé ailleurs qu'à **votre**
-> instance HomeBox.
+> Nothing is ever sent without your confirmation, and nothing is sent anywhere other than **your**
+> HomeBox instance.
 
-## Fonctionnalités
+## Features
 
-- **Détection automatique** de l'achat sur la page de commande du marchand.
-- **Résumé modifiable** avant tout envoi, avec les champs non détectés signalés.
-- **Commandes multi-articles**, **ajout manuel** d'un PDF et **détection des doublons**.
-- **Reprise sur erreur** : si la facture n'a pas pu être envoyée, réessayez sans créer de doublon.
-- **Interface aux couleurs de HomeBox**, en thème clair, sombre ou automatique.
-- **Confidentialité** : aucun serveur intermédiaire ; la clé API est chiffrée par votre phrase de
-  passe et n'est utilisée que par le service worker.
+- **Automatic detection** of the purchase on the merchant's order page.
+- **Editable summary** before anything is sent, with undetected fields flagged.
+- **Multi-item orders**, **manual PDF attachment** and **duplicate detection**.
+- **Error recovery**: if the invoice could not be sent, retry without creating a duplicate.
+- **Product photo** attached to the item as its main image (can be unticked per product).
+- **Location choice** among your HomeBox locations, with search; the last one used is suggested.
+- **HomeBox-colored interface**, in light, dark or automatic theme, in **English or French** depending on your browser language.
+- **Privacy**: no intermediary server; the API key is encrypted with your passphrase and is only
+  used by the service worker.
 
-## Marchands pris en charge
+## Supported merchants
 
-La liste à jour (pris en charge, partiels, prévus, demandés) est dans
-**[MERCHANTS.md](MERCHANTS.md)**. Votre boutique n'y figure pas ? Ouvrez une
-[demande de marchand](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml).
+The up-to-date list (supported, partial, planned, requested) is in
+**[MERCHANTS.md](MERCHANTS.md)**. Your store is not listed? Open a
+[merchant request](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml).
 
 ## Installation
 
-L'extension n'est pas encore publiée sur le Chrome Web Store : il faut la compiler, puis la charger
-en mode développeur. Prérequis : Chrome ou Chromium, [Bun](https://bun.sh) et
-[Node.js](https://nodejs.org) LTS, et une instance
-[HomeBox](https://github.com/sysadminsmedia/homebox) (testé avec **v0.27.0**).
+The extension is not yet published on the Chrome Web Store: you need to build it, then load it in
+developer mode. Prerequisites: Chrome or Chromium, [Bun](https://bun.sh) and
+[Node.js](https://nodejs.org) LTS, and a [HomeBox](https://github.com/sysadminsmedia/homebox)
+instance (tested with **v0.27.0**).
 
 ```bash
 git clone https://github.com/Foufou-exe/homebox-clipper.git
@@ -55,62 +58,62 @@ bun install
 bun run build      # → .output/chrome-mv3/
 ```
 
-Puis dans `chrome://extensions` : activez le **Mode développeur**, cliquez sur **Charger
-l'extension non empaquetée** et sélectionnez `.output/chrome-mv3/`. Guide complet :
+Then in `chrome://extensions`: enable **Developer mode**, click **Load unpacked** and select
+`.output/chrome-mv3/`. Full guide:
 [Installation](https://github.com/Foufou-exe/homebox-clipper/wiki/Installation).
 
-## Configuration rapide
+## Quick setup
 
-1. Dans HomeBox : **Profil** → **Clés API** → créez une clé (de préférence dédiée, avec une date
-   d'expiration).
-2. Dans l'extension (⚙ / *Options*) : saisissez l'adresse de votre instance, la clé API et une
-   **phrase de passe** (10 caractères au moins, impossible à récupérer en cas d'oubli), puis
-   **Tester et enregistrer**.
-3. Ouvrez la page de détail d'une commande chez un marchand pris en charge, puis l'extension.
+1. In HomeBox: **Profile** → **API keys** → create a key (preferably a dedicated one, with an
+   expiry date).
+2. In the extension (⚙ / *Options*): enter your instance address, the API key and a
+   **passphrase** (at least 10 characters, impossible to recover if forgotten), then
+   **Test and save**.
+3. Open the detail page of an order at a supported merchant, then open the extension.
 
-HTTPS est exigé, sauf pour une adresse du réseau local (HTTP accepté avec un avertissement).
-Détails : [Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration) et
-[Utilisation](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage).
+HTTPS is required, except for a local network address (HTTP accepted with a warning).
+Details: [Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration) and
+[Usage](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage).
 
 ## Documentation
 
-Tout le détail est dans le **[wiki](https://github.com/Foufou-exe/homebox-clipper/wiki)** :
+All the details are in the **[wiki](https://github.com/Foufou-exe/homebox-clipper/wiki)**:
 [Installation](https://github.com/Foufou-exe/homebox-clipper/wiki/Installation),
 [Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration),
-[Utilisation](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage),
-[Sécurité et confidentialité](https://github.com/Foufou-exe/homebox-clipper/wiki/Security-and-privacy),
-[Dépannage et FAQ](https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ),
+[Usage](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage),
+[Security and privacy](https://github.com/Foufou-exe/homebox-clipper/wiki/Security-and-privacy),
+[Troubleshooting and FAQ](https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ),
 [Architecture](https://github.com/Foufou-exe/homebox-clipper/wiki/Architecture).
 
-## Contribuer
+## Contributing
 
-Les contributions sont bienvenues : pages mal détectées, nouveaux marchands, corrections.
+Contributions are welcome: misdetected pages, new merchants, fixes.
 
 ```bash
-bun run setup        # dépendances, .env de l'instance HomeBox locale, hook pre-push (au choix)
-bun run homebox:up   # HomeBox sur http://localhost:3100
+bun run setup        # dependencies, local HomeBox instance .env, pre-push hook (optional)
+bun run homebox:up   # HomeBox on http://localhost:3100
 bun run dev
 ```
 
-Avant chaque push, lancez `bun run ci` (le quota de GitHub Actions est limité). Règles du projet,
-conteneur de développement et façon de travailler : **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+Before every push, run `bun run ci` (the GitHub Actions quota is limited). Project rules,
+development container and workflow: **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Changelog
 
-Les évolutions notables sont dans **[CHANGELOG.md](CHANGELOG.md)**.
+Notable changes are listed in **[CHANGELOG.md](CHANGELOG.md)**.
 
-## Sécurité
+## Security
 
-Pour signaler une vulnérabilité, suivez **[SECURITY.md](SECURITY.md)** (pas d'issue publique).
+To report a vulnerability, follow **[SECURITY.md](SECURITY.md)** (no public issue).
 
-## Crédits
+## Credits
 
-- Le logo reprend la boîte de [HomeBox](https://github.com/sysadminsmedia/homebox)
-  (© contributeurs HomeBox, licence AGPL-3.0), sans modification, à laquelle s'ajoute une pastille
-  « + » propre à homebox-clipper (`src/assets/logo.svg`).
-- Les couleurs de l'interface sont celles du thème par défaut de HomeBox.
-- Icônes au trait inspirées de [Feather Icons](https://feathericons.com) (MIT).
+- The logo reuses the [HomeBox](https://github.com/sysadminsmedia/homebox) box
+  (© HomeBox contributors, AGPL-3.0 license), unmodified, with a "+" badge specific to
+  homebox-clipper added (`src/assets/logo.svg`).
+- The interface colors are those of HomeBox's default theme.
+- Line icons inspired by [Feather Icons](https://feathericons.com) (MIT).
 
 ---
 
-<sub>homebox-clipper est un projet indépendant, sans lien avec Amazon ni avec l'équipe HomeBox.</sub>
+<sub>homebox-clipper is an independent project, not affiliated with Amazon or the HomeBox team.</sub>

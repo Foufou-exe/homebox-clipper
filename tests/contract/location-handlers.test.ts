@@ -15,7 +15,7 @@ const TREE = [
 ];
 const ORIGIN = 'https://homebox.example.com';
 
-/** fetch simulé : enregistre chaque requête et répond toujours avec `respond`. */
+/** Mocked fetch: records each request and always answers with `respond`. */
 function stubFetch(respond: () => Response | Promise<Response>) {
   const requests: { method: string; url: string }[] = [];
   vi.stubGlobal(
@@ -28,7 +28,7 @@ function stubFetch(respond: () => Response | Promise<Response>) {
   return requests;
 }
 
-describe('handler location/list (lecture seule)', () => {
+describe('location/list handler (read-only)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
@@ -37,7 +37,7 @@ describe('handler location/list (lecture seule)', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('renvoie les emplacements aplatis et triés, lastUsedId = null à ce stade', async () => {
+  it('returns the flattened, sorted locations, lastUsedId = null at this stage', async () => {
     const requests = stubFetch(() => reply(200, TREE));
     expect(await call()).toEqual({
       ok: true,
@@ -53,12 +53,12 @@ describe('handler location/list (lecture seule)', () => {
     expect(requests).toEqual([{ method: 'GET', url: `${ORIGIN}/api/v1/entities/tree` }]);
   });
 
-  it('liste vide = ok (pas une erreur)', async () => {
+  it('empty list = ok (not an error)', async () => {
     stubFetch(() => reply(200, []));
     expect(await call()).toEqual({ ok: true, value: { locations: [], lastUsedId: null } });
   });
 
-  it.each(['LOCKED', 'NOT_CONFIGURED'] as const)('%s : erreur renvoyée sans aucune requête', async (code) => {
+  it.each(['LOCKED', 'NOT_CONFIGURED'] as const)('%s: error returned without any request', async (code) => {
     vi.mocked(configStore.getCredentials).mockResolvedValue(fail(code));
     const requests = stubFetch(() => reply(200, TREE));
     expect(await call()).toEqual({ ok: false, error: code });
@@ -78,15 +78,15 @@ describe('handler location/list (lecture seule)', () => {
   });
 
   it.each([
-    ['statut 500', () => reply(500, {})],
-    ['réponse non tableau', () => reply(200, { items: [] })],
-    ['JSON illisible', () => new Response('<html>', { status: 200 })],
+    ['status 500', () => reply(500, {})],
+    ['non-array response', () => reply(200, { items: [] })],
+    ['unreadable JSON', () => new Response('<html>', { status: 200 })],
   ])('%s → LOCATIONS_UNAVAILABLE', async (_label, respond) => {
     stubFetch(respond);
     expect(await call()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
   });
 
-  it('lecture seule : aucun POST, PUT ni DELETE (FR-022)', async () => {
+  it('read-only: no POST, PUT or DELETE (FR-022)', async () => {
     const requests = stubFetch(() => reply(200, TREE));
     await call();
     await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'g' } });
@@ -95,14 +95,14 @@ describe('handler location/list (lecture seule)', () => {
     expect(requests.every((r) => r.method === 'GET')).toBe(true);
   });
 
-  describe('dernier emplacement utilisé (US3)', () => {
-    it('lastUsedId = identifiant mémorisé pour cette instance quand il est dans l’arbre', async () => {
+  describe('last location used (US3)', () => {
+    it('lastUsedId = identifier remembered for this instance when it is in the tree', async () => {
       await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'g' } });
       stubFetch(() => reply(200, TREE));
       expect(await call()).toMatchObject({ ok: true, value: { lastUsedId: 'g' } });
     });
 
-    it('identifiant obsolète → null, sans erreur, et l’entrée est retirée', async () => {
+    it('stale identifier → null, no error, and the entry is removed', async () => {
       await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'disparu', 'https://autre.example.com': 'g' } });
       stubFetch(() => reply(200, TREE));
       expect(await call()).toMatchObject({ ok: true, value: { lastUsedId: null } });
@@ -111,13 +111,13 @@ describe('handler location/list (lecture seule)', () => {
       });
     });
 
-    it('mémoire d’une autre instance → null', async () => {
+    it('memory of another instance → null', async () => {
       await fakeBrowser.storage.local.set({ lastLocationByInstance: { 'https://autre.example.com': 'g' } });
       stubFetch(() => reply(200, TREE));
       expect(await call()).toMatchObject({ ok: true, value: { lastUsedId: null } });
     });
 
-    it('liste indisponible : la mémoire n’est pas touchée', async () => {
+    it('list unavailable: memory is left untouched', async () => {
       await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'g' } });
       stubFetch(() => reply(500, {}));
       expect(await call()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });

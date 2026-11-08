@@ -1,7 +1,7 @@
 import type { TreeItem } from '@/background/homebox/types';
 import type { LocationOption } from './types';
 
-/** Profondeur maximale suivie : protège d'un cycle ou d'une réponse anormale sans lever d'exception. */
+/** Maximum depth followed: guards against a cycle or an abnormal response without throwing. */
 export const MAX_DEPTH = 32;
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
@@ -16,9 +16,9 @@ function comparePaths(a: string[], b: string[]): number {
 }
 
 /**
- * Aplatit l'arbre des emplacements en liste triée par chemin (R1). Écarte les nœuds qui ne sont pas des
- * lieux et leur descendance, tolère `children` absent, et s'arrête à `MAX_DEPTH`.
- * Le nom seul n'identifie pas un lieu (homonymes) : `id` fait foi.
+ * Flattens the location tree into a list sorted by path (R1). Discards nodes that are not
+ * locations and their descendants, tolerates a missing `children`, and stops at `MAX_DEPTH`.
+ * The name alone does not identify a location (homonyms): `id` is authoritative.
  */
 export function flattenTree(tree: TreeItem[]): LocationOption[] {
   const out: LocationOption[] = [];

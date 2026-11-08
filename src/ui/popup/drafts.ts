@@ -33,7 +33,7 @@ export function emptyDraft(): ImportDraft {
   };
 }
 
-/** Brouillon modifiable pré-rempli avec les valeurs détectées (ou vides si non détectées). */
+/** Editable draft pre-filled with the detected values (or empty if not detected). */
 export function draftFrom(purchase: DetectedPurchase, product: DetectedProduct | null): ImportDraft {
   const date = purchase.orderDate.value;
   const imageUrl = product?.imageUrl.value ?? null;
@@ -48,14 +48,14 @@ export function draftFrom(purchase: DetectedPurchase, product: DetectedProduct |
     quantity: product?.quantity.value ?? 1,
     pageUrl: purchase.pageUrl,
     documents: [],
-    // Cochée par défaut (FR-002) ; `null` sans photo détectée ou en saisie manuelle.
+    // Checked by default (FR-002); `null` without a detected photo or in manual entry.
     photo: imageUrl ? { url: imageUrl, merchantId: purchase.source, include: true } : null,
-    // Résolu à la soumission depuis le choix de commande et celui de la ligne (FR-014).
+    // Resolved at submission from the order choice and the row choice (FR-014).
     location: null,
   };
 }
 
-/** Champs non détectés, signalés dans le formulaire (FR-008). */
+/** Fields not detected, flagged in the form (FR-008). */
 export function missingFields(purchase: DetectedPurchase | null, product: DetectedProduct | null): string[] {
   if (!purchase) return [];
   const missing: string[] = [];

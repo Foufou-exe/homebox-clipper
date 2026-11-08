@@ -1,37 +1,37 @@
-name: Demander un nouveau marchand
-description: Proposer la prise en charge d'un site marchand
+name: Request a new merchant
+description: Suggest support for a merchant site
 labels: ["merchant: request"]
 body:
   - type: markdown
     attributes:
-      value: "Ne joignez jamais de page brute d'un site marchand, de clé API, d'adresse réelle d'instance (publique ou locale) ni de donnée personnelle."
+      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
   - type: input
     id: nom-marchand
     attributes:
-      label: Nom du marchand
+      label: Merchant name
     validations:
       required: true
   - type: input
     id: domaines
     attributes:
-      label: Domaine(s)
-      placeholder: "ex. exemple.fr, exemple.de"
+      label: Domain(s)
+      placeholder: "e.g. example.com, example.de"
     validations:
       required: true
   - type: input
     id: pays
     attributes:
-      label: Pays
+      label: Country
     validations:
       required: true
   - type: dropdown
     id: factures
     attributes:
-      label: Le site propose-t-il des factures téléchargeables ?
-      options: [Oui, Non, Je ne sais pas]
+      label: Does the site offer downloadable invoices?
+      options: [Yes, No, I don't know]
     validations:
       required: true
   - type: textarea
     id: remarques
     attributes:
-      label: Remarques
+      label: Notes

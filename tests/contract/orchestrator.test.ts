@@ -5,7 +5,7 @@ import { setTestLanguage } from '../unit/i18n-harness';
 import { findDuplicatesByName } from '@/background/import/duplicates';
 import { JPEG, draft, draftPhoto, err, invoice, PDF, photoOk, sessionKeys, setup } from './orchestrator-harness';
 
-// La note HomeBox est résolue par `getMessage` (service worker) : le catalogue réel sert de source.
+// The HomeBox note is resolved by `getMessage` (service worker): the real catalog is the source.
 vi.mock('@/platform/i18n', async () => {
   const { loadCatalog, makeGetMessage, testLanguage } = await import('../unit/i18n-harness');
   return {
@@ -15,7 +15,7 @@ vi.mock('@/platform/i18n', async () => {
 });
 
 describe('orchestrateur — chemin nominal', () => {
-  it('crée, met à jour puis joint la facture, et purge l’état', async () => {
+  it('creates, updates then attaches the invoice, and purges the state', async () => {
     const { client, orchestrator, notified } = setup();
     const r = await orchestrator.startImport(7, [draft()], []);
 
@@ -46,7 +46,7 @@ describe('orchestrateur — chemin nominal', () => {
     expect(await sessionKeys()).toEqual([]);
   });
 
-  it('deux produits → deux objets avec la même facture, téléchargée une seule fois', async () => {
+  it('two products → two objects with the same invoice, downloaded only once', async () => {
     const { client, orchestrator, downloadDetected } = setup();
     const r = await orchestrator.startImport(7, [draft(), draft({ name: 'Câble USB-C' })], []);
     expect(r.ok && r.value.map((p) => p.entityId)).toEqual(['e1', 'e2']);
@@ -55,7 +55,7 @@ describe('orchestrateur — chemin nominal', () => {
     expect(downloadDetected).toHaveBeenCalledWith(7, invoice.url);
   });
 
-  it('UNAUTHORIZED à la création → failed, aucun objet, état conservé pour réessayer', async () => {
+  it('UNAUTHORIZED on creation → failed, no object, state kept for retry', async () => {
     const { client, orchestrator } = setup({ create: [err('UNAUTHORIZED', 401)] });
     const r = await orchestrator.startImport(7, [draft()], []);
     expect(r.ok && r.value[0]).toMatchObject({ status: 'failed', entityId: null, error: 'UNAUTHORIZED' });
@@ -64,32 +64,32 @@ describe('orchestrateur — chemin nominal', () => {
     expect(await sessionKeys()).toEqual(['pendingImport:7:p1']);
   });
 
-  it('refuse un brouillon sans nom (FR-013)', async () => {
+  it('rejects a draft without a name (FR-013)', async () => {
     const { client, orchestrator } = setup();
     expect(await orchestrator.startImport(7, [draft({ name: '  ' })], [])).toMatchObject({ ok: false });
     expect(client.createEntity).not.toHaveBeenCalled();
   });
 
-  it('téléchargement refusé → partial avec DOWNLOAD_REFUSED, objet conservé', async () => {
+  it('download refused → partial with DOWNLOAD_REFUSED, object kept', async () => {
     const { orchestrator } = setup({}, () => err('DOWNLOAD_REFUSED'));
     const r = await orchestrator.startImport(7, [draft()], []);
     expect(r.ok && r.value[0]).toMatchObject({ status: 'partial', entityId: 'e1', error: 'DOWNLOAD_REFUSED' });
   });
 
-  it('buildNotes sans numéro de commande → pas de notes', () => {
+  it('buildNotes without an order number → no notes', () => {
     expect(buildNotes(draft({ orderNumber: null }))).toBeUndefined();
   });
 });
 
 describe('note HomeBox traduisible (summary.orderNote)', () => {
-  it('buildNotes écrit « Commande Amazon.fr : <n°> » puis l’adresse de la page', () => {
+  it('buildNotes writes "Commande Amazon.fr : <no.>" then the page address', () => {
     expect(buildNotes(draft())).toBe(
       'Commande Amazon.fr : 999-0000000-0000001\nhttps://www.amazon.fr/your-orders/order-details',
     );
   });
 
-  it('la détection de doublons cherche le numéro seul, quel que soit le libellé de la note', async () => {
-    // Objet existant créé avec un autre libellé (autre langue ou autre version) : seul le numéro compte.
+  it('duplicate detection searches for the number alone, whatever the note label', async () => {
+    // Existing object created with another label (another language or version): only the number counts.
     const existing = { id: 'old', name: 'Clavier sans fil Exemple Pro', notes: 'Amazon order: 999-0000000-0000001' };
     const searchEntities = vi.fn(() => Promise.resolve(ok([existing])));
     const r = await findDuplicates(
@@ -102,16 +102,16 @@ describe('note HomeBox traduisible (summary.orderNote)', () => {
   });
 });
 
-describe('note HomeBox en anglais : détection de doublons et reprise indépendantes de la langue', () => {
+describe('HomeBox note in English: duplicate detection and resume independent of the language', () => {
   const NUMBER = '999-0000000-0000001';
 
-  it('buildNotes écrit « Amazon.fr order: <n°> » puis l’adresse de la page', () => {
+  it('buildNotes writes "Amazon.fr order: <no.>" then the page address', () => {
     setTestLanguage('en');
     expect(buildNotes(draft())).toBe(`Amazon.fr order: ${NUMBER}\nhttps://www.amazon.fr/your-orders/order-details`);
   });
 
-  it('un objet importé en français est reconnu à la réimportation en anglais (numéro seul)', async () => {
-    // Objet créé avec la note française ; le réimport se fait en anglais.
+  it('an object imported in French is recognized on re-import in English (number alone)', async () => {
+    // Object created with the French note; the re-import is done in English.
     setTestLanguage('fr');
     const frenchNote = buildNotes(draft())!;
     expect(frenchNote).toContain(NUMBER);
@@ -124,12 +124,12 @@ describe('note HomeBox en anglais : détection de doublons et reprise indépenda
       NUMBER,
       'Clavier sans fil Exemple Pro',
     );
-    // La requête ne contient que le numéro : aucun libellé de langue.
+    // The query contains only the number: no language label.
     expect(searchEntities).toHaveBeenCalledWith(`"${NUMBER}"`);
     expect(r.ok && r.value.map((m) => m.id)).toEqual(['old']);
   });
 
-  it('la reprise cherche par nom : même requête en français et en anglais', async () => {
+  it('the resume searches by name: same query in French and in English', async () => {
     const queries: string[] = [];
     for (const lang of ['fr', 'en'] as const) {
       setTestLanguage(lang);
@@ -141,8 +141,8 @@ describe('note HomeBox en anglais : détection de doublons et reprise indépenda
   });
 });
 
-describe('orchestrateur — photo du produit (US1)', () => {
-  it('ordre create → update → pièce jointe → photo, photo en pièce principale', async () => {
+describe('orchestrator — product photo (US1)', () => {
+  it('order create → update → attachment → photo, photo as the primary attachment', async () => {
     const { client, orchestrator } = setup();
     const r = await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
     expect(r.ok && r.value[0]).toMatchObject({ status: 'success', error: null, photoError: null });
@@ -164,7 +164,7 @@ describe('orchestrateur — photo du produit (US1)', () => {
     expect(await sessionKeys()).toEqual([]);
   });
 
-  it('le type MIME et le nom envoyés viennent de la signature (PNG)', async () => {
+  it('the MIME type and name sent come from the signature (PNG)', async () => {
     const png = { bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), mimeType: 'image/png', filename: 'photo-produit.png' };
     const { client, orchestrator } = setup({}, undefined, () => ({ ok: true, value: png }));
     await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
@@ -177,7 +177,7 @@ describe('orchestrateur — photo du produit (US1)', () => {
   it('PhotoStep initial : null → unavailable, include false → not_requested, include true → pending', async () => {
     const { orchestrator } = setup();
     const { pendingStore } = await import('@/background/import/pending-store');
-    // Valeur de steps.photo à la première persistance (l'objet est ensuite modifié en place).
+    // Value of steps.photo at the first persistence (the object is then modified in place).
     let first: string[] = [];
     const real = pendingStore.save.bind(pendingStore);
     const spy = vi.spyOn(pendingStore, 'save').mockImplementation((p) => {
@@ -197,7 +197,7 @@ describe('orchestrateur — photo du produit (US1)', () => {
     spy.mockRestore();
   });
 
-  it('not_requested et unavailable n’empêchent pas success (SC-002) et ne récupèrent rien', async () => {
+  it('not_requested and unavailable do not prevent success (SC-002) and fetch nothing', async () => {
     const { client, orchestrator, fetchPhoto } = setup();
     const r = await orchestrator.startImport(
       7,
@@ -206,11 +206,11 @@ describe('orchestrateur — photo du produit (US1)', () => {
     );
     expect(r.ok && r.value.map((p) => p.status)).toEqual(['success', 'success']);
     expect(r.ok && r.value.map((p) => p.steps.photo)).toEqual(['not_requested', 'unavailable']);
-    expect(fetchPhoto).not.toHaveBeenCalled(); // une photo décochée n'est pas récupérée
-    expect(client.addAttachment).toHaveBeenCalledTimes(2); // les deux factures seulement
+    expect(fetchPhoto).not.toHaveBeenCalled(); // an unchecked photo is not fetched
+    expect(client.addAttachment).toHaveBeenCalledTimes(2); // the two invoices only
   });
 
-  it('`sending` est persisté AVANT le POST de la photo, avec photoAttempted = true', async () => {
+  it('`sending` is persisted BEFORE the photo POST, with photoAttempted = true', async () => {
     const { client, orchestrator } = setup();
     const { pendingStore } = await import('@/background/import/pending-store');
     let atPost: { photo: string; attempted: boolean } | null = null;
@@ -225,14 +225,14 @@ describe('orchestrateur — photo du produit (US1)', () => {
     expect(atPost).toEqual({ photo: 'sending', attempted: true });
   });
 
-  it('photoAttempted reste faux tant qu’aucun POST de photo n’a pu partir', async () => {
+  it('photoAttempted stays false as long as no photo POST could be sent', async () => {
     const { orchestrator } = setup({}, undefined, () => err('PHOTO_UNAVAILABLE'));
     const r = await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
     expect(r.ok && r.value[0]).toMatchObject({ photoAttempted: false });
   });
 
   it.each(['PHOTO_UNAVAILABLE', 'PHOTO_NOT_IMAGE', 'PHOTO_TOO_LARGE'] as const)(
-    'récupération en échec (%s) → partial, objet et facture conservés, aucun POST de photo',
+    'fetch failure (%s) → partial, object and invoice kept, no photo POST',
     async (code) => {
       const { client, orchestrator } = setup({}, undefined, () => err(code));
       const r = await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
@@ -243,12 +243,12 @@ describe('orchestrateur — photo du produit (US1)', () => {
         photoError: code,
         steps: { create: 'done', update: 'done', attachments: { 'detected-0': 'done' }, photo: 'failed' },
       });
-      expect(client.addAttachment).toHaveBeenCalledTimes(1); // la facture seulement
+      expect(client.addAttachment).toHaveBeenCalledTimes(1); // the invoice only
       expect(await sessionKeys()).toEqual(['pendingImport:7:p1']);
     },
   );
 
-  it('422 sur la photo (scénario 7) → PHOTO_UPLOAD_FAILED, un seul objet', async () => {
+  it('422 on the photo (scenario 7) → PHOTO_UPLOAD_FAILED, a single object', async () => {
     const { client, orchestrator } = setup({ attach: [ok(undefined), err('ATTACHMENT_FAILED', 422)] });
     const r = await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
     expect(r.ok && r.value[0]).toMatchObject({
@@ -261,19 +261,19 @@ describe('orchestrateur — photo du produit (US1)', () => {
     expect(client.createEntity).toHaveBeenCalledTimes(1);
   });
 
-  it('une erreur plus prioritaire (facture) garde `error`, la photo garde `photoError`', async () => {
+  it('a higher-priority error (invoice) keeps `error`, the photo keeps `photoError`', async () => {
     const { orchestrator } = setup({ attach: [err('ATTACHMENT_FAILED', 500)] }, undefined, () => err('PHOTO_TOO_LARGE'));
     const r = await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
     expect(r.ok && r.value[0]).toMatchObject({ status: 'partial', error: 'ATTACHMENT_FAILED', photoError: 'PHOTO_TOO_LARGE' });
   });
 
-  it('une photo en échec n’empêche pas la facture d’être envoyée (la photo vient en dernier)', async () => {
+  it('a failed photo does not prevent the invoice from being sent (the photo comes last)', async () => {
     const { client, orchestrator } = setup({}, undefined, () => err('PHOTO_UNAVAILABLE'));
     await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
     expect(client.addAttachment).toHaveBeenCalledWith('e1', expect.objectContaining({ type: 'receipt' }));
   });
 
-  it('deux produits de même photo → un seul téléchargement, deux POST (scénario 10)', async () => {
+  it('two products with the same photo → a single download, two POSTs (scenario 10)', async () => {
     const { client, orchestrator, fetchPhoto } = setup();
     const r = await orchestrator.startImport(
       7,
@@ -286,13 +286,13 @@ describe('orchestrateur — photo du produit (US1)', () => {
     expect(photos.map(([id]) => id)).toEqual(['e1', 'e2']);
   });
 
-  it('un échec de récupération partagé est aussi mis en cache (une seule requête)', async () => {
+  it('a shared fetch failure is also cached (a single request)', async () => {
     const { orchestrator, fetchPhoto } = setup({}, undefined, () => err('PHOTO_UNAVAILABLE'));
     await orchestrator.startImport(7, [draft({ photo: draftPhoto() }), draft({ name: 'b', photo: draftPhoto() })], []);
     expect(fetchPhoto).toHaveBeenCalledTimes(1);
   });
 
-  it('les octets de la photo ne figurent jamais dans l’état persisté', async () => {
+  it('the photo bytes never appear in the persisted state', async () => {
     const { orchestrator } = setup({ attach: [ok(undefined), err('ATTACHMENT_FAILED', 500)] });
     await orchestrator.startImport(7, [draft({ photo: draftPhoto() })], []);
     const stored = JSON.stringify(await (await import('wxt/testing/fake-browser')).fakeBrowser.storage.session.get(null));
@@ -307,7 +307,7 @@ const tree = (...ids: string[]) =>
   ok(ids.map((id) => ({ id, name: `Nom ${id}`, type: 'location', children: [] })));
 
 describe('orchestrateur — emplacement (US2)', () => {
-  it('emplacement choisi → parentId dans le POST, jamais locationId (FR-016)', async () => {
+  it('chosen location → parentId in the POST, never locationId (FR-016)', async () => {
     const { client, orchestrator } = setup();
     await orchestrator.startImport(7, [draft({ location: GARAGE })], [], null);
     expect(client.createEntity).toHaveBeenCalledWith({
@@ -319,13 +319,13 @@ describe('orchestrateur — emplacement (US2)', () => {
     expect(client.createEntity.mock.calls[0]?.[0]).not.toHaveProperty('locationId');
   });
 
-  it('aucun emplacement → corps du POST sans parentId ni locationId, mêmes clés qu’avant (FR-012, SC-006)', async () => {
+  it('no location → POST body without parentId or locationId, same keys as before (FR-012, SC-006)', async () => {
     const { client, orchestrator } = setup();
     await orchestrator.startImport(7, [draft({ location: null })], []);
     expect(Object.keys(client.createEntity.mock.calls[0]?.[0] ?? {})).toEqual(['name', 'description', 'quantity']);
   });
 
-  it('brouillon persisté sans champ location (ancienne version) → traité comme sans emplacement', async () => {
+  it('persisted draft without location field (old version) → treated as no location', async () => {
     const { client, orchestrator } = setup();
     const legacy = draft();
     delete (legacy as Partial<typeof legacy>).location;
@@ -333,7 +333,7 @@ describe('orchestrateur — emplacement (US2)', () => {
     expect(Object.keys(client.createEntity.mock.calls[0]?.[0] ?? {})).toEqual(['name', 'description', 'quantity']);
   });
 
-  it('le PUT renvoie parentId : celui de l’objet créé en priorité (V3 : un PUT sans parentId perd l’emplacement)', async () => {
+  it("the PUT sends parentId: the created object's first (V3: a PUT without parentId loses the location)", async () => {
     const { client, orchestrator } = setup({
       create: [ok({ id: 'e1', name: 'x', parent: { id: 'loc-garage' } } as never)],
     });
@@ -341,19 +341,19 @@ describe('orchestrateur — emplacement (US2)', () => {
     expect(client.updateEntity).toHaveBeenCalledWith('e1', expect.objectContaining({ parentId: 'loc-garage' }));
   });
 
-  it('le PUT renvoie parentId = draft.location.id quand la réponse du POST ne porte pas le parent', async () => {
+  it('the PUT sends parentId = draft.location.id when the POST response does not carry the parent', async () => {
     const { client, orchestrator } = setup();
     await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
     expect(client.updateEntity).toHaveBeenCalledWith('e1', expect.objectContaining({ parentId: 'loc-garage' }));
   });
 
-  it('sans emplacement choisi, le PUT n’a pas de parentId (comportement 001 inchangé)', async () => {
+  it('with no chosen location, the PUT has no parentId (001 behavior unchanged)', async () => {
     const { client, orchestrator } = setup();
     await orchestrator.startImport(7, [draft()], []);
     expect(client.updateEntity.mock.calls[0]?.[1]).not.toHaveProperty('parentId');
   });
 
-  it('reprise du PUT : parentId repris de l’objet relu, sinon du brouillon persisté', async () => {
+  it('PUT resume: parentId taken from the re-read object, otherwise from the persisted draft', async () => {
     const { client, orchestrator } = setup({ update: [err('UPDATE_FAILED', 400)] });
     const first = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
     const id = first.ok ? first.value[0]!.id : '';
@@ -362,7 +362,7 @@ describe('orchestrateur — emplacement (US2)', () => {
     expect(client.updateEntity).toHaveBeenLastCalledWith('e1', expect.objectContaining({ parentId: 'loc-garage' }));
   });
 
-  it('emplacements différents par produit (FR-014, FR-016)', async () => {
+  it('different locations per product (FR-014, FR-016)', async () => {
     const { client, orchestrator } = setup();
     await orchestrator.startImport(
       7,
@@ -375,8 +375,8 @@ describe('orchestrateur — emplacement (US2)', () => {
     expect(bodies[2]).not.toHaveProperty('parentId');
   });
 
-  describe('emplacement disparu (scénario 18, FR-018)', () => {
-    it('échec du POST + identifiant absent de l’arbre relu → LOCATION_NOT_FOUND, aucun objet', async () => {
+  describe('location disappeared (scenario 18, FR-018)', () => {
+    it('POST failure + identifier absent from the re-read tree → LOCATION_NOT_FOUND, no object', async () => {
       const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 404)], tree: [tree('autre')] });
       const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
       expect(r.ok && r.value[0]).toMatchObject({
@@ -391,40 +391,40 @@ describe('orchestrateur — emplacement (US2)', () => {
       expect(r.ok && r.value[0]?.createAttempted).toBe(false);
     });
 
-    it('identifiant présent dans l’arbre relu → CREATE_FAILED', async () => {
+    it('identifier present in the re-read tree → CREATE_FAILED', async () => {
       const { orchestrator } = setup({ create: [err('CREATE_FAILED', 500)], tree: [tree('loc-garage')] });
       const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
       expect(r.ok && r.value[0]).toMatchObject({ status: 'failed', error: 'CREATE_FAILED' });
     });
 
-    it('relecture de l’arbre en échec → CREATE_FAILED (on ne devine pas)', async () => {
+    it('tree re-read failed → CREATE_FAILED (no guessing)', async () => {
       const { orchestrator } = setup({ create: [err('CREATE_FAILED', 500)], tree: [err('LOCATIONS_UNAVAILABLE', 500)] });
       const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
       expect(r.ok && r.value[0]).toMatchObject({ status: 'failed', error: 'CREATE_FAILED' });
     });
 
-    it('401 à la création : UNAUTHORIZED, pas de relecture de l’arbre', async () => {
+    it('401 on creation: UNAUTHORIZED, no tree re-read', async () => {
       const { client, orchestrator } = setup({ create: [err('UNAUTHORIZED', 401)] });
       const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
       expect(r.ok && r.value[0]).toMatchObject({ error: 'UNAUTHORIZED' });
       expect(client.listLocations).not.toHaveBeenCalled();
     });
 
-    it('réponse perdue (HOMEBOX_UNREACHABLE) : création incertaine conservée, pas de relecture', async () => {
+    it('lost response (HOMEBOX_UNREACHABLE): uncertain creation kept, no re-read', async () => {
       const { client, orchestrator } = setup({ create: [err('HOMEBOX_UNREACHABLE')] });
       const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], []);
       expect(r.ok && r.value[0]).toMatchObject({ error: 'HOMEBOX_UNREACHABLE', createUncertain: true });
       expect(client.listLocations).not.toHaveBeenCalled();
     });
 
-    it('sans emplacement choisi, un échec du POST ne relit pas l’arbre', async () => {
+    it('with no chosen location, a POST failure does not re-read the tree', async () => {
       const { client, orchestrator } = setup({ create: [err('CREATE_FAILED', 500)] });
       const r = await orchestrator.startImport(7, [draft()], []);
       expect(r.ok && r.value[0]).toMatchObject({ error: 'CREATE_FAILED' });
       expect(client.listLocations).not.toHaveBeenCalled();
     });
 
-    it('dans un lot, l’échec d’un produit n’empêche pas les autres', async () => {
+    it("in a batch, one product's failure does not prevent the others", async () => {
       const { orchestrator } = setup({ create: [err('CREATE_FAILED', 404)], tree: [tree('autre')] });
       const r = await orchestrator.startImport(7, [draft({ location: GARAGE }), draft({ name: 'B', location: CAVE })], []);
       expect(r.ok && r.value.map((p) => p.error)).toEqual(['LOCATION_NOT_FOUND', null]);
@@ -432,15 +432,15 @@ describe('orchestrateur — emplacement (US2)', () => {
   });
 });
 
-describe('orchestrateur — mémoire du dernier emplacement (US3)', () => {
-  it('écrite avec orderLocationId une fois l’objet créé', async () => {
+describe('orchestrator — last-location memory (US3)', () => {
+  it('written with orderLocationId once the object is created', async () => {
     const { orchestrator, rememberLocation } = setup();
     await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
     expect(rememberLocation).toHaveBeenCalledTimes(1);
     expect(rememberLocation).toHaveBeenCalledWith('loc-garage');
   });
 
-  it('pas écrite avant la création : l’appel arrive après le POST', async () => {
+  it('not written before creation: the call comes after the POST', async () => {
     const { client, orchestrator, rememberLocation } = setup();
     const order: string[] = [];
     client.createEntity.mockImplementation(async () => {
@@ -454,31 +454,31 @@ describe('orchestrateur — mémoire du dernier emplacement (US3)', () => {
     expect(order).toEqual(['create', 'remember']);
   });
 
-  it('pas écrite si aucune création n’a abouti', async () => {
+  it('not written if no creation succeeded', async () => {
     const { orchestrator, rememberLocation } = setup({ create: [err('CREATE_FAILED', 500)] });
     await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');
     expect(rememberLocation).not.toHaveBeenCalled();
   });
 
-  it('écrite si au moins un objet du lot est créé', async () => {
+  it('written if at least one object of the batch is created', async () => {
     const { orchestrator, rememberLocation } = setup({ create: [err('CREATE_FAILED', 500)] });
     await orchestrator.startImport(7, [draft({ location: GARAGE }), draft({ name: 'B', location: GARAGE })], [], 'loc-garage');
     expect(rememberLocation).toHaveBeenCalledTimes(1);
   });
 
-  it.each([null, undefined])('orderLocationId = %s (import sans emplacement) → mémoire inchangée (R10)', async (orderLocationId) => {
+  it.each([null, undefined])('orderLocationId = %s (import without location) → memory unchanged (R10)', async (orderLocationId) => {
     const { orchestrator, rememberLocation } = setup();
     await orchestrator.startImport(7, [draft()], [], orderLocationId);
     expect(rememberLocation).not.toHaveBeenCalled();
   });
 
-  it('une modification sur un seul produit ne change pas la mémoire : seul orderLocationId compte', async () => {
+  it('a change on a single product does not change the memory: only orderLocationId counts', async () => {
     const { orchestrator, rememberLocation } = setup();
     await orchestrator.startImport(7, [draft({ location: CAVE })], [], 'loc-garage');
     expect(rememberLocation).toHaveBeenCalledWith('loc-garage');
   });
 
-  it('une erreur d’écriture de la mémoire n’interrompt pas l’import', async () => {
+  it('a memory write error does not interrupt the import', async () => {
     const { orchestrator, rememberLocation } = setup();
     rememberLocation.mockRejectedValue(new Error('quota'));
     const r = await orchestrator.startImport(7, [draft({ location: GARAGE })], [], 'loc-garage');

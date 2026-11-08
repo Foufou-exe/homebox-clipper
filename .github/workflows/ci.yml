@@ -1,7 +1,7 @@
 name: CI
 
-# Quota GitHub Actions limité (3000 min/mois) : la vérification de référence est locale
-# (`bun run ci`). Ce workflow ne tourne que sur les PR de code vers main, ou à la demande.
+# GitHub Actions quota is limited (3000 min/month): the reference check is local
+# (`bun run ci`). This workflow only runs on code PRs to main, or on demand.
 on:
   pull_request:
     branches: [main]

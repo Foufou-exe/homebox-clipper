@@ -11,23 +11,23 @@ const PASS = 'une phrase de passe solide';
 const call = (msg: unknown) => dispatch(msg, { id: fakeBrowser.runtime.id, url: `${EXT}options.html` });
 const homeboxOk = () => mockFetch(json(200, { health: true, build: { version: 'v0.27.0' } }), json(200, {}));
 
-describe('handlers de configuration (phrase de passe)', () => {
+describe('configuration handlers (passphrase)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
-    // Le type de fake-browser déclare `void` ; l'API réelle renvoie un booléen.
+    // The fake-browser type declares `void`; the real API returns a boolean.
     vi.spyOn(fakeBrowser.permissions, 'contains').mockImplementation((async () => true) as never);
     registerConfigHandlers();
   });
 
-  it('refuse une phrase de passe trop courte', async () => {
+  it('rejects a passphrase that is too short', async () => {
     expect(await call({ type: 'config/save', baseUrl: URL_A, apiKey: KEY, passphrase: 'court' })).toEqual({
       ok: false,
       error: 'WEAK_PASSPHRASE',
     });
   });
 
-  it('enregistre une clé chiffrée puis permet verrouillage et déverrouillage', async () => {
+  it('saves an encrypted key, then allows locking and unlocking', async () => {
     vi.stubGlobal('fetch', homeboxOk().fetch);
     const saved = await call({ type: 'config/save', baseUrl: URL_A, apiKey: KEY, passphrase: PASS });
     expect(saved).toMatchObject({ ok: true, value: { configured: true, locked: false } });
@@ -42,7 +42,7 @@ describe('handlers de configuration (phrase de passe)', () => {
     expect(await call({ type: 'session/unlock', passphrase: PASS })).toMatchObject({ ok: true, value: { locked: false } });
   }, 20_000);
 
-  it("changer d'URL en conservant la clé exige la bonne phrase de passe", async () => {
+  it("changing the URL while keeping the key requires the right passphrase", async () => {
     vi.stubGlobal('fetch', homeboxOk().fetch);
     await call({ type: 'config/save', baseUrl: URL_A, apiKey: KEY, passphrase: PASS });
 

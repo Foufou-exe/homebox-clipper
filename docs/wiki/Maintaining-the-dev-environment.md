@@ -1,47 +1,47 @@
-# Maintenir l'environnement de développement
+# Maintaining the development environment
 
-Cette page liste les fichiers à mettre à jour quand un outil du projet change, afin que le poste
-local, le conteneur de développement et la CI restent cohérents. Un contrôle automatique,
-`bun run check:config`, détecte une grande partie des oublis.
+This page lists the files to update when a project tool changes, so that the local machine, the
+development container and the CI stay consistent. An automatic check, `bun run check:config`, catches a
+large part of the omissions.
 
-## Quand X change, que mettre à jour ?
+## When X changes, what to update?
 
-| Si… | Fichiers à mettre à jour | Remarque |
-|-----|--------------------------|----------|
-| La version de **Bun** change | `package.json` (`packageManager`), `mise.toml`, `.devcontainer/post-create.sh` | Le workflow `.github/workflows/ci.yml` installe Bun avec `oven-sh/setup-bun` : vérifier qu'il suit la même version. `check:config` vérifie que la version majeure.mineure est identique partout. |
-| La version de **Node** change | `mise.toml`, `.devcontainer/devcontainer.json` (étiquette de l'image `typescript-node`), `.github/workflows/ci.yml` (`node-version`) | Le projet suit la version LTS. |
-| La version de **HomeBox** change | `compose.yaml` (variable `HOMEBOX_VERSION`), `.env.example`, `docs/local-homebox.md`, [Local-HomeBox-instance](Local-HomeBox-instance.md), la version testée dans [Installation](Installation.md) | Relancer les scénarios de test local après la mise à jour. |
-| Une **extension VS Code** est ajoutée ou retirée | `.vscode/extensions.json` et `.devcontainer/devcontainer.json` (`customizations.vscode.extensions`) | Les deux listes doivent rester cohérentes pour les extensions utiles au projet. |
-| **WXT** ou **Vite** change | `package.json` (dépendances), `wxt.config.ts`, `vitest.config.ts`, `vitest.build.config.ts` | Lancer `bun run ci` : le build et le test du manifeste détectent les ruptures. |
-| Un **script** `package.json` est ajouté ou renommé | `CONTRIBUTING.md` (section « Commandes »), `.vscode/tasks.json`, `scripts/setup.sh` (message final) | Chaque script doit apparaître dans `CONTRIBUTING.md` sous la forme `bun run <script>`. |
-| Un **modèle d'issue** ou une **étiquette** change | `.github/ISSUE_TEMPLATE/*.yml`, `.github/labels.yml`, `REQUIRED_FIELDS` dans `scripts/check-config.ts` | Puis appliquer les étiquettes avec `scripts/sync-labels.sh` (action manuelle). |
+| If... | Files to update | Note |
+|-------|-----------------|------|
+| The **Bun** version changes | `package.json` (`packageManager`), `mise.toml`, `.devcontainer/post-create.sh` | The `.github/workflows/ci.yml` workflow installs Bun with `oven-sh/setup-bun`: check that it follows the same version. `check:config` verifies that the major.minor version is the same everywhere. |
+| The **Node** version changes | `mise.toml`, `.devcontainer/devcontainer.json` (tag of the `typescript-node` image), `.github/workflows/ci.yml` (`node-version`) | The project follows the LTS version. |
+| The **HomeBox** version changes | `compose.yaml` (`HOMEBOX_VERSION` variable), `.env.example`, `docs/local-homebox.md`, [Local-HomeBox-instance](Local-HomeBox-instance.md), the tested version in [Installation](Installation.md) | Rerun the local test scenarios after the update. |
+| A **VS Code extension** is added or removed | `.vscode/extensions.json` and `.devcontainer/devcontainer.json` (`customizations.vscode.extensions`) | The two lists must stay consistent for the extensions useful to the project. |
+| **WXT** or **Vite** changes | `package.json` (dependencies), `wxt.config.ts`, `vitest.config.ts`, `vitest.build.config.ts` | Run `bun run ci`: the build and the manifest test catch breakage. |
+| A `package.json` **script** is added or renamed | `CONTRIBUTING.md` ("Commands" section), `.vscode/tasks.json`, `scripts/setup.sh` (final message) | Each script must appear in `CONTRIBUTING.md` in the form `bun run <script>`. |
+| An **issue template** or a **label** changes | `.github/ISSUE_TEMPLATE/*.yml`, `.github/labels.yml`, `REQUIRED_FIELDS` in `scripts/check-config.ts` | Then apply the labels with `scripts/sync-labels.sh` (manual action). |
+| An **interface text** is added or changed | `src/locales/en.yml` **and** `src/locales/fr.yml` | Same contribution (rule FR-004c); `check:config` verifies the parity. See [Translations](Translations.md). |
 
-## Vérifier les réglages
+## Check the settings
 
 ```bash
 bun run check:config
 ```
 
-Ce contrôle, lancé en tête de `bun run ci` (donc par le hook `pre-push`), vérifie :
+This check, run at the head of `bun run ci` (so by the `pre-push` hook), verifies:
 
-- la syntaxe des fichiers JSON avec commentaires (`.vscode/*.json`, `.devcontainer/devcontainer.json`,
-  `tsconfig.json`) et YAML (`.github/**/*.yml`, `compose.yaml`, `src/locales/*.yml`) ;
-- que `package.json`, `mise.toml` et `.devcontainer/post-create.sh` épinglent la même version de Bun ;
-- que les étiquettes citées par les modèles d'issue existent dans `.github/labels.yml`, et que ce
-  fichier est bien formé (noms uniques, couleur hexadécimale de 6 chiffres, description de 100
-  caractères au plus) ;
-- que les champs obligatoires des modèles d'issue le sont réellement, et que les issues vierges
-  sont désactivées (`config.yml`).
+- the syntax of JSON-with-comments files (`.vscode/*.json`, `.devcontainer/devcontainer.json`,
+  `tsconfig.json`) and YAML files (`.github/**/*.yml`, `compose.yaml`, `src/locales/*.yml`);
+- that `src/locales/en.yml` and `src/locales/fr.yml` have the same keys and the same `$n` substitutions;
+- that `package.json`, `mise.toml` and `.devcontainer/post-create.sh` pin the same Bun version;
+- that the labels cited by the issue templates exist in `.github/labels.yml`, and that this file is
+  well formed (unique names, 6-digit hexadecimal color, description of at most 100 characters);
+- that the required fields of the issue templates are really required, and that blank issues are
+  disabled (`config.yml`).
 
-Les fichiers de `.github/ISSUE_TEMPLATE/` et `.github/labels.yml` ne déclenchent pas la CI GitHub
-(quota limité) : `check:config`, lancé en local, est leur seule garde. Pensez à lancer
-`bun run ci` avant de pousser.
+The files of `.github/ISSUE_TEMPLATE/` and `.github/labels.yml` do not trigger the GitHub CI (limited
+quota): `check:config`, run locally, is their only guard. Remember to run `bun run ci` before pushing.
 
-Le script est testé par `tests/unit/check-config.test.ts`, sur des dépôts factices dans
+The script is tested by `tests/unit/check-config.test.ts`, on dummy repositories in
 `tests/fixtures/config/`.
 
-## Voir aussi
+## See also
 
-- [Guide de contribution](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
+- [Contributing guide](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
 - [Local-HomeBox-instance](Local-HomeBox-instance.md)
 - [Releasing](Releasing.md)

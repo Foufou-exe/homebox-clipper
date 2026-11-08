@@ -7,13 +7,13 @@ type Handler<T extends MessageType> = (msg: MessageOf<T>) => Promise<ResponseOf<
 
 const handlers = new Map<MessageType, Handler<MessageType>>();
 
-/** Messages réservés aux pages de l'extension (popup, options), jamais aux scripts injectés. */
+/** Messages reserved for extension pages (popup, options), never for injected scripts. */
 const UI_ONLY_PREFIXES = ['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/'];
 
 /**
- * Vrai si l'expéditeur est une page de l'extension (popup, options).
- * `sender.tab` ne suffit pas : la page d'options ouverte dans un onglet a aussi un `tab`.
- * Un script injecté, lui, a l'URL de la page web hôte.
+ * True if the sender is an extension page (popup, options).
+ * `sender.tab` is not enough: the options page opened in a tab also has a `tab`.
+ * An injected script, on the other hand, has the URL of the host web page.
  */
 function isExtensionPage(sender: Sender): boolean {
   return typeof sender.url === 'string' && sender.url.startsWith(browser.runtime.getURL('/'));
@@ -23,7 +23,7 @@ export function register<T extends MessageType>(type: T, handler: Handler<T>): v
   handlers.set(type, handler as unknown as Handler<MessageType>);
 }
 
-/** Exposé pour les tests. */
+/** Exposed for tests. */
 export async function dispatch(raw: unknown, sender: Sender): Promise<unknown> {
   if (!isMessage(raw)) return { ok: false, error: 'BAD_MESSAGE' };
   if (sender.id !== undefined && sender.id !== browser.runtime.id) {
@@ -45,7 +45,7 @@ export async function dispatch(raw: unknown, sender: Sender): Promise<unknown> {
 export function startRouter(): void {
   browser.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
     if (!isMessage(raw)) {
-      // Message mal formé : réponse BAD_MESSAGE, aucun handler exécuté (contracts/runtime-messages.md).
+      // Malformed message: BAD_MESSAGE response, no handler executed (contracts/runtime-messages.md).
       sendResponse({ ok: false, error: 'BAD_MESSAGE' });
       return false;
     }

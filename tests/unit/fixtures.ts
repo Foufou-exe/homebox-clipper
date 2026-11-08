@@ -8,7 +8,7 @@ export function fixtureHtml(name: string): string {
   return readFileSync(resolve(__dirname, '../fixtures/amazon-fr', name), 'utf8');
 }
 
-/** Charge une fixture dans un document happy-dom situé sur amazon.fr. */
+/** Loads a fixture into a happy-dom document located on amazon.fr. */
 export function loadFixture(name: string, url = ORDER_URL): { doc: Document; url: URL } {
   const window = new Window({ url });
   window.document.write(fixtureHtml(name));

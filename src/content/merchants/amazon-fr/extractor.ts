@@ -6,14 +6,14 @@ import { SELECTORS } from './selectors';
 
 export const AMAZON_FR_ORIGIN = 'https://www.amazon.fr';
 const NAME_MAX = 255;
-/** Seul hôte d'image observé sur les pages de commande (V7). */
+/** Only image host observed on order pages (V7). */
 const IMAGE_HOSTS = ['m.media-amazon.com'] as const;
 
 const missing = <T>(reason: 'not_found' | 'unparsable' = 'not_found'): Field<T> => ({ value: null, reason });
 
 /**
- * Essaie chaque sélecteur dans l'ordre ; le premier élément dont `read` renvoie une valeur gagne.
- * Une exception (sélecteur invalide, élément inattendu) passe au sélecteur suivant (principe III).
+ * Tries each selector in order; the first element whose `read` returns a value wins.
+ * An exception (invalid selector, unexpected element) moves on to the next selector (principle III).
  */
 export function firstField<T>(
   root: ParentNode,
@@ -29,7 +29,7 @@ export function firstField<T>(
         if (value !== null) return { value, selector };
       }
     } catch {
-      // sélecteur suivant
+      // next selector
     }
   }
   return missing(found ? 'unparsable' : 'not_found');
@@ -47,7 +47,7 @@ function asinFrom(el: Element): string | null {
   return el.getAttribute('href')?.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/)?.[1] ?? null;
 }
 
-/** Le vendeur est affiché par ligne de produit : on prend la première ligne qui le mentionne. */
+/** The seller is displayed per product row: the first row that mentions it is used. */
 function sellerOf(rows: Element[]): Field<string> {
   for (const row of rows) {
     const seller = firstField(row, SELECTORS.seller, sellerFrom);
@@ -62,15 +62,15 @@ function productRows(doc: Document): Element[] {
       const rows = Array.from(doc.querySelectorAll(selector));
       if (rows.length) return rows;
     } catch {
-      // sélecteur suivant
+      // next selector
     }
   }
   return [];
 }
 
 /**
- * Zone où chercher l'image : la ligne complète (colonnes gauche + droite) si son conteneur ne
- * couvre que cette ligne, sinon la ligne seule (évite de prendre l'image d'un autre produit).
+ * Area to search for the image: the full row (left + right columns) if its container only
+ * covers that row, otherwise the row alone (avoids picking another product's image).
  */
 function imageScope(row: Element, rows: Element[]): Element {
   for (const selector of SELECTORS.productRowContainer) {
@@ -78,15 +78,15 @@ function imageScope(row: Element, rows: Element[]): Element {
       const container = row.closest(selector);
       if (container && !rows.some((other) => other !== row && container.contains(other))) return container;
     } catch {
-      // sélecteur suivant
+      // next selector
     }
   }
   return row;
 }
 
 /**
- * Un logo ou un pixel d'un autre hôte est refusé et le sélecteur suivant est essayé ; sans image
- * acceptable, l'absence est toujours `not_found`.
+ * A logo or pixel from another host is rejected and the next selector is tried; without an
+ * acceptable image, the absence is always `not_found`.
  */
 function photoField(scope: Element): Field<string> {
   const found = firstField(scope, SELECTORS.productImage, (el) => {
@@ -101,7 +101,7 @@ function extractProduct(row: Element, index: number, rows: Element[]): DetectedP
   const asin = firstField(row, SELECTORS.productAsin, asinFrom);
   const scope = imageScope(row, rows);
   const readQuantity = (el: Element) => parseQuantity(text(el));
-  // Quantité > 1 : badge dans la colonne image, hors de la ligne ; sinon repli sur la zone image.
+  // Quantity > 1: badge in the image column, outside the row; otherwise fall back to the image area.
   let quantity = firstField(row, SELECTORS.productQuantity, readQuantity);
   if (quantity.value === null && scope !== row) quantity = firstField(scope, SELECTORS.productQuantity, readQuantity);
   return {
@@ -133,7 +133,7 @@ function collectLinks(root: ParentNode, selectors: readonly string[], pageUrl: U
         if (url) urls.add(url);
       }
     } catch {
-      // sélecteur suivant
+      // next selector
     }
   }
   return [...urls];
@@ -172,7 +172,7 @@ export const amazonFrExtractor: MerchantExtractor = {
   extract(doc, pageUrl) {
     const orderNumber = firstField(doc, SELECTORS.orderNumber, (el) => parseOrderNumber(text(el)));
     const rows = productRows(doc);
-    // FR-010 : seuls les champs de DetectedPurchase sont lus — ni adresse, ni paiement.
+    // FR-010: only the DetectedPurchase fields are read — no address, no payment.
     return {
       source: 'amazon.fr',
       pageUrl: `${pageUrl.origin}${pageUrl.pathname}`,
@@ -198,7 +198,7 @@ export const amazonFrExtractor: MerchantExtractor = {
           if (url) popoverUrls.add(url);
         }
       } catch {
-        // sélecteur suivant
+        // next selector
       }
     }
 
@@ -211,7 +211,7 @@ export const amazonFrExtractor: MerchantExtractor = {
           if (!urls.includes(link)) urls.push(link);
         }
       } catch {
-        // menu indisponible : on garde les liens directs
+        // menu unavailable: keep the direct links
       }
     }
     return toDocuments(urls, orderNumber);

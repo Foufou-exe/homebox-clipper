@@ -1,6 +1,6 @@
-**[Accueil](Home.md)**
+**[Home](Home.md)**
 
-**Utiliser**
+**Use**
 
 - [Installation](Installation.md)
 - [Configuration](Configuration.md)
@@ -9,7 +9,7 @@
 - [Security-and-privacy](Security-and-privacy.md)
 - [Troubleshooting-and-FAQ](Troubleshooting-and-FAQ.md)
 
-**Contribuer**
+**Contribute**
 
 - [Architecture](Architecture.md)
 - [Adding-a-merchant](Adding-a-merchant.md)
@@ -17,7 +17,7 @@
 - [Local-HomeBox-instance](Local-HomeBox-instance.md)
 - [Translations](Translations.md)
 
-**Maintenir**
+**Maintain**
 
 - [Releasing](Releasing.md)
 - [Maintaining-the-dev-environment](Maintaining-the-dev-environment.md)

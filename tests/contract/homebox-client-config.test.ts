@@ -5,7 +5,7 @@ const BASE = 'https://homebox.example.com';
 const client = (f: typeof fetch) => createHomeBoxClient({ baseUrl: BASE, apiKey: 'hb_x', fetchImpl: f });
 
 describe('client HomeBox — configuration', () => {
-  it('getStatus 200 avec health → version', async () => {
+  it('getStatus 200 with health → version', async () => {
     const m = mockFetch(json(200, { health: true, title: 'Homebox', build: { version: 'v0.27.0' } }));
     expect(await client(m.fetch).getStatus()).toEqual({
       ok: true,
@@ -19,7 +19,7 @@ describe('client HomeBox — configuration', () => {
     expect(await client(m.fetch).getStatus()).toMatchObject({ ok: false, error: 'INVALID_URL' });
   });
 
-  it('getStatus JSON sans health → INVALID_URL', async () => {
+  it('getStatus JSON without health → INVALID_URL', async () => {
     const m = mockFetch(json(200, { hello: 'world' }));
     expect(await client(m.fetch).getStatus()).toMatchObject({ ok: false, error: 'INVALID_URL' });
   });

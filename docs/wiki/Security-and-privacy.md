@@ -1,108 +1,106 @@
-# Sécurité et confidentialité
+# Security and privacy
 
-La clé API HomeBox donne accès à tout votre inventaire : sa protection est le principe central du projet.
-Cette page décrit ce que l'extension fait, ce qu'elle ne fait pas, et ses limites. Pour signaler une
-vulnérabilité, voir la [politique de sécurité](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md).
+The HomeBox API key gives access to your whole inventory: protecting it is the project's central
+principle. This page describes what the extension does, what it does not do, and its limits. To report a
+vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md).
 
-## Ce que la clé API ne fait jamais
+## What the API key never does
 
-- Elle n'est **jamais envoyée à Amazon** (ni à un autre marchand).
-- Elle n'est **jamais envoyée à un serveur intermédiaire** : il n'y en a pas, et aucune statistique d'usage
-  ni télémétrie n'existe. L'extension ne contacte que le marchand (pour lire la page et télécharger la
-  facture avec votre session) et **votre** instance HomeBox.
-- Elle n'est **jamais écrite dans les journaux**.
-- Elle n'est **jamais incluse dans le code source** (ni dans les fichiers versionnés, ni dans les fixtures
-  de test).
+- It is **never sent to Amazon** (or to any other merchant).
+- It is **never sent to an intermediary server**: there is none, and no usage statistics or telemetry
+  exist. The extension contacts only the merchant (to read the page and download the invoice with your
+  session) and **your** HomeBox instance.
+- It is **never written to logs**.
+- It is **never included in the source code** (neither in versioned files nor in test fixtures).
 
-## Modèle de menace
+## Threat model
 
-| Menace | Protection |
+| Threat | Protection |
 |--------|------------|
-| Un fichier du profil Chrome est lu (copie du disque, sauvegarde) | La clé n'est stockée que **chiffrée** (AES-GCM 256, clé dérivée de votre phrase de passe par PBKDF2-SHA256, 600 000 itérations, sel et IV aléatoires) dans `storage.local`. |
-| Quelqu'un modifie l'adresse stockée pour détourner la clé vers un autre serveur | L'adresse de l'instance sert de **donnée associée** au chiffrement : la modifier sans la phrase de passe rend le déchiffrement impossible. |
-| Une page web (Amazon) tente de lire la clé | Seul le **service worker** utilise la clé. Le script injecté dans la page n'a accès ni au stockage ni à la configuration, et aucun message qui lui est destiné ne contient l'adresse ou la clé. |
-| Un script de page tente d'appeler le service worker | Les messages sont **typés et validés** à la réception ; ceux qui touchent à la configuration, au déverrouillage, à la détection et aux imports sont refusés s'ils ne viennent pas d'une page de l'extension (popup, options). |
-| La clé est envoyée au mauvais hôte | L'en-tête `Authorization: Bearer` n'est ajouté qu'aux requêtes dont l'adresse commence par l'adresse configurée. |
-| Écoute du réseau local en HTTP | HTTP n'est accepté que pour le réseau local, avec l'avertissement « HTTP non chiffré » ; HTTPS est obligatoire pour toute adresse publique. |
-| Création d'objets non voulus | Aucune écriture dans HomeBox sans clic sur « Ajouter à HomeBox » ; tous les champs sont modifiables avant l'envoi. |
-| URL d'image piégée (page marchande modifiée) | L'URL est contrôlée deux fois (à l'extraction, puis dans le service worker) : `https`, hôte **strictement égal** à celui du marchand (`m.media-amazon.com`), sans port ni identifiants. Redirections refusées. |
-| Fichier piégé présenté comme une photo (HTML, SVG, GIF) | Seuls JPEG, PNG et WebP (signature des octets vérifiée) de 5 Mo au plus sont envoyés ; le type envoyé vient de la signature, pas de l'en-tête de la réponse. |
-| Fichier piégé présenté comme une facture | Seuls de vrais PDF (signature `%PDF-`) de 15 Mo maximum sont envoyés ; téléchargement limité à l'origine `https://www.amazon.fr`. |
+| A file of the Chrome profile is read (disk copy, backup) | The key is stored only **encrypted** (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations, random salt and IV) in `storage.local`. |
+| Someone edits the stored address to divert the key to another server | The instance address is used as **associated data** for the encryption: changing it without the passphrase makes decryption impossible. |
+| A web page (Amazon) tries to read the key | Only the **service worker** uses the key. The script injected into the page has access to neither storage nor the settings, and no message addressed to it contains the address or the key. |
+| A page script tries to call the service worker | Messages are **typed and validated** on reception; those touching settings, unlocking, detection and imports are refused unless they come from an extension page (popup, options). |
+| The key is sent to the wrong host | The `Authorization: Bearer` header is added only to requests whose address starts with the configured address. |
+| Eavesdropping on the local network over HTTP | HTTP is accepted only for the local network, with the "Unencrypted HTTP" warning; HTTPS is required for any public address. |
+| Creation of unwanted items | No write to HomeBox without a click on "Add to HomeBox"; all fields can be edited before sending. |
+| Booby-trapped image URL (modified merchant page) | The URL is checked twice (at extraction, then in the service worker): `https`, host **strictly equal** to the merchant's (`m.media-amazon.com`), no port or credentials. Redirects refused. |
+| Booby-trapped file passed off as a photo (HTML, SVG, GIF) | Only JPEG, PNG and WebP (byte signature checked) of 5 MB at most are sent; the type sent comes from the signature, not from the response header. |
+| Booby-trapped file passed off as an invoice | Only real PDFs (`%PDF-` signature) of 15 MB at most are sent; download limited to the `https://www.amazon.fr` origin. |
 
-## Où sont stockées les données
+## Where data is stored
 
-| Donnée | Emplacement | Durée de vie |
-|--------|-------------|--------------|
-| Adresse de l'instance, clé API **chiffrée**, clé masquée (`hb_••••abcd`), résultat du dernier test | `storage.local` | Jusqu'à « Supprimer la configuration » ou la désinstallation |
-| Clé API **déchiffrée** | `storage.session` (mémoire) | Jusqu'au verrouillage (🔒), à la fermeture du navigateur ou au rechargement, à la mise à jour ou à la désactivation de l'extension |
-| Phrase de passe | **Nulle part** | Jamais enregistrée |
-| Imports en cours (données d'achat nécessaires à une reprise) | `storage.session` (mémoire) | Effacés dès que l'import réussit ou est abandonné ; sans les octets des fichiers |
-| URL de la photo d'un import en cours | `storage.session` (mémoire) | Effacée avec l'import (succès ou abandon) ; **jamais les octets de l'image** |
-| Dernier emplacement utilisé, par instance (`lastLocationByInstance`) : **identifiants seulement**, jamais un nom d'emplacement | `storage.local` | Jusqu'à « Supprimer la configuration » (effacé avec elle) ou la désinstallation |
-| Thème choisi | `storage.local` | Préférence d'affichage |
+| Data | Location | Lifetime |
+|------|----------|----------|
+| Instance address, **encrypted** API key, masked key (`hb_••••abcd`), result of the last test | `storage.local` | Until "Delete settings" or uninstallation |
+| **Decrypted** API key | `storage.session` (memory) | Until locking (🔒), browser close, or extension reload, update or disabling |
+| Passphrase | **Nowhere** | Never saved |
+| In-progress imports (purchase data needed for a recovery) | `storage.session` (memory) | Erased as soon as the import succeeds or is abandoned; without file bytes |
+| Photo URL of an in-progress import | `storage.session` (memory) | Erased with the import (success or abandon); **never the image bytes** |
+| Last location used, per instance (`lastLocationByInstance`): **identifiers only**, never a location name | `storage.local` | Until "Delete settings" (erased with it) or uninstallation |
+| Chosen theme | `storage.local` | Display preference |
 
-Aucune donnée n'est placée dans `storage.sync`.
+No data is placed in `storage.sync`.
 
-## Permissions du manifeste
+## Manifest permissions
 
-| Permission | Pourquoi |
-|------------|----------|
-| `storage` | Mémoriser l'adresse, la clé chiffrée, le thème et l'état des imports en cours. |
-| `activeTab` | Lire l'onglet Amazon **uniquement quand vous ouvrez l'extension**. Aucun accès permanent à Amazon. |
-| `scripting` | Injecter le code de détection dans cet onglet, à ce moment-là. |
-| Accès à votre instance (**optionnel**, `https://*/*` et `http://*/*`) | Demandé à l'exécution pour **l'origine exacte** que vous configurez, retiré quand vous supprimez la configuration. Le joker n'est jamais accordé en bloc ; la restriction de HTTP au réseau local est appliquée par le code. |
+| Permission | Why |
+|------------|-----|
+| `storage` | Remember the address, the encrypted key, the theme and the state of in-progress imports. |
+| `activeTab` | Read the Amazon tab **only when you open the extension**. No permanent access to Amazon. |
+| `scripting` | Inject the detection code into that tab, at that moment. |
+| Access to your instance (**optional**, `https://*/*` and `http://*/*`) | Requested at runtime for **the exact origin** you configure, removed when you delete the settings. The wildcard is never granted wholesale; the restriction of HTTP to the local network is enforced by the code. |
 
-Le manifeste ne déclare ni `host_permissions` statiques ni scripts de contenu statiques, et sa politique de
-sécurité de contenu interdit `eval` et le code distant. `bun run test:build` vérifie ces points sur le
-build de production.
+The manifest declares neither static `host_permissions` nor static content scripts, and its content
+security policy forbids `eval` and remote code. `bun run test:build` checks these points on the
+production build.
 
-## La photo du produit
+## The product photo
 
-- La requête d'image vers le serveur du marchand est un **GET anonyme** : sans cookies, sans en-tête
-  `Referer`, sans clé API, vers l'hôte exact du marchand uniquement. Elle est faite par un module séparé du
-  client HomeBox (`src/background/import/photo-fetch.ts`), qui n'a pas accès à la clé.
-- La photo n'est lue qu'après votre clic sur « Ajouter à HomeBox », et seulement si sa case est cochée.
-- Les octets ne sont **jamais conservés** (ni dans `storage.session`, ni dans `storage.local`) ; une reprise
-  retélécharge la photo.
-- **Aucune permission n'est ajoutée** au manifeste pour cela.
-- **Aucune URL d'image n'est écrite dans les journaux** (seuls un gabarit, un statut et une durée le sont).
-- Le popup affiche la vignette depuis le serveur d'images du marchand : c'est la seule requête d'image faite
-  avant votre confirmation, et elle est faite par votre navigateur, comme sur la page d'Amazon.
+- The image request to the merchant's server is an **anonymous GET**: no cookies, no `Referer` header, no
+  API key, to the merchant's exact host only. It is made by a module separate from the HomeBox client
+  (`src/background/import/photo-fetch.ts`), which has no access to the key.
+- The photo is read only after your click on "Add to HomeBox", and only if its box is checked.
+- The bytes are **never kept** (neither in `storage.session` nor in `storage.local`); a recovery
+  downloads the photo again.
+- **No permission is added** to the manifest for this.
+- **No image URL is written to logs** (only a template, a status and a duration are).
+- The popup shows the thumbnail from the merchant's image server: this is the only image request made
+  before your confirmation, and it is made by your browser, as on Amazon's page.
 
-## L'emplacement
+## The location
 
-- La liste des emplacements est une **lecture** (`GET /entities/tree`) sur l'instance que vous avez
-  configurée, avec la clé API, comme les autres appels : rien n'est envoyé ailleurs.
-- Les messages `location/*` sont réservés aux pages de l'extension (popup, options), jamais aux scripts
-  injectés dans une page marchande.
-- `storage.local` ne contient que des identifiants (`lastLocationByInstance`) ; ils sont effacés avec la
-  configuration.
-- **Aucun nom ni chemin d'emplacement n'est écrit dans les journaux.**
-- **Aucune permission n'est ajoutée** au manifeste pour cela.
+- The list of locations is a **read** (`GET /entities/tree`) on the instance you configured, with the API
+  key, like the other calls: nothing is sent elsewhere.
+- `location/*` messages are reserved for extension pages (popup, options), never for scripts injected
+  into a merchant page.
+- `storage.local` contains only identifiers (`lastLocationByInstance`); they are erased with the
+  settings.
+- **No location name or path is written to logs.**
+- **No permission is added** to the manifest for this.
 
-## Journaux et données personnelles
+## Logs and personal data
 
-L'unique point d'accès à la console est `src/shared/logger.ts`. Sa signature est fermée : il n'accepte que
-des codes d'erreur, des statuts HTTP, des durées et un **gabarit** d'endpoint (par exemple
-`POST /entities/{id}/attachments`), jamais une adresse réelle, un nom de produit, un prix ou un numéro de
-commande. Les journaux de debug ne sont émis qu'en mode développement ; seul un avertissement générique (« handler threw » et le type du message) est émis en production. Une règle ESLint interdit `console.*`
-ailleurs.
+The only access point to the console is `src/shared/logger.ts`. Its signature is closed: it accepts only
+error codes, HTTP statuses, durations and an endpoint **template** (for example
+`POST /entities/{id}/attachments`), never a real address, a product name, a price or an order number.
+Debug logs are emitted only in development mode; in production only a generic warning ("handler threw"
+and the message type) is emitted. An ESLint rule forbids `console.*` elsewhere.
 
-Seuls les champs listés dans [Usage](Usage.md) sont lus sur la page de commande : jamais votre adresse de
-livraison ni votre moyen de paiement.
+Only the fields listed in [Usage](Usage.md) are read from the order page: never your delivery address or
+your payment method.
 
-## Limites à connaître
+## Limits to know about
 
-- **Extension déverrouillée** : la clé est alors en mémoire. Un programme malveillant qui contrôle votre
-  session de navigateur peut la lire, comme pour tout gestionnaire de mots de passe déverrouillé. Le
-  chiffrement protège les fichiers du profil et l'extension **verrouillée**.
-- **Phrase de passe faible** : le minimum est de 10 caractères ; une phrase courte ou devinable affaiblit le
-  chiffrement. Préférez une phrase longue.
-- **HTTP local** : sur un réseau où d'autres machines sont hostiles, la clé peut être interceptée. Utilisez
-  HTTPS.
-- **Perte de la phrase de passe** : aucune récupération possible, par conception.
-- **Clé dédiée** : créez dans HomeBox une clé réservée à l'extension, avec expiration, pour limiter l'impact
-  d'une fuite.
+- **Unlocked extension**: the key is then in memory. Malicious software controlling your browser session
+  can read it, as with any unlocked password manager. Encryption protects the profile files and the
+  **locked** extension.
+- **Weak passphrase**: the minimum is 10 characters; a short or guessable passphrase weakens the
+  encryption. Prefer a long passphrase.
+- **Local HTTP**: on a network where other machines are hostile, the key can be intercepted. Use HTTPS.
+- **Lost passphrase**: no recovery is possible, by design.
+- **Dedicated key**: create in HomeBox a key reserved for the extension, with an expiration date, to limit
+  the impact of a leak.
 
-Pour aller plus loin sur l'implémentation : `src/background/config/key-vault.ts` (chiffrement),
-`config-store.ts` (stockage) et `url-policy.ts` (adresses), détaillés dans [Architecture](Architecture.md).
+To go further on the implementation: `src/background/config/key-vault.ts` (encryption),
+`config-store.ts` (storage) and `url-policy.ts` (addresses), detailed in [Architecture](Architecture.md).

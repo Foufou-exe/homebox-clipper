@@ -1,40 +1,40 @@
-# Marchands pris en charge
+# Supported merchants
 
-homebox-clipper vise à prendre en charge les boutiques en ligne en général, pas seulement Amazon.
-Cette page liste ce qui fonctionne aujourd'hui et ce qui est prévu. Votre boutique n'y figure pas ?
-[Demandez-la](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml)
-ou [ajoutez-la](https://github.com/Foufou-exe/homebox-clipper/wiki/Adding-a-merchant).
+homebox-clipper aims to support online stores in general, not just Amazon. This page lists what
+works today and what is planned. Your store is not listed?
+[Request it](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml)
+or [add it](https://github.com/Foufou-exe/homebox-clipper/wiki/Adding-a-merchant).
 
-Légende : ✅ Supported · 🟡 Partial · 🚧 In progress · 🗓️ Planned · 🙋 Requested
+Legend: ✅ Supported · 🟡 Partial · 🚧 In progress · 🗓️ Planned · 🙋 Requested
 
 ## ✅ Supported
 
-| Marchand | Domaines | Pays | Champs détectés | Depuis | Limites |
-|----------|----------|------|-----------------|--------|---------|
-| Amazon France | `www.amazon.fr` | FR | nom, prix, devise, date, n° de commande, vendeur, quantité, image (envoyée à HomeBox comme photo de l'objet, au choix de l'utilisateur), facture | 0.1.0 | Page de détail de commande uniquement |
+| Merchant | Domains | Country | Detected fields | Since | Limitations |
+|----------|---------|---------|-----------------|-------|-------------|
+| Amazon France | `www.amazon.fr` | FR | name, price, currency, date, order number, seller, quantity, image (sent to HomeBox as the item's photo, at the user's choice), invoice | 0.1.0 | Order detail page only |
 
 ## 🟡 Partial
 
-_Aucun pour l'instant._
+_None yet._
 
 ## 🚧 In progress
 
-_Aucun pour l'instant._
+_None yet._
 
 ## 🗓️ Planned
 
-| Marchand | Domaines | Pays | Suivi |
-|----------|----------|------|-------|
-| Amazon Allemagne | `www.amazon.de` | DE | À planifier |
-| Amazon Espagne | `www.amazon.es` | ES | À planifier |
-| Amazon Italie | `www.amazon.it` | IT | À planifier |
-| Amazon États-Unis | `www.amazon.com` | US | À planifier |
-| eBay | `www.ebay.fr` | FR | À planifier |
-| Fnac | `www.fnac.com` | FR | À planifier |
-| Darty | `www.darty.com` | FR | À planifier |
-| Boulanger | `www.boulanger.com` | FR | À planifier |
-| Leroy Merlin | `www.leroymerlin.fr` | FR | À planifier |
+| Merchant | Domains | Country | Tracking |
+|----------|---------|---------|----------|
+| Amazon Germany | `www.amazon.de` | DE | To be planned |
+| Amazon Spain | `www.amazon.es` | ES | To be planned |
+| Amazon Italy | `www.amazon.it` | IT | To be planned |
+| Amazon United States | `www.amazon.com` | US | To be planned |
+| eBay | `www.ebay.fr` | FR | To be planned |
+| Fnac | `www.fnac.com` | FR | To be planned |
+| Darty | `www.darty.com` | FR | To be planned |
+| Boulanger | `www.boulanger.com` | FR | To be planned |
+| Leroy Merlin | `www.leroymerlin.fr` | FR | To be planned |
 
 ## 🙋 Requested
 
-_Aucun pour l'instant._
+_None yet._

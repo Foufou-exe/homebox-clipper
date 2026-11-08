@@ -1,7 +1,7 @@
 /*
- * Palette reprise de HomeBox (frontend/assets/css/main.css, thème par défaut « homebox »).
- * Le thème sombre est une déclinaison propre à homebox-clipper, dans les mêmes teintes.
- * Choix de l'utilisateur : <html data-theme="light|dark"> ; sans attribut = thème du système.
+ * Palette taken from HomeBox (frontend/assets/css/main.css, default "homebox" theme).
+ * The dark theme is a homebox-clipper-specific variant, in the same hues.
+ * User choice: <html data-theme="light|dark">; no attribute = system theme.
  */
 :root {
   color-scheme: light;
@@ -16,7 +16,7 @@
   --accent: hsl(139 16% 43%); /* primary */
   --accent-hover: hsl(139 16% 37%);
   --accent-fg: hsl(139 100% 89%);
-  --accent-text: hsl(139 16% 37%); /* texte d'action sur --bg : 5,7:1 (AA) */
+  --accent-text: hsl(139 16% 37%); /* action text on --bg: 5.7:1 (AA) */
 
   --header-bg: hsl(77 8% 17%); /* secondary */
   --header-fg: hsl(76 18% 83%);
@@ -46,7 +46,7 @@
   --accent: hsl(139 18% 45%);
   --accent-hover: hsl(139 18% 52%);
   --accent-fg: hsl(139 100% 93%);
-  --accent-text: hsl(139 18% 55%); /* texte d'action sur --bg : 5,2:1 (AA) */
+  --accent-text: hsl(139 18% 55%); /* action text on --bg: 5.2:1 (AA) */
   --header-bg: hsl(77 8% 6%);
   --header-fg: hsl(76 18% 83%);
   --chip-bg: hsl(97 18% 20%);
@@ -90,7 +90,7 @@ body {
   color: var(--fg);
 }
 
-/* Carte blanche à coins arrondis, comme les tuiles de HomeBox. */
+/* White card with rounded corners, like HomeBox tiles. */
 .card {
   background: var(--bg);
   border-radius: var(--radius);
