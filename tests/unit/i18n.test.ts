@@ -1,5 +1,5 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { getMessage } from '@/platform/i18n';
+import { getMessage, getUILanguage } from '@/platform/i18n';
 import { ERROR_CODES } from '@/shared/errors';
 import { errorMessage, formatDate, t, uiLanguage } from '@/ui/i18n';
 
@@ -22,12 +22,25 @@ describe('src/ui/i18n.ts', () => {
     expect(getMessage).toHaveBeenCalledTimes(1 + ERROR_CODES.length);
   });
 
-  it('formatDate : format français, étape A', () => {
-    expect(formatDate('2026-10-22')).toBe('22/10/2026');
-    expect(uiLanguage()).toBe('fr');
+  it('formatDate et uiLanguage suivent getUILanguage() : français', () => {
+    for (const lang of ['fr', 'fr-FR', 'fr-CA']) {
+      vi.mocked(getUILanguage).mockReturnValue(lang);
+      expect(uiLanguage(), lang).toBe('fr');
+      expect(formatDate('2026-10-22'), lang).toBe('22/10/2026');
+    }
+  });
+
+  it('formatDate et uiLanguage suivent getUILanguage() : anglais pour toute autre langue, mois en lettres', () => {
+    for (const lang of ['en', 'en-US', 'de', 'ja', '']) {
+      vi.mocked(getUILanguage).mockReturnValue(lang);
+      expect(uiLanguage(), lang).toBe('en');
+      expect(formatDate('2026-10-22'), lang).toBe('22 October 2026');
+      expect(formatDate('2026-03-04'), lang).toBe('4 March 2026');
+    }
   });
 
   it('formatDate : une date invalide est rendue telle quelle, sans exception', () => {
+    vi.mocked(getUILanguage).mockReturnValue('fr');
     expect(formatDate('22 octobre')).toBe('22 octobre');
     expect(formatDate('2026-13-45')).toBe('2026-13-45');
   });

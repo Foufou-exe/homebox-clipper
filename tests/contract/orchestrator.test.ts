@@ -1,12 +1,17 @@
 import { buildNotes } from '@/background/import/orchestrator';
 import { findDuplicates } from '@/background/import/duplicates';
 import { ok } from '@/shared/errors';
+import { setTestLanguage } from '../unit/i18n-harness';
+import { findDuplicatesByName } from '@/background/import/duplicates';
 import { JPEG, draft, draftPhoto, err, invoice, PDF, photoOk, sessionKeys, setup } from './orchestrator-harness';
 
 // La note HomeBox est résolue par `getMessage` (service worker) : le catalogue réel sert de source.
 vi.mock('@/platform/i18n', async () => {
-  const { loadCatalog, makeGetMessage } = await import('../unit/i18n-harness');
-  return { getMessage: makeGetMessage(loadCatalog('fr')), getUILanguage: () => 'fr' };
+  const { loadCatalog, makeGetMessage, testLanguage } = await import('../unit/i18n-harness');
+  return {
+    getMessage: (key: string, subs?: string | string[]) => makeGetMessage(loadCatalog(testLanguage()))(key, subs),
+    getUILanguage: () => testLanguage(),
+  };
 });
 
 describe('orchestrateur — chemin nominal', () => {
@@ -94,6 +99,45 @@ describe('note HomeBox traduisible (summary.orderNote)', () => {
     );
     expect(searchEntities).toHaveBeenCalledWith('"999-0000000-0000001"');
     expect(r.ok && r.value.map((m) => m.id)).toEqual(['old']);
+  });
+});
+
+describe('note HomeBox en anglais : détection de doublons et reprise indépendantes de la langue', () => {
+  const NUMBER = '999-0000000-0000001';
+
+  it('buildNotes écrit « Amazon.fr order: <n°> » puis l’adresse de la page', () => {
+    setTestLanguage('en');
+    expect(buildNotes(draft())).toBe(`Amazon.fr order: ${NUMBER}\nhttps://www.amazon.fr/your-orders/order-details`);
+  });
+
+  it('un objet importé en français est reconnu à la réimportation en anglais (numéro seul)', async () => {
+    // Objet créé avec la note française ; le réimport se fait en anglais.
+    setTestLanguage('fr');
+    const frenchNote = buildNotes(draft())!;
+    expect(frenchNote).toContain(NUMBER);
+    setTestLanguage('en');
+    expect(buildNotes(draft())!).toContain(NUMBER);
+    const existing = { id: 'old', name: 'Clavier sans fil Exemple Pro', notes: frenchNote };
+    const searchEntities = vi.fn(() => Promise.resolve(ok([existing])));
+    const r = await findDuplicates(
+      { baseUrl: 'https://homebox.example.com', searchEntities } as never,
+      NUMBER,
+      'Clavier sans fil Exemple Pro',
+    );
+    // La requête ne contient que le numéro : aucun libellé de langue.
+    expect(searchEntities).toHaveBeenCalledWith(`"${NUMBER}"`);
+    expect(r.ok && r.value.map((m) => m.id)).toEqual(['old']);
+  });
+
+  it('la reprise cherche par nom : même requête en français et en anglais', async () => {
+    const queries: string[] = [];
+    for (const lang of ['fr', 'en'] as const) {
+      setTestLanguage(lang);
+      const searchEntities = vi.fn(() => Promise.resolve(ok([])));
+      await findDuplicatesByName({ baseUrl: 'https://homebox.example.com', searchEntities } as never, 'Clavier');
+      queries.push(String(searchEntities.mock.calls[0]));
+    }
+    expect(queries).toEqual(['"Clavier"', '"Clavier"']);
   });
 });
 

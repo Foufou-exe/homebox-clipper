@@ -79,6 +79,30 @@ const yamlFiles = [
 const yaml = new Map<string, unknown>();
 for (const f of yamlFiles) yaml.set(f, parseYaml(f));
 
+// 1b. Catalogues de traduction : en.yml est la référence, fr.yml doit avoir les mêmes clés et les mêmes
+// substitutions `$n` (contracts/locales.md). Contrôlé dès que les deux existent.
+function flatten(node: unknown, prefix: string, out: Map<string, string>): void {
+  if (isObj(node)) for (const [k, v] of Object.entries(node)) flatten(v, prefix ? `${prefix}.${k}` : k, out);
+  else out.set(prefix, String(node ?? ''));
+}
+const enFile = 'src/locales/en.yml';
+const frFile = 'src/locales/fr.yml';
+if (yaml.get(enFile) !== undefined && yaml.get(frFile) !== undefined) {
+  const en = new Map<string, string>();
+  const fr = new Map<string, string>();
+  flatten(yaml.get(enFile), '', en);
+  flatten(yaml.get(frFile), '', fr);
+  const subs = (v: string): string => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort().join(' ');
+  for (const key of fr.keys()) if (!en.has(key)) fail(enFile, `clé « ${key} » absente (présente dans ${frFile})`);
+  for (const key of en.keys()) if (!fr.has(key)) fail(frFile, `clé « ${key} » absente (présente dans ${enFile})`);
+  for (const [key, value] of en) {
+    const other = fr.get(key);
+    if (other !== undefined && subs(value) !== subs(other)) {
+      fail(enFile, `substitutions de « ${key} » différentes de celles de ${frFile}`);
+    }
+  }
+}
+
 // 2. Même version majeure.mineure de Bun partout
 const bunVersions: Array<[string, string]> = [];
 if (existsSync(abs('package.json'))) {

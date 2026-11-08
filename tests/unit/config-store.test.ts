@@ -78,8 +78,8 @@ describe('config-store (clé chiffrée)', () => {
   });
 
   it('refuse une clé vide ou contenant des espaces', async () => {
-    await expect(save({ apiKey: '  ' })).rejects.toThrow();
-    await expect(save({ apiKey: 'hb a' })).rejects.toThrow();
+    await expect(save({ apiKey: '  ' })).rejects.toThrow('invalid API key');
+    await expect(save({ apiKey: 'hb a' })).rejects.toThrow('invalid API key');
   });
 
   describe('migration depuis l’ancien format en clair', () => {

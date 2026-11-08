@@ -35,14 +35,16 @@ describe('manifest de production', () => {
     expect(manifest.description).toBe('__MSG_extDescription__');
   });
 
-  // @wxt-dev/i18n accepte un seul catalogue avec default_locale fr (étape A, R1).
-  it('langue par défaut fr, avec un seul dossier de locale', () => {
-    expect(manifest.default_locale).toBe('fr');
+  // Étape B : l'anglais est la langue par défaut ; le français est servi par _locales/fr.
+  it('langue par défaut en, avec les dossiers de locale en et fr', () => {
+    expect(manifest.default_locale).toBe('en');
     const locales = resolve(path, '../_locales');
-    expect(readdirSync(locales)).toEqual(['fr']);
-    const messages = JSON.parse(readFileSync(resolve(locales, 'fr/messages.json'), 'utf8')) as Record<string, unknown>;
-    expect(messages).toHaveProperty('extName');
-    expect(messages).toHaveProperty('extDescription');
+    expect(readdirSync(locales).sort()).toEqual(['en', 'fr']);
+    for (const lang of ['en', 'fr']) {
+      const messages = JSON.parse(readFileSync(resolve(locales, `${lang}/messages.json`), 'utf8')) as Record<string, unknown>;
+      expect(messages, lang).toHaveProperty('extName');
+      expect(messages, lang).toHaveProperty('extDescription');
+    }
   });
 
   it("CSP sans unsafe-eval ni source distante", () => {
