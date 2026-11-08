@@ -92,3 +92,22 @@ describe('catalogue fr.yml (contracts/locales.md)', () => {
     }
   });
 });
+
+describe('project links keys (004, FR-009, FR-010, SC-005)', () => {
+  const keys = ['links.support', 'links.github', 'links.supportAria', 'links.githubAria', 'options.helpTitle', 'options.helpIntro'];
+
+  it.each(keys)('%s exists in en.yml and fr.yml', (key) => {
+    expect(en).toHaveProperty([key]);
+    expect(catalog).toHaveProperty([key]);
+  });
+
+  it.each([
+    ['en', en, 'new tab'],
+    ['fr', catalog, 'nouvel onglet'],
+  ] as const)('%s: accessible names start with the visible label and mention the new tab (WCAG 2.5.3)', (_l, cat, tab) => {
+    expect(cat['links.supportAria']!.startsWith(cat['links.support']!)).toBe(true);
+    expect(cat['links.githubAria']!.startsWith(cat['links.github']!)).toBe(true);
+    expect(cat['links.supportAria']).toContain(tab);
+    expect(cat['links.githubAria']).toContain(tab);
+  });
+});

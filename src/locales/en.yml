@@ -211,3 +211,11 @@ options:
   connected: "Connected to HomeBox."
   savedAndConnected: "Connected to HomeBox. API key encrypted and saved."
   appearance: "Appearance"
+  helpTitle: "Help and project"
+  helpIntro: "Found a bug or need a new merchant? Open the project's issues. The project code and documentation are on GitHub."
+
+links:
+  support: "Support"
+  github: "GitHub"
+  supportAria: "Support: open the project's issues on GitHub (new tab)"
+  githubAria: "GitHub: open the project repository (new tab)"

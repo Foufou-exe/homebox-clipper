@@ -211,3 +211,11 @@ options:
   connected: "Connexion à HomeBox réussie."
   savedAndConnected: "Connexion à HomeBox réussie. Clé API chiffrée et enregistrée."
   appearance: "Apparence"
+  helpTitle: "Aide et projet"
+  helpIntro: "Un bug ou un nouveau marchand à demander ? Ouvrez les issues du projet. Le code et la documentation sont sur GitHub."
+
+links:
+  support: "Support"
+  github: "GitHub"
+  supportAria: "Support : ouvrir les issues du projet sur GitHub (nouvel onglet)"
+  githubAria: "GitHub : ouvrir le dépôt du projet (nouvel onglet)"

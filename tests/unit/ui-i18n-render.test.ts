@@ -519,6 +519,14 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
+    it('project footer: texts from fr.yml', async () => {
+      vi.mocked(send).mockResolvedValue({ configured: false } as never);
+      const wrapper = mount(PopupApp);
+      await flushPromises();
+      expect(wrapper.find('footer').text()).toContain('Support');
+      expectCatalogTexts(wrapper.findComponent({ name: 'ProjectLinks' }) as unknown as VueWrapper, [DATA]);
+    });
+
     it('migrated key to protect (configuration screen)', async () => {
       vi.mocked(send).mockResolvedValue(config({ needsPassphrase: true, locked: true }) as never);
       const wrapper = mount(PopupApp);
@@ -551,6 +559,13 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       await flushPromises();
       return wrapper;
     };
+
+    it('Help and project section: texts from fr.yml', async () => {
+      const wrapper = await mountOptions({ configured: false });
+      expect(wrapper.text()).toContain('Aide et projet');
+      expect(wrapper.text()).toContain('Un bug ou un nouveau marchand à demander ?');
+      expectCatalogTexts(wrapper, [DATA]);
+    });
 
     it('first configuration', async () => {
       const wrapper = await mountOptions({ configured: false });
@@ -1186,10 +1201,12 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
     await flushPromises();
     expect(popup.text()).toContain('Set up your HomeBox instance to get started.');
     expectEnglish(popup, [DATA]);
+    expect(popup.find('footer').text()).toContain('Support');
 
     vi.mocked(send).mockResolvedValue(config({ maskedKey: 'hb_…abcd' }) as never);
     const options = mount(OptionsApp);
     await flushPromises();
     expectEnglish(options, [DATA, 'hb_…abcd']);
+    expect(options.text()).toContain('Help and project');
   });
 });

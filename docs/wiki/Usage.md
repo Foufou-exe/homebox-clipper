@@ -123,6 +123,19 @@ remains possible if the item was renamed or if the search does not see it.
 The popup follows the system theme by default. The toolbar button cycles through *Automatic (system)*,
 *Light* and *Dark*; the choice is remembered.
 
+## Help and project
+
+Two links, "Support" and "GitHub", are always shown at the bottom of the popup (configured or not, locked
+or not) and in the "Help and project" section of the settings page.
+
+- "Support" opens the project's issues (`https://github.com/Foufou-exe/homebox-clipper/issues`), where you
+  can report a bug or ask for a new merchant.
+- "GitHub" opens the project repository (`https://github.com/Foufou-exe/homebox-clipper`).
+
+Each link opens in a new tab. The popup then closes: this is the browser's behavior when focus moves to
+another tab. No data is sent: the extension makes no request, the addresses carry no parameter, and the
+only request is the one your browser makes when you click.
+
 ## Limits
 
 - Amazon.fr only, and only the "Order Details" page: see [Supported-merchants](Supported-merchants.md).

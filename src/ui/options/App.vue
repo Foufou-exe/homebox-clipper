@@ -9,6 +9,7 @@ import type { ConfigView } from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
+import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
 import { t } from '@/ui/i18n';
 import { THEME_VALUES, saveTheme, themeLabel, themePreference as theme } from '@/ui/theme';
@@ -236,6 +237,12 @@ async function remove() {
           {{ themeLabel(value) }}
         </label>
       </fieldset>
+    </section>
+
+    <section class="card">
+      <h2>{{ t('options.helpTitle') }}</h2>
+      <p class="intro">{{ t('options.helpIntro') }}</p>
+      <ProjectLinks variant="buttons" />
     </section>
   </main>
 </template>

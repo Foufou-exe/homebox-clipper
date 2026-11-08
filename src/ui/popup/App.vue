@@ -5,6 +5,7 @@ import type { ErrorCode } from '@/shared/errors';
 import { isMessage, send } from '@/shared/messages';
 import type { ConfigView, ImportDraft, ManualFile, PendingImport } from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
+import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import Icon from '@/ui/components/Icon.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
@@ -176,6 +177,9 @@ function openOptions() {
         />
       </template>
     </main>
+    <footer class="project-footer">
+      <ProjectLinks variant="footer" />
+    </footer>
   </div>
 </template>
 
@@ -185,6 +189,14 @@ function openOptions() {
   max-height: 600px;
   display: flex;
   flex-direction: column;
+}
+.project-footer {
+  flex-shrink: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 4px 12px;
+  font-size: 12px;
+  text-align: center;
 }
 .content {
   overflow-y: auto;
