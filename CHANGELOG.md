@@ -8,6 +8,10 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ## [Unreleased]
 
+### Added
+
+- SonarQube Cloud static analysis of the source code (`.github/workflows/sonarqube.yml`, `sonar-project.properties`), run on pull requests to the repository and on `main`; pull requests from forks are skipped because they cannot access the `SONAR_TOKEN` secret. Quality Gate badge in the READMEs. Only the repository's source code is analysed; the extension still sends no data.
+
 ## [0.2.0] - 2026-11-08
 
 ### Added

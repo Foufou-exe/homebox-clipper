@@ -84,6 +84,15 @@ browser, start page. See `web-ext.config.example.ts`.
    code pull requests and on `main`, but catching errors locally is faster. `bun run setup` can install a `pre-push` hook that runs it automatically.
 4. Open a **pull request** to `main` and fill in the template.
 
+### SonarQube analysis
+
+The `SonarQube` workflow analyses the source code on [SonarQube Cloud](https://sonarcloud.io/project/overview?id=Foufou-exe_homebox-clipper)
+for pull requests opened from a branch of this repository and for `main`. The result (Quality Gate,
+issues) is on the SonarQube Cloud project page and in the pull request checks. Pull requests from
+forks cannot access the `SONAR_TOKEN` secret: the analysis is skipped for them, so it never blocks
+them; maintainers can review the code after merging. The configuration is in
+`sonar-project.properties`.
+
 ## Project rules
 
 The full principles are in the project constitution. The essentials:
