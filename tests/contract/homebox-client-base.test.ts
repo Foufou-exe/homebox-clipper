@@ -5,20 +5,20 @@ const BASE = 'https://homebox.example.com';
 const KEY = 'hb_test_key_1234';
 
 describe('client HomeBox — socle', () => {
-  it("envoie l'en-tête Authorization à l'instance configurée", async () => {
+  it("sends the Authorization header to the configured instance", async () => {
     const m = mockFetch(json(200, {}));
     await createHomeBoxClient({ baseUrl: BASE, apiKey: KEY, fetchImpl: m.fetch }).checkAuth();
     expect(m.calls[0]?.url).toBe(`${BASE}/api/v1/users/self`);
     expect(m.calls[0]?.headers.get('Authorization')).toBe(`Bearer ${KEY}`);
   });
 
-  it("n'envoie pas Authorization sur l'endpoint public /status", async () => {
+  it("does not send Authorization on the public /status endpoint", async () => {
     const m = mockFetch(json(200, { health: true }));
     await createHomeBoxClient({ baseUrl: BASE, apiKey: KEY, fetchImpl: m.fetch }).getStatus();
     expect(m.calls[0]?.headers.has('Authorization')).toBe(false);
   });
 
-  it('erreur réseau → HOMEBOX_UNREACHABLE', async () => {
+  it('network error → HOMEBOX_UNREACHABLE', async () => {
     const m = mockFetch(networkError());
     const r = await createHomeBoxClient({ baseUrl: BASE, apiKey: KEY, fetchImpl: m.fetch }).checkAuth();
     expect(r).toEqual({ ok: false, error: 'HOMEBOX_UNREACHABLE' });
@@ -36,7 +36,7 @@ describe('client HomeBox — socle', () => {
     expect(r).toEqual({ ok: false, error: 'UNAUTHORIZED', httpStatus: status });
   });
 
-  it('ne journalise jamais la clé API', async () => {
+  it('never logs the API key', async () => {
     const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) =>
       vi.spyOn(console, k).mockImplementation(() => undefined),
     );

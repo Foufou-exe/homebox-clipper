@@ -1,5 +1,5 @@
 /**
- * Couche plateforme (principe VI) : seul point d'import de l'API navigateur dans src/.
+ * Platform layer (principle VI): the only import point for the browser API in src/.
  */
 import { browser } from 'wxt/browser';
 
@@ -7,7 +7,7 @@ export { browser };
 
 const pattern = (origin: string) => `${origin}/*`;
 
-/** Doit être appelé depuis un geste utilisateur (clic) dans une page de l'extension. */
+/** Must be called from a user gesture (click) in an extension page. */
 export function requestOrigin(origin: string): Promise<boolean> {
   return browser.permissions.request({ origins: [pattern(origin)] });
 }

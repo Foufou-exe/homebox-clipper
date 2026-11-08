@@ -29,8 +29,8 @@ import LocationPicker from '@/ui/components/LocationPicker.vue';
 import { IDENTICAL_OK, loadCatalog, setTestLanguage } from './i18n-harness';
 import { ERROR_CODES } from '@/shared/errors';
 
-// Le mock de `@/platform/i18n` (setup-i18n.ts) sert le vrai catalogue fr.yml : le rendu doit donc
-// n'afficher que des valeurs du catalogue, hors données (props, champs) neutralisées par DATA.
+// The `@/platform/i18n` mock (setup-i18n.ts) serves the real fr.yml catalog: the rendering must therefore
+// only display catalog values, apart from data (props, fields) neutralized by DATA.
 vi.mock('@/shared/messages', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/messages')>()),
   send: vi.fn(),
@@ -38,22 +38,22 @@ vi.mock('@/shared/messages', async (importOriginal) => ({
 
 const catalog = loadCatalog('fr');
 const DATA = '__DATA__';
-// Au moins deux lettres : « v » devant un numéro de version n'est pas un texte traduisible.
+// At least two letters: a "v" before a version number is not translatable text.
 const LETTER = /[A-Za-zÀ-ÿ]{2,}/;
 
-/** Valeur du catalogue → expression ancrée ; `$n` accepte n'importe quelle donnée. */
+/** Catalog value → anchored expression; `$n` accepts any data. */
 const patterns = Object.values(catalog)
   .filter((v) => v.replace(/\$\d/g, '').trim().length >= 1)
   .map((v) => new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's'));
 
-/** Exceptions : exemples techniques non traduisibles (format d'adresse et préfixe de clé HomeBox). */
+/** Exceptions: non-translatable technical examples (address format and HomeBox key prefix). */
 const TECHNICAL_EXAMPLES = new Set(['https://homebox.example.com', 'hb_…']);
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
-/** Taille de fichier (formatSize, valeurs de common.size*) accolée au libellé dans le même nœud texte. */
+/** File size (formatSize, common.size* values) attached to the label in the same text node. */
 const SIZE = / ?\b\d+(?:\.\d)? (?:o|Ko|Mo|B|KB|MB)\b/g;
 
-/** Textes statiques, aria-label, title, placeholder et alt rendus (hors données). */
+/** Rendered static texts, aria-label, title, placeholder and alt (apart from data). */
 function visibleTexts(wrapper: VueWrapper, data: string[] = []): string[] {
   const out: string[] = [];
   const strip = (s: string) => clean(data.reduce((acc, d) => acc.split(d).join(DATA), clean(s).replace(SIZE, '')));
@@ -137,7 +137,7 @@ const pending = (over: Partial<PendingImport> = {}): PendingImport => ({
   ...over,
 });
 
-describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
+describe('interface texts: everything comes from fr.yml (FR-004)', () => {
   it('ErrorBanner', () => {
     expectCatalogTexts(mount(ErrorBanner, { props: { code: 'UNAUTHORIZED' } }));
   });
@@ -146,7 +146,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     expectCatalogTexts(mount(InstanceBadge, { props: { config: config() } }), [DATA]);
   });
 
-  it('N10 : InstanceBadge sur une adresse http: du réseau local affiche l’avertissement du catalogue', () => {
+  it('N10: InstanceBadge on a local-network http: address displays the catalog warning', () => {
     const wrapper = mount(InstanceBadge, { props: { config: config({ baseUrl: 'http://192.0.2.10:7745' }) } });
     const warning = wrapper.find('.http');
     expect(warning.exists()).toBe(true);
@@ -168,7 +168,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     expectCatalogTexts(wrapper, []);
   });
 
-  it('FieldEditor : champs non détectés, devise étrangère et erreurs de validation', () => {
+  it('FieldEditor: undetected fields, foreign currency and validation errors', () => {
     const wrapper = mount(FieldEditor, {
       props: {
         modelValue: draft({ name: '', currency: 'USD', quantity: 0, purchaseDate: '2999-01-01', purchasePrice: -1 }),
@@ -187,7 +187,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     expectCatalogTexts(mount(UnlockView, { props: { config: config() } }), [DATA]);
   });
 
-  it('ResultView : import en cours, partiel et réussi', () => {
+  it('ResultView: import in progress, partial and successful', () => {
     const running = pending({ status: 'running', error: null, steps: { create: 'done', update: 'pending', attachments: {}, photo: 'pending' } });
     const done = pending({ id: 'p2', status: 'success', error: null });
     const wrapper = mount(ResultView, {
@@ -197,7 +197,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     expect(mount(ResultView, { props: { pendings: [], baseUrl: '', running: true } }).text()).toBe('Import en cours…');
   });
 
-  it('ResultView : objet ajouté (singulier et pluriel)', () => {
+  it('ResultView: object added (singular and plural)', () => {
     const ok1 = pending({ status: 'success', error: null });
     const props = { baseUrl: DATA, running: false };
     expect(mount(ResultView, { props: { ...props, pendings: [ok1] } }).text()).toContain('Objet ajouté à HomeBox.');
@@ -206,7 +206,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     expectCatalogTexts(many, [DATA]);
   });
 
-  it('RecoveryView : objet créé puis objet non créé', () => {
+  it('RecoveryView: object created then object not created', () => {
     const created = mount(RecoveryView, { props: { pending: pending(), baseUrl: DATA } });
     expectCatalogTexts(created, [DATA]);
     expect(created.text()).toContain('a été créé dans HomeBox');
@@ -215,7 +215,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     });
     expectCatalogTexts(notCreated, [DATA]);
     expect(notCreated.text()).toContain('n\'a pas été créé.');
-    // Création incertaine : ne jamais affirmer que l'objet n'existe pas.
+    // Uncertain creation: never claim that the object does not exist.
     for (const state of [{ createUncertain: true }, { orphaned: true, createAttempted: true }]) {
       const uncertain = mount(RecoveryView, {
         props: { pending: pending({ entityId: null, error: 'DUPLICATE_SUSPECTED', ...state }), baseUrl: '' },
@@ -226,7 +226,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
   });
 
   describe('SummaryView', () => {
-    it('achat détecté (plusieurs produits), puis boîte « aucune facture »', async () => {
+    it('purchase detected (several products), then "aucune facture" box', async () => {
       vi.mocked(send).mockResolvedValue(ok({ purchase: { ...purchase([product('a'), product('b')]), documents: [] }, warnings: ['INVOICE_MISSING'] }) as never);
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
       await flushPromises();
@@ -237,7 +237,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('détection impossible : saisie manuelle et documents locaux/détectés', async () => {
+    it('detection impossible: manual entry and local/detected documents', async () => {
       vi.mocked(send).mockResolvedValue(fail('NOT_AN_ORDER_PAGE') as never);
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
       expect(wrapper.text()).toContain("Détection de l'achat…");
@@ -246,7 +246,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expect(wrapper.text()).toContain('Saisissez les informations et joignez un PDF si besoin.');
     });
 
-    it('documents et doublon suspecté', async () => {
+    it('documents and suspected duplicate', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(
           msg.type === 'detect/run'
@@ -265,7 +265,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     });
   });
 
-  describe('photo du produit (US1)', () => {
+  describe('product photo (US1)', () => {
     const PHOTO = 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg';
     const withPhoto = (key: string): DetectedProduct => ({ ...product(key), imageUrl: found(PHOTO) });
     const mountSummary = async (products: DetectedProduct[]) => {
@@ -277,7 +277,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     const submitted = (wrapper: VueWrapper) =>
       (wrapper.emitted('submit')?.[0]?.[0] as { drafts: ImportDraft[] }).drafts;
 
-    it('SummaryView : image de 64 px et case cochée par défaut (scénario 1, FR-001, FR-002)', async () => {
+    it('SummaryView: 64 px image and checkbox checked by default (scenario 1, FR-001, FR-002)', async () => {
       const wrapper = await mountSummary([withPhoto('a')]);
       const img = wrapper.find('.photo img');
       expect(img.attributes('src')).toBe(PHOTO);
@@ -289,7 +289,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('SummaryView : la case reflète draft.photo.include à la soumission (FR-002)', async () => {
+    it('SummaryView: the checkbox is reflected in draft.photo.include at submission (FR-002)', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(
           msg.type === 'detect/run'
@@ -305,7 +305,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expect(submitted(wrapper)[0]?.photo).toEqual({ url: PHOTO, merchantId: 'amazon.fr', include: false } satisfies DraftPhoto);
     });
 
-    it('SummaryView : photo cochée → draft.photo.include vrai, avec l’URL et le marchand', async () => {
+    it('SummaryView: photo checked → draft.photo.include true, with the URL and the merchant', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(
           msg.type === 'detect/run'
@@ -320,7 +320,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expect(submitted(wrapper)[0]?.photo).toEqual({ url: PHOTO, merchantId: 'amazon.fr', include: true });
     });
 
-    it('SummaryView : sans photo, summary.photoNone et draft.photo = null (scénario 4)', async () => {
+    it('SummaryView: without a photo, summary.photoNone and draft.photo = null (scenario 4)', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(
           msg.type === 'detect/run' ? ok({ purchase: purchase([product('a')]), warnings: [] }) : ok({ matches: [] }),
@@ -336,7 +336,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expect(submitted(wrapper)[0]?.photo).toBeNull();
     });
 
-    it('SummaryView : @error sur l’image décoche la case et affiche summary.photoLoadFailed', async () => {
+    it('SummaryView: @error on the image unchecks the box and displays summary.photoLoadFailed', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(
           msg.type === 'detect/run'
@@ -352,11 +352,11 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
-      // D3 : l'utilisateur n'a rien décoché, la photo est indisponible (FR-009), pas « non demandée ».
+      // D3: the user unchecked nothing, the photo is unavailable (FR-009), not "not requested".
       expect(submitted(wrapper)[0]?.photo).toBeNull();
     });
 
-    it('SummaryView : sans clic sur « Ajouter », aucun import/start ni requête réseau (FR-022)', async () => {
+    it('SummaryView: without a click on "Ajouter", no import/start or network request (FR-022)', async () => {
       const fetchSpy = vi.fn();
       vi.stubGlobal('fetch', fetchSpy);
       const wrapper = await mountSummary([withPhoto('a')]);
@@ -366,7 +366,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       await wrapper.find('.photo img').trigger('error');
       await flushPromises();
       expect(wrapper.emitted('submit')).toBeUndefined();
-      // Seules les lectures du résumé partent (détection, liste des emplacements) : aucun import/start.
+      // Only the summary reads are sent (detection, location list): no import/start.
       expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list']);
       expect(fetchSpy).not.toHaveBeenCalled();
       await wrapper.find('button.primary').trigger('click');
@@ -375,12 +375,12 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       vi.unstubAllGlobals();
     });
 
-    it('SummaryView : la vignette n’envoie pas de référent (referrerpolicy=no-referrer)', async () => {
+    it('SummaryView: the thumbnail does not send a referrer (referrerpolicy=no-referrer)', async () => {
       const wrapper = await mountSummary([withPhoto('a')]);
       expect(wrapper.find('.photo img').attributes('referrerpolicy')).toBe('no-referrer');
     });
 
-    it('ResultView : « avec sa facture » est séparé du nom du produit (D2)', () => {
+    it('ResultView: "avec sa facture" is separated from the product name (D2)', () => {
       const one = pending({ status: 'success', error: null, draft: draft({ documents: [detectedDoc] }) });
       const many = pending({ id: 'p2', status: 'success', error: null, draft: draft({ documents: [detectedDoc, manualDoc] }) });
       const wrapper = mount(ResultView, { props: { pendings: [one, many], baseUrl: DATA, running: false } });
@@ -389,7 +389,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expect(text).toContain(`${DATA} avec ses documents —`);
     });
 
-    it('SummaryView : plusieurs produits, une photo par ligne', async () => {
+    it('SummaryView: several products, one photo per row', async () => {
       const wrapper = await mountSummary([withPhoto('a'), product('b')]);
       expect(wrapper.findAll('.photo img')).toHaveLength(1);
       expect(wrapper.text()).toContain('Aucune photo disponible pour ce produit.');
@@ -404,7 +404,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
         ...over,
       });
 
-    it('ResultView : ligne result.stepPhoto pendant l’import', () => {
+    it('ResultView: result.stepPhoto line during the import', () => {
       const running = pending({
         status: 'running',
         error: null,
@@ -425,7 +425,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('ResultView : photo en échec → photoFailed, avec la reprise de la photo seule', () => {
+    it('ResultView: photo failed → photoFailed, with a resume of the photo alone', () => {
       const failed = withPhotoStep('failed', { status: 'partial', error: 'PHOTO_UPLOAD_FAILED', photoError: 'PHOTO_UPLOAD_FAILED', photoAttempted: true });
       const wrapper = mount(ResultView, { props: { pendings: [failed], baseUrl: DATA, running: false } });
       expect(wrapper.text()).toContain("Échec de l'envoi de la photo.");
@@ -433,14 +433,14 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('RecoveryView : photoError à part de error, et recovery.retryPhoto quand seule la photo reste', () => {
+    it('RecoveryView: photoError separate from error, and recovery.retryPhoto when only the photo remains', () => {
       const onlyPhoto = withPhotoStep('failed', {
         status: 'partial',
         error: 'PHOTO_TOO_LARGE',
         photoError: 'PHOTO_TOO_LARGE',
       });
       const wrapper = mount(RecoveryView, { props: { pending: onlyPhoto, baseUrl: DATA } });
-      expect(wrapper.findAll('[role="alert"]')).toHaveLength(1); // pas de doublon error / photoError
+      expect(wrapper.findAll('[role="alert"]')).toHaveLength(1); // no error / photoError duplicate
       expect(wrapper.text()).toContain('La photo dépasse 5 Mo : elle n\'a pas été envoyée.');
       expect(wrapper.find('button.primary').text()).toBe("Réessayer l'envoi de la photo");
       expectCatalogTexts(wrapper, [DATA]);
@@ -458,7 +458,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
     });
   });
 
-  describe('reprise après redémarrage du service worker (R8)', () => {
+  describe('resume after a service worker restart (R8)', () => {
     const interrupted = (over: Partial<PendingImport> = {}) =>
       pending({
         status: 'partial',
@@ -468,14 +468,14 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
         ...over,
       });
 
-    it('partial orphelin : message d’interruption et reprise générique', () => {
+    it('orphaned partial: interruption message and generic resume', () => {
       const wrapper = mount(ResultView, { props: { pendings: [interrupted()], baseUrl: DATA, running: false } });
       expect(wrapper.text()).toContain("L'import a été interrompu avant la fin.");
       expect(wrapper.find('button.primary').text()).toBe('Réessayer');
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('failed orphelin sans objet : réessai de l’import complet', () => {
+    it('orphaned failed without object: retry of the full import', () => {
       const failed = interrupted({ status: 'failed', entityId: null });
       const wrapper = mount(ResultView, { props: { pendings: [failed], baseUrl: DATA, running: false } });
       expect(wrapper.text()).toContain("n'a pas été créé.");
@@ -483,7 +483,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('DUPLICATE_SUSPECTED à la reprise : le refus est affiché, plus de « Réessayer » (pas de boucle), abandon proposé', async () => {
+    it('DUPLICATE_SUSPECTED on resume: the refusal is displayed, no more "Réessayer" (no loop), abandon offered', async () => {
       const orphan = interrupted({
         status: 'failed',
         entityId: null,
@@ -510,7 +510,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
   });
 
   describe('popup App', () => {
-    it('non configuré', async () => {
+    it('not configured', async () => {
       vi.mocked(send).mockResolvedValue({ configured: false } as never);
       const wrapper = mount(PopupApp);
       await flushPromises();
@@ -519,7 +519,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('clé migrée à protéger (écran de configuration)', async () => {
+    it('migrated key to protect (configuration screen)', async () => {
       vi.mocked(send).mockResolvedValue(config({ needsPassphrase: true, locked: true }) as never);
       const wrapper = mount(PopupApp);
       await flushPromises();
@@ -527,7 +527,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('verrouillé', async () => {
+    it('locked', async () => {
       vi.mocked(send).mockResolvedValue(config({ locked: true }) as never);
       const wrapper = mount(PopupApp);
       await flushPromises();
@@ -535,7 +535,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('déverrouillé : bouton de verrouillage et avis de clé non protégée', async () => {
+    it('unlocked: lock button and unprotected-key notice', async () => {
       vi.mocked(send).mockResolvedValue(config({ needsPassphrase: true, locked: false }) as never);
       const wrapper = mount(PopupApp);
       await flushPromises();
@@ -552,21 +552,21 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
       return wrapper;
     };
 
-    it('première configuration', async () => {
+    it('first configuration', async () => {
       const wrapper = await mountOptions({ configured: false });
       expect(wrapper.text()).toContain('Phrase de passe (nouvelle)');
       expect(wrapper.text()).toContain('Au moins 10 caractères.');
       expectCatalogTexts(wrapper, [DATA]);
     });
 
-    it('configuré et déverrouillé', async () => {
+    it('configured and unlocked', async () => {
       const wrapper = await mountOptions(config({ maskedKey: 'hb_…abcd' }));
       expect(wrapper.text()).toContain('Nécessaire pour déchiffrer la clé actuelle.');
       expect(wrapper.text()).toContain('Supprimer la configuration');
       expectCatalogTexts(wrapper, [DATA, 'hb_…abcd']);
     });
 
-    it('configuré et verrouillé, clé migrée', async () => {
+    it('configured and locked, migrated key', async () => {
       const wrapper = await mountOptions(config({ locked: true, needsPassphrase: true }));
       expectCatalogTexts(wrapper, [DATA]);
       expect(wrapper.text()).toContain('Apparence');
@@ -574,7 +574,7 @@ describe('textes de l’interface : tout vient de fr.yml (FR-004)', () => {
   });
 });
 
-describe('choix de l’emplacement (US2, US3)', () => {
+describe('location choice (US2, US3)', () => {
   const NAMES = ['Maison', 'Garage', 'Atelier'];
   const MAISON: LocationOption = { id: 'm', name: 'Maison', path: ['Maison'] };
   const GARAGE: LocationOption = { id: 'g', name: 'Garage', path: ['Maison', 'Garage'] };
@@ -592,7 +592,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
   const listOk = (lastUsedId: string | null = null, locations = LOCATIONS): ListReply =>
     ok({ locations, lastUsedId }) as ListReply;
 
-  /** `send` simulé par type de message ; chaque appel est consigné par `vi.mocked(send)`. */
+  /** `send` mocked per message type; each call is recorded by `vi.mocked(send)`. */
   function wire(opts: { products?: DetectedProduct[]; list?: ListReply; duplicates?: DetectedProduct[] | 'found' } = {}) {
     const products = opts.products ?? [named('a', 'Clavier'), named('b', 'Souris')];
     vi.mocked(send).mockImplementation((msg) => {
@@ -624,10 +624,10 @@ describe('choix de l’emplacement (US2, US3)', () => {
   };
 
   describe('SummaryView', () => {
-    it('charge location/list en parallèle de detect/run, sans bloquer le résumé (état « chargement »)', async () => {
+    it('loads location/list in parallel with detect/run, without blocking the summary ("loading" state)', async () => {
       wire({ list: new Promise<never>(() => undefined) });
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
-      // Les deux appels partent avant qu'aucun ne soit résolu.
+      // Both calls are sent before either is resolved.
       expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list']);
       await flushPromises();
       expect(wrapper.text()).toContain('Chargement des emplacements…');
@@ -635,7 +635,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
     });
 
-    it('un choix de commande s’applique à toutes les lignes ; orderLocationId le porte', async () => {
+    it('an order choice applies to all rows; orderLocationId carries it', async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -644,7 +644,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderLocationId).toBe('g');
     });
 
-    it('sans choix : location = null partout, orderLocationId = null, import possible (FR-012)', async () => {
+    it('no choice: location = null everywhere, orderLocationId = null, import possible (FR-012)', async () => {
       wire();
       const wrapper = await mountSummary();
       const { drafts, orderLocationId } = await confirm(wrapper);
@@ -652,16 +652,16 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderLocationId).toBeNull();
     });
 
-    it('plusieurs produits : sans choix propre, chaque produit indique qu’il partage l’emplacement des autres (FR-015)', async () => {
+    it("several products: without an own choice, each product states that it shares the others' location (FR-015)", async () => {
       wire();
       const wrapper = await mountSummary();
-      // Rien de choisi : la mention le dit.
+      // Nothing chosen: the mention says so.
       for (const row of wrapper.findAll('.product-location')) expect(row.text()).toContain('Aucun emplacement');
       await pick(orderPicker(wrapper), GARAGE);
       const rows = wrapper.findAll('.product-location');
       expect(rows).toHaveLength(2);
       for (const row of rows) {
-        // La mention nomme l'emplacement suivi, sans répéter le chemin complet du champ de commande.
+        // The mention names the followed location, without repeating the full path of the order field.
         expect(row.text()).toContain('Même emplacement que les autres produits : Garage');
         expect(row.text()).not.toContain('Maison › Garage');
         expect(row.text()).not.toContain('Emplacement de ce produit');
@@ -669,7 +669,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
     });
 
-    it('un seul produit : un seul sélecteur « Emplacement (facultatif) », aucune ligne par produit, aucun « Modifier »', async () => {
+    it('a single product: a single "Emplacement (facultatif)" picker, no per-product row, no "Modifier"', async () => {
       wire({ products: [named('a', 'Clavier')] });
       const wrapper = await mountSummary();
       expect(wrapper.findAllComponents(LocationPicker)).toHaveLength(1);
@@ -686,7 +686,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderLocationId).toBe('g');
     });
 
-    it('saisie manuelle (aucun produit détecté) : un seul sélecteur, présélection du dernier emplacement conservée', async () => {
+    it('manual entry (no product detected): a single picker, last-location preselection kept', async () => {
       wire({ products: [], list: listOk('a') });
       const wrapper = await mountSummary();
       await wrapper.get('input[required]').setValue('Perceuse');
@@ -697,7 +697,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderLocationId).toBe('a');
     });
 
-    it('plusieurs produits : le champ de la commande, intitulé et expliqué, précède les produits', async () => {
+    it('several products: the order field, labelled and explained, comes before the products', async () => {
       wire();
       const wrapper = await mountSummary();
       const html = wrapper.html();
@@ -706,13 +706,13 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderAt).toBeLessThan(html.indexOf('class="line card"'));
       expect(orderPicker(wrapper).props('label')).toBe('Emplacement des produits');
       expect(wrapper.text()).toContain('Chaque objet est rangé à un seul emplacement. Vous pouvez en choisir un autre pour un produit.');
-      // L'aide est reliée au champ.
+      // The hint is linked to the field.
       const help = wrapper.get('#' + orderPicker(wrapper).props('describedBy'));
       expect(help.text()).toContain('Chaque objet est rangé à un seul emplacement');
       expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
     });
 
-    it('choix propre : « Emplacement de ce produit : X » et « Utiliser celui de la commande » nommant le produit', async () => {
+    it('own choice: "Emplacement de ce produit : X" and "Utiliser celui de la commande" naming the product', async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -730,7 +730,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(editButtons(wrapper)[1]!.attributes('aria-label')).toBe("Modifier l'emplacement de Souris");
     });
 
-    it('« Utiliser celui de la commande » : retour à l’héritage, le brouillon envoyé reprend l’emplacement de la commande', async () => {
+    it(`"Utiliser celui de la commande": back to inheritance, the submitted draft takes the order's location`, async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -740,14 +740,14 @@ describe('choix de l’emplacement (US2, US3)', () => {
       await wrapper.findAll('button').find((b) => b.text() === 'Utiliser celui de la commande')!.trigger('click');
       expect(wrapper.findAll('button').some((b) => b.text() === 'Utiliser celui de la commande')).toBe(false);
       expect(wrapper.findAll('.product-location')[1]!.text()).toContain('Même emplacement que les autres produits');
-      // Redevenu héritier : il suit de nouveau les changements de la commande.
+      // Inheriting again: it follows the order's changes once more.
       await pick(orderPicker(wrapper), MAISON);
       const { drafts, orderLocationId } = await confirm(wrapper);
       expect(drafts.map((d) => d.location)).toEqual([choice(MAISON), choice(MAISON)]);
       expect(orderLocationId).toBe('m');
     });
 
-    it('retour à l’héritage après un « Retirer » propre : l’emplacement de la commande revient (et non null)', async () => {
+    it(`back to inheritance after an own "Retirer": the order's location comes back (not null)`, async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -759,7 +759,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE), choice(GARAGE)]);
     });
 
-    it('les sélecteurs et boutons par produit portent le nom du produit dans leur libellé accessible', async () => {
+    it('the per-product pickers and buttons carry the product name in their accessible label', async () => {
       wire();
       const wrapper = await mountSummary();
       const buttons = editButtons(wrapper);
@@ -774,7 +774,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expectCatalogTexts(wrapper, [DATA, ...NAMES, 'Clavier', 'Souris']);
     });
 
-    it('« Modifier » ouvre un sélecteur propre à la ligne : l’autre produit garde le choix de commande (FR-014)', async () => {
+    it('"Modifier" opens a row-specific picker: the other product keeps the order choice (FR-014)', async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -785,11 +785,11 @@ describe('choix de l’emplacement (US2, US3)', () => {
       await flushPromises();
       const { drafts, orderLocationId } = await confirm(wrapper);
       expect(drafts.map((d) => d.location)).toEqual([choice(GARAGE), choice(ATELIER)]);
-      // La mémoire (orderLocationId) suit la commande, pas la modification d'un seul produit.
+      // The memory (orderLocationId) follows the order, not a single product's change.
       expect(orderLocationId).toBe('g');
     });
 
-    it('« Retirer » sur une ligne : ce produit n’a aucun emplacement (null), les autres suivent la commande', async () => {
+    it('"Retirer" on a row: this product has no location (null), the others follow the order', async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -800,7 +800,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(drafts.map((d) => d.location)).toEqual([null, choice(GARAGE)]);
     });
 
-    it('une ligne qui suit la commande suit aussi ses changements ultérieurs', async () => {
+    it('a row that follows the order also follows its later changes', async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -810,7 +810,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderLocationId).toBe('a');
     });
 
-    it('un produit décoché n’est pas soumis, mais le choix de commande reste', async () => {
+    it('an unchecked product is not submitted, but the order choice remains', async () => {
       wire();
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
@@ -819,7 +819,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(drafts).toHaveLength(1);
     });
 
-    it('liste indisponible : ErrorBanner + indication, aucun sélecteur, import possible sans emplacement (scénario 16, FR-017)', async () => {
+    it('list unavailable: ErrorBanner + hint, no picker, import possible without location (scenario 16, FR-017)', async () => {
       wire({ list: fail('LOCATIONS_UNAVAILABLE') });
       const wrapper = await mountSummary();
       expect(wrapper.text()).toContain("La liste des emplacements n'a pas pu être obtenue.");
@@ -831,7 +831,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderLocationId).toBeNull();
     });
 
-    it.each(['UNAUTHORIZED', 'HOMEBOX_UNREACHABLE'] as const)('%s à la liste : même traitement, import possible', async (code) => {
+    it.each(['UNAUTHORIZED', 'HOMEBOX_UNREACHABLE'] as const)('%s on the list: same handling, import possible', async (code) => {
       wire({ list: fail(code) });
       const wrapper = await mountSummary();
       expect(wrapper.find('[role="alert"]').exists()).toBe(true);
@@ -839,7 +839,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined();
     });
 
-    it('liste vide : invitation à créer un emplacement dans HomeBox, import possible (scénario 17)', async () => {
+    it('empty list: invitation to create a location in HomeBox, import possible (scenario 17)', async () => {
       wire({ list: listOk(null, []) });
       const wrapper = await mountSummary();
       expect(wrapper.text()).toContain('Aucun emplacement dans HomeBox. Créez-en un dans HomeBox, ou importez sans emplacement.');
@@ -849,7 +849,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(drafts.map((d) => d.location)).toEqual([null, null]);
     });
 
-    it('achat non détecté (saisie manuelle) : le choix d’emplacement reste proposé', async () => {
+    it('purchase not detected (manual entry): the location choice is still offered', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(msg.type === 'location/list' ? listOk() : fail('NOT_AN_ORDER_PAGE')) as never,
       );
@@ -857,14 +857,14 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(orderPicker(wrapper).exists()).toBe(true);
     });
 
-    it('scénario 28 : doublon probable + photo + emplacement → avertissement inchangé', async () => {
+    it('scenario 28: probable duplicate + photo + location → warning unchanged', async () => {
       wire({ products: [named('a', 'Clavier', PHOTO)], duplicates: 'found' });
       const wrapper = await mountSummary();
       await pick(orderPicker(wrapper), GARAGE);
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
       expect(wrapper.find('[role="alertdialog"]').text()).toContain('Un objet semblable existe déjà dans HomeBox.');
-      // Le contrôle de doublon n'envoie ni emplacement ni photo.
+      // The duplicate check sends neither location nor photo.
       const dup = vi.mocked(send).mock.calls.map(([m]) => m).find((m) => m.type === 'duplicate/check');
       expect(dup).toEqual({ type: 'duplicate/check', orderNumber: DATA, name: 'Clavier' });
       expect(wrapper.emitted('submit')).toBeUndefined();
@@ -874,8 +874,8 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(drafts[0]).toMatchObject({ location: choice(GARAGE), photo: { include: true } });
     });
 
-    describe('dernier emplacement utilisé (US3, SC-009)', () => {
-      it('présélectionne lastUsedId quand il existe dans la liste', async () => {
+    describe('last location used (US3, SC-009)', () => {
+      it('preselects lastUsedId when it exists in the list', async () => {
         wire({ list: listOk('g') });
         const wrapper = await mountSummary();
         const { drafts, orderLocationId } = await confirm(wrapper);
@@ -883,13 +883,13 @@ describe('choix de l’emplacement (US2, US3)', () => {
         expect(orderLocationId).toBe('g');
       });
 
-      it('le chemin vient de la liste (jamais d’un nom mémorisé)', async () => {
+      it('the path comes from the list (never from a remembered name)', async () => {
         wire({ list: listOk('g') });
         const wrapper = await mountSummary();
         expect(wrapper.text()).toContain('Maison › Garage');
       });
 
-      it('l’utilisateur peut le changer', async () => {
+      it('the user can change it', async () => {
         wire({ list: listOk('g') });
         const wrapper = await mountSummary();
         await pick(orderPicker(wrapper), ATELIER);
@@ -897,7 +897,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
         expect(drafts.map((d) => d.location)).toEqual([choice(ATELIER), choice(ATELIER)]);
       });
 
-      it('l’utilisateur peut le retirer : draft.location devient null (US3-4)', async () => {
+      it('the user can remove it: draft.location becomes null (US3-4)', async () => {
         wire({ list: listOk('g') });
         const wrapper = await mountSummary();
         await pick(orderPicker(wrapper), null);
@@ -906,7 +906,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
         expect(orderLocationId).toBeNull();
       });
 
-      it('lastUsedId null (autre instance ou lieu disparu) : aucune présélection, aucune erreur', async () => {
+      it('lastUsedId null (other instance or disappeared location): no preselection, no error', async () => {
         wire({ list: listOk(null) });
         const wrapper = await mountSummary();
         expect(wrapper.find('[role="alert"]').exists()).toBe(false);
@@ -914,7 +914,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
         expect(drafts.map((d) => d.location)).toEqual([null, null]);
       });
 
-      it('lastUsedId absent de la liste reçue : ignoré sans erreur', async () => {
+      it('lastUsedId absent from the received list: ignored without error', async () => {
         wire({ list: listOk('disparu') });
         const wrapper = await mountSummary();
         expect(wrapper.find('[role="alert"]').exists()).toBe(false);
@@ -922,7 +922,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
         expect(orderLocationId).toBeNull();
       });
 
-      it('un choix fait avant l’arrivée de la liste n’est pas écrasé par la présélection', async () => {
+      it('a choice made before the list arrives is not overwritten by the preselection', async () => {
         let release!: () => void;
         const gate = new Promise<void>((r) => (release = r));
         vi.mocked(send).mockImplementation((msg) => {
@@ -940,7 +940,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
   });
 
   describe('LocationPicker : textes', () => {
-    it('tout texte rendu vient du catalogue (liste ouverte, valeur choisie, aucun résultat)', async () => {
+    it('all rendered text comes from the catalog (open list, chosen value, no result)', async () => {
       const wrapper = mount(LocationPicker, {
         props: { modelValue: choice(GARAGE), options: LOCATIONS, label: 'Emplacement des produits' },
       });
@@ -953,21 +953,21 @@ describe('choix de l’emplacement (US2, US3)', () => {
   });
 
   describe('ResultView', () => {
-    it('affiche l’emplacement retenu par produit (result.locationAt)', () => {
+    it('displays the retained location per product (result.locationAt)', () => {
       const withLoc = pending({ status: 'success', error: null, draft: draft({ location: choice(GARAGE) }) });
       const wrapper = mount(ResultView, { props: { pendings: [withLoc], baseUrl: DATA, running: false } });
       expect(wrapper.text()).toContain('Emplacement : Maison › Garage');
       expectCatalogTexts(wrapper, [DATA, ...NAMES]);
     });
 
-    it('rien sans emplacement', () => {
+    it('nothing without a location', () => {
       const none = pending({ status: 'success', error: null });
       const wrapper = mount(ResultView, { props: { pendings: [none], baseUrl: DATA, running: false } });
       expect(wrapper.text()).not.toContain('Emplacement');
     });
   });
 
-  describe('RecoveryView sur LOCATION_NOT_FOUND (scénario 18, FR-018)', () => {
+  describe('RecoveryView on LOCATION_NOT_FOUND (scenario 18, FR-018)', () => {
     const gone = () =>
       pending({
         entityId: null,
@@ -987,7 +987,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       return wrapper;
     };
 
-    it('recharge location/list, affiche le message, propose un sélecteur et « Importer sans emplacement »', async () => {
+    it('reloads location/list, displays the message, offers a picker and "Importer sans emplacement"', async () => {
       const wrapper = await mountGone();
       expect(send).toHaveBeenCalledWith({ type: 'location/list' });
       expect(wrapper.text()).toContain("Cet emplacement n'existe plus dans HomeBox.");
@@ -996,13 +996,13 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expectCatalogTexts(wrapper, [DATA, ...NAMES]);
     });
 
-    it('le sélecteur ne propose pas l’ancien choix : il faut en faire un nouveau avant de réessayer', async () => {
+    it('the picker does not offer the old choice: a new one must be made before retrying', async () => {
       const wrapper = await mountGone();
       expect(wrapper.findComponent(LocationPicker).props('modelValue')).toBeNull();
       expect(wrapper.find('button.primary').attributes('disabled')).toBeDefined();
     });
 
-    it('nouveau choix → import/retry transmet ce choix', async () => {
+    it('new choice → import/retry passes this choice', async () => {
       const wrapper = await mountGone();
       wrapper.findComponent(LocationPicker).vm.$emit('update:modelValue', choice(ATELIER));
       await flushPromises();
@@ -1012,14 +1012,14 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(wrapper.emitted('updated')).toHaveLength(1);
     });
 
-    it('« Importer sans emplacement » → import/retry avec location: null', async () => {
+    it('"Importer sans emplacement" → import/retry with location: null', async () => {
       const wrapper = await mountGone();
       await wrapper.findAll('button').find((b) => b.text() === 'Importer sans emplacement')!.trigger('click');
       await flushPromises();
       expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/retry', location: null }));
     });
 
-    it('liste indisponible : l’import sans emplacement reste possible', async () => {
+    it('list unavailable: import without location remains possible', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(msg.type === 'location/list' ? fail('LOCATIONS_UNAVAILABLE') : ok(pending())) as never,
       );
@@ -1029,7 +1029,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(wrapper.findAll('button').some((b) => b.text() === 'Importer sans emplacement')).toBe(true);
     });
 
-    it('recharge la liste à chaque nouveau LOCATION_NOT_FOUND, pas seulement au premier', async () => {
+    it('reloads the list on every new LOCATION_NOT_FOUND, not only the first', async () => {
       const wrapper = await mountGone();
       const listCalls = () => vi.mocked(send).mock.calls.filter(([m]) => m.type === 'location/list').length;
       expect(listCalls()).toBe(1);
@@ -1038,14 +1038,14 @@ describe('choix de l’emplacement (US2, US3)', () => {
       expect(listCalls()).toBe(2);
     });
 
-    it('un autre échec que LOCATION_NOT_FOUND ne charge pas la liste', async () => {
+    it('a failure other than LOCATION_NOT_FOUND does not load the list', async () => {
       vi.mocked(send).mockResolvedValue(ok(undefined) as never);
       mount(RecoveryView, { props: { pending: pending(), baseUrl: DATA } });
       await flushPromises();
       expect(send).not.toHaveBeenCalled();
     });
 
-    it('un retry ordinaire n’envoie pas de location (choix inchangé)', async () => {
+    it('an ordinary retry does not send a location (choice unchanged)', async () => {
       vi.mocked(send).mockResolvedValue(ok(pending()) as never);
       const plain = pending({ draft: draft({ documents: [detectedDoc] }) });
       const wrapper = mount(RecoveryView, { props: { pending: plain, baseUrl: DATA } });
@@ -1057,7 +1057,7 @@ describe('choix de l’emplacement (US2, US3)', () => {
   });
 
   describe('popup App', () => {
-    it('transmet orderLocationId à import/start', async () => {
+    it('passes orderLocationId to import/start', async () => {
       vi.mocked(send).mockImplementation((msg) => {
         if (msg.type === 'config/get') return Promise.resolve(config({ locked: false })) as never;
         if (msg.type === 'import/pending') return Promise.resolve([]) as never;
@@ -1075,19 +1075,19 @@ describe('choix de l’emplacement (US2, US3)', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Étape B (T062) : même rendu en anglais. Le mock de setup-i18n.ts sert en.yml après
-// `setTestLanguage('en')` (remis à `fr` avant chaque test).
+// Step B (T062): same rendering in English. The setup-i18n.ts mock serves en.yml after
+// `setTestLanguage('en')` (reset to `fr` before each test).
 // ---------------------------------------------------------------------------------------------
-describe('rendu en anglais : tout vient de en.yml, rien de français (T062)', () => {
+describe('English rendering: everything comes from en.yml, nothing French (T062)', () => {
   const en = loadCatalog('en');
   const toPattern = (v: string) =>
     new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's');
-  // Les tailles (« 15 MB ») sont retirées du texte rendu par visibleTexts : on retire aussi celles du catalogue.
+  // Sizes ("15 MB") are stripped from the text rendered by visibleTexts: those of the catalog are stripped too.
   const enPatterns = Object.values(en)
     .flatMap((v) => [v, clean(v.replace(SIZE, ''))])
     .filter((v) => v.replace(/\$\d/g, '').trim().length >= 1)
     .map(toPattern);
-  // Textes français qui ne doivent jamais apparaître en `en` (hors valeurs volontairement identiques).
+  // French texts that must never appear in `en` (apart from deliberately identical values).
   const frOnlyPatterns = Object.entries(catalog)
     .filter(([key, v]) => !IDENTICAL_OK.includes(key) && v.replace(/\$\d/g, '').trim().length >= 3)
     .map(([, v]) => toPattern(v));
@@ -1105,11 +1105,11 @@ describe('rendu en anglais : tout vient de en.yml, rien de français (T062)', ()
     expect(texts.filter((s) => frOnlyPatterns.some((p) => p.test(s))), 'texte français').toEqual([]);
   }
 
-  it('ErrorBanner : chaque code d’erreur', () => {
+  it('ErrorBanner: each error code', () => {
     for (const code of ERROR_CODES) expectEnglish(mount(ErrorBanner, { props: { code } }));
   });
 
-  it('InstanceBadge : avertissement HTTP en anglais, exactement la valeur du catalogue', () => {
+  it('InstanceBadge: HTTP warning in English, exactly the catalog value', () => {
     expectEnglish(mount(InstanceBadge, { props: { config: config() } }), [DATA]);
     const wrapper = mount(InstanceBadge, { props: { config: config({ baseUrl: 'http://192.0.2.10:7745' }) } });
     const warning = wrapper.find('.http');
@@ -1126,7 +1126,7 @@ describe('rendu en anglais : tout vient de en.yml, rien de français (T062)', ()
     expectEnglish(mount(AppHeader, { props: { subtitle: DATA } }));
   });
 
-  it('FieldEditor : champs non détectés, devise étrangère et erreurs de validation', () => {
+  it('FieldEditor: undetected fields, foreign currency and validation errors', () => {
     const wrapper = mount(FieldEditor, {
       props: {
         modelValue: draft({ name: '', currency: 'USD', quantity: 0, purchaseDate: '2999-01-01', purchasePrice: -1 }),
@@ -1137,12 +1137,12 @@ describe('rendu en anglais : tout vient de en.yml, rien de français (T062)', ()
     expect(wrapper.text()).toContain('Detected currency: USD. HomeBox stores the amount without a currency.');
   });
 
-  it('DocumentPicker et UnlockView', () => {
+  it('DocumentPicker and UnlockView', () => {
     expectEnglish(mount(DocumentPicker, { props: { allowReplace: true } }));
     expectEnglish(mount(UnlockView, { props: { config: config() } }), [DATA]);
   });
 
-  it('ResultView et RecoveryView', () => {
+  it('ResultView and RecoveryView', () => {
     const running = pending({ status: 'running', error: null, steps: { create: 'done', update: 'pending', attachments: {}, photo: 'pending' } });
     const done = pending({ id: 'p2', status: 'success', error: null });
     expectEnglish(
@@ -1162,7 +1162,7 @@ describe('rendu en anglais : tout vient de en.yml, rien de français (T062)', ()
     );
   });
 
-  it('SummaryView : achat détecté, boîte « aucune facture », puis détection impossible', async () => {
+  it('SummaryView: purchase detected, "aucune facture" box, then detection impossible', async () => {
     vi.mocked(send).mockResolvedValue(
       ok({ purchase: { ...purchase([product('a'), product('b')]), documents: [] }, warnings: ['INVOICE_MISSING'] }) as never,
     );
@@ -1180,7 +1180,7 @@ describe('rendu en anglais : tout vient de en.yml, rien de français (T062)', ()
     expectEnglish(manual, [DATA]);
   });
 
-  it('popup App et options App', async () => {
+  it('popup App and options App', async () => {
     vi.mocked(send).mockResolvedValue({ configured: false } as never);
     const popup = mount(PopupApp);
     await flushPromises();

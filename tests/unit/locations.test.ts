@@ -13,7 +13,7 @@ describe('flattenTree (FR-011, R1)', () => {
     expect(flattenTree([])).toEqual([]);
   });
 
-  it('chemins multi-niveaux : id string, name = dernier segment, path du lieu racine au lieu lui-même', () => {
+  it('multi-level paths: string id, name = last segment, path from the root location to the location itself', () => {
     const tree = [node('m', 'Maison', [node('g', 'Garage', [node('e', 'Étagère', [])])])];
     expect(flattenTree(tree)).toEqual([
       { id: 'm', name: 'Maison', path: ['Maison'] },
@@ -22,7 +22,7 @@ describe('flattenTree (FR-011, R1)', () => {
     ]);
   });
 
-  it('homonymes à des endroits différents : deux entrées, identifiées par leur id', () => {
+  it('homonyms in different places: two entries, identified by their id', () => {
     const tree = [
       node('m', 'Maison', [node('g1', 'Garage', [node('e1', 'Étagère')])]),
       node('a', 'Atelier', [node('e2', 'Étagère')]),
@@ -36,12 +36,12 @@ describe('flattenTree (FR-011, R1)', () => {
     ]);
   });
 
-  it('tolère children absent (feuille) comme children vide', () => {
+  it('tolerates a missing children (leaf) like an empty children', () => {
     const result = flattenTree([node('a', 'A'), node('b', 'B', [])]);
     expect(result.map((l) => l.id)).toEqual(['a', 'b']);
   });
 
-  it('écarte un nœud de type item et toute sa descendance', () => {
+  it('discards an item-type node and all its descendants', () => {
     const tree = [
       node('m', 'Maison', [
         node('i', 'Clavier', [node('l-sous-objet', 'Faux lieu sous un objet')], 'item'),
@@ -51,7 +51,7 @@ describe('flattenTree (FR-011, R1)', () => {
     expect(flattenTree(tree).map((l) => l.id)).toEqual(['m', 'g']);
   });
 
-  it('trie par chemin, insensible aux accents (« Étagère » avant « Zoo »), parent avant enfants', () => {
+  it('sorts by path, accent-insensitive ("Étagère" before "Zoo"), parent before children', () => {
     const tree = [
       node('z', 'Zoo'),
       node('m', 'Maison', [node('g', 'Garage'), node('c', 'Cave')]),
@@ -69,7 +69,7 @@ describe('flattenTree (FR-011, R1)', () => {
     ]);
   });
 
-  it('s’arrête à une profondeur de 32 sans lever d’exception (réponse anormale)', () => {
+  it('stops at a depth of 32 without throwing (abnormal response)', () => {
     let deepest: TreeItem = node('n40', 'N40');
     for (let i = 39; i >= 1; i--) deepest = node(`n${i}`, `N${i}`, [deepest]);
     const result = flattenTree([deepest]);
@@ -77,7 +77,7 @@ describe('flattenTree (FR-011, R1)', () => {
     expect(Math.max(...result.map((l) => l.path.length))).toBe(32);
   });
 
-  it('un cycle dans la réponse est borné par la profondeur', () => {
+  it('a cycle in the response is bounded by the depth', () => {
     const a = node('a', 'A', []);
     a.children = [a];
     expect(() => flattenTree([a])).not.toThrow();

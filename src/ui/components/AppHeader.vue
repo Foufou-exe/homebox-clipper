@@ -21,7 +21,7 @@ defineProps<{ subtitle?: string }>();
 </template>
 
 <style scoped>
-/* Barre supérieure sombre, comme celle de HomeBox. */
+/* Dark top bar, like HomeBox's. */
 .app-header {
   display: flex;
   align-items: center;

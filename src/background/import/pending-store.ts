@@ -3,8 +3,8 @@ import { browser } from '@/platform';
 import type { PendingImport } from '@/shared/types';
 
 /**
- * Imports en cours, en storage.session (mémoire, effacé à la fermeture du navigateur — R11).
- * Ne contient jamais les octets des fichiers.
+ * Imports in progress, in storage.session (in memory, cleared when the browser closes — R11).
+ * Never contains the file bytes.
  */
 const keyOf = (p: Pick<PendingImport, 'tabId' | 'id'>) => `${PENDING_PREFIX}${p.tabId}:${p.id}`;
 

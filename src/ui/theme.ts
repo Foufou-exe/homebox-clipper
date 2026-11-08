@@ -2,21 +2,21 @@ import { ref } from 'vue';
 import { browser } from '@/platform';
 import { t } from '@/ui/i18n';
 
-/** Apparence choisie : celle du système (auto), claire ou sombre. */
+/** Chosen appearance: the system one (auto), light or dark. */
 export type ThemePreference = 'auto' | 'light' | 'dark';
 
 const KEY = 'uiTheme';
 const VALUES: readonly ThemePreference[] = ['auto', 'light', 'dark'];
 
-/** Valeurs proposées, dans l'ordre du cycle du bouton d'en-tête. */
+/** Offered values, in the cycle order of the header button. */
 export const THEME_VALUES = VALUES;
 
-/** Libellé affiché d'une apparence (clés `theme.auto|light|dark`). */
+/** Displayed label of an appearance (keys `theme.auto|light|dark`). */
 export function themeLabel(pref: ThemePreference): string {
   return t(`theme.${pref}`);
 }
 
-/** Préférence courante, partagée par tous les composants de la page (bouton d'en-tête, options). */
+/** Current preference, shared by all components of the page (header button, options). */
 export const themePreference = ref<ThemePreference>('auto');
 
 function isPreference(x: unknown): x is ThemePreference {
@@ -47,7 +47,7 @@ export function nextTheme(pref: ThemePreference): ThemePreference {
   return VALUES[(VALUES.indexOf(pref) + 1) % VALUES.length] ?? 'auto';
 }
 
-/** Applique le thème enregistré puis suit ses changements (popup et options restent synchronisés). */
+/** Applies the saved theme, then follows its changes (popup and options stay in sync). */
 export async function initTheme(): Promise<void> {
   applyTheme(await loadTheme());
   browser.storage.onChanged.addListener((changes, area) => {

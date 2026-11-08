@@ -7,7 +7,7 @@ import { startRouter } from '@/background/router';
 import { browser } from '@/platform';
 
 export default defineBackground(() => {
-  // Ancien format (clé en clair) : la clé quitte immédiatement le disque.
+  // Old format (plaintext key): the key leaves the disk immediately.
   void configStore.migrateLegacy();
   registerConfigHandlers();
   registerDetectHandlers();

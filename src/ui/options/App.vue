@@ -24,8 +24,8 @@ const mismatch = ref(false);
 const success = ref<string | null>(null);
 
 /**
- * Nouvelle clé (ou clé migrée de l'ancien format) : on choisit une phrase de passe, avec confirmation.
- * Clé conservée : la phrase de passe actuelle sert à la déchiffrer.
+ * New key (or key migrated from the old format): a passphrase is chosen, with confirmation.
+ * Kept key: the current passphrase is used to decrypt it.
  */
 const choosingPassphrase = computed(
   () => !view.value.configured || apiKey.value.trim() !== '' || view.value.needsPassphrase === true,
@@ -69,8 +69,8 @@ async function saveAndTest() {
     mismatch.value = true;
     return;
   }
-  // Doit rester dans le gestionnaire de clic : Chrome exige un geste utilisateur.
-  // Une origine non couverte par optional_host_permissions fait lever une exception.
+  // Must stay in the click handler: Chrome requires a user gesture.
+  // An origin not covered by optional_host_permissions throws an exception.
   const granted = await requestOrigin(url.value.origin).catch(() => false);
   if (!granted) {
     error.value = 'PERMISSION_DENIED';
@@ -89,7 +89,7 @@ async function saveAndTest() {
       reset();
     } else {
       error.value = result.error;
-      // La configuration est enregistrée même si le test échoue (sauf erreurs de saisie).
+      // The configuration is saved even if the test fails (except input errors).
       if (!['WRONG_PASSPHRASE', 'WEAK_PASSPHRASE', 'UNAUTHORIZED', 'PERMISSION_DENIED'].includes(result.error)) reset();
     }
   } finally {

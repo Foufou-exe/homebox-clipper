@@ -1,13 +1,13 @@
 import { loadCatalog, makeGetMessage, setTestLanguage, testLanguage } from './i18n-harness';
 
-// fake-browser n'implémente pas `i18n.getMessage` : tous les tests lisent le vrai catalogue (fr.yml
-// par défaut, en.yml après `setTestLanguage('en')`) via le harnais. Un test qui veut contrôler les
-// textes appelle `vi.mock('@/platform/i18n')` lui-même.
+// fake-browser does not implement `i18n.getMessage`: all tests read the real catalog (fr.yml
+// by default, en.yml after `setTestLanguage('en')`) via the harness. A test that wants to control the
+// texts calls `vi.mock('@/platform/i18n')` itself.
 vi.mock('@/platform/i18n', () => ({
   getMessage: (key: string, substitutions?: string | string[]) =>
     makeGetMessage(loadCatalog(testLanguage()))(key, substitutions),
   getUILanguage: () => testLanguage(),
 }));
 
-// Chaque test démarre en français : un test en anglais ne contamine pas les suivants.
+// Each test starts in French: an English test does not contaminate the following ones.
 beforeEach(() => setTestLanguage('fr'));

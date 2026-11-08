@@ -1,12 +1,12 @@
 import type { ErrorCode } from './errors';
 
-/** Valeur extraite d'une page, ou absence explicite (principe III). */
+/** Value extracted from a page, or an explicit absence (principle III). */
 export type Field<T> =
   | { value: T; selector: string }
   | { value: null; reason: 'not_found' | 'unparsable' };
 
 export interface DetectedProduct {
-  /** ASIN si présent, sinon index dans la page. */
+  /** ASIN if present, otherwise index in the page. */
   key: string;
   name: Field<string>;
   unitPrice: Field<number>;
@@ -14,8 +14,8 @@ export interface DetectedProduct {
   currency: Field<string>;
   quantity: Field<number>;
   /**
-   * URL de la photo proposée à l'envoi vers HomeBox : déjà filtrée par `imageHosts` du marchand et
-   * réécrite à la résolution voulue.
+   * URL of the photo offered for upload to HomeBox: already filtered by the merchant's `imageHosts` and
+   * rewritten to the desired resolution.
    */
   imageUrl: Field<string>;
 }
@@ -25,7 +25,7 @@ export interface DocumentRef {
   origin: 'detected' | 'manual';
   kind: 'invoice' | 'order_document';
   label: string;
-  /** Pour `detected` : URL même origine amazon.fr. */
+  /** For `detected`: URL on the same amazon.fr origin. */
   url?: string;
   size?: number;
   pdfValid?: boolean;
@@ -33,7 +33,7 @@ export interface DocumentRef {
 
 export interface DetectedPurchase {
   source: 'amazon.fr';
-  /** URL de la page de commande, sans paramètres de requête. */
+  /** URL of the order page, without query parameters. */
   pageUrl: string;
   orderNumber: Field<string>;
   /** YYYY-MM-DD */
@@ -43,30 +43,30 @@ export interface DetectedPurchase {
   documents: DocumentRef[];
 }
 
-/** Photo proposée avec l'objet. Les octets ne sont jamais conservés : seule l'URL l'est, jusqu'à la purge. */
+/** Photo offered with the object. The bytes are never kept: only the URL is, until the purge. */
 export interface DraftPhoto {
   url: string;
-  /** Donne la liste `imageHosts` qui sert à recontrôler l'URL dans le service worker. */
+  /** Gives the `imageHosts` list used to re-check the URL in the service worker. */
   merchantId: DetectedPurchase['source'];
-  /** Vrai par défaut (FR-002) ; décochée, la photo n'est pas récupérée. */
+  /** True by default (FR-002); when unchecked, the photo is not fetched. */
   include: boolean;
 }
 
 /**
- * Emplacement choisi pour un objet. `id` est l'identifiant de l'entité-lieu (envoyé en `parentId`) ; `path`
- * est le chemin affiché. Vit en mémoire et en `storage.session` le temps de l'import ; jamais journalisé.
+ * Location chosen for an object. `id` is the identifier of the location entity (sent as `parentId`); `path`
+ * is the displayed path. Lives in memory and in `storage.session` for the duration of the import; never logged.
  */
 export interface LocationChoice {
   id: string;
   path: string[];
 }
 
-/** Emplacement proposé dans la liste (aplatie depuis l'arbre de HomeBox). Le nom seul n'identifie pas : `id` fait foi. */
+/** Location offered in the list (flattened from the HomeBox tree). The name alone does not identify it: `id` is authoritative. */
 export interface LocationOption {
   id: string;
-  /** Dernier segment du chemin. */
+  /** Last segment of the path. */
   name: string;
-  /** Du lieu racine au lieu lui-même. */
+  /** From the root location to the location itself. */
   path: string[];
 }
 
@@ -82,9 +82,9 @@ export interface ImportDraft {
   quantity: number;
   pageUrl: string | null;
   documents: DocumentRef[];
-  /** `null` : aucune photo détectée (ou saisie manuelle). */
+  /** `null`: no photo detected (or manual entry). */
   photo: DraftPhoto | null;
-  /** `null` : sans emplacement, aucun `parentId` n'est envoyé (FR-012). Absent d'un état persisté par une version précédente. */
+  /** `null`: no location, no `parentId` is sent (FR-012). Absent from a state persisted by a previous version. */
   location: LocationChoice | null;
 }
 
@@ -102,23 +102,23 @@ export interface PendingImport {
     create: StepState;
     update: StepState;
     attachments: Record<string, StepState>;
-    /** Lu avec `?? 'not_requested'` par prudence (état persisté par une version précédente). */
+    /** Read with `?? 'not_requested'` as a precaution (state persisted by a previous version). */
     photo: PhotoStep;
   };
   status: 'running' | 'success' | 'partial' | 'failed';
   error: ErrorCode | null;
-  /** Erreur propre à la photo, affichée à part de `error`. */
+  /** Photo-specific error, displayed separately from `error`. */
   photoError: ErrorCode | null;
-  /** Vrai dès qu'un POST de photo a pu partir : déclenche la relecture anti-double à la reprise (R8). */
+  /** True as soon as a photo POST may have been sent: triggers the duplicate-guard re-read on resume (R8). */
   photoAttempted: boolean;
-  /** Vrai dès que le POST de création a pu partir (écrit avant l'envoi) ; remis à faux après un échec certain (R8). */
+  /** True as soon as the creation POST may have been sent (written before sending); reset to false after a definite failure (R8). */
   createAttempted?: boolean;
   /**
-   * Création d'issue inconnue : la réponse du POST s'est perdue (réseau, délai) ou le service worker s'est
-   * arrêté pendant le POST. L'objet a pu être créé sans `entityId` : la reprise cherche d'abord son nom (R8).
+   * Creation with unknown outcome: the POST response was lost (network, timeout) or the service worker
+   * stopped during the POST. The object may have been created without `entityId`: the resume searches for its name first (R8).
    */
   createUncertain?: boolean;
-  /** Posé quand un import `running` est récupéré après l'arrêt du service worker (R8) ; retiré à la reprise. */
+  /** Set when a `running` import is recovered after the service worker stopped (R8); cleared on resume. */
   orphaned?: boolean;
 }
 
@@ -130,19 +130,19 @@ export interface LastCheck {
   at: string;
 }
 
-/** Vue de la configuration exposée à l'UI : ne contient jamais la clé (principe I). */
+/** View of the configuration exposed to the UI: never contains the key (principle I). */
 export interface ConfigView {
   configured: boolean;
   baseUrl?: string;
   maskedKey?: string;
   lastCheck?: LastCheck | null;
-  /** Clé chiffrée présente mais pas encore déverrouillée pour cette session. */
+  /** Encrypted key present but not yet unlocked for this session. */
   locked?: boolean;
-  /** Clé migrée de l'ancien format en clair : une phrase de passe doit être définie. */
+  /** Key migrated from the old plaintext format: a passphrase must be set. */
   needsPassphrase?: boolean;
 }
 
-/** Fichier choisi par l'utilisateur, transmis au service worker. */
+/** File chosen by the user, passed to the service worker. */
 export interface ManualFile {
   docId: string;
   filename: string;

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Politique de sécurité
+  - name: Security policy
     url: https://github.com/Foufou-exe/homebox-clipper/security/policy
-    about: Signaler une vulnérabilité en privé (ne pas ouvrir d'issue publique)
-  - name: Documentation HomeBox
+    about: Report a vulnerability privately (do not open a public issue)
+  - name: HomeBox documentation
     url: https://homebox.software
-    about: Questions sur HomeBox lui-même (hors extension)
+    about: Questions about HomeBox itself (not the extension)

@@ -13,7 +13,7 @@ import type {
 
 /**
  * Messages internes (contracts/runtime-messages.md).
- * Aucun message à destination du script injecté ne contient `baseUrl` ni `apiKey`.
+ * No message addressed to the injected script contains `baseUrl` or `apiKey`.
  */
 export type Message =
   // UI → service worker
@@ -31,19 +31,19 @@ export type Message =
       tabId: number;
       drafts: ImportDraft[];
       manualFiles: ManualFile[];
-      /** Choix au niveau de la commande : sert seulement à mémoriser le dernier emplacement (R10). */
+      /** Order-level choice: only used to remember the last location (R10). */
       orderLocationId?: string | null;
     }
   | {
       type: 'import/retry';
       pendingId: string;
       manualFiles?: ManualFile[];
-      /** Absent : choix inchangé ; `null` : sans emplacement. Refusé si l'objet existe déjà. */
+      /** Absent: choice unchanged; `null`: no location. Refused if the object already exists. */
       location?: LocationChoice | null;
     }
   | { type: 'import/abandon'; pendingId: string }
   | { type: 'import/pending'; tabId: number }
-  // service worker → script injecté
+  // service worker → injected script
   | { type: 'amazon/extract' }
   | { type: 'amazon/download'; url: string }
   // service worker → UI
@@ -89,12 +89,12 @@ const isStr = (x: unknown): x is string => typeof x === 'string';
 const isInt = (x: unknown): x is number => Number.isInteger(x);
 const isArr = Array.isArray;
 
-/** `ImportDraft.photo` : absente ou `null` (aucune photo), sinon `{ url, merchantId, include }` bien typé. */
+/** `ImportDraft.photo`: absent or `null` (no photo), otherwise a properly typed `{ url, merchantId, include }`. */
 const isDraftPhoto = (x: unknown): boolean =>
   x === undefined ||
   x === null ||
   (isObj(x) && isStr(x.url) && isStr(x.merchantId) && typeof x.include === 'boolean');
-/** `LocationChoice` : `id` textuel et `path` tableau de textes. */
+/** `LocationChoice`: textual `id` and `path` as an array of strings. */
 const isLocationChoice = (x: unknown): boolean =>
   isObj(x) && isStr(x.id) && isArr(x.path) && x.path.every(isStr);
 const isOptionalLocation = (x: unknown): boolean => x === undefined || x === null || isLocationChoice(x);
@@ -130,12 +130,12 @@ export function isMessage(x: unknown): x is Message {
   return validators[x.type as MessageType](x);
 }
 
-/** Envoie un message au service worker. */
+/** Sends a message to the service worker. */
 export function send<T extends MessageType>(msg: MessageOf<T>): Promise<ResponseOf<T>> {
   return browser.runtime.sendMessage(msg) as Promise<ResponseOf<T>>;
 }
 
-/** Envoie un message au script injecté d'un onglet. */
+/** Sends a message to the script injected in a tab. */
 export function sendToTab<T extends MessageType>(
   tabId: number,
   msg: MessageOf<T>,

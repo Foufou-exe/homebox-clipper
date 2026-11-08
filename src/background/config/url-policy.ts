@@ -1,14 +1,14 @@
 import { fail, ok, type Result } from '@/shared/errors';
 
 export interface NormalizedUrl {
-  /** URL absolue sans `/` final ni chemin `/api`. */
+  /** Absolute URL without a trailing `/` or `/api` path. */
   baseUrl: string;
-  /** Origine utilisée pour la demande de permission. */
+  /** Origin used for the permission request. */
   origin: string;
   warning?: 'local_http';
 }
 
-/** Suffixes réservés aux réseaux locaux (RFC 6762, RFC 8375, usage courant des homelabs). */
+/** Suffixes reserved for local networks (RFC 6762, RFC 8375, common homelab usage). */
 const PRIVATE_SUFFIXES = ['.lan', '.local', '.home.arpa', '.internal', '.localhost'];
 
 function privateIPv4(host: string): boolean {
@@ -30,8 +30,8 @@ function privateIPv6(host: string): boolean {
 }
 
 /**
- * Hôte joignable uniquement depuis le réseau local : localhost, IP privées (RFC 1918, ULA),
- * suffixes locaux, ou nom sans point (résolu par le DNS local).
+ * Host reachable only from the local network: localhost, private IPs (RFC 1918, ULA),
+ * local suffixes, or a dotless name (resolved by the local DNS).
  */
 export function isPrivateHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
@@ -43,9 +43,9 @@ export function isPrivateHost(hostname: string): boolean {
 }
 
 /**
- * Normalise l'URL de l'instance HomeBox et applique la règle de transport (principe V) :
- * HTTPS obligatoire pour toute adresse publique ; HTTP accepté uniquement sur le réseau privé,
- * avec avertissement (la clé API y circule en clair).
+ * Normalizes the HomeBox instance URL and applies the transport rule (principle V):
+ * HTTPS is required for any public address; HTTP is accepted only on the private network,
+ * with a warning (the API key travels in clear text there).
  */
 export function normalizeBaseUrl(input: string): Result<NormalizedUrl> {
   let url: URL;

@@ -14,7 +14,7 @@ const STEP_LABELS = {
 } as const;
 const stepLabel = (step: keyof typeof STEP_LABELS) => t(STEP_LABELS[step]);
 
-/** `sending` s'affiche comme « en attente » : l'envoi est en cours, rien n'est encore confirmé. */
+/** `sending` is displayed as "pending": the upload is in progress, nothing is confirmed yet. */
 const PHOTO_STEP_LABELS = {
   pending: 'result.stepPending',
   sending: 'result.stepPending',
@@ -33,12 +33,12 @@ const PHOTO_RESULTS = {
   unavailable: 'result.photoUnavailable',
   failed: 'result.photoFailed',
 } as const;
-/** Issue de la photo, par produit (FR-009) ; rien tant que l'objet n'existe pas ou que la photo est en attente. */
+/** Photo outcome, per product (FR-009); nothing while the object does not exist or the photo is pending. */
 const photoResult = (p: PendingImport) => {
   const step = photoStep(p);
   return p.entityId && step in PHOTO_RESULTS ? t(PHOTO_RESULTS[step as keyof typeof PHOTO_RESULTS]) : null;
 };
-/** Emplacement retenu pour l'objet, une fois créé (US2-5). Absent d'un état persisté par une version précédente. */
+/** Location retained for the object, once created (US2-5). Absent from a state persisted by a previous version. */
 const locationResult = (p: PendingImport) =>
   p.entityId && p.draft.location ? t('result.locationAt', [p.draft.location.path.join(t('location.pathSeparator'))]) : null;
 const itemLink = (p: PendingImport) => (p.entityId ? `${props.baseUrl}/item/${p.entityId}` : null);

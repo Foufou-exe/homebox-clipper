@@ -5,8 +5,8 @@ import type { DuplicateMatch } from '@/shared/types';
 const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
 /**
- * Doublon probable = même numéro de commande (cherché dans les notes, R3) et même nom de produit.
- * Toute erreur est non bloquante : DUPLICATE_CHECK_FAILED.
+ * Probable duplicate = same order number (searched in the notes, R3) and same product name.
+ * Any error is non-blocking: DUPLICATE_CHECK_FAILED.
  */
 export async function findDuplicates(
   client: Pick<HomeBoxClient, 'searchEntities' | 'baseUrl'>,
@@ -25,9 +25,9 @@ export async function findDuplicates(
 }
 
 /**
- * Création incertaine (R8) : le POST a pu aboutir sans que l'identifiant soit enregistré. À ce stade l'objet
- * n'a pas encore le numéro de commande (il n'arrive qu'au PUT) : on cherche donc le nom exact, sans dépendre
- * du numéro. Faux positif assumé : un même produit acheté une autre fois est signalé.
+ * Uncertain creation (R8): the POST may have succeeded without the identifier being saved. At this point the object
+ * does not have the order number yet (it only arrives with the PUT): so we search for the exact name, without depending
+ * on the number. Accepted false positive: the same product bought another time is flagged.
  */
 export async function findDuplicatesByName(
   client: Pick<HomeBoxClient, 'searchEntities' | 'baseUrl'>,

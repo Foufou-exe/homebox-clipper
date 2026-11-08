@@ -2,10 +2,10 @@
   "name": "homebox-clipper",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:4-24-bookworm",
   "features": {
-    // Démon Docker propre au conteneur : `bun run homebox:up` y lance l'instance HomeBox.
+    // Container-specific Docker daemon: `bun run homebox:up` starts the HomeBox instance there.
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  // HomeBox local, ouvert depuis le navigateur de l'hôte sur http://localhost:3100
+  // Local HomeBox, opened from the host browser at http://localhost:3100
   "forwardPorts": [3100],
   "portsAttributes": {
     "3100": { "label": "HomeBox (dev)", "onAutoForward": "notify" }

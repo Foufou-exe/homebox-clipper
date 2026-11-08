@@ -9,7 +9,7 @@ export interface Call {
 
 type Responder = (call: Call) => Response | Promise<Response>;
 
-/** fetch simulé : chaque appel est enregistré et servi par le prochain répondeur. */
+/** Mocked fetch: each call is recorded and served by the next responder. */
 export function mockFetch(...responders: Responder[]) {
   const calls: Call[] = [];
   const queue = [...responders];

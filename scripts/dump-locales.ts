@@ -1,6 +1,6 @@
 /**
- * Affiche sur stdout le contenu aplati de src/locales/*.yml : { "fr": { "a.b.c": "valeur" } }.
- * Exécuté par Bun (Bun.YAML) ; les tests Vitest (Node) l'appellent en sous-processus.
+ * Prints the flattened content of src/locales/*.yml to stdout: { "fr": { "a.b.c": "value" } }.
+ * Run by Bun (Bun.YAML); the Vitest tests (Node) call it in a subprocess.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';

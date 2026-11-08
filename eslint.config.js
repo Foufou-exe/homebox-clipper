@@ -15,10 +15,10 @@ export default tseslint.config(
     rules: {
       // R14 / principe I : toute sortie console passe par src/shared/logger.ts.
       'no-console': 'error',
-      // TypeScript vérifie déjà les identifiants non définis.
+      // TypeScript already checks undefined identifiers.
       'no-undef': 'off',
       'vue/multi-word-component-names': 'off',
-      // La mise en forme est laissée à Prettier.
+      // Formatting is left to Prettier.
       'vue/max-attributes-per-line': 'off',
       'vue/singleline-html-element-content-newline': 'off',
       'vue/html-self-closing': 'off',
@@ -29,7 +29,7 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
   {
-    // Scripts Bun (dump-locales, check-config…) : leur sortie standard est leur interface.
+    // Bun scripts (dump-locales, check-config...): their standard output is their interface.
     files: ['scripts/**'],
     rules: { 'no-console': 'off' },
   },

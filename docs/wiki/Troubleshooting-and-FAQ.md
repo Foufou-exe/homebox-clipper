@@ -1,125 +1,134 @@
-# Dépannage et FAQ
+# Troubleshooting and FAQ
 
-Cette page reprend **tous les messages d'erreur** de l'extension (catalogue `error.*` de
-`src/locales/fr.yml`), avec leur cause probable et la solution. Les messages sont classés par moment
-d'apparition.
+This page lists **all the error messages** of the extension (the `error.*` catalog of
+`src/locales/en.yml`, English being the default language), with their probable cause and the fix. If your
+browser is set to French, the same messages appear in French (`src/locales/fr.yml`); the codes are the
+same. Messages are grouped by when they appear.
 
 ## Configuration
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| L'adresse HomeBox est invalide ou ne correspond pas à une instance HomeBox. | `INVALID_URL` | Adresse mal saisie, avec identifiant/mot de passe ou un autre protocole que http/https ; ou l'adresse ne répond pas comme HomeBox (erreur HTTP autre que 401/403 lors du test de connexion). | Vérifiez l'adresse. Dans un onglet, `<adresse>/api/v1/status` doit renvoyer du JSON. |
-| Une adresse HTTPS est obligatoire. | `INSECURE_URL` | L'adresse est en `http://` et pointe vers un hôte public. | Passez en HTTPS (reverse proxy), ou utilisez l'adresse locale de l'instance (IP privée, nom en `.lan`…). Voir [Configuration](Configuration.md). |
-| L'autorisation d'accès à votre instance HomeBox a été refusée. | `PERMISSION_DENIED` | Vous avez refusé la demande de Chrome, ou la permission a été retirée. | Cliquez de nouveau sur « Tester et enregistrer » et acceptez. |
-| La phrase de passe doit contenir au moins 10 caractères. | `WEAK_PASSPHRASE` | Phrase de passe trop courte. | Choisissez-en une d'au moins 10 caractères. |
-| Configurez d'abord votre instance HomeBox. | `NOT_CONFIGURED` | Aucune configuration enregistrée (ou clé migrée sans phrase de passe). | Ouvrez les options et renseignez adresse, clé et phrase de passe. |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| The HomeBox address is invalid or does not point to a HomeBox instance. | `INVALID_URL` | Mistyped address, with a username/password or a protocol other than http/https; or the address does not answer like HomeBox (HTTP error other than 401/403 during the connection test). | Check the address. In a tab, `<address>/api/v1/status` must return JSON. |
+| An HTTPS address is required. | `INSECURE_URL` | The address uses `http://` and points to a public host. | Switch to HTTPS (reverse proxy), or use the instance's local address (private IP, name ending in `.lan`...). See [Configuration](Configuration.md). |
+| Access to your HomeBox instance was denied. | `PERMISSION_DENIED` | You refused Chrome's request, or the permission was removed. | Click "Test and save" again and accept. |
+| The passphrase must be at least 10 characters long. | `WEAK_PASSPHRASE` | Passphrase too short. | Choose one of at least 10 characters. |
+| Set up your HomeBox instance first. | `NOT_CONFIGURED` | No saved settings (or a key migrated without a passphrase). | Open the settings and fill in the address, key and passphrase. |
 
-## Connexion à HomeBox
+## Connection to HomeBox
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| HomeBox est inaccessible. Vérifiez l’adresse et votre connexion. | `HOMEBOX_UNREACHABLE` | Instance arrêtée, mauvais port, VPN ou pare-feu, ou délai de 15 secondes dépassé. | Vérifiez que l'instance tourne et que l'adresse s'ouvre dans le navigateur. |
-| Clé API invalide ou expirée. | `UNAUTHORIZED` | Clé révoquée, expirée, mal copiée, ou invalidée parce que le secret serveur (pepper) a changé. | Recréez une clé dans HomeBox et enregistrez-la de nouveau. |
-| Extension verrouillée : saisissez votre phrase de passe. | `LOCKED` | Le navigateur a redémarré ou vous avez cliqué sur 🔒. | Saisissez la phrase de passe dans le popup. |
-| Phrase de passe incorrecte. | `WRONG_PASSPHRASE` | Phrase erronée (majuscules ?). | Ressaisissez-la. En cas d'oubli : « Supprimer la configuration » puis reconfigurez. |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| HomeBox is unreachable. Check the address and your connection. | `HOMEBOX_UNREACHABLE` | Instance stopped, wrong port, VPN or firewall, or the 15-second timeout was exceeded. | Check that the instance is running and that the address opens in the browser. |
+| Invalid or expired API key. | `UNAUTHORIZED` | Key revoked, expired, badly copied, or invalidated because the server secret (pepper) changed. | Create a new key in HomeBox and save it again. |
+| Extension locked: enter your passphrase. | `LOCKED` | The browser restarted or you clicked 🔒. | Enter the passphrase in the popup. |
+| Incorrect passphrase. | `WRONG_PASSPHRASE` | Wrong passphrase (capital letters?). | Enter it again. If forgotten: "Delete settings" then set up again. |
 
-## Détection sur la page
+## Detection on the page
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| Aucun achat détecté sur cette page. | `NOT_AN_ORDER_PAGE` | Page autre que « Détails de la commande » (liste des commandes, page produit), site non pris en charge, ou injection impossible. | Ouvrez la page **Détails de la commande**, ou utilisez la saisie manuelle ([Usage](Usage.md)). |
-| Produit impossible à identifier : complétez les informations. | `PRODUCT_NOT_FOUND` | Le nom du produit n'a pas été détecté (mise en page modifiée) ou il est vide. | Saisissez le nom à la main (champ obligatoire). Signalez la page mal détectée. |
-| Aucune facture détectée. | `INVOICE_MISSING` | La commande n'affiche aucun lien de facture (vendeur tiers, commande récente). | Joignez le PDF à la main, ou créez l'objet sans facture. |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| No purchase detected on this page. | `NOT_AN_ORDER_PAGE` | A page other than "Order Details" (order list, product page), unsupported site, or injection impossible. | Open the **Order Details** page, or use manual entry ([Usage](Usage.md)). |
+| Could not identify the product. Fill in the details manually. | `PRODUCT_NOT_FOUND` | The product name was not detected (changed layout) or is empty. | Type the name by hand (required field). Report the badly detected page. |
+| No invoice detected. | `INVOICE_MISSING` | The order shows no invoice link (third-party seller, recent order). | Attach the PDF by hand, or create the item without an invoice. |
 
-## Factures et fichiers
+## Invoices and files
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| La facture n'est pas encore disponible pour cette commande. | `INVOICE_UNAVAILABLE` | Fréquent juste après la commande ou avec certains vendeurs tiers ; lien absent ou réponse d'erreur d'Amazon. | Réessayez plus tard, ou joignez le PDF à la main. |
-| Le téléchargement de la facture a été refusé (session Amazon expirée ?). | `DOWNLOAD_REFUSED` | Session Amazon expirée, onglet fermé ou rechargé, ou lien hors `www.amazon.fr`. | Reconnectez-vous à Amazon, rechargez la page, puis réessayez. |
-| Le fichier n'est pas un PDF. | `NOT_A_PDF` | Le lien mène à une page HTML (ex. « Récapitulatif de commande »), ou le fichier choisi n'a pas la signature `%PDF-`. | Téléchargez la facture et joignez-la à la main. |
-| Le fichier dépasse 15 Mo. | `FILE_TOO_LARGE` | Document trop volumineux. | Compressez le PDF ou n'envoyez qu'une partie. |
-| Sélectionnez à nouveau le fichier à joindre pour réessayer. | `MANUAL_FILE_REQUIRED` | Reprise d'un import dont le fichier avait été ajouté à la main : les octets des fichiers ne sont jamais conservés. | Sélectionnez de nouveau le fichier, puis « Réessayer ». |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| The invoice is not yet available for this order. | `INVOICE_UNAVAILABLE` | Common right after the order or with some third-party sellers; missing link or error response from Amazon. | Try again later, or attach the PDF by hand. |
+| The invoice download was refused (Amazon session expired?). | `DOWNLOAD_REFUSED` | Amazon session expired, tab closed or reloaded, or link outside `www.amazon.fr`. | Sign in to Amazon again, reload the page, then retry. |
+| The file is not a PDF. | `NOT_A_PDF` | The link leads to an HTML page (for example "Order summary"), or the chosen file does not have the `%PDF-` signature. | Download the invoice and attach it by hand. |
+| The file is larger than 15 MB. | `FILE_TOO_LARGE` | Document too large. | Compress the PDF or send only part of it. |
+| Select the file to attach again to retry. | `MANUAL_FILE_REQUIRED` | Recovery of an import whose file was added by hand: file bytes are never kept. | Select the file again, then "Retry". |
 
-## Import et doublons
+## Import and duplicates
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| Un objet semblable existe déjà dans HomeBox. | `DUPLICATE_SUSPECTED` | Au résumé : un objet de même nom contient déjà ce numéro de commande dans ses notes. À la reprise d'une création incertaine : un objet de même nom existe déjà (le numéro de commande n'est pas utilisé, l'objet ne l'a pas encore), y compris un produit acheté une autre fois. | Ouvrez l'objet existant (lien affiché) ; continuez seulement si c'est voulu. Après une reprise refusée : abandonnez, puis relancez depuis le résumé, qui demande confirmation. |
-| La vérification des doublons n'a pas pu être effectuée. | `DUPLICATE_CHECK_FAILED` | La recherche dans HomeBox a échoué. Non bloquant au résumé ; **bloquant à la reprise d'une création incertaine** (aucune création n'est envoyée). | Au résumé : contrôlez à la main dans HomeBox, puis poursuivez. À la reprise : vérifiez dans HomeBox si l'objet existe, puis réessayez ou abandonnez. |
-| La création de l'objet dans HomeBox a échoué. | `CREATE_FAILED` | HomeBox a refusé ou n'a pas pu traiter la création. Rien n'a été créé. | Vérifiez l'état de l'instance, puis « Réessayer l'import ». |
-| L'objet a été créé mais les informations d'achat n'ont pas été enregistrées. | `UPDATE_FAILED` | La mise à jour (prix, date, vendeur, notes) a échoué après la création. | « Réessayer l'import » : l'objet existant est complété, jamais recréé. |
-| L'objet a été créé mais l'envoi de la facture a échoué. | `ATTACHMENT_FAILED` | Instance injoignable ou erreur HomeBox pendant l'envoi de la pièce jointe. | « Réessayer l'envoi de la facture » : un seul objet, avec sa facture. |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| A similar item already exists in HomeBox. | `DUPLICATE_SUSPECTED` | At the summary: an item with the same name already has this order number in its notes. When recovering an uncertain creation: an item with the same name already exists (the order number is not used, the item does not have it yet), including a product bought another time. | Open the existing item (link shown); continue only if that is intended. After a refused recovery: abandon, then restart from the summary, which asks for confirmation. |
+| The duplicate check could not be performed. | `DUPLICATE_CHECK_FAILED` | The search in HomeBox failed. Not blocking at the summary; **blocking when recovering an uncertain creation** (no creation is sent). | At the summary: check by hand in HomeBox, then continue. During recovery: check in HomeBox whether the item exists, then retry or abandon. |
+| Creating the item in HomeBox failed. | `CREATE_FAILED` | HomeBox refused or could not process the creation. Nothing was created. | Check the state of the instance, then "Retry the import". |
+| The item was created but its purchase details were not saved. | `UPDATE_FAILED` | The update (price, date, seller, notes) failed after the creation. | "Retry the import": the existing item is completed, never recreated. |
+| The item was created but uploading the invoice failed. | `ATTACHMENT_FAILED` | Instance unreachable or HomeBox error while uploading the attachment. | "Retry the invoice upload": a single item, with its invoice. |
 
-## Photo du produit
+## Product photo
 
-La photo n'est jamais bloquante : l'objet et la facture sont conservés, et **Réessayer l'envoi de la photo**
-ne relance que la photo.
+The photo is never blocking: the item and the invoice are kept, and **Retry the photo upload** reruns only
+the photo.
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| La photo n'a pas pu être récupérée sur le site du marchand. | `PHOTO_UNAVAILABLE` | Réseau, délai dépassé, redirection, image supprimée ou serveur d'images qui refuse la requête. | Réessayez ; sinon ajoutez la photo à la main dans HomeBox. |
-| Le fichier récupéré n'est pas une image valide : il n'a pas été envoyé. | `PHOTO_NOT_IMAGE` | Le serveur a renvoyé une page ou un format refusé (SVG, GIF). | Ajoutez la photo à la main dans HomeBox. |
-| La photo dépasse 5 Mo : elle n'a pas été envoyée. | `PHOTO_TOO_LARGE` | Image plus lourde que la limite. | Ajoutez une version réduite à la main dans HomeBox. |
-| L'objet a été créé mais l'envoi de la photo a échoué. | `PHOTO_UPLOAD_FAILED` | HomeBox a refusé la photo, ou l'extension n'a pas pu vérifier qu'elle n'était pas déjà jointe. | « Réessayer l'envoi de la photo » ; vérifiez dans HomeBox que l'objet n'a pas déjà sa photo. |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| The photo could not be retrieved from the merchant's site. | `PHOTO_UNAVAILABLE` | Network, timeout, redirect, deleted image or an image server that refuses the request. | Try again; otherwise add the photo by hand in HomeBox. |
+| The retrieved file is not a valid image: it was not uploaded. | `PHOTO_NOT_IMAGE` | The server returned a page or a refused format (SVG, GIF). | Add the photo by hand in HomeBox. |
+| The photo is larger than 5 MB: it was not uploaded. | `PHOTO_TOO_LARGE` | Image heavier than the limit. | Add a smaller version by hand in HomeBox. |
+| The item was created but uploading the photo failed. | `PHOTO_UPLOAD_FAILED` | HomeBox refused the photo, or the extension could not check that it was not already attached. | "Retry the photo upload"; check in HomeBox that the item does not already have its photo. |
 
-Si l'objet a deux photos, c'est qu'une connexion réutilisée a été coupée juste après le traitement de l'envoi
-et que le navigateur a renvoyé la requête de lui-même. L'extension ne supprime rien dans HomeBox :
-supprimez la photo en trop dans HomeBox.
+If the item has two photos, a reused connection was cut right after the upload was processed and the
+browser resent the request by itself. The extension deletes nothing in HomeBox: delete the extra photo in
+HomeBox.
 
-**Risque résiduel.** La reprise après arrêt du service worker ne vaut que pour cet arrêt : les imports en
-cours sont gardés dans `storage.session`, vidé à la fermeture du navigateur et à la mise à jour de
-l'extension. Dans ces cas, rien n'est repris ; vérifiez dans HomeBox si l'objet a été créé.
+**Residual risk.** Recovery after a service worker stop only covers that stop: in-progress imports are
+kept in `storage.session`, which is cleared when the browser closes and when the extension is updated. In
+those cases, nothing is resumed; check in HomeBox whether the item was created.
 
-Quand la réponse de la création est perdue (réseau, délai) ou que le service worker s'arrête pendant
-l'envoi, l'objet a pu être créé sans que l'extension le sache (HomeBox ne propose pas de clé d'idempotence).
-À la reprise, l'extension cherche alors dans HomeBox un objet de **même nom** (le numéro de commande n'est
-écrit qu'à l'étape suivante) et refuse de réessayer si elle en trouve un, ou si cette recherche échoue.
-Ce contrôle a des limites : faux positif si vous avez acheté le même produit une autre fois (abandonnez, puis
-vérifiez d'abord dans HomeBox, puis abandonnez et relancez depuis le résumé. Attention : le résumé ne demande confirmation que si un objet de même nom contient déjà le numéro de commande, donc pas pour un objet resté incomplet : un second objet peut alors être créé sans nouvelle confirmation) ; doublon toujours possible si l'objet a été renommé
-ou si la recherche ne le voit pas ; objet, facture et photo peuvent être doublés dans un cas de réseau rare : si une connexion est coupée juste après l'envoi, le navigateur peut renvoyer la requête de lui-même, et l'extension affiche alors un succès sans le savoir. En cas de doute, vérifiez dans HomeBox ; cette
-protection ne peut pas être garantie à 100 %. Il en va de même quand HomeBox répond avec succès à la création mais que la réponse est illisible : la création est alors traitée comme incertaine et la reprise cherche d'abord l'objet par son nom.
+When the response to the creation is lost (network, timeout) or the service worker stops during the
+upload, the item may have been created without the extension knowing (HomeBox offers no idempotency key).
+On recovery, the extension then looks in HomeBox for an item with the **same name** (the order number is
+only written at the next step) and refuses to retry if it finds one, or if this search fails. This check
+has limits: a false positive if you bought the same product another time (abandon, then check in HomeBox
+first, then abandon and restart from the summary. Caution: the summary asks for confirmation only if an
+item with the same name already contains the order number, so not for an item left incomplete: a second
+item can then be created without a new confirmation); a duplicate is still possible if the item was
+renamed or if the search does not see it; item, invoice and photo can be doubled in a rare network case:
+if a connection is cut right after the upload, the browser may resend the request by itself, and the
+extension then shows a success without knowing it. If in doubt, check in HomeBox; this protection cannot
+be guaranteed 100%. The same applies when HomeBox answers the creation successfully but the response is
+unreadable: the creation is then treated as uncertain and the recovery first looks for the item by its
+name.
 
-## Emplacement
+## Location
 
-L'emplacement n'est jamais bloquant, sauf s'il a disparu de HomeBox.
+The location is never blocking, unless it has disappeared from HomeBox.
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| La liste des emplacements n'a pas pu être obtenue. | `LOCATIONS_UNAVAILABLE` | HomeBox injoignable, clé refusée ou réponse inattendue à la lecture des emplacements. | Importez sans emplacement (rangez l'objet ensuite dans HomeBox), ou vérifiez la connexion dans les options puis rouvrez le popup. |
-| Cet emplacement n'existe plus dans HomeBox. Choisissez-en un autre ou importez sans emplacement. | `LOCATION_NOT_FOUND` | L'emplacement a été supprimé dans HomeBox entre le choix et l'envoi. Aucun objet n'a été créé pour ce produit. | Choisissez un autre emplacement et réessayez, ou **Importer sans emplacement**. |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| The list of locations could not be retrieved. | `LOCATIONS_UNAVAILABLE` | HomeBox unreachable, key refused or unexpected response when reading the locations. | Import without a location (put the item away afterwards in HomeBox), or check the connection in the settings then reopen the popup. |
+| This location no longer exists in HomeBox. Choose another one or import without a location. | `LOCATION_NOT_FOUND` | The location was deleted in HomeBox between the choice and the submission. No item was created for this product. | Choose another location and retry, or **Import without a location**. |
 
-Si la liste est vide, créez d'abord un emplacement dans HomeBox : l'extension n'en crée pas. Le dernier
-emplacement mémorisé qui n'existe plus est simplement ignoré.
+If the list is empty, first create a location in HomeBox: the extension does not create any. The last
+remembered location, if it no longer exists, is simply ignored.
 
-## Interne
+## Internal
 
-| Message affiché | Code | Cause probable | Solution |
-|-----------------|------|----------------|----------|
-| Erreur interne de l’extension. | `BAD_MESSAGE` | Message interne invalide, import introuvable, ou erreur inattendue. | Rechargez l'extension (↻ dans `chrome://extensions`) puis rouvrez la page. Si cela persiste, [ouvrez une issue](https://github.com/Foufou-exe/homebox-clipper/issues). |
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| Internal extension error. | `BAD_MESSAGE` | Invalid internal message, import not found, or unexpected error. | Reload the extension (↻ in `chrome://extensions`) then reopen the page. If it persists, [open an issue](https://github.com/Foufou-exe/homebox-clipper/issues). |
 
 ## FAQ
 
-**L'extension envoie-t-elle mes données quelque part ?** Non : seulement à votre instance HomeBox (et au
-marchand pour lire la page). Voir [Security-and-privacy](Security-and-privacy.md).
+**Does the extension send my data anywhere?** No: only to your HomeBox instance (and to the merchant to
+read the page). See [Security-and-privacy](Security-and-privacy.md).
 
-**Pourquoi l'extension me demande-t-elle une phrase de passe ?** Pour chiffrer votre clé API sur le disque.
-Elle est demandée une fois par session du navigateur.
+**Why does the extension ask for a passphrase?** To encrypt your API key on disk. It is requested once per
+browser session.
 
-**J'ai oublié ma phrase de passe.** Elle ne peut pas être récupérée : supprimez la configuration dans les
-options, puis reconfigurez l'extension.
+**I forgot my passphrase.** It cannot be recovered: delete the settings in the options page, then set up
+the extension again.
 
-**Puis-je utiliser une instance en HTTP ?** Oui, sur le réseau local seulement. Voir
-[Configuration](Configuration.md).
+**Can I use an HTTP instance?** Yes, on the local network only. See [Configuration](Configuration.md).
 
-**Toutes mes clés API sont refusées après le redémarrage de HomeBox.** Le secret serveur (pepper) a changé :
-remettez l'ancien, ou recréez les clés. Voir [Local-HomeBox-instance](Local-HomeBox-instance.md).
+**All my API keys are refused after HomeBox restarted.** The server secret (pepper) changed: put back the
+old one, or recreate the keys. See [Local-HomeBox-instance](Local-HomeBox-instance.md).
 
-**Ça marche sur Firefox ?** Pas encore : Chrome et Chromium uniquement. Le portage est prévu (les appels au
-navigateur passent par une couche d'abstraction unique, voir [Architecture](Architecture.md)).
+**Does it work on Firefox?** Not yet: Chrome and Chromium only. A port is planned (browser calls go
+through a single abstraction layer, see [Architecture](Architecture.md)).
 
-**Mon site marchand n'est pas pris en charge.** Voir [Supported-merchants](Supported-merchants.md).
+**My merchant's site is not supported.** See [Supported-merchants](Supported-merchants.md).
 
-**L'extension a cessé de détecter mes commandes Amazon.** Amazon a probablement changé sa mise en page. Utilisez
-la saisie manuelle et signalez le problème sans joindre la page brute. Côté code, la correction ne touche que
+**The extension stopped detecting my Amazon orders.** Amazon probably changed its layout. Use manual entry
+and report the problem without attaching the raw page. On the code side, the fix only touches
 `src/content/merchants/amazon-fr/selectors.ts` ([Architecture](Architecture.md)).
+
+**In which language does the extension appear?** In English, unless the browser's interface language is
+French. See [Translations](Translations.md).

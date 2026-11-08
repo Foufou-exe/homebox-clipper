@@ -1,4 +1,4 @@
-# Instance HomeBox de développement pour tester homebox-clipper.
+# Development HomeBox instance for testing homebox-clipper.
 # Guide : docs/local-homebox.md
 name: homebox-clipper-dev
 
@@ -8,12 +8,12 @@ services:
     container_name: homebox
     restart: unless-stopped
     ports:
-      # Écoute sur toutes les interfaces : http://localhost:3100 et http://<IP-du-poste>:3100
+      # Listens on all interfaces: http://localhost:3100 and http://<host-IP>:3100
       - "${HOMEBOX_PORT:-3100}:7745"
     environment:
       TZ: ${TZ:-Europe/Paris}
-      # Obligatoire (≥ 32 octets) et stable : le changer invalide toutes les clés API émises.
-      HBOX_AUTH_API_KEY_PEPPER: ${HBOX_AUTH_API_KEY_PEPPER:?Définissez HBOX_AUTH_API_KEY_PEPPER dans .env (voir docs/local-homebox.md)}
+      # Required (>= 32 bytes) and stable: changing it invalidates all issued API keys.
+      HBOX_AUTH_API_KEY_PEPPER: ${HBOX_AUTH_API_KEY_PEPPER:?Set HBOX_AUTH_API_KEY_PEPPER in .env (see docs/local-homebox.md)}
     volumes:
-      # Base SQLite et pièces jointes, dans le dépôt (ignoré par git : /homebox/).
+      # SQLite database and attachments, inside the repo (ignored by git: /homebox/).
       - ./homebox:/data

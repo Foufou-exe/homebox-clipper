@@ -1,41 +1,41 @@
-name: Page marchand mal détectée
-description: Un champ (produit, prix, date, facture…) n'est pas ou mal détecté sur un site marchand
+name: Misdetected merchant page
+description: A field (product, price, date, invoice…) is missing or wrongly detected on a merchant site
 labels: ["merchant: detection"]
 body:
   - type: markdown
     attributes:
-      value: "Ne joignez jamais de page brute d'un site marchand, de clé API, d'adresse réelle d'instance (publique ou locale) ni de donnée personnelle."
+      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
   - type: input
     id: marchand-domaine
     attributes:
-      label: Marchand / domaine
-      placeholder: "Nom du marchand et domaine (ex. exemple.fr)"
+      label: Merchant / domain
+      placeholder: "Merchant name and domain (e.g. example.com)"
     validations:
       required: true
   - type: dropdown
     id: champs
     attributes:
-      label: Champ(s) concerné(s)
+      label: Affected field(s)
       multiple: true
-      options: [Nom du produit, Prix, Devise, Date, N° de commande, Vendeur, Quantité, Image, Facture, Autre]
+      options: [Product name, Price, Currency, Date, Order number, Seller, Quantity, Image, Invoice, Other]
     validations:
       required: true
   - type: dropdown
     id: type-commande
     attributes:
-      label: Type de commande
+      label: Order type
       multiple: true
-      options: [Vendu par le marchand, Vendeur tiers, Plusieurs articles, Plusieurs expéditions, Commande numérique, Autre]
+      options: [Sold by the merchant, Third-party seller, Multiple items, Multiple shipments, Digital order, Other]
     validations:
       required: true
   - type: textarea
     id: constat
     attributes:
-      label: Ce qui est affiché / ce qui était attendu
+      label: What is shown / what was expected
   - type: input
     id: version-extension
     attributes:
-      label: Version de l'extension
+      label: Extension version
       placeholder: "0.1.0 (chrome://extensions)"
     validations:
       required: true

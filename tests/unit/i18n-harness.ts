@@ -8,8 +8,8 @@ const root = resolve(__dirname, '../..');
 let cache: Catalogs | undefined;
 
 /**
- * Charge src/locales/*.yml. Vitest tourne sous Node (pas de `Bun.YAML`) : le YAML est lu par
- * `scripts/dump-locales.ts` en sous-processus Bun, une fois par fichier de test.
+ * Loads src/locales/*.yml. Vitest runs under Node (no `Bun.YAML`): the YAML is read by
+ * `scripts/dump-locales.ts` in a Bun subprocess, once per test file.
  */
 export function loadCatalog(lang: string): Record<string, string> {
   cache ??= JSON.parse(
@@ -20,20 +20,20 @@ export function loadCatalog(lang: string): Record<string, string> {
   return catalog;
 }
 
-/** Simule `getMessage` : clé pointée, substitutions `$1…$9`, `$$` pour un dollar. */
+/** Simulates `getMessage`: dotted key, `$1…$9` substitutions, `$$` for a dollar sign. */
 export function makeGetMessage(catalog: Record<string, string>) {
   return (key: string, substitutions?: string | string[]): string => {
     const raw = catalog[key];
-    if (raw === undefined) throw new Error(`Clé absente du catalogue : ${key}`);
+    if (raw === undefined) throw new Error(`Key missing from the catalog: ${key}`);
     const subs = substitutions === undefined ? [] : [substitutions].flat();
     return raw.replace(/\$(\$|[1-9])/g, (_, g: string) => (g === '$' ? '$' : (subs[Number(g) - 1] ?? '')));
   };
 }
 
 /**
- * Langue simulée de l'interface (`fr` par défaut, comme le mock de setup-i18n.ts). Stockée sur
- * `globalThis` : le fichier de setup et le fichier de test peuvent ne pas partager ce module.
- * `setup-i18n.ts` la remet à `fr` avant chaque test.
+ * Simulated interface language (`fr` by default, like the setup-i18n.ts mock). Stored on
+ * `globalThis`: the setup file and the test file may not share this module.
+ * `setup-i18n.ts` resets it to `fr` before each test.
  */
 const LANG_KEY = '__TEST_UI_LANGUAGE__';
 export function setTestLanguage(lang: 'en' | 'fr'): void {
@@ -44,9 +44,9 @@ export function testLanguage(): 'en' | 'fr' {
 }
 
 /**
- * Valeurs volontairement identiques en `en` et en `fr` (contracts/locales.md, test 8). Une clé hors
- * liste dont les deux valeurs sont identiques fait échouer le test ; une entrée dont les valeurs ont
- * divergé aussi (liste tenue à jour).
+ * Values deliberately identical in `en` and `fr` (contracts/locales.md, test 8). A key outside the
+ * list whose two values are identical fails the test; so does an entry whose values have
+ * diverged (the list is kept up to date).
  */
 export const IDENTICAL_OK = [
   'extName', // nom propre
@@ -54,6 +54,6 @@ export const IDENTICAL_OK = [
   'header.clipper', // nom propre
   'popup.pageTitle', // nom propre
   'location.pathSeparator', // symbole
-  'fields.description', // même mot dans les deux langues
+  'fields.description', // same word in both languages
 ];
 

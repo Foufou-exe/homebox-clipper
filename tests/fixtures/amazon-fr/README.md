@@ -1,64 +1,65 @@
-# Fixtures Amazon.fr
+# Amazon.fr fixtures
 
-Pages HTML de commande Amazon.fr utilisées par les tests des extracteurs (constitution, principe VII).
+Amazon.fr order HTML pages used by the extractor tests (constitution, principle VII). The pages are
+intentionally in French (the merchant's language), as are the generated fictional values.
 
-## État actuel : fixtures anonymisées issues de vraies pages (2026-11-02)
+## Current state: anonymized fixtures derived from real pages (2026-11-02)
 
-Les fichiers `real-*.html` conservent la **structure** de vraies pages « Détails de la commande »
-capturées le 2026-11-02 (balises, imbrication, classes, `data-component`, nombre de lignes). Leur
-**contenu est entièrement fictif** : aucune valeur ne provient des pages d'origine. Les autres
-fichiers restent synthétiques, écrits à la main le 2026-10-22, pour couvrir des cas absents des
-captures (vendeur tiers, ancienne mise en page, page non-commande…).
+The `real-*.html` files keep the **structure** of real "Détails de la commande" (order details)
+pages captured on 2026-11-02 (tags, nesting, classes, `data-component`, number of rows). Their
+**content is entirely fictional**: no value comes from the original pages. The other files remain
+synthetic, written by hand on 2026-10-22, to cover cases absent from the captures (third-party
+seller, old page layout, non-order page...).
 
-## Méthode d'anonymisation des fixtures `real-*`
+## Anonymization method for the `real-*` fixtures
 
-Les captures brutes restent dans `raw/` (ignoré par git). Un script génère les fixtures par
-**liste blanche** ; personne n'a besoin de lire les pages brutes :
+The raw captures stay in `raw/` (ignored by git). A script generates the fixtures with an
+**allow list**; nobody needs to read the raw pages:
 
-1. seul le sous-arbre `#orderDetails` est gardé, dans un squelette `<html lang="fr-fr"><body>` ;
-2. scripts, styles, commentaires et composants sensibles sont retirés entièrement (adresse,
-   paiement, récapitulatif de commande, acheteur, cadeaux, personnalisation, publicité, actions) ;
-3. seuls `class`, `id` sans chiffres et `data-component` sont conservés ; `href`, `src` et
-   `data-a-popover` sont reconstruits avec des valeurs fictives, tout autre attribut est supprimé ;
-4. tout nœud texte est remplacé par une valeur générée (`Produit fictif N`, `11,11 €`,
-   `15 mars 2024`, `999-0000000-00000NN`, `Vendeur Fictif`, `Texte fictif`), sauf correspondance
-   exacte avec une liste de libellés d'interface génériques (« Facture », « Vendu par : »…) ;
-5. un contrôle de fuite compare chaque fixture à toutes les valeurs extraites du brut (textes,
-   attributs, ASIN, numéros, suites de chiffres, e-mails, téléphones, codes postaux) : 0 attendu.
-   Ce contrôle est lui-même testé en contaminant des copies jetables.
+1. only the `#orderDetails` subtree is kept, inside a `<html lang="fr-fr"><body>` skeleton;
+2. scripts, styles, comments and sensitive components are removed entirely (address,
+   payment, order summary, buyer, gifts, personalization, advertising, actions);
+3. only `class`, `id` without digits and `data-component` are kept; `href`, `src` and
+   `data-a-popover` are rebuilt with fictional values, any other attribute is removed;
+4. every text node is replaced with a generated value (`Produit fictif N`, `11,11 €`,
+   `15 mars 2024`, `999-0000000-00000NN`, `Vendeur Fictif`, `Texte fictif`), except for an exact
+   match with a list of generic interface labels ("Facture", "Vendu par :"...);
+5. a leak check compares each fixture with all the values extracted from the raw page (texts,
+   attributes, ASINs, numbers, digit sequences, emails, phone numbers, postal codes): 0 expected.
+   This check is itself tested by contaminating throwaway copies.
 
-| Fixture | Type de commande d'origine | Contenu attendu |
-|---------|----------------------------|-----------------|
-| `real-order-single.html` | 1 article, avec facture | 1 produit, 1 facture via le menu |
-| `real-order-multi.html` | 2 articles, 2 expéditions, 2 factures | 2 produits, 2 factures via le menu |
-| `real-order-qty.html` | 2 articles en quantité > 1 | 2 produits, badge de quantité (2 et 3) |
-| `real-order-no-invoice.html` | 3 articles, sans facture | 3 produits, aucun menu « Facture » |
-| `real-invoice-popover-single.html` | menu « Facture » de la commande à 1 article | 1 facture + récapitulatif imprimable |
-| `real-invoice-popover-multi.html` | menu « Facture » de la commande à 2 factures | 2 factures + récapitulatif imprimable |
+| Fixture | Original order type | Expected content |
+|---------|---------------------|------------------|
+| `real-order-single.html` | 1 item, with invoice | 1 product, 1 invoice via the menu |
+| `real-order-multi.html` | 2 items, 2 shipments, 2 invoices | 2 products, 2 invoices via the menu |
+| `real-order-qty.html` | 2 items with quantity > 1 | 2 products, quantity badge (2 and 3) |
+| `real-order-no-invoice.html` | 3 items, no invoice | 3 products, no "Facture" menu |
+| `real-invoice-popover-single.html` | "Facture" menu of the 1-item order | 1 invoice + printable summary |
+| `real-invoice-popover-multi.html` | "Facture" menu of the 2-invoice order | 2 invoices + printable summary |
 
-## Procédure de capture et d'anonymisation manuelle (fixtures synthétiques)
+## Manual capture and anonymization procedure (synthetic fixtures)
 
-1. Sur une page de détail de commande Amazon.fr : clic droit → « Enregistrer sous » → *Page web, HTML
-   uniquement*, dans `tests/fixtures/amazon-fr/raw/` (ignoré par git — ne JAMAIS commiter ce dossier).
-2. Copier le fichier hors de `raw/`, puis :
-   - supprimer toutes les balises `<script>`, `<style>`, `<link>`, `<iframe>` et commentaires ;
-   - remplacer le nom, l'adresse de livraison, le moyen de paiement par des valeurs fictives
-     (`Jean Exemple`, `1 rue Fictive`, `Carte se terminant par 0000`) ;
-   - remplacer le numéro de commande par `999-0000000-00000NN` et les identifiants de documents
-     (`/documents/download/<uuid>/`) par des UUID fictifs ;
-   - conserver la structure DOM (balises, classes, attributs `data-*`) intacte.
-3. Vérifier : `grep -iE "@|\b0[67][0-9 ]{8}\b|<script" fichier.html` ne doit rien renvoyer.
-4. Noter ci-dessous la date de capture et la page d'origine (type de commande, pas l'URL réelle).
+1. On an Amazon.fr order details page: right click → "Enregistrer sous" (Save as) → *Web page, HTML
+   only*, into `tests/fixtures/amazon-fr/raw/` (ignored by git — NEVER commit this folder).
+2. Copy the file out of `raw/`, then:
+   - remove all `<script>`, `<style>`, `<link>`, `<iframe>` tags and comments;
+   - replace the name, delivery address and payment method with fictional values
+     (`Jean Exemple`, `1 rue Fictive`, `Carte se terminant par 0000`);
+   - replace the order number with `999-0000000-00000NN` and the document identifiers
+     (`/documents/download/<uuid>/`) with fictional UUIDs;
+   - keep the DOM structure (tags, classes, `data-*` attributes) intact.
+3. Check: `grep -iE "@|\b0[67][0-9 ]{8}\b|<script" file.html` must return nothing.
+4. Record below the capture date and the original page (order type, not the real URL).
 
-Fixtures écrites à la main :
+Hand-written fixtures:
 
-| Fixture | Contenu attendu | Origine |
-|---------|-----------------|---------|
-| `order-single-item-invoice.html` | 1 produit, tous champs, 1 facture PDF | synthétique |
-| `order-multi-item.html` | 2 produits (dont quantité 3), 1 facture | synthétique |
-| `order-multi-shipment-invoices.html` | 2 factures | synthétique |
-| `order-no-invoice.html` | aucune facture | synthétique |
-| `order-marketplace-seller.html` | vendeur tiers, sans facture | synthétique |
-| `order-alt-layout.html` | ancienne mise en page, facture via menu | synthétique |
-| `not-an-order.html` | page produit (pas une commande) | synthétique |
-| `invoice-popover.html` | contenu du menu « Facture » | synthétique |
+| Fixture | Expected content | Origin |
+|---------|------------------|--------|
+| `order-single-item-invoice.html` | 1 product, all fields, 1 PDF invoice | synthetic |
+| `order-multi-item.html` | 2 products (one with quantity 3), 1 invoice | synthetic |
+| `order-multi-shipment-invoices.html` | 2 invoices | synthetic |
+| `order-no-invoice.html` | no invoice | synthetic |
+| `order-marketplace-seller.html` | third-party seller, no invoice | synthetic |
+| `order-alt-layout.html` | old page layout, invoice via the menu | synthetic |
+| `not-an-order.html` | product page (not an order) | synthetic |
+| `invoice-popover.html` | content of the "Facture" menu | synthetic |

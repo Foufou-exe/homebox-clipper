@@ -1,21 +1,21 @@
-/** Sous-ensemble du Swagger HomeBox v0.27 utilisé par l'extension (contracts/homebox-api.md). */
+/** Subset of the HomeBox v0.27 Swagger used by the extension (contracts/homebox-api.md). */
 
 export interface EntityCreate {
-  /** ≤ 255 caractères */
+  /** <= 255 characters */
   name: string;
-  /** ≤ 1000 caractères */
+  /** <= 1000 characters */
   description?: string;
   quantity?: number;
-  /** Identifiant d'un lieu ; jamais `locationId` (inconnu = 422, R2). Absent sans choix : corps inchangé (SC-006). */
+  /** Location identifier; never `locationId` (unknown = 422, R2). Absent when none is chosen: body unchanged (SC-006). */
   parentId?: string;
 }
 
 export interface TreeItem {
   id: string;
   name: string;
-  /** `location` ; `item` seulement avec `withItems`, que l'extension n'envoie pas. */
+  /** `location`; `item` only with `withItems`, which the extension does not send. */
   type: string;
-  /** Absent ou vide pour une feuille. */
+  /** Absent or empty for a leaf. */
   children?: TreeItem[];
 }
 
@@ -80,9 +80,9 @@ export interface AttachmentUpload {
   bytes: Uint8Array;
   filename: string;
   type: 'receipt' | 'attachment' | 'photo';
-  /** Type MIME du `Blob` : `application/pdf` pour les documents, celui de l'image pour la photo. */
+  /** MIME type of the `Blob`: `application/pdf` for documents, the image's own type for the photo. */
   mimeType: string;
-  /** Envoyé seulement si vrai : un PDF n'a jamais de champ `primary`. */
+  /** Sent only when true: a PDF never has a `primary` field. */
   primary?: boolean;
 }
 

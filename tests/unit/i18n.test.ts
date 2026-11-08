@@ -6,7 +6,7 @@ import { errorMessage, formatDate, t, uiLanguage } from '@/ui/i18n';
 vi.mock('@/platform/i18n');
 
 describe('src/ui/i18n.ts', () => {
-  it('t() délègue à getMessage avec la clé pointée telle quelle', () => {
+  it('t() delegates to getMessage with the dotted key as is', () => {
     vi.mocked(getMessage).mockReturnValue('Texte');
     expect(t('extName')).toBe('Texte');
     expect(getMessage).toHaveBeenCalledWith('extName', undefined);
@@ -22,7 +22,7 @@ describe('src/ui/i18n.ts', () => {
     expect(getMessage).toHaveBeenCalledTimes(1 + ERROR_CODES.length);
   });
 
-  it('formatDate et uiLanguage suivent getUILanguage() : français', () => {
+  it('formatDate and uiLanguage follow getUILanguage(): French', () => {
     for (const lang of ['fr', 'fr-FR', 'fr-CA']) {
       vi.mocked(getUILanguage).mockReturnValue(lang);
       expect(uiLanguage(), lang).toBe('fr');
@@ -30,7 +30,7 @@ describe('src/ui/i18n.ts', () => {
     }
   });
 
-  it('formatDate et uiLanguage suivent getUILanguage() : anglais pour toute autre langue, mois en lettres', () => {
+  it('formatDate and uiLanguage follow getUILanguage(): English for any other language, month spelled out', () => {
     for (const lang of ['en', 'en-US', 'de', 'ja', '']) {
       vi.mocked(getUILanguage).mockReturnValue(lang);
       expect(uiLanguage(), lang).toBe('en');
@@ -39,15 +39,15 @@ describe('src/ui/i18n.ts', () => {
     }
   });
 
-  it('formatDate : une date invalide est rendue telle quelle, sans exception', () => {
+  it('formatDate: an invalid date is rendered as is, without an exception', () => {
     vi.mocked(getUILanguage).mockReturnValue('fr');
     expect(formatDate('22 octobre')).toBe('22 octobre');
     expect(formatDate('2026-13-45')).toBe('2026-13-45');
   });
 });
 
-describe('src/platform/i18n.ts (wrapper de browser.i18n)', () => {
-  it('getMessage convertit la clé pointée en nom de message', async () => {
+describe('src/platform/i18n.ts (browser.i18n wrapper)', () => {
+  it('getMessage converts the dotted key into a message name', async () => {
     const { getMessage: real } =
       await vi.importActual<typeof import('@/platform/i18n')>('@/platform/i18n');
     const spy = vi.fn(() => 'Ajouter');

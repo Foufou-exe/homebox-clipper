@@ -23,7 +23,7 @@ export const invoice: DocumentRef = {
 export const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
 export const photoOk: FetchedPhoto = { bytes: JPEG, mimeType: 'image/jpeg', filename: 'photo-produit.jpg' };
 
-/** Photo proposée par défaut pour les tests de la photo ; `draft()` n'en a pas (aucun test existant n'est affecté). */
+/** Photo offered by default for the photo tests; `draft()` has none (no existing test is affected). */
 export function draftPhoto(over: Partial<DraftPhoto> = {}): DraftPhoto {
   return { url: 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg', merchantId: 'amazon.fr', include: true, ...over };
 }
@@ -49,13 +49,13 @@ export function draft(overrides: Partial<ImportDraft> = {}): ImportDraft {
 type Step<T> = Result<T> | (() => Result<T>);
 const resolve = <T>(s: Step<T>) => (typeof s === 'function' ? s() : s);
 
-/** Client HomeBox simulé dont chaque méthode consomme une file de réponses. */
+/** Mocked HomeBox client whose every method consumes a queue of responses. */
 export function fakeClient(script: {
   create?: Step<{ id: string; name: string }>[];
   update?: Step<{ id: string; name: string }>[];
   attach?: Step<void>[];
   get?: Step<{ id: string; name: string; attachments?: { id: string; type?: string; primary?: boolean }[] }>[];
-  /** Arbre des emplacements renvoyé par `listLocations` (vide par défaut). */
+  /** Location tree returned by `listLocations` (empty by default). */
   tree?: Step<TreeItem[]>[];
 }) {
   let n = 0;

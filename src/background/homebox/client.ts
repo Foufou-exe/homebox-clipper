@@ -20,9 +20,9 @@ export interface HomeBoxClientOptions {
 
 interface RequestOptions {
   auth: boolean;
-  /** Gabarit journalisé à la place de l'URL réelle. */
+  /** Template logged in place of the real URL. */
   endpoint: string;
-  /** Code renvoyé pour un statut HTTP non 2xx autre que 401/403. */
+  /** Code returned for a non-2xx HTTP status other than 401/403. */
   onHttpError: ErrorCode;
   json?: unknown;
   form?: FormData;
@@ -41,7 +41,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
   async function request(method: string, path: string, opts: RequestOptions): Promise<Result<Response>> {
     const url = `${apiRoot}${path}`;
     const headers = new Headers({ Accept: 'application/json' });
-    // Principe I : la clé n'est envoyée qu'à l'instance configurée.
+    // Principle I: the key is only sent to the configured instance.
     if (opts.auth && url.startsWith(`${baseUrl}/`)) {
       headers.set('Authorization', `Bearer ${apiKey}`);
     }
@@ -88,7 +88,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
   return {
     baseUrl,
 
-    /** GET /status (public) : vérifie que l'URL désigne une instance HomeBox. */
+    /** GET /status (public): checks that the URL points to a HomeBox instance. */
     async getStatus(): Promise<Result<{ version: string; title?: string }>> {
       const res = await request('GET', '/status', {
         auth: false,
@@ -104,7 +104,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       return ok({ version, title: json.value.title });
     },
 
-    /** GET /users/self : vérifie la clé API. */
+    /** GET /users/self: checks the API key. */
     async checkAuth(): Promise<Result<void>> {
       const res = await request('GET', '/users/self', {
         auth: true,
@@ -126,7 +126,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       return json;
     },
 
-    /** GET /entities/tree (sans `withItems`) : arbre des emplacements. Aucun nom n'est journalisé. */
+    /** GET /entities/tree (without `withItems`): location tree. No name is logged. */
     async listLocations(): Promise<Result<TreeItem[]>> {
       const res = await request('GET', '/entities/tree', {
         auth: true,
@@ -147,7 +147,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       return readJson<EntityOut>(res, 'UPDATE_FAILED');
     },
 
-    /** PUT complet : `data` doit contenir tous les champs à conserver. */
+    /** Full PUT: `data` must contain all the fields to keep. */
     async updateEntity(id: string, data: EntityUpdate): Promise<Result<EntityOut>> {
       const res = await request('PUT', `/entities/${encodeURIComponent(id)}`, {
         auth: true,
@@ -187,7 +187,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
   };
 }
 
-/** Construit un PUT complet à partir de l'objet créé, pour ne rien écraser (R1). */
+/** Builds a full PUT from the created object, so nothing gets overwritten (R1). */
 export function entityOutToUpdate(out: EntityOut, patch: Partial<EntityUpdate>): EntityUpdate {
   const base: EntityUpdate = {
     id: out.id,
@@ -207,7 +207,7 @@ export function entityOutToUpdate(out: EntityOut, patch: Partial<EntityUpdate>):
     purchaseDate: out.purchaseDate,
     warrantyDetails: out.warrantyDetails,
     warrantyExpires: out.warrantyExpires,
-    // `location` est résolu et en lecture seule (hérité du parent) : le recopier épinglerait l'emplacement.
+    // `location` is resolved and read-only (inherited from the parent): copying it would pin the location.
     locationId: out.locationId,
     parentId: out.parent?.id,
     entityTypeId: out.entityType?.id,

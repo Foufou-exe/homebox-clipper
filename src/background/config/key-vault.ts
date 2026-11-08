@@ -1,10 +1,10 @@
 import { base64ToBytes, bytesToBase64 } from '@/shared/pdf';
 
 /**
- * Chiffrement de la clé API au repos (constitution, principe I).
- * AES-GCM 256 avec une clé dérivée de la phrase de passe (PBKDF2-SHA256).
- * L'URL de l'instance sert de données associées : modifier l'URL stockée sans la phrase de passe
- * rend le déchiffrement impossible (pas de détournement de la clé vers un autre serveur).
+ * Encryption of the API key at rest (constitution, principle I).
+ * AES-GCM 256 with a key derived from the passphrase (PBKDF2-SHA256).
+ * The instance URL is used as associated data: changing the stored URL without the passphrase
+ * makes decryption impossible (the key cannot be redirected to another server).
  */
 export interface EncryptedKey {
   v: 1;
@@ -16,7 +16,7 @@ export interface EncryptedKey {
 }
 
 export const MIN_PASSPHRASE_LENGTH = 10;
-/** Recommandation OWASP 2023 pour PBKDF2-HMAC-SHA256. */
+/** OWASP 2023 recommendation for PBKDF2-HMAC-SHA256. */
 export const DEFAULT_ITERATIONS = 600_000;
 
 const encoder = new TextEncoder();
@@ -57,7 +57,7 @@ export async function encryptApiKey(
   };
 }
 
-/** Renvoie `null` si la phrase de passe est fausse ou si les données ont été altérées. */
+/** Returns `null` if the passphrase is wrong or the data has been tampered with. */
 export async function decryptApiKey(
   blob: EncryptedKey,
   passphrase: string,

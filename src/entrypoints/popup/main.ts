@@ -4,10 +4,10 @@ import { t, uiLanguage } from '@/ui/i18n';
 import { initTheme } from '@/ui/theme';
 import '@/ui/theme.css';
 
-// Langue de l'interface (le HTML est en anglais par défaut).
+// Interface language (the HTML is in English by default).
 document.documentElement.lang = uiLanguage();
-// Les `__MSG_…__` ne sont pas interprétés dans le HTML d'une page d'extension.
+// `__MSG_…__` placeholders are not interpreted in the HTML of an extension page.
 document.title = t('popup.pageTitle');
 
-// Thème appliqué avant le montage pour éviter un flash de la mauvaise apparence.
+// Theme applied before mounting to avoid a flash of the wrong appearance.
 void initTheme().finally(() => createApp(App).mount('#app'));

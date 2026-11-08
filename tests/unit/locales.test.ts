@@ -8,50 +8,50 @@ const en = loadCatalog('en');
 
 const subs = (v: string) => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort();
 
-describe('parité des catalogues en.yml / fr.yml (étape B)', () => {
-  it('même ensemble de clés', () => {
+describe('en.yml / fr.yml catalog parity (step B)', () => {
+  it('same set of keys', () => {
     expect(Object.keys(en).sort()).toEqual(Object.keys(catalog).sort());
   });
 
-  it('même ensemble de substitutions $n pour chaque clé', () => {
+  it('same set of $n substitutions for each key', () => {
     for (const key of Object.keys(catalog)) expect(subs(en[key] ?? ''), key).toEqual(subs(catalog[key]!));
   });
 
-  it('aucune valeur vide ni texte identique hors IDENTICAL_OK', () => {
+  it('no empty value or identical text outside IDENTICAL_OK', () => {
     for (const [key, value] of Object.entries(en)) {
       expect(value.trim(), key).not.toBe('');
-      if (!IDENTICAL_OK.includes(key)) expect(value, `${key} identique à fr`).not.toBe(catalog[key]);
+      if (!IDENTICAL_OK.includes(key)) expect(value, `${key} identical to fr`).not.toBe(catalog[key]);
     }
   });
 
-  it('chaque entrée de IDENTICAL_OK existe et est bien identique (liste à jour)', () => {
+  it('each IDENTICAL_OK entry exists and is indeed identical (up-to-date list)', () => {
     for (const key of IDENTICAL_OK) {
       expect(en, key).toHaveProperty([key]);
       expect(en[key], key).toBe(catalog[key]);
     }
   });
 
-  it('aucun caractère accentué dans en.yml', () => {
+  it('no accented character in en.yml', () => {
     for (const [key, value] of Object.entries(en)) expect(value, key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
   });
 
-  it('note HomeBox : summary.orderNote en anglais contient $1 (numéro de commande)', () => {
+  it('HomeBox note: the English summary.orderNote contains $1 (order number)', () => {
     expect(en['summary.orderNote']).toBe('Amazon.fr order: $1');
   });
 });
 
 describe('catalogue fr.yml (contracts/locales.md)', () => {
-  it('aucune valeur vide', () => {
+  it('no empty value', () => {
     for (const [key, value] of Object.entries(catalog)) {
       expect(value.trim(), key).not.toBe('');
     }
   });
 
-  it('une clé error.<CODE> pour chaque ErrorCode', () => {
+  it('an error.<CODE> key for each ErrorCode', () => {
     for (const code of ERROR_CODES) expect(catalog, code).toHaveProperty([`error.${code}`]);
   });
 
-  it('les six codes photo et emplacement ont un message, tous distincts (SC-007)', () => {
+  it('the six photo and location codes have a message, all distinct (SC-007)', () => {
     const codes = [
       'PHOTO_UNAVAILABLE',
       'PHOTO_NOT_IMAGE',
@@ -68,12 +68,12 @@ describe('catalogue fr.yml (contracts/locales.md)', () => {
     expect(new Set(messages).size).toBe(codes.length);
   });
 
-  it('extName et extDescription existent (manifeste)', () => {
+  it('extName and extDescription exist (manifest)', () => {
     expect(catalog).toHaveProperty('extName');
     expect(catalog).toHaveProperty('extDescription');
   });
 
-  it('toute clé littérale passée à t() / getMessage() dans src/ existe', () => {
+  it('every literal key passed to t() / getMessage() in src/ exists', () => {
     const files: string[] = [];
     const walk = (dir: string) => {
       for (const name of readdirSync(dir)) {

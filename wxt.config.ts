@@ -5,25 +5,25 @@ export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-vue', '@wxt-dev/i18n/module'],
   manifest: {
-    // Textes du manifeste issus de src/locales/en.yml (langue par défaut) ; le français est servi
-    // par _locales/fr quand le navigateur est en français.
+    // Manifest texts come from src/locales/en.yml (default language); French is served
+    // from _locales/fr when the browser is set to French.
     default_locale: 'en',
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
-    // Principe V : aucune host_permission statique. L'onglet Amazon est accessible
-    // via activeTab ; seule l'origine exacte de l'instance HomeBox est demandée à l'exécution.
+    // Principle V: no static host_permission. The Amazon tab is reachable
+    // via activeTab; only the exact origin of the HomeBox instance is requested at runtime.
     permissions: ['storage', 'activeTab', 'scripting'],
     optional_host_permissions: [
       'https://*/*',
-      // HTTP éligible pour les instances du réseau local uniquement : la restriction aux
-      // adresses privées est appliquée par src/background/config/url-policy.ts.
+      // HTTP is allowed for local-network instances only: the restriction to
+      // private addresses is enforced by src/background/config/url-policy.ts.
       'http://*/*',
     ],
   },
   hooks: {
     'build:manifestGenerated': (_wxt, manifest) => {
-      // WXT ajoute les `matches` des scripts injectés à l'exécution aux host_permissions.
-      // Inutile ici : l'injection se fait via activeTab, à l'ouverture du popup (R9).
+      // WXT adds the `matches` of runtime-injected scripts to host_permissions.
+      // Not needed here: injection goes through activeTab, when the popup opens (R9).
       delete manifest.host_permissions;
     },
   },

@@ -1,11 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-/** Exécuté après `bun run build` (script `test:build`) — principe V. */
+/** Runs after `bun run build` (`test:build` script) — principle V. */
 const path = resolve(__dirname, '../../.output/chrome-mv3/manifest.json');
 
-describe('manifest de production', () => {
-  it('existe (lancer `bun run build` avant)', () => {
+describe('production manifest', () => {
+  it('exists (run `bun run build` first)', () => {
     expect(existsSync(path)).toBe(true);
   });
 
@@ -13,30 +13,30 @@ describe('manifest de production', () => {
     ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>)
     : {};
 
-  it('ne demande que storage, activeTab et scripting', () => {
+  it('only requests storage, activeTab and scripting', () => {
     expect(new Set(manifest.permissions as string[])).toEqual(new Set(['storage', 'activeTab', 'scripting']));
   });
 
-  it("n'a ni host_permissions ni content_scripts statiques", () => {
+  it("has no static host_permissions or content_scripts", () => {
     expect(manifest.host_permissions).toBeUndefined();
     expect(manifest.content_scripts).toBeUndefined();
   });
 
-  it('accès HomeBox uniquement en permission optionnelle (origine exacte accordée à l’exécution)', () => {
+  it('HomeBox access only as an optional permission (exact origin granted at runtime)', () => {
     expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*']);
   });
 
-  it("info-bulle de l'icône : nom affiché de l'extension", () => {
+  it("icon tooltip: displayed name of the extension", () => {
     expect((manifest.action as { default_title?: string }).default_title).toBe('HomeBox Clipper');
   });
 
-  it('un seul build : nom issu du catalogue, sans suffixe de mode', () => {
+  it('a single build: name from the catalog, no mode suffix', () => {
     expect(manifest.name).toBe('__MSG_extName__');
     expect(manifest.description).toBe('__MSG_extDescription__');
   });
 
-  // Étape B : l'anglais est la langue par défaut ; le français est servi par _locales/fr.
-  it('langue par défaut en, avec les dossiers de locale en et fr', () => {
+  // Step B: English is the default language; French is served from _locales/fr.
+  it('default language en, with both the en and fr locale folders', () => {
     expect(manifest.default_locale).toBe('en');
     const locales = resolve(path, '../_locales');
     expect(readdirSync(locales).sort()).toEqual(['en', 'fr']);
@@ -47,13 +47,13 @@ describe('manifest de production', () => {
     }
   });
 
-  it("CSP sans unsafe-eval ni source distante", () => {
+  it("CSP without unsafe-eval or remote source", () => {
     const csp = JSON.stringify(manifest.content_security_policy ?? '');
     expect(csp).not.toContain('unsafe-eval');
     expect(csp).not.toMatch(/https?:\/\//);
   });
 
-  it('aucun fichier du build ne contient de code distant', () => {
+  it('no build file contains remote code', () => {
     const background = readFileSync(resolve(path, '../background.js'), 'utf8');
     expect(background).not.toMatch(/\beval\(|new Function\(/);
   });

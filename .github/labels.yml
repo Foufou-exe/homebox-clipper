@@ -1,24 +1,24 @@
 - name: bug
   color: "d73a4a"
-  description: Comportement incorrect de l'extension
+  description: Incorrect behavior of the extension
 - name: enhancement
   color: "a2eeef"
-  description: Nouvelle fonctionnalité ou amélioration
+  description: New feature or improvement
 - name: documentation
   color: "0075ca"
-  description: Wiki, README, guides et autres documents
+  description: Wiki, README, guides and other documents
 - name: "merchant: detection"
   color: "fbca04"
-  description: Champ mal détecté sur la page d'un marchand
+  description: Field misdetected on a merchant page
 - name: "merchant: request"
   color: "0e8a16"
-  description: Demande de prise en charge d'un nouveau marchand
+  description: Request to support a new merchant
 - name: security
   color: "b60205"
-  description: Sécurité, permissions, clé API ou données personnelles
+  description: Security, permissions, API key or personal data
 - name: i18n
   color: "5319e7"
-  description: Traduction et internationalisation
+  description: Translation and internationalization
 - name: good first issue
   color: "7057ff"
-  description: Idéal pour une première contribution
+  description: Good for a first contribution

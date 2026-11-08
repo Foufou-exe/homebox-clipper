@@ -1,44 +1,43 @@
-# Politique de sécurité
+# Security policy
 
-## Versions prises en charge
+## Supported versions
 
-Seule la **dernière version publiée** reçoit les correctifs de sécurité. Mettez l'extension à jour
-avant de signaler un problème.
+Only the **latest published version** receives security fixes. Update the extension before
+reporting a problem.
 
-## Signaler une vulnérabilité
+## Reporting a vulnerability
 
-Ne signalez pas une vulnérabilité dans une issue publique.
+Do not report a vulnerability in a public issue.
 
-1. **Signalement privé GitHub** : onglet *Security → Report a vulnerability* du dépôt, lorsque cette
-   option est disponible (elle peut ne pas l'être tant que le dépôt est privé).
-2. **Repli** : contactez le mainteneur en privé via les moyens de contact indiqués sur son profil
-   GitHub : <https://github.com/Foufou-exe>.
+1. **GitHub private reporting**: *Security → Report a vulnerability* tab of the repository, when
+   this option is available (it may not be while the repository is private).
+2. **Fallback**: contact the maintainer privately through the contact details on their GitHub
+   profile: <https://github.com/Foufou-exe>.
 
-## Informations utiles à fournir
+## Useful information to provide
 
-- la version de l'extension et celle de Chrome ;
-- une description du problème et son impact ;
-- les étapes pour le reproduire ;
-- si possible, une piste de correction.
+- the extension version and the Chrome version;
+- a description of the problem and its impact;
+- the steps to reproduce it;
+- if possible, a suggested fix.
 
-Ne joignez jamais de clé API, d'adresse réelle d'instance (publique ou locale), de page brute d'un
-site marchand ni de donnée personnelle.
+Never attach API keys, real instance addresses (public or local), raw merchant store pages or
+personal data.
 
-## Délais
+## Response time
 
-Vous recevrez une première réponse sous **7 jours** environ (délai indicatif, projet maintenu
-bénévolement). Le mainteneur indiquera ensuite si le signalement est retenu ou non, et le suivi.
+You will receive a first reply within about **7 days** (indicative, the project is maintained by
+a volunteer). The maintainer will then tell you whether the report is accepted or not, and how it
+will be followed up.
 
-## Périmètre
+## In scope
 
-Sont concernés :
+- the API key and its encryption;
+- the extension's storage;
+- the extension's internal messaging;
+- the manifest permissions;
+- the purchase data processed by the extension.
 
-- la clé API et son chiffrement ;
-- le stockage de l'extension ;
-- la messagerie interne de l'extension ;
-- les permissions du manifeste ;
-- les données d'achat traitées par l'extension.
+## Out of scope
 
-## Hors périmètre
-
-Les failles de **HomeBox** lui-même : signalez-les en amont, auprès du projet HomeBox.
+Vulnerabilities in **HomeBox** itself: report them upstream, to the HomeBox project.

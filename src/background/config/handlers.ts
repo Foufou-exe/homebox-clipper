@@ -33,8 +33,8 @@ export function registerConfigHandlers(): void {
     if (!url.ok) return url;
     if (passphrase.length < MIN_PASSPHRASE_LENGTH) return fail('WEAK_PASSPHRASE');
 
-    // Clé vide = conserver la clé actuelle, qu'il faut alors déchiffrer avec la phrase de passe :
-    // changer l'URL d'une clé existante exige donc de connaître la phrase de passe.
+    // Empty key = keep the current key, which then has to be decrypted with the passphrase:
+    // changing the URL of an existing key therefore requires knowing the passphrase.
     let key = apiKey.trim();
     if (key === '') {
       const current = await configStore.currentKey(passphrase);
@@ -42,7 +42,7 @@ export function registerConfigHandlers(): void {
       key = current.value;
     }
     if (!isValidApiKey(key)) return fail('UNAUTHORIZED');
-    // La permission est demandée par l'UI (geste utilisateur) avant cet appel.
+    // The permission is requested by the UI (user gesture) before this call.
     if (!(await hasOrigin(url.value.origin))) return fail('PERMISSION_DENIED');
 
     const result = await testConnection(url.value.baseUrl, key);

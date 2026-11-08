@@ -14,7 +14,7 @@ describe('amazonFrExtractor', () => {
     expect(ex.matchesUrl(new URL('http://www.amazon.fr/'))).toBe(false);
   });
 
-  it('commande simple avec facture : tous les champs', () => {
+  it('simple order with invoice: all fields', () => {
     const p = extract('order-single-item-invoice.html');
     expect(p.orderNumber.value).toBe('999-0000000-0000001');
     expect(p.orderDate.value).toBe('2026-10-22');
@@ -51,7 +51,7 @@ describe('amazonFrExtractor', () => {
     expect(p.documents).toHaveLength(1);
   });
 
-  it('plusieurs factures (expéditions multiples)', () => {
+  it('several invoices (multiple shipments)', () => {
     const p = extract('order-multi-shipment-invoices.html');
     expect(p.documents.map((d) => d.label)).toEqual([
       'facture-amazon-999-0000000-0000003.pdf',
@@ -59,7 +59,7 @@ describe('amazonFrExtractor', () => {
     ]);
   });
 
-  it('commande sans facture', () => {
+  it('order without invoice', () => {
     expect(extract('order-no-invoice.html').documents).toEqual([]);
   });
 
@@ -67,7 +67,7 @@ describe('amazonFrExtractor', () => {
     expect(extract('order-marketplace-seller.html').seller.value).toBe('Boutique Exemple SARL');
   });
 
-  it('ancienne mise en page : champs trouvés via les sélecteurs de secours', () => {
+  it('old page layout: fields found via the fallback selectors', () => {
     const p = extract('order-alt-layout.html');
     expect(p.orderNumber).toEqual({ value: '999-0000000-0000006', selector: '.order-date-invoice-item' });
     expect(p.orderDate.value).toBe('2026-01-05');
@@ -79,7 +79,7 @@ describe('amazonFrExtractor', () => {
     expect(p.seller.value).toBe('Amazon EU S.à r.l.');
   });
 
-  it("isOrderPage distingue une page produit d'une page de commande", () => {
+  it("isOrderPage distinguishes a product page from an order page", () => {
     expect(ex.isOrderPage(loadFixture('order-single-item-invoice.html').doc)).toBe(true);
     expect(ex.isOrderPage(loadFixture('order-alt-layout.html').doc)).toBe(true);
     expect(ex.isOrderPage(loadFixture('not-an-order.html').doc)).toBe(false);
@@ -91,7 +91,7 @@ describe('amazonFrExtractor', () => {
     expect(p.orderNumber).toEqual({ value: null, reason: 'not_found' });
   });
 
-  it("FR-010 : ne renvoie que les champs de DetectedPurchase (ni adresse, ni paiement)", () => {
+  it("FR-010: only returns the DetectedPurchase fields (no address, no payment)", () => {
     const p = extract('order-single-item-invoice.html');
     expect(Object.keys(p).sort()).toEqual(
       ['documents', 'orderDate', 'orderNumber', 'pageUrl', 'products', 'seller', 'source'].sort(),
@@ -102,7 +102,7 @@ describe('amazonFrExtractor', () => {
     expect(serialized).not.toContain('0000"');
   });
 
-  it('un sélecteur invalide passe au suivant', () => {
+  it('an invalid selector moves on to the next one', () => {
     const { doc } = loadFixture('order-single-item-invoice.html');
     const f = firstField(doc, ['::invalid((', '[data-component="orderId"]'], (el) => el.textContent);
     expect(f.value).toContain('999-0000000-0000001');
@@ -114,7 +114,7 @@ describe('amazonFrExtractor', () => {
     expect(firstField(doc, ['h1'], () => null)).toEqual({ value: null, reason: 'unparsable' });
   });
 
-  it('resolveDocuments charge le menu « Facture » (même origine uniquement)', async () => {
+  it('resolveDocuments loads the "Facture" menu (same origin only)', async () => {
     const { doc, url } = loadFixture('order-alt-layout.html');
     const fetchMock = vi.fn(async (url: string) => {
       void url;
@@ -129,7 +129,7 @@ describe('amazonFrExtractor', () => {
     expect(docs[0]?.label).toBe('facture-amazon-999-0000000-0000006.pdf');
   });
 
-  it('page réelle : image trouvée dans la colonne de gauche pour chaque article', () => {
+  it('real page: image found in the left column for each item', () => {
     const { doc, url } = loadFixture('order-real-layout.html');
     const purchase = ex.extract(doc, url);
     expect(purchase.products.map((p) => p.imageUrl.value)).toEqual([
@@ -142,7 +142,7 @@ describe('amazonFrExtractor', () => {
     expect(purchase.seller.value).toBe('Boutique Factice SARL');
   });
 
-  describe('hôte de l’image (R6, FR-010)', () => {
+  describe('image host (R6, FR-010)', () => {
     const ORIGINAL = '<img alt="" src="https://m.media-amazon.com/images/I/test-keyboard.jpg">';
     const withImages = (html: string) => {
       const window = new Window({ url: ORDER_URL });
@@ -150,21 +150,21 @@ describe('amazonFrExtractor', () => {
       return ex.extract(window.document as unknown as Document, new URL(ORDER_URL)).products[0];
     };
 
-    it('hôte non autorisé → { value: null, reason: not_found }, jamais l’URL', () => {
+    it('disallowed host → { value: null, reason: not_found }, never the URL', () => {
       const product = withImages('<img alt="" src="https://tracker.example.invalid/pixel.gif">');
       expect(product?.imageUrl).toEqual({ value: null, reason: 'not_found' });
     });
 
-    it('aucune image du tout → not_found', () => {
+    it('no image at all → not_found', () => {
       expect(withImages('')?.imageUrl).toEqual({ value: null, reason: 'not_found' });
     });
 
-    it('hôte lookalike ou http: refusés', () => {
+    it('lookalike host or http: refused', () => {
       expect(withImages('<img src="https://m.media-amazon.com.evil.example/a.jpg">')?.imageUrl.value).toBeNull();
       expect(withImages('<img src="http://m.media-amazon.com/images/I/a.jpg">')?.imageUrl.value).toBeNull();
     });
 
-    it('un logo d’un autre hôte est refusé et le sélecteur suivant (productImage) retrouve la photo', () => {
+    it('a logo from another host is rejected and the next selector (productImage) finds the photo', () => {
       const product = withImages(
         '<img alt="" src="https://logo.example.invalid/logo.png"></a></div>' +
           '<img alt="" src="https://m.media-amazon.com/images/I/test-fallback.jpg">' +
@@ -176,24 +176,24 @@ describe('amazonFrExtractor', () => {
       });
     });
 
-    it('le jeton de taille est réécrit en _SL1000_ (toPhotoUrl)', () => {
+    it('the size token is rewritten to _SL1000_ (toPhotoUrl)', () => {
       const product = withImages('<img alt="" src="https://m.media-amazon.com/images/I/test-keyboard._SS284_.jpg">');
       expect(product?.imageUrl.value).toBe('https://m.media-amazon.com/images/I/test-keyboard._SL1000_.jpg');
     });
 
-    it('Amazon.fr déclare m.media-amazon.com comme seul hôte d’image', () => {
+    it('Amazon.fr declares m.media-amazon.com as its only image host', () => {
       expect(ex.imageHosts).toEqual(['m.media-amazon.com']);
     });
   });
 
-  it('page réelle : quantité lue dans le badge de la colonne image, sans croiser les lignes', () => {
+  it('real page: quantity read from the image column badge, without crossing rows', () => {
     const { doc, url } = loadFixture('order-real-layout-qty.html');
     const { products } = ex.extract(doc, url);
     expect(products.map((p) => p.quantity.value)).toEqual([6, 10, 1]);
     expect(products[2]?.quantity).toEqual({ value: 1, selector: 'default' });
   });
 
-  it('page réelle : resolveDocuments suit le popover « Facture » (sans récapitulatif ni lien externe)', async () => {
+  it('real page: resolveDocuments follows the "Facture" popover (no summary or external link)', async () => {
     const { doc, url } = loadFixture('order-real-layout.html');
     const fetchMock = vi.fn(async (u: string) => {
       void u;
@@ -211,7 +211,7 @@ describe('amazonFrExtractor', () => {
     expect(docs.every((d) => d.url?.startsWith('https://www.amazon.fr/') === true)).toBe(true);
   });
 
-  it('l’image d’une ligne n’est pas prise dans une autre ligne', () => {
+  it("a row's image is not taken from another row", () => {
     const { doc, url } = loadFixture('order-multi-item.html');
     const [first, second] = ex.extract(doc, url).products;
     expect(first?.imageUrl.value).toBe('https://m.media-amazon.com/images/I/test-cable.jpg');
@@ -220,10 +220,10 @@ describe('amazonFrExtractor', () => {
 });
 
 /**
- * Fixtures « real-* » : structure de vraies pages (capturées le 2026-11-02), contenu 100 % fictif
- * généré par script (voir tests/fixtures/amazon-fr/README.md). Les valeurs attendues sont fictives.
+ * "real-*" fixtures: structure of real pages (captured on 2026-11-02), 100% fictional content
+ * generated by script (see tests/fixtures/amazon-fr/README.md). The expected values are fictional.
  */
-describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
+describe('amazonFrExtractor: anonymized fixtures of real pages', () => {
   const pdf = (n: number) =>
     `https://www.amazon.fr/documents/download/00000000-0000-0000-0000-00000000000${n}/invoice.pdf`;
 
@@ -246,7 +246,7 @@ describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
     },
     {
       fixture: 'real-order-qty.html',
-      // Le menu « Facture » de cette commande n'a pas sa propre fixture : même structure que « single ».
+      // The "Facture" menu of this order has no fixture of its own: same structure as "single".
       popover: 'real-invoice-popover-single.html',
       order: '999-0000000-0000023',
       prices: [11.11, 22.22],
@@ -266,7 +266,7 @@ describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
   describe.each(cases)('$fixture', ({ fixture, popover, order, prices, quantities, invoices }) => {
     const rowNumbers = prices.map((_, i) => i + 1);
 
-    it('reconnue comme page de commande, champs de commande détectés', () => {
+    it('recognized as an order page, order fields detected', () => {
       const { doc } = loadFixture(fixture);
       expect(ex.isOrderPage(doc)).toBe(true);
       const p = extract(fixture);
@@ -275,7 +275,7 @@ describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
       expect(p.seller).toEqual({ value: 'Vendeur Fictif', selector: '[data-component="orderedMerchant"]' });
     });
 
-    it('nombre de lignes et champs de chaque produit', () => {
+    it('number of rows and fields of each product', () => {
       const { products } = extract(fixture);
       expect(products).toHaveLength(prices.length);
       expect(products.map((x) => x.key)).toEqual(rowNumbers.map((n) => `B00FAKE00${n}`));
@@ -285,14 +285,14 @@ describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
       expect(products.map((x) => x.quantity.value)).toEqual(quantities);
     });
 
-    it('image trouvée pour chaque ligne, sans croiser les lignes', () => {
+    it('image found for each row, without crossing rows', () => {
       const { products } = extract(fixture);
       expect(products.map((x) => x.imageUrl.value)).toEqual(
         rowNumbers.map((n) => `https://m.media-amazon.com/images/I/test-${n}.jpg`),
       );
     });
 
-    it('resolveDocuments : factures du menu uniquement', async () => {
+    it('resolveDocuments: menu invoices only', async () => {
       const { doc, url } = loadFixture(fixture);
       const fetchMock = vi.fn(async (u: string) => {
         void u;
@@ -313,12 +313,12 @@ describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
       }
     });
 
-    it("aucune facture n'est détectée sans passer par le menu", () => {
+    it("no invoice is detected without going through the menu", () => {
       expect(extract(fixture).documents).toEqual([]);
     });
   });
 
-  it('real-order-qty : la quantité vient du badge de la colonne image', () => {
+  it('real-order-qty: the quantity comes from the image column badge', () => {
     const { products } = extract('real-order-qty.html');
     expect(products.map((x) => x.quantity)).toEqual([
       { value: 2, selector: '.od-item-view-qty span' },
@@ -326,12 +326,12 @@ describe('amazonFrExtractor : fixtures anonymisées de vraies pages', () => {
     ]);
   });
 
-  it('sans badge, la quantité vaut 1 par défaut', () => {
+  it('without a badge, the quantity defaults to 1', () => {
     const { products } = extract('real-order-single.html');
     expect(products[0]?.quantity).toEqual({ value: 1, selector: 'default' });
   });
 
-  it('le lien « Récapitulatif de commande imprimable » du menu n’est pas pris pour une facture', async () => {
+  it("the menu's 'Récapitulatif de commande imprimable' link is not mistaken for an invoice", async () => {
     const { doc, url } = loadFixture('real-order-multi.html');
     const fetchMock = vi.fn(async () => new Response(fixtureHtml('real-invoice-popover-multi.html'), { status: 200 }));
     const docs = await ex.resolveDocuments(doc, url, fetchMock as unknown as typeof fetch);

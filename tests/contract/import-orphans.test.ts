@@ -21,7 +21,7 @@ const running = (id: string, entityId: string | null): PendingImport => ({
   error: null,
 });
 
-describe('imports orphelins après arrêt du service worker (R8)', () => {
+describe('orphaned imports after the service worker stops (R8)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
@@ -29,22 +29,22 @@ describe('imports orphelins après arrêt du service worker (R8)', () => {
     registerImportHandlers();
   });
 
-  it('running absent des imports actifs et sans entityId → failed, réessayable', async () => {
+  it('running absent from active imports and without entityId → failed, retryable', async () => {
     await pendingStore.save(running('a', null));
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list[0]).toMatchObject({ id: 'a', status: 'failed', entityId: null });
-    // Persisté : une seconde lecture donne le même état.
+    // Persisted: a second read gives the same state.
     expect((await pendingStore.get('a'))?.status).toBe('failed');
   });
 
-  it('running absent des imports actifs mais avec entityId → partial, réessayable', async () => {
+  it('running absent from active imports but with entityId → partial, retryable', async () => {
     await pendingStore.save(running('b', 'e1'));
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list[0]).toMatchObject({ id: 'b', status: 'partial', entityId: 'e1' });
     expect((await pendingStore.get('b'))?.status).toBe('partial');
   });
 
-  it('running présent dans les imports actifs → reste running', async () => {
+  it('running present in active imports → stays running', async () => {
     await pendingStore.save(running('c', 'e1'));
     activeImports.add('c');
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
@@ -52,20 +52,20 @@ describe('imports orphelins après arrêt du service worker (R8)', () => {
     expect((await pendingStore.get('c'))?.status).toBe('running');
   });
 
-  it('un import déjà terminé n’est pas modifié', async () => {
+  it('an already finished import is not modified', async () => {
     await pendingStore.save({ ...running('d', 'e1'), status: 'partial', error: 'ATTACHMENT_FAILED' });
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list[0]).toMatchObject({ status: 'partial', error: 'ATTACHMENT_FAILED' });
   });
 
-  it('running dont le POST de création a démarré (createAttempted) → failed, orphaned et createUncertain', async () => {
+  it('running whose creation POST has started (createAttempted) → failed, orphaned and createUncertain', async () => {
     await pendingStore.save({ ...running('f', null), createAttempted: true });
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list[0]).toMatchObject({ id: 'f', status: 'failed', orphaned: true, createUncertain: true });
     expect((await pendingStore.get('f'))?.createUncertain).toBe(true);
   });
 
-  it('running dont le POST n’a pas démarré (lot, import suivant) → failed, orphaned, pas incertain', async () => {
+  it('running whose POST has not started (batch, following import) → failed, orphaned, not uncertain', async () => {
     await pendingStore.save(running('g', null));
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list[0]).toMatchObject({ id: 'g', status: 'failed', orphaned: true });

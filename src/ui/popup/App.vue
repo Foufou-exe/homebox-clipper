@@ -42,7 +42,7 @@ onMounted(async () => {
 });
 
 async function route() {
-  // Clé migrée perdue ou à chiffrer : la configuration doit être complétée dans les options.
+  // Migrated key lost or to be encrypted: the configuration must be completed in the options.
   if (!view.value.configured || (view.value.needsPassphrase && view.value.locked)) {
     screen.value = 'setup';
     return;
@@ -57,7 +57,7 @@ async function route() {
     screen.value = 'summary';
     return;
   }
-  // US4-3 : un import incomplet sur cette page est proposé à la reprise.
+  // US4-3: an incomplete import on this page is offered for resume.
   const tabUrl = tab?.url ?? '';
   const unfinished = (await send({ type: 'import/pending', tabId: tabId.value })).filter(
     (p) => p.status !== 'success' && (p.pageUrl === null || tabUrl.startsWith(p.pageUrl)),
@@ -141,7 +141,7 @@ function openOptions() {
     </AppHeader>
 
     <main class="content">
-      <!-- Hors de la chaîne v-if ci-dessous : l'avis ne doit jamais masquer le résumé. -->
+      <!-- Outside the v-if chain below: the notice must never hide the summary. -->
       <p v-if="view.needsPassphrase && !view.locked && screen !== 'setup'" class="notice" role="alert">
         {{ t('popup.unprotectedPrefix') }}
         <button class="link" type="button" @click="openOptions">{{ t('popup.unprotectedLink') }}</button>.

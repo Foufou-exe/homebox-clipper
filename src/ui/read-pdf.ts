@@ -8,7 +8,7 @@ export interface PickedDocument {
   replaceDetected: boolean;
 }
 
-/** Lit et valide un fichier local : PDF réel (signature %PDF-) et ≤ 15 Mo (FR-014, FR-019). */
+/** Reads and validates a local file: real PDF (%PDF- signature) and <= 15 MB (FR-014, FR-019). */
 export async function readPdf(
   file: Blob,
 ): Promise<{ ok: true; base64: string } | { ok: false; error: ErrorCode }> {

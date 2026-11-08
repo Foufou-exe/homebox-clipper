@@ -1,21 +1,21 @@
-name: Signaler un bug
-description: Un comportement incorrect de l'extension
+name: Report a bug
+description: Incorrect behavior of the extension
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: "Ne joignez jamais de page brute d'un site marchand, de clé API, d'adresse réelle d'instance (publique ou locale) ni de donnée personnelle."
+      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
   - type: textarea
     id: etapes
     attributes:
-      label: Étapes pour reproduire
+      label: Steps to reproduce
       placeholder: "1. …\n2. …"
     validations:
       required: true
   - type: textarea
     id: attendu-obtenu
     attributes:
-      label: Résultat attendu / obtenu (message d'erreur exact)
+      label: Expected / actual result (exact error message)
     validations:
       required: true
   - type: input

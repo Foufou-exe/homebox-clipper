@@ -1,11 +1,11 @@
 /**
- * SEUL fichier contenant des sélecteurs Amazon.fr (constitution, principe III).
- * Pour chaque champ : liste ordonnée par priorité ; le premier sélecteur donnant une valeur
- * exploitable l'emporte. En cas de changement de mise en page Amazon, corriger ici et ajouter
- * une fixture reproduisant la nouvelle structure (principe VII).
+ * ONLY file containing Amazon.fr selectors (constitution, principle III).
+ * For each field: a list ordered by priority; the first selector that yields a value
+ * usable wins. If Amazon changes its page layout, fix it here and add
+ * a fixture reproducing the new structure (principle VII).
  */
 export const SELECTORS = {
-  /** Présence = page de détail de commande. */
+  /** Presence = order detail page. */
   orderPageMarker: [
     '[data-component="orderDetails"]',
     '#orderDetails',
@@ -24,17 +24,17 @@ export const SELECTORS = {
     '.order-date-invoice-item',
     '#orderDetails',
   ],
-  /** Mention « Vendu par : … » (lue dans la première ligne de produit qui la contient). */
+  /** "Vendu par: …" ("Sold by") mention (read from the first product row that contains it). */
   seller: ['[data-component="orderedMerchant"]', '.a-color-secondary', '.a-size-small'],
-  /** Une ligne par produit commandé. */
+  /** One row per ordered product. */
   productRow: [
     '[data-component="purchasedItemsRightGrid"]',
     '.yohtmlc-item',
     '[data-component="purchasedItems"] .a-fixed-left-grid',
   ],
-  /** Conteneur de la ligne complète : l'image est dans la colonne de gauche, hors de `productRow`. */
+  /** Container of the full row: the image is in the left column, outside `productRow`. */
   productRowContainer: ['.a-fixed-left-grid'],
-  /** Sélecteurs relatifs à une ligne de produit. */
+  /** Selectors relative to a product row. */
   productName: [
     '[data-component="itemTitle"] a',
     '[data-component="itemTitle"]',
@@ -55,22 +55,22 @@ export const SELECTORS = {
     '[data-component="quantity"]',
   ],
   productImage: ['[data-component="itemImage"] img', '.item-view-left-col-inner img', 'img'],
-  /** Lien contenant l'ASIN dans son href. */
+  /** Link containing the ASIN in its href. */
   productAsin: ['a[href*="/dp/"]', 'a[href*="/gp/product/"]'],
-  /** Liens directs vers une facture PDF. */
+  /** Direct links to a PDF invoice. */
   invoiceLink: [
     '[data-component="orderDetailsInvoice"] a[href*="/documents/download/"]',
     'a[href*="/documents/download/"][href*="invoice"]',
     'a[href*="/documents/download/"]',
   ],
-  /** Lien ou déclencheur du menu « Facture » chargé à la demande. */
+  /** Link or trigger of the "Facture" (invoice) menu, loaded on demand. */
   invoicePopoverTrigger: [
     '[data-component="orderInvoice"] [data-a-popover]',
     '[data-a-popover*="invoice/popover"]',
     'a[href*="/invoice/invoice.html"]',
     '[data-a-popover*="invoice.html"]',
   ],
-  /** Liens PDF dans le contenu du menu « Facture ». */
+  /** PDF links in the content of the "Facture" menu. */
   invoicePopoverPdfLink: ['a[href*="/documents/download/"]', 'a[href$=".pdf"]'],
 } as const satisfies Record<string, readonly string[]>;
 

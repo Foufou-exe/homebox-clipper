@@ -1,33 +1,31 @@
-# Marchands pris en charge
+# Supported merchants
 
-HomeBox Clipper vise à terme les boutiques en ligne en général. Cette page résume l'état actuel ; la
-liste complète, tenue à jour à chaque ajout de marchand, est dans
+HomeBox Clipper aims at online shops in general. This page summarizes the current state; the full list,
+kept up to date with every merchant addition, is in
 [MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md).
 
-## En bref
+## At a glance
 
-| Marchand | Domaine | Pays | Ce qui est détecté | Limites |
-|----------|---------|------|--------------------|---------|
-| Amazon France | `www.amazon.fr` | FR | nom, prix, devise, date, numéro de commande, vendeur, quantité, image, facture(s) PDF | Page « Détails de la commande » uniquement |
+| Merchant | Domain | Country | What is detected | Limits |
+|----------|--------|---------|------------------|--------|
+| Amazon France | `www.amazon.fr` | FR | name, price, currency, date, order number, seller, quantity, image, PDF invoice(s) | "Order Details" page only |
 
-D'autres marchands (Amazon Allemagne, Espagne, Italie, États-Unis, eBay, Fnac, Darty, Boulanger,
-Leroy Merlin…) figurent sur la feuille de route, sans date. Le statut de chacun est dans
+Other merchants (Amazon Germany, Spain, Italy, United States, eBay, Fnac, Darty, Boulanger,
+Leroy Merlin...) are on the roadmap, with no date. The status of each is in
 [MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md).
 
-## Comment l'extension choisit un marchand
+## How the extension picks a merchant
 
-Chaque marchand est un module d'extraction indépendant qui déclare ses domaines. Au clic sur l'icône, le
-service worker cherche, dans le registre des marchands (`src/content/merchants/registry.ts`, qui exporte
-`MERCHANTS`), le premier extracteur dont `matchesUrl` est vrai pour l'onglet actif, puis n'injecte que
-son script. Si aucun marchand ne correspond, l'extension propose la saisie manuelle
-(voir [Usage](Usage.md)).
+Each merchant is an independent extraction module that declares its domains. When you click the icon, the
+service worker looks, in the merchant registry (`src/content/merchants/registry.ts`, which exports
+`MERCHANTS`), for the first extractor whose `matchesUrl` is true for the active tab, then injects only
+its script. If no merchant matches, the extension offers manual entry (see [Usage](Usage.md)).
 
-## Votre boutique manque ?
+## Your shop is missing?
 
-- **La demander** : ouvrez une issue avec le modèle « marchand » du dépôt
+- **Request it**: open an issue with the repository's "merchant" template
   ([issues](https://github.com/Foufou-exe/homebox-clipper/issues)).
-- **L'ajouter vous-même** : voir [Adding-a-merchant](Adding-a-merchant.md). Ni le client HomeBox, ni
-  l'orchestrateur d'import, ni l'interface n'ont à changer.
-- **Une page Amazon mal détectée ?** Signalez-la sans joindre la page brute (elle contient vos données
-  personnelles) : indiquez le type de commande (vendeur Amazon ou tiers, plusieurs articles…) et le champ
-  concerné.
+- **Add it yourself**: see [Adding-a-merchant](Adding-a-merchant.md). Neither the HomeBox client, nor the
+  import orchestrator, nor the interface has to change.
+- **A badly detected Amazon page?** Report it without attaching the raw page (it contains your personal
+  data): state the order type (Amazon or third-party seller, several items...) and the field concerned.

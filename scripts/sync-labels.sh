@@ -1,13 +1,13 @@
 #!/bin/sh
-# Crée ou met à jour les étiquettes du dépôt depuis .github/labels.yml.
-# Lancé à la main par le mainteneur (nécessite `gh` authentifié et `bun`).
+# Creates or updates the repository labels from .github/labels.yml.
+# Run by hand by the maintainer (requires an authenticated `gh` and `bun`).
 set -eu
 
 cd "$(dirname "$0")/.."
 
 gh auth status >/dev/null
 
-# Lecture séparée de la boucle : un échec de bun arrête le script (set -e).
+# Read separately from the loop: a bun failure stops the script (set -e).
 LABELS=$(bun -e '
 const labels = Bun.YAML.parse(await Bun.file(".github/labels.yml").text());
 for (const l of labels) console.log([l.name, l.color, l.description].join("\t"));

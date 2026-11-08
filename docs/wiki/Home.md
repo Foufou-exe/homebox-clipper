@@ -1,39 +1,39 @@
-# HomeBox Clipper : le wiki
+# HomeBox Clipper: the wiki
 
-**HomeBox Clipper** est une extension Chrome (Manifest V3) qui transforme un achat en ligne en objet
-d'inventaire [HomeBox](https://github.com/sysadminsmedia/homebox), facture PDF comprise, après votre
-confirmation. Elle fonctionne aujourd'hui avec **Amazon.fr** (page « Détails de la commande ») et
-parle uniquement à **votre** instance HomeBox auto-hébergée (API testée avec la v0.27).
+**HomeBox Clipper** is a Chrome extension (Manifest V3) that turns an online purchase into an
+[HomeBox](https://github.com/sysadminsmedia/homebox) inventory item, PDF invoice included, after your
+confirmation. It currently works with **Amazon.fr** (the "Order Details" page) and talks only to
+**your** self-hosted HomeBox instance (API tested with v0.27).
 
 > [!NOTE]
-> Le projet est un MVP. Il est indépendant : aucun lien avec Amazon ni avec l'équipe HomeBox.
+> The project is an MVP. It is independent: it has no affiliation with Amazon or the HomeBox team.
 
-## Par où commencer ?
+## Where to start
 
-| Vous voulez… | Page |
-|--------------|------|
-| Installer l'extension | [Installation](Installation.md) |
-| La relier à votre instance HomeBox | [Configuration](Configuration.md) |
-| Importer un achat | [Usage](Usage.md) |
-| Savoir quels sites sont pris en charge | [Supported-merchants](Supported-merchants.md) |
-| Comprendre ce qui est stocké et envoyé | [Security-and-privacy](Security-and-privacy.md) |
-| Résoudre un message d'erreur | [Troubleshooting-and-FAQ](Troubleshooting-and-FAQ.md) |
-| Comprendre le code | [Architecture](Architecture.md) |
-| Ajouter un marchand | [Adding-a-merchant](Adding-a-merchant.md) |
-| Lancer ou écrire des tests | [Testing-and-fixtures](Testing-and-fixtures.md) |
-| Monter une instance HomeBox de test | [Local-HomeBox-instance](Local-HomeBox-instance.md) |
-| Publier une version | [Releasing](Releasing.md) |
-| Modifier ou ajouter un texte de l'interface | [Translations](Translations.md) |
-| Maintenir l'environnement de développement | [Maintaining-the-dev-environment](Maintaining-the-dev-environment.md) |
+| You want to... | Page |
+|----------------|------|
+| Install the extension | [Installation](Installation.md) |
+| Connect it to your HomeBox instance | [Configuration](Configuration.md) |
+| Import a purchase | [Usage](Usage.md) |
+| See which sites are supported | [Supported-merchants](Supported-merchants.md) |
+| Understand what is stored and sent | [Security-and-privacy](Security-and-privacy.md) |
+| Fix an error message | [Troubleshooting-and-FAQ](Troubleshooting-and-FAQ.md) |
+| Understand the code | [Architecture](Architecture.md) |
+| Add a merchant | [Adding-a-merchant](Adding-a-merchant.md) |
+| Run or write tests | [Testing-and-fixtures](Testing-and-fixtures.md) |
+| Set up a test HomeBox instance | [Local-HomeBox-instance](Local-HomeBox-instance.md) |
+| Publish a release | [Releasing](Releasing.md) |
+| Change or add an interface text | [Translations](Translations.md) |
+| Maintain the development environment | [Maintaining-the-dev-environment](Maintaining-the-dev-environment.md) |
 
-## Liens utiles
+## Useful links
 
-- [README du dépôt](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.md)
-- [Guide de contribution](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
-- [Journal des modifications](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md)
-- [Marchands pris en charge](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md)
-- [Politique de sécurité](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md)
+- [Repository README](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.md)
+- [Contributing guide](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
+- [Changelog](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md)
+- [Supported merchants](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md)
+- [Security policy](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md)
 
-La navigation complète est dans la barre latérale. Le contenu de ce wiki est versionné dans le
-dépôt, dans `docs/wiki/` : pour le corriger, ouvrez une pull request plutôt que de modifier la page
-sur GitHub (une publication ultérieure écraserait la modification).
+The full navigation is in the sidebar. The content of this wiki is versioned in the repository, in
+`docs/wiki/`: to fix it, open a pull request rather than editing the page on GitHub (a later
+publication would overwrite the edit).

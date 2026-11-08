@@ -6,7 +6,7 @@ import { register } from './router';
 
 export const AMAZON_FR_SCRIPT = '/content-scripts/amazon-fr.js';
 
-/** Injection idempotente (le script ignore une seconde exécution). Requiert l'accès activeTab. */
+/** Idempotent injection (the script ignores a second run). Requires activeTab access. */
 export async function injectExtractor(tabId: number): Promise<boolean> {
   try {
     await browser.scripting.executeScript({ target: { tabId }, files: [AMAZON_FR_SCRIPT] });
@@ -16,7 +16,7 @@ export async function injectExtractor(tabId: number): Promise<boolean> {
   }
 }
 
-/** Injecte l'extracteur dans l'onglet actif (accès accordé par activeTab) et lance la détection. */
+/** Injects the extractor into the active tab (access granted by activeTab) and starts detection. */
 export async function detect(tabId: number): Promise<Result<DetectResult>> {
   let url: URL;
   try {

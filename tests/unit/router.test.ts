@@ -3,7 +3,7 @@ import { dispatch, register, startRouter } from '@/background/router';
 
 const BASE = 'chrome-extension://abcdefghijklmnop/';
 
-describe('router — provenance des messages', () => {
+describe('router — message origin', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
@@ -12,41 +12,41 @@ describe('router — provenance des messages', () => {
 
   const id = () => fakeBrowser.runtime.id;
 
-  it('accepte le popup (sans onglet)', async () => {
+  it('accepts the popup (no tab)', async () => {
     expect(await dispatch({ type: 'config/get' }, { id: id(), url: `${BASE}popup.html` })).toEqual({
       configured: false,
     });
   });
 
-  it("accepte la page d'options ouverte dans un onglet", async () => {
+  it("accepts the options page opened in a tab", async () => {
     const sender = { id: id(), url: `${BASE}options.html`, tab: { id: 12 } };
     expect(await dispatch({ type: 'config/get' }, sender)).toEqual({ configured: false });
   });
 
-  it('refuse un message config/* venant du script injecté sur amazon.fr', async () => {
+  it('rejects a config/* message coming from the script injected on amazon.fr', async () => {
     const sender = { id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } };
     expect(await dispatch({ type: 'config/get' }, sender)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
   });
 
-  it('refuse un expéditeur sans URL', async () => {
+  it('rejects a sender without a URL', async () => {
     expect(await dispatch({ type: 'config/get' }, { id: id() })).toEqual({ ok: false, error: 'BAD_MESSAGE' });
   });
 
-  it('refuse une autre extension', async () => {
+  it('rejects another extension', async () => {
     expect(await dispatch({ type: 'config/get' }, { id: 'autre', url: `${BASE}popup.html` })).toEqual({
       ok: false,
       error: 'BAD_MESSAGE',
     });
   });
 
-  it('refuse un message mal formé', async () => {
+  it('rejects a malformed message', async () => {
     expect(await dispatch({ type: 'config/save', baseUrl: 1 }, { id: id(), url: `${BASE}options.html` })).toEqual({
       ok: false,
       error: 'BAD_MESSAGE',
     });
   });
 
-  describe('import/start : forme de drafts[].photo (T043)', () => {
+  describe('import/start: shape of drafts[].photo (T043)', () => {
     const sender = () => ({ id: id(), url: `${BASE}popup.html` });
     const start = (photo: unknown) => ({
       type: 'import/start',
@@ -60,22 +60,22 @@ describe('router — provenance des messages', () => {
     it.each([
       ['null', null],
       ['absente', undefined],
-      ['bien formée', { url: 'https://m.media-amazon.com/images/I/x.jpg', merchantId: 'amazon.fr', include: true }],
-    ])('accepte une photo %s', async (_label, photo) => {
+      ['well-formed', { url: 'https://m.media-amazon.com/images/I/x.jpg', merchantId: 'amazon.fr', include: true }],
+    ])('accepts a photo: %s', async (_label, photo) => {
       expect(await dispatch(start(photo), sender())).toEqual({ ok: true, value: [] });
     });
 
     it.each([
-      ['url absente', { merchantId: 'amazon.fr', include: true }],
-      ['url non textuelle', { url: 3, merchantId: 'amazon.fr', include: true }],
+      ['missing url', { merchantId: 'amazon.fr', include: true }],
+      ['non-string url', { url: 3, merchantId: 'amazon.fr', include: true }],
       ['merchantId absent', { url: 'https://x', include: true }],
-      ['include non booléen', { url: 'https://x', merchantId: 'amazon.fr', include: 'oui' }],
-      ['chaîne au lieu d’un objet', 'https://x'],
-    ])('refuse une photo mal formée : %s', async (_label, photo) => {
+      ['non-boolean include', { url: 'https://x', merchantId: 'amazon.fr', include: 'oui' }],
+      ['string instead of an object', 'https://x'],
+    ])('rejects a malformed photo: %s', async (_label, photo) => {
       expect(await dispatch(start(photo), sender())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
     });
 
-    it('refuse un brouillon qui n’est pas un objet', async () => {
+    it('rejects a draft that is not an object', async () => {
       expect(await dispatch({ type: 'import/start', tabId: 1, manualFiles: [], drafts: [42] }, sender())).toEqual({
         ok: false,
         error: 'BAD_MESSAGE',
@@ -93,28 +93,28 @@ describe('router — provenance des messages', () => {
       register('import/retry', async () => ({ ok: true, value: {} as never }));
     });
 
-    it('location/list depuis le popup : accepté', async () => {
+    it('location/list from the popup: accepted', async () => {
       expect(await dispatch({ type: 'location/list' }, sender())).toEqual({
         ok: true,
         value: { locations: [], lastUsedId: null },
       });
     });
 
-    it('location/list depuis un script injecté : BAD_MESSAGE (scénario 25, principe I)', async () => {
+    it('location/list from an injected script: BAD_MESSAGE (scenario 25, principle I)', async () => {
       expect(await dispatch({ type: 'location/list' }, web())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
     });
 
     const start = (extra: Record<string, unknown>) => ({ type: 'import/start', tabId: 1, manualFiles: [], drafts: [], ...extra });
 
-    it.each([undefined, null, 'loc-1'])('import/start accepte orderLocationId = %s', async (orderLocationId) => {
+    it.each([undefined, null, 'loc-1'])('import/start accepts orderLocationId = %s', async (orderLocationId) => {
       expect(await dispatch(start({ orderLocationId }), sender())).toEqual({ ok: true, value: [] });
     });
 
-    it.each([3, {}, ['x'], true])('import/start refuse orderLocationId = %j', async (orderLocationId) => {
+    it.each([3, {}, ['x'], true])('import/start rejects orderLocationId = %j', async (orderLocationId) => {
       expect(await dispatch(start({ orderLocationId }), sender())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
     });
 
-    it('import/start refuse un drafts[].location mal formé et accepte un choix bien formé ou null', async () => {
+    it('import/start rejects a malformed drafts[].location and accepts a well-formed choice or null', async () => {
       const withLoc = (location: unknown) => start({ drafts: [{ name: 'x', location }] });
       expect(await dispatch(withLoc(good), sender())).toEqual({ ok: true, value: [] });
       expect(await dispatch(withLoc(null), sender())).toEqual({ ok: true, value: [] });
@@ -125,12 +125,12 @@ describe('router — provenance des messages', () => {
 
     const retry = (extra: Record<string, unknown>) => ({ type: 'import/retry', pendingId: 'p1', ...extra });
 
-    it.each([undefined, null, good])('import/retry accepte location = %j', async (location) => {
+    it.each([undefined, null, good])('import/retry accepts location = %j', async (location) => {
       expect(await dispatch(retry({ location }), sender())).toMatchObject({ ok: true });
     });
 
     it.each(['l1', 3, {}, { id: 3, path: [] }, { id: 'l1', path: 'Maison' }])(
-      'import/retry refuse location = %j',
+      'import/retry rejects location = %j',
       async (location) => {
         expect(await dispatch(retry({ location }), sender())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
       },
@@ -138,7 +138,7 @@ describe('router — provenance des messages', () => {
   });
 });
 
-describe('router — écouteur runtime.onMessage (contracts/runtime-messages.md)', () => {
+describe('router — runtime.onMessage listener (contracts/runtime-messages.md)', () => {
   type Listener = (raw: unknown, sender: unknown, sendResponse: (r: unknown) => void) => boolean | undefined;
   let listener: Listener;
   const handler = vi.fn(async () => ({ configured: false }));
@@ -160,7 +160,7 @@ describe('router — écouteur runtime.onMessage (contracts/runtime-messages.md)
     return { keepOpen, response: sendResponse.mock.calls[0]![0] };
   };
 
-  it('un message mal formé reçoit BAD_MESSAGE, sans exécuter de handler', async () => {
+  it('a malformed message gets BAD_MESSAGE, without running a handler', async () => {
     const ok = { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` };
     for (const raw of [{ type: 'config/save', baseUrl: 1 }, { nimporte: 'quoi' }, 'texte', null]) {
       const r = await call(raw, ok);
@@ -170,13 +170,13 @@ describe('router — écouteur runtime.onMessage (contracts/runtime-messages.md)
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('un message bien formé mais venant du script injecté reste refusé', async () => {
+  it('a well-formed message coming from the injected script is still rejected', async () => {
     const r = await call({ type: 'config/get' }, { id: fakeBrowser.runtime.id, url: 'https://www.amazon.fr/x', tab: { id: 1 } });
     expect(r.response).toEqual({ ok: false, error: 'BAD_MESSAGE' });
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('un message valide de la page de l’extension atteint le handler', async () => {
+  it('a valid message from the extension page reaches the handler', async () => {
     const r = await call({ type: 'config/get' }, { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` });
     expect(r.response).toEqual({ configured: false });
     expect(handler).toHaveBeenCalledTimes(1);

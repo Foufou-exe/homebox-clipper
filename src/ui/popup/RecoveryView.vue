@@ -15,10 +15,10 @@ const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: st
 const busy = ref(false);
 const error = ref<ErrorCode | null>(null);
 const files = ref(new Map<string, ManualFile>());
-/** Reprise refusée pour doublon probable : un nouvel essai donnerait le même refus, on ne le propose plus. */
+/** Resume refused for a probable duplicate: a new attempt would give the same refusal, so it is no longer offered. */
 const duplicateBlocked = ref(false);
 
-/** Emplacement disparu (FR-018) : aucun objet n'a été créé, un nouveau choix ou l'import sans emplacement est proposé. */
+/** Location disappeared (FR-018): no object was created, a new choice or an import without location is offered. */
 const locationGone = computed(() => props.pending.error === 'LOCATION_NOT_FOUND' && !props.pending.entityId);
 const locations = ref<LocationOption[]>([]);
 const locationsError = ref<ErrorCode | null>(null);
@@ -34,7 +34,7 @@ async function loadLocations() {
     locationsError.value = 'LOCATIONS_UNAVAILABLE';
   }
 }
-// À chaque nouveau LOCATION_NOT_FOUND (nouvel état d'import reçu), pas seulement au premier passage.
+// On every new LOCATION_NOT_FOUND (new import state received), not only the first time.
 watch(
   () => (locationGone.value ? props.pending : null),
   (current) => {
@@ -49,13 +49,13 @@ const link = computed(() => (props.pending.entityId ? `${props.baseUrl}/item/${p
 const failedDocs = computed(() =>
   props.pending.draft.documents.filter((d) => props.pending.steps.attachments[d.id] !== 'done'),
 );
-/** Fichiers locaux à resélectionner : leurs octets ne sont jamais conservés (R11). */
+/** Local files to reselect: their bytes are never kept (R11). */
 const manualToReselect = computed(() =>
   failedDocs.value.filter((d) => d.origin === 'manual' && !files.value.has(d.id)),
 );
-/** Photo encore à faire : `pending` (reprise interrompue), `sending` (issue inconnue) ou `failed`. */
+/** Photo still to do: `pending` (interrupted resume), `sending` (unknown outcome) or `failed`. */
 const photoRemaining = computed(() => ['pending', 'sending', 'failed'].includes(props.pending.steps.photo ?? 'not_requested'));
-/** Erreur de la photo, affichée à part sauf si c'est déjà l'erreur principale. */
+/** Photo error, displayed separately unless it is already the main error. */
 const photoError = computed(() => (props.pending.photoError !== props.pending.error ? props.pending.photoError : null));
 const retryLabel = computed(() => {
   if (!props.pending.entityId) return t('recovery.retryImport');
@@ -70,7 +70,7 @@ function onPicked({ doc, file }: PickedDocument) {
   files.value.set(doc.id, file);
 }
 
-/** `location` absent : choix inchangé ; `null` : sans emplacement ; sinon nouveau choix. */
+/** `location` absent: choice unchanged; `null`: no location; otherwise a new choice. */
 async function retry(location?: LocationChoice | null) {
   busy.value = true;
   error.value = null;

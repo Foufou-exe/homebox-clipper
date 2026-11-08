@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-/** Contraste WCAG 2.x entre deux couleurs `hsl(h s% l%)` de theme.css. */
+/** WCAG 2.x contrast between two `hsl(h s% l%)` colors of theme.css. */
 function ratio(a: string, b: string): number {
   const lum = (hsl: string) => {
     const [h, s, l] = (hsl.match(/[\d.]+/g) ?? []).map(Number) as [number, number, number];
@@ -24,13 +24,13 @@ const blocks = {
   systeme: variables(css.slice(css.indexOf('@media (prefers-color-scheme: dark)'))),
 };
 
-describe('contraste du texte d’action (--accent-text sur --bg, WCAG AA 4,5:1)', () => {
-  it.each(Object.entries(blocks))('thème %s', (_name, vars) => {
+describe('action text contrast (--accent-text on --bg, WCAG AA 4.5:1)', () => {
+  it.each(Object.entries(blocks))('theme %s', (_name, vars) => {
     expect(vars['--accent-text']).toBeDefined();
     expect(ratio(vars['--accent-text']!, vars['--bg']!)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('le bouton « Modifier » (.link) utilise --accent-text', () => {
+  it('the "Modifier" (Edit) button (.link) uses --accent-text', () => {
     const view = readFileSync(resolve(__dirname, '../../src/ui/popup/SummaryView.vue'), 'utf8');
     expect(view).toMatch(/\.link\s*{[^}]*color:\s*var\(--accent-text\)/);
   });
