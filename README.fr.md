@@ -47,8 +47,21 @@ La liste à jour (pris en charge, partiels, prévus, demandés) est dans
 
 ## Installation
 
-L'extension n'est pas encore publiée sur le Chrome Web Store : il faut la compiler, puis la charger
-en mode développeur. Prérequis : Chrome ou Chromium, [Bun](https://bun.sh) et
+L'extension n'est pas encore publiée sur le Chrome Web Store : installez-la depuis une release, ou
+compilez-la vous-même, puis chargez-la en mode développeur.
+
+### Depuis une release (sans compilation)
+
+1. Téléchargez `homebox-clipper-<version>-chrome.zip` depuis la
+   [dernière release](https://github.com/Foufou-exe/homebox-clipper/releases/latest) (le fichier
+   `.sha256` voisin permet de vérifier le téléchargement avec `sha256sum -c`).
+2. Décompressez-le dans un dossier que vous conserverez (Chrome lit l'extension à cet endroit).
+3. Dans `chrome://extensions` : activez le **Mode développeur**, cliquez sur **Charger l'extension non
+   empaquetée** et sélectionnez ce dossier.
+
+### Depuis les sources
+
+Prérequis : Chrome ou Chromium, [Bun](https://bun.sh) et
 [Node.js](https://nodejs.org) LTS, et une instance
 [HomeBox](https://github.com/sysadminsmedia/homebox) (testé avec **v0.27.0**).
 
@@ -96,7 +109,7 @@ bun run homebox:up   # HomeBox sur http://localhost:3100
 bun run dev
 ```
 
-Avant chaque push, lancez `bun run ci` (le quota de GitHub Actions est limité). Règles du projet,
+Avant chaque push, lancez `bun run ci` (la même vérification tourne sur GitHub pour les pull requests). Règles du projet,
 conteneur de développement et façon de travailler : **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Changelog

@@ -26,6 +26,12 @@ bun run build      # produces .output/chrome-mv3/
 There is only **one build**, whatever your HomeBox instance: the rule on accepted addresses (HTTPS, or
 HTTP on the local network) is enforced at runtime, not at build time.
 
+## Without building: install from a release
+
+Download `homebox-clipper-<version>-chrome.zip` from the
+[latest release](https://github.com/Foufou-exe/homebox-clipper/releases/latest), unzip it into a folder
+you will keep, then load that folder as described below.
+
 ## Load the extension in Chrome
 
 1. Open `chrome://extensions`.

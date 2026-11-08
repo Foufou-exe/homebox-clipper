@@ -1,0 +1,26 @@
+name: Dummy template
+description: dummy
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Be careful."
+  - type: input
+    id: need
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: input
+    id: proposal
+    attributes:
+      label: Field
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Field
+      options:
+        - label: Option
+          required: true

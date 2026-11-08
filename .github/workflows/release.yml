@@ -1,0 +1,78 @@
+name: Release
+
+# Publishes a GitHub release (Chrome zip + SHA-256) when a version tag is pushed.
+# Only the maintainer pushes tags. No secret other than the automatic GITHUB_TOKEN.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      - name: Full verification
+        run: bun run ci
+      - name: Check that the tag matches package.json
+        run: |
+          version="$(bun -e 'console.log(JSON.parse(require("fs").readFileSync("package.json","utf8")).version)')"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag '$TAG' does not match package.json version 'v$version'."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          bun run release:notes "$VERSION" > "$RUNNER_TEMP/notes.md"
+          if [ -z "$(tr -d '[:space:]' < "$RUNNER_TEMP/notes.md")" ]; then
+            echo "::error::CHANGELOG.md has no (or an empty) section for $VERSION."
+            exit 1
+          fi
+      - name: Build and check the archive
+        run: |
+          bun run zip
+          zip_file=".output/homebox-clipper-${VERSION}-chrome.zip"
+          if [ ! -f "$zip_file" ]; then
+            echo "::error::Expected archive not found: $zip_file"
+            ls -la .output
+            exit 1
+          fi
+          unzip -p "$zip_file" manifest.json | bun -e '
+            const m = JSON.parse(await Bun.stdin.text());
+            if (m.version !== process.env.VERSION) {
+              console.error(`manifest.json version ${m.version} != ${process.env.VERSION}`);
+              process.exit(1);
+            }'
+          (cd .output && sha256sum "$(basename "$zip_file")" > "$(basename "$zip_file").sha256")
+          {
+            cat "$RUNNER_TEMP/notes.md"
+            printf '\n## Checksum\n\nSHA-256 of the archive:\n\n```\n'
+            cat "${zip_file}.sha256"
+            printf '```\n'
+          } > "$RUNNER_TEMP/release-notes.md"
+          echo "ZIP_FILE=$zip_file" >> "$GITHUB_ENV"
+      - name: Create the GitHub release
+        run: |
+          gh release create "$TAG" "$ZIP_FILE" "${ZIP_FILE}.sha256" \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --verify-tag

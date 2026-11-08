@@ -1,35 +1,43 @@
 name: CI
 
-# GitHub Actions quota is limited (3000 min/month): the reference check is local
-# (`bun run ci`). This workflow only runs on code PRs to main, or on demand.
+# The repository is public: GitHub Actions minutes on standard runners are free. The reference
+# check stays `bun run ci`, which can also be run locally before a push.
+# Triggers: pull requests to main (including forks, read-only token), merges on main, on demand.
+# No `pull_request_target`, no `schedule`, no matrix.
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
+    paths-ignore: &docs
       - '**.md'
       - 'docs/**'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/labels.yml'
       - '.env.example'
       - 'compose.yaml'
+  push:
+    branches: [main]
+    paths-ignore: *docs
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Cancel superseded runs of a pull request, never a run on main.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/*
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - run: bun install --frozen-lockfile
       - run: bun run ci

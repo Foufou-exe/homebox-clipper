@@ -80,9 +80,8 @@ browser, start page. See `web-ext.config.example.ts`.
    `chore/…`, `ci/…`.
 2. **Commits** in [Conventional Commits](https://www.conventionalcommits.org/en/) format
    (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), in English or French.
-3. **`bun run ci` must pass locally before every push.** The repository's GitHub Actions quota
-   is limited: GitHub CI only runs on code pull requests to `main`, and the reference check is
-   local. `bun run setup` can install a `pre-push` hook that runs it automatically.
+3. **`bun run ci` must pass locally before every push.** GitHub CI runs the same check on
+   code pull requests and on `main`, but catching errors locally is faster. `bun run setup` can install a `pre-push` hook that runs it automatically.
 4. Open a **pull request** to `main` and fill in the template.
 
 ## Project rules

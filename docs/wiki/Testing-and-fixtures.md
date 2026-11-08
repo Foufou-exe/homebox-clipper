@@ -12,7 +12,7 @@
 | `bun run check:config` | Repository settings: JSON(C), YAML, Bun version, issue templates and labels, `en`/`fr` catalog parity. |
 | `bun run ci` | Everything, in order: check:config, typecheck, lint, test, build, test:build. |
 
-The GitHub Actions quota is limited: the reference is **`bun run ci` locally, before every push**. An
+GitHub CI runs the same checks on pull requests and on `main`; run **`bun run ci` locally before every push** to catch errors early. An
 optional `pre-push` hook can run it automatically (`bun run setup` offers it).
 
 ## Layout of `tests/`

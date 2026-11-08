@@ -29,6 +29,8 @@ describe('scripts/check-config.ts', () => {
     ['bun-mismatch', 'package.json'],
     ['label-missing', '.github/ISSUE_TEMPLATE/bug.yml'],
     ['required-missing', '.github/ISSUE_TEMPLATE/bug.yml'],
+    ['schema-invalid', '.github/ISSUE_TEMPLATE/bug.yml'],
+    ['privacy-missing', '.github/ISSUE_TEMPLATE/feature.yml'],
     ['locale-keys', 'src/locales/en.yml'],
     ['locale-subs', 'src/locales/en.yml'],
   ])('refuse %s en citant %s', (name, file) => {

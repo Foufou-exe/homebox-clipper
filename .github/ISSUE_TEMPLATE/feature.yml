@@ -1,18 +1,38 @@
 name: Feature idea
 description: Suggest an improvement
-labels: ["enhancement"]
+labels: ["enhancement", "needs-triage"]
 body:
   - type: markdown
     attributes:
-      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
+      value: |
+        Ideas are welcome! Please describe the problem first, the solution second.
+
+        Never attach raw store pages, API keys, real instance addresses (public or local) or personal data.
   - type: textarea
-    id: besoin
+    id: need
     attributes:
       label: Need
-      description: What problem would it solve?
+      description: What problem would it solve? Who is affected?
     validations:
       required: true
   - type: textarea
-    id: proposition
+    id: proposal
     attributes:
       label: Proposal
+      description: What would you like the extension to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other solutions or workarounds you tried.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this idea has not been suggested yet.
+          required: true
+        - label: I removed any personal data, API key and real instance address from this request.
+          required: true

@@ -1,37 +1,55 @@
 name: Request a new merchant
-description: Suggest support for a merchant site
-labels: ["merchant: request"]
+description: Suggest support for another merchant site
+labels: ["merchant: request", "needs-triage"]
 body:
   - type: markdown
     attributes:
-      value: "Never attach raw store pages, API keys, real instance addresses (public or local) or personal data."
+      value: |
+        Tell us which shop you would like to import purchases from.
+
+        Never attach raw store pages, API keys, real instance addresses (public or local) or personal data.
   - type: input
-    id: nom-marchand
+    id: merchant-name
     attributes:
       label: Merchant name
     validations:
       required: true
   - type: input
-    id: domaines
+    id: domains
     attributes:
       label: Domain(s)
       placeholder: "e.g. example.com, example.de"
     validations:
       required: true
   - type: input
-    id: pays
+    id: country
     attributes:
       label: Country
     validations:
       required: true
   - type: dropdown
-    id: factures
+    id: site-language
+    attributes:
+      label: Language of the merchant site
+      options: [Français, English, Deutsch, Español, Italiano, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: invoices
     attributes:
       label: Does the site offer downloadable invoices?
       options: [Yes, No, I don't know]
     validations:
       required: true
   - type: textarea
-    id: remarques
+    id: notes
     attributes:
       label: Notes
+      description: Anything useful (account required, order page layout, willingness to help test). Do not paste page source.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and `MERCHANTS.md`; this merchant is not already supported or requested.
+          required: true
