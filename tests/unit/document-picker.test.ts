@@ -1,7 +1,7 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import { readPdf, type PickedDocument } from '@/ui/read-pdf';
-import { loadCatalog } from './i18n-harness';
+import { loadCatalog, setTestLanguage } from './i18n-harness';
 
 // Texte attendu : valeur du catalogue (le composant passe par errorMessage → getMessage).
 const NOT_A_PDF = loadCatalog('fr')['error.NOT_A_PDF']!;
@@ -49,5 +49,14 @@ describe('DocumentPicker', () => {
     await pick(wrapper, new File(['<html>'], 'faux.pdf'));
     expect(wrapper.emitted('add')).toBeUndefined();
     expect(wrapper.text()).toContain(NOT_A_PDF);
+  });
+
+  it('en anglais : affiche le message NOT_A_PDF du catalogue en.yml', async () => {
+    setTestLanguage('en');
+    const wrapper = mount(DocumentPicker);
+    await pick(wrapper, new File(['<html>'], 'fake.pdf'));
+    expect(wrapper.emitted('add')).toBeUndefined();
+    expect(wrapper.text()).toContain(loadCatalog('en')['error.NOT_A_PDF']!);
+    expect(wrapper.text()).toContain('The file is not a PDF.');
   });
 });

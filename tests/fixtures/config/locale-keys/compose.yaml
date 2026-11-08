@@ -1,0 +1,4 @@
+name: fixture
+services:
+  app:
+    image: example.com/app:latest

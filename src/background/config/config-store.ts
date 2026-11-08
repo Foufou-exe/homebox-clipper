@@ -79,7 +79,7 @@ export const configStore = {
     { baseUrl, apiKey, passphrase }: { baseUrl: string; apiKey: string; passphrase: string },
     iterations = DEFAULT_ITERATIONS,
   ): Promise<void> {
-    if (!isValidApiKey(apiKey)) throw new Error('clé API invalide');
+    if (!isValidApiKey(apiKey)) throw new Error('invalid API key');
     const previous = await readStored();
     const config: StoredConfig = {
       baseUrl,

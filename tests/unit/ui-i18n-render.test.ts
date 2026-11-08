@@ -26,7 +26,8 @@ import ResultView from '@/ui/popup/ResultView.vue';
 import SummaryView from '@/ui/popup/SummaryView.vue';
 import UnlockView from '@/ui/popup/UnlockView.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
-import { loadCatalog } from './i18n-harness';
+import { IDENTICAL_OK, loadCatalog, setTestLanguage } from './i18n-harness';
+import { ERROR_CODES } from '@/shared/errors';
 
 // Le mock de `@/platform/i18n` (setup-i18n.ts) sert le vrai catalogue fr.yml : le rendu doit donc
 // n'afficher que des valeurs du catalogue, hors données (props, champs) neutralisées par DATA.
@@ -50,7 +51,7 @@ const TECHNICAL_EXAMPLES = new Set(['https://homebox.example.com', 'hb_…']);
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
 /** Taille de fichier (formatSize, valeurs de common.size*) accolée au libellé dans le même nœud texte. */
-const SIZE = / ?\b\d+(?:\.\d)? (?:o|Ko|Mo)\b/g;
+const SIZE = / ?\b\d+(?:\.\d)? (?:o|Ko|Mo|B|KB|MB)\b/g;
 
 /** Textes statiques, aria-label, title, placeholder et alt rendus (hors données). */
 function visibleTexts(wrapper: VueWrapper, data: string[] = []): string[] {
@@ -1070,5 +1071,125 @@ describe('choix de l’emplacement (US2, US3)', () => {
       await flushPromises();
       expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/start', orderLocationId: 'g' }));
     });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Étape B (T062) : même rendu en anglais. Le mock de setup-i18n.ts sert en.yml après
+// `setTestLanguage('en')` (remis à `fr` avant chaque test).
+// ---------------------------------------------------------------------------------------------
+describe('rendu en anglais : tout vient de en.yml, rien de français (T062)', () => {
+  const en = loadCatalog('en');
+  const toPattern = (v: string) =>
+    new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's');
+  // Les tailles (« 15 MB ») sont retirées du texte rendu par visibleTexts : on retire aussi celles du catalogue.
+  const enPatterns = Object.values(en)
+    .flatMap((v) => [v, clean(v.replace(SIZE, ''))])
+    .filter((v) => v.replace(/\$\d/g, '').trim().length >= 1)
+    .map(toPattern);
+  // Textes français qui ne doivent jamais apparaître en `en` (hors valeurs volontairement identiques).
+  const frOnlyPatterns = Object.entries(catalog)
+    .filter(([key, v]) => !IDENTICAL_OK.includes(key) && v.replace(/\$\d/g, '').trim().length >= 3)
+    .map(([, v]) => toPattern(v));
+  const ACCENTED = /[À-ÖØ-öø-ÿ]/;
+
+  beforeEach(() => setTestLanguage('en'));
+
+  function expectEnglish(wrapper: VueWrapper, data: string[] = []) {
+    const texts = visibleTexts(wrapper, data);
+    const unknown = texts.filter(
+      (s) => !TECHNICAL_EXAMPLES.has(s) && LETTER.test(s.split(DATA).join('')) && !enPatterns.some((p) => p.test(s)),
+    );
+    expect(unknown, 'textes visibles absents de en.yml').toEqual([]);
+    expect(texts.filter((s) => ACCENTED.test(s.split(DATA).join(''))), 'caractères accentués').toEqual([]);
+    expect(texts.filter((s) => frOnlyPatterns.some((p) => p.test(s))), 'texte français').toEqual([]);
+  }
+
+  it('ErrorBanner : chaque code d’erreur', () => {
+    for (const code of ERROR_CODES) expectEnglish(mount(ErrorBanner, { props: { code } }));
+  });
+
+  it('InstanceBadge : avertissement HTTP en anglais, exactement la valeur du catalogue', () => {
+    expectEnglish(mount(InstanceBadge, { props: { config: config() } }), [DATA]);
+    const wrapper = mount(InstanceBadge, { props: { config: config({ baseUrl: 'http://192.0.2.10:7745' }) } });
+    const warning = wrapper.find('.http');
+    expect(warning.text()).toBe(en['common.httpWarning']);
+    expect(warning.attributes('title')).toBe(en['common.httpWarningHint']);
+    expect(warning.text()).toBe('Unencrypted HTTP');
+    expectEnglish(wrapper, [DATA, 'http://192.0.2.10:7745']);
+  });
+
+  it('ThemeToggle et AppHeader', () => {
+    const toggle = mount(ThemeToggle);
+    expect(toggle.attributes('title')).toBe('Theme: Automatic (system)');
+    expectEnglish(toggle);
+    expectEnglish(mount(AppHeader, { props: { subtitle: DATA } }));
+  });
+
+  it('FieldEditor : champs non détectés, devise étrangère et erreurs de validation', () => {
+    const wrapper = mount(FieldEditor, {
+      props: {
+        modelValue: draft({ name: '', currency: 'USD', quantity: 0, purchaseDate: '2999-01-01', purchasePrice: -1 }),
+        missing: ['name', 'purchasePrice', 'purchaseDate', 'orderNumber', 'purchaseFrom'],
+      },
+    });
+    expectEnglish(wrapper, ['USD']);
+    expect(wrapper.text()).toContain('Detected currency: USD. HomeBox stores the amount without a currency.');
+  });
+
+  it('DocumentPicker et UnlockView', () => {
+    expectEnglish(mount(DocumentPicker, { props: { allowReplace: true } }));
+    expectEnglish(mount(UnlockView, { props: { config: config() } }), [DATA]);
+  });
+
+  it('ResultView et RecoveryView', () => {
+    const running = pending({ status: 'running', error: null, steps: { create: 'done', update: 'pending', attachments: {}, photo: 'pending' } });
+    const done = pending({ id: 'p2', status: 'success', error: null });
+    expectEnglish(
+      mount(ResultView, { props: { pendings: [running, done, pending({ id: 'p3' })], baseUrl: DATA, running: false } }),
+      [DATA],
+    );
+    expect(mount(ResultView, { props: { pendings: [], baseUrl: '', running: true } }).text()).toBe('Import in progress…');
+    const many = mount(ResultView, {
+      props: { pendings: [done, { ...done, id: 'p4' }], baseUrl: DATA, running: false },
+    });
+    expect(many.text()).toContain('2 items added to HomeBox.');
+    expectEnglish(many, [DATA]);
+    expectEnglish(mount(RecoveryView, { props: { pending: pending(), baseUrl: DATA } }), [DATA]);
+    expectEnglish(
+      mount(RecoveryView, { props: { pending: pending({ entityId: null, error: 'CREATE_FAILED' }), baseUrl: '' } }),
+      [DATA],
+    );
+  });
+
+  it('SummaryView : achat détecté, boîte « aucune facture », puis détection impossible', async () => {
+    vi.mocked(send).mockResolvedValue(
+      ok({ purchase: { ...purchase([product('a'), product('b')]), documents: [] }, warnings: ['INVOICE_MISSING'] }) as never,
+    );
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    expectEnglish(wrapper, [DATA]);
+    await wrapper.find('button.primary').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('No invoice will be attached. Create the item anyway?');
+    expectEnglish(wrapper, [DATA]);
+
+    vi.mocked(send).mockResolvedValue(fail('NOT_AN_ORDER_PAGE') as never);
+    const manual = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    expectEnglish(manual, [DATA]);
+  });
+
+  it('popup App et options App', async () => {
+    vi.mocked(send).mockResolvedValue({ configured: false } as never);
+    const popup = mount(PopupApp);
+    await flushPromises();
+    expect(popup.text()).toContain('Set up your HomeBox instance to get started.');
+    expectEnglish(popup, [DATA]);
+
+    vi.mocked(send).mockResolvedValue(config({ maskedKey: 'hb_…abcd' }) as never);
+    const options = mount(OptionsApp);
+    await flushPromises();
+    expectEnglish(options, [DATA, 'hb_…abcd']);
   });
 });

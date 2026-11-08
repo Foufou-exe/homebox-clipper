@@ -5,8 +5,9 @@ export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-vue', '@wxt-dev/i18n/module'],
   manifest: {
-    // Textes du manifeste issus de src/locales/fr.yml (un seul dossier de locale à l'étape A).
-    default_locale: 'fr',
+    // Textes du manifeste issus de src/locales/en.yml (langue par défaut) ; le français est servi
+    // par _locales/fr quand le navigateur est en français.
+    default_locale: 'en',
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
     // Principe V : aucune host_permission statique. L'onglet Amazon est accessible
