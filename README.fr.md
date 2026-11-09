@@ -9,10 +9,12 @@
 **Transformez un achat en ligne en objet d'inventaire [HomeBox](https://github.com/sysadminsmedia/homebox), facture comprise, en un clic.**
 
 [![CI](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml/badge.svg)](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Foufou-exe/homebox-clipper)](https://github.com/Foufou-exe/homebox-clipper/releases)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
 ![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supporté-success)
-![Statut](https://img.shields.io/badge/statut-MVP-orange)
+![Statut : bêta](https://img.shields.io/badge/statut-b%C3%AAta-orange)
 
 </div>
 
@@ -30,15 +32,19 @@ l'architecture est faite pour en ajouter facilement.
 
 ## Fonctionnalités
 
-- **Détection automatique** de l'achat sur la page de commande du marchand.
+- **Détection automatique** d'une commande Amazon.fr sur sa page de détail.
 - **Résumé modifiable** avant tout envoi, avec les champs non détectés signalés.
-- **Commandes multi-articles**, **ajout manuel** d'un PDF et **détection des doublons**.
+- **Import en 3 étapes** (objet, facture PDF, photo) ; commandes multi-articles, **ajout manuel** d'un PDF et **détection des doublons**.
 - **Reprise sur erreur** : si la facture n'a pas pu être envoyée, réessayez sans créer de doublon.
 - **Photo du produit** jointe à l'objet comme image principale (décochable par produit).
 - **Choix de l'emplacement** parmi vos emplacements HomeBox, avec recherche ; le dernier utilisé est proposé.
 - **Interface aux couleurs de HomeBox**, en thème clair, sombre ou automatique, en **anglais ou en français** selon la langue du navigateur.
-- **Confidentialité** : aucun serveur intermédiaire ; la clé API est chiffrée par votre phrase de
-  passe et n'est utilisée que par le service worker.
+- **Confidentialité** : aucun serveur intermédiaire ; la clé API est toujours chiffrée par votre
+  phrase de passe (obligatoire) et n'est utilisée que par le service worker. HTTP n'est accepté que
+  sur le réseau local.
+- **Aucune permission générale** : pas d'accès permanent à un site ; l'accès à votre instance est
+  demandé pour son adresse exacte uniquement.
+- Liens **Support** et **GitHub** dans la fenêtre de l'extension et la page des réglages.
 
 ## Marchands pris en charge
 
@@ -86,7 +92,8 @@ l'extension non empaquetée** et sélectionnez `.output/chrome-mv3/`. Guide comp
    **Tester et enregistrer**.
 3. Ouvrez la page de détail d'une commande chez un marchand pris en charge, puis l'extension.
 
-HTTPS est exigé, sauf pour une adresse du réseau local (HTTP accepté avec un avertissement).
+HTTPS est exigé, sauf pour une adresse du réseau local (HTTP accepté avec un avertissement), par
+exemple `https://homebox.example.com` ou `http://localhost:3100`.
 Détails : [Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration) et
 [Utilisation](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage).
 
@@ -129,8 +136,12 @@ Pour signaler une vulnérabilité, suivez **[SECURITY.md](SECURITY.md)** (pas d'
 - Les couleurs de l'interface sont celles du thème par défaut de HomeBox.
 - Icônes au trait inspirées de [Feather Icons](https://feathericons.com) (MIT).
 
+## Licence
+
+Code publié sous **[licence MIT](LICENSE)**. Le logo dérivé de HomeBox reste sous AGPL-3.0 (voir Crédits).
+
 ---
 
 <sub>homebox-clipper est un projet indépendant, sans lien avec Amazon ni avec l'équipe HomeBox.</sub>
 
-<sub>Dernière synchronisation avec README.md : 2026-11-08</sub>
+<sub>Dernière synchronisation avec README.md : 2026-11-09</sub>

@@ -10,6 +10,7 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ### Changed
 
+- README (English and French) refreshed: release and SonarQube (Quality Gate, coverage) badges, "beta" status instead of "MVP", features and installation brought up to date with the current version.
 - Internal refactoring, no visible effect: the import orchestrator (`run()`) and the Amazon.fr invoice resolution (`resolveDocuments`) are split into one function per step, to bring their cognitive complexity under the SonarQube limit (15). Same requests, in the same order, and same saved states; new tests record the full call sequence of the import to guard it.
 
 ## [0.2.1] - 2026-11-09

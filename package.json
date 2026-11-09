@@ -3,6 +3,7 @@
   "description": "Import your online purchases into your HomeBox inventory.",
   "private": true,
   "version": "0.2.1",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "wxt",
