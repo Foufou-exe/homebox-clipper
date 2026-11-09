@@ -17,6 +17,10 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 - The SonarQube workflow uses the same `actions/checkout` version as the other workflows and installs the dependencies with Bun to run the tests before the scan.
 
+### Security
+
+- CI, release and SonarQube workflows install dependencies with `--ignore-scripts` (no package lifecycle scripts run in CI); the project's own `wxt prepare` step runs explicitly.
+
 ## [0.2.0] - 2026-11-08
 
 ### Added
