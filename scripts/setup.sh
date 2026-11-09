@@ -28,7 +28,9 @@ if command -v docker >/dev/null; then ok "Docker (local HomeBox instance)"; else
 if command -v rsvg-convert >/dev/null; then ok "rsvg-convert (bun run icons)"; else warn "rsvg-convert not found: only needed to regenerate the icons"; fi
 
 echo "2. Dependencies"
-bun install --frozen-lockfile
+# Lifecycle scripts are skipped (supply-chain hardening); the project's own step runs explicitly.
+bun install --frozen-lockfile --ignore-scripts
+bunx wxt prepare
 ok "bun install"
 
 echo "3. Local HomeBox instance (.env)"

@@ -16,7 +16,7 @@ function flatten(node: unknown, prefix: string, out: Record<string, string>): vo
 }
 
 const catalogs: Record<string, Record<string, string>> = {};
-for (const file of readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort()) {
+for (const file of readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
   const out: Record<string, string> = {};
   flatten(Bun.YAML.parse(readFileSync(join(dir, file), 'utf8')), '', out);
   catalogs[basename(file, extname(file))] = out;
