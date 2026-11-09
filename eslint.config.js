@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
 
 export default tseslint.config(
-  { ignores: ['.output/', '.wxt/', 'node_modules/', 'coverage/', 'tests/fixtures/', 'specs/'] },
+  { ignores: ['.output/', '.wxt/', 'node_modules/', 'coverage/', 'tests/fixtures/', 'specs/', '.claude/'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   ...vue.configs['flat/recommended'],
