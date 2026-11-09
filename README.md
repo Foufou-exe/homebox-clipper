@@ -9,10 +9,12 @@
 **Turn an online purchase into a [HomeBox](https://github.com/sysadminsmedia/homebox) inventory item, invoice included, in one click.**
 
 [![CI](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml/badge.svg)](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Foufou-exe/homebox-clipper)](https://github.com/Foufou-exe/homebox-clipper/releases)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
 ![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supported-success)
-![Status](https://img.shields.io/badge/status-MVP-orange)
+![Status: beta](https://img.shields.io/badge/status-beta-orange)
 
 </div>
 
@@ -29,15 +31,18 @@ more merchants are planned and the architecture is built to add them easily.
 
 ## Features
 
-- **Automatic detection** of the purchase on the merchant's order page.
+- **Automatic detection** of an Amazon.fr order on its detail page.
 - **Editable summary** before anything is sent, with undetected fields flagged.
-- **Multi-item orders**, **manual PDF attachment** and **duplicate detection**.
+- **3-step import** (item, invoice PDF, photo); multi-item orders, manual PDF attachment and **duplicate detection**.
 - **Error recovery**: if the invoice could not be sent, retry without creating a duplicate.
 - **Product photo** attached to the item as its main image (can be unticked per product).
 - **Location choice** among your HomeBox locations, with search; the last one used is suggested.
 - **HomeBox-colored interface**, in light, dark or automatic theme, in **English or French** depending on your browser language.
-- **Privacy**: no intermediary server; the API key is encrypted with your passphrase and is only
-  used by the service worker.
+- **Privacy**: no intermediary server; the API key is always encrypted with your passphrase (required)
+  and only used by the service worker. HTTP is accepted only on the local network.
+- **No broad permission**: no permanent access to any site; access to your instance is requested
+  for its exact address only.
+- **Support** and **GitHub** links in the popup and the settings page.
 
 ## Supported merchants
 
@@ -84,7 +89,8 @@ Then in `chrome://extensions`: enable **Developer mode**, click **Load unpacked*
    **Test and save**.
 3. Open the detail page of an order at a supported merchant, then open the extension.
 
-HTTPS is required, except for a local network address (HTTP accepted with a warning).
+HTTPS is required, except for a local network address (HTTP accepted with a warning), e.g.
+`https://homebox.example.com` or `http://localhost:3100`.
 Details: [Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration) and
 [Usage](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage).
 
@@ -126,6 +132,10 @@ To report a vulnerability, follow **[SECURITY.md](SECURITY.md)** (no public issu
   homebox-clipper added (`src/assets/logo.svg`).
 - The interface colors are those of HomeBox's default theme.
 - Line icons inspired by [Feather Icons](https://feathericons.com) (MIT).
+
+## License
+
+Code released under the **[MIT license](LICENSE)**. The logo derived from HomeBox stays under AGPL-3.0 (see Credits).
 
 ---
 
