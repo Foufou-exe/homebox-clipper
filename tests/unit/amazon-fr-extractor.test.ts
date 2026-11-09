@@ -338,3 +338,40 @@ describe('amazonFrExtractor: anonymized fixtures of real pages', () => {
     expect(docs.some((d) => d.url?.includes('print.html') === true)).toBe(false);
   });
 });
+
+describe('amazonFrExtractor : vendeur (expression régulière)', () => {
+  const sellerFor = (label: string): { value: string | null; ms: number } => {
+    const url = ORDER_URL;
+    const window = new Window({ url });
+    window.document.write(
+      fixtureHtml('order-multi-item.html').replaceAll('Vendu par : Amazon EU S.à r.l.', label),
+    );
+    const t0 = performance.now();
+    const p = ex.extract(window.document as unknown as Document, new URL(url));
+    return { value: p.seller.value, ms: performance.now() - t0 };
+  };
+
+  it.each([
+    ['Vendu par : Boutique A', 'Boutique A'],
+    ['Vendu par: Boutique A', 'Boutique A'],
+    ['Vendu par :Boutique A', 'Boutique A'],
+    ['Vendu par Boutique A', 'Boutique A'],
+    ['vendu PAR : Boutique A', 'Boutique A'],
+    ['Vendu par   :   Boutique A  ', 'Boutique A'],
+    ['Vendu par : A : B', 'A : B'],
+    ['Vendu par :', ':'],
+  ])('%j → %j', (label, expected) => {
+    expect(sellerFor(label).value).toBe(expected);
+  });
+
+  it('sans « Vendu par » : vendeur non détecté', () => {
+    expect(sellerFor('Expédié par Boutique A').value).toBeNull();
+  });
+
+  it('textes pathologiques de 50 000 caractères : traités vite', () => {
+    const repeated = sellerFor('Vendu par '.repeat(5_000));
+    const spaces = sellerFor(`${' '.repeat(50_000)}Vendu par`);
+    const colons = sellerFor(`Vendu par${' :'.repeat(25_000)}`);
+    for (const r of [repeated, spaces, colons]) expect(r.ms).toBeLessThan(250);
+  });
+});

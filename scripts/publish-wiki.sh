@@ -50,7 +50,7 @@ echo "1. Local checks of docs/wiki/"
 # Every page (except _*.md) must appear in the sidebar.
 for file in "$WIKI"/*.md; do
   name=$(basename "$file" .md)
-  case "$name" in _*) continue ;; esac
+  case "$name" in _*) continue ;; *) ;; esac
   grep -qF "]($name.md)" "$WIKI/_Sidebar.md" || report "$name.md is not listed in _Sidebar.md"
 done
 

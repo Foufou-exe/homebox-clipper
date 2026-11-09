@@ -34,6 +34,15 @@ export function itemUrl(baseUrl: string, id: string): string {
   return `${baseUrl}/item/${encodeURIComponent(id)}`;
 }
 
+async function readJson<T>(res: Result<Response>, onInvalid: ErrorCode): Promise<Result<T>> {
+  if (!res.ok) return res;
+  try {
+    return ok((await res.value.json()) as T);
+  } catch {
+    return fail(onInvalid, res.value.status);
+  }
+}
+
 export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClientOptions) {
   const doFetch = fetchImpl ?? globalThis.fetch.bind(globalThis);
   const apiRoot = `${baseUrl}/api/v1`;
@@ -74,15 +83,6 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
     }
     if (!response.ok) return fail(opts.onHttpError, response.status);
     return ok(response);
-  }
-
-  async function readJson<T>(res: Result<Response>, onInvalid: ErrorCode): Promise<Result<T>> {
-    if (!res.ok) return res;
-    try {
-      return ok((await res.value.json()) as T);
-    } catch {
-      return fail(onInvalid, res.value.status);
-    }
   }
 
   return {
