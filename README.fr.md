@@ -49,7 +49,7 @@ l'architecture est faite pour en ajouter facilement.
 ## Marchands pris en charge
 
 La liste à jour (pris en charge, partiels, prévus, demandés) est dans
-**[MERCHANTS.md](MERCHANTS.md)**. Votre boutique n'y figure pas ? Ouvrez une
+**[MERCHANTS.fr.md](MERCHANTS.fr.md)**. Votre boutique n'y figure pas ? Ouvrez une
 [demande de marchand](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml).
 
 ## Installation
