@@ -59,6 +59,7 @@ Every command is run with `bun run <script>`.
 | `bun run zip` | Archive ready to publish |
 | `bun run test` | Unit and contract tests (Vitest, **not** `bun test`) |
 | `bun run test:watch` | Tests in watch mode |
+| `bun run test:coverage` | Tests with a coverage report (`coverage/lcov.info`, not tracked by git) |
 | `bun run test:build` | Checks the built manifest (permissions, CSP), after `bun run build` |
 | `bun run typecheck` | Type checking (`vue-tsc`) |
 | `bun run lint` | ESLint |
