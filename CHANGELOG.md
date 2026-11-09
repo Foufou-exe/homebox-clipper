@@ -6,6 +6,14 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `Changed`,
 `Deprecated`, `Removed`, `Fixed`, `Security`) keep their standard names.
 
+## [0.2.2](https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.1...v0.2.2) (2026-11-09)
+
+
+### Documentation
+
+* mettre à jour le README et le CHANGELOG, ajouter des badges et clarifier le statut ([5136ce0](https://github.com/Foufou-exe/homebox-clipper/commit/5136ce04efbe393cd93af2249028623aa05dcf2c))
+* update merchant roadmap with French version and section reorganization ([#35](https://github.com/Foufou-exe/homebox-clipper/issues/35)) ([6759580](https://github.com/Foufou-exe/homebox-clipper/commit/6759580cf1506742e0badb4e38b6a65b3dbd25d4))
+
 ## [Unreleased]
 
 ### Changed
