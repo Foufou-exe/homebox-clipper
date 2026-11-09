@@ -144,6 +144,10 @@ watch(active, async (index) => {
         {{ t('location.remove') }}
       </button>
     </div>
+    <!--
+      ARIA combobox pattern (W3C APG): options are not focusable; the keyboard is handled by the input
+      (@keydown + aria-activedescendant). The mousedown on each option is the pointer equivalent only.
+    -->
     <ul v-show="visible" :id="listId" class="list" role="listbox" :aria-label="label">
       <li
         v-for="(entry, i) in filtered"

@@ -19,6 +19,7 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ### Security
 
+- `scripts/setup.sh` installs dependencies with `--ignore-scripts`, like the CI workflows.
 - CI, release and SonarQube workflows install dependencies with `--ignore-scripts` (no package lifecycle scripts run in CI); the project's own `wxt prepare` step runs explicitly.
 
 ## [0.2.0] - 2026-11-08

@@ -64,7 +64,8 @@ function listFiles(dir: string, ext: RegExp): string[] {
     }
   };
   walk(start);
-  return out.sort();
+  // Code-unit order: deterministic on every machine (localeCompare would depend on the locale).
+  return out.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 function parseJsonc(rel: string): unknown {
@@ -117,7 +118,7 @@ if (yaml.get(enFile) !== undefined && yaml.get(frFile) !== undefined) {
   const fr = new Map<string, string>();
   flatten(yaml.get(enFile), '', en);
   flatten(yaml.get(frFile), '', fr);
-  const subs = (v: string): string => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort().join(' ');
+  const subs = (v: string): string => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(' ');
   for (const key of fr.keys()) if (!en.has(key)) fail(enFile, `key "${key}" missing (present in ${frFile})`);
   for (const key of en.keys()) if (!fr.has(key)) fail(frFile, `key "${key}" missing (present in ${enFile})`);
   for (const [key, value] of en) {
