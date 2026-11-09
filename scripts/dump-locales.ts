@@ -15,10 +15,14 @@ function byCodeUnit(a: string, b: string): number {
 const dir = join(import.meta.dir, '../src/locales');
 
 function flatten(node: unknown, prefix: string, out: Record<string, string>): void {
-  if (node !== null && typeof node === 'object') {
+  if (node === null || node === undefined) {
+    out[prefix] = '';
+  } else if (Array.isArray(node)) {
+    throw new TypeError(`value of "${prefix}" must be a string, a number or a boolean (found an array)`);
+  } else if (typeof node === 'object') {
     for (const [k, v] of Object.entries(node)) flatten(v, prefix ? `${prefix}.${k}` : k, out);
   } else {
-    out[prefix] = String(node ?? '');
+    out[prefix] = String(node as string | number | boolean | bigint);
   }
 }
 

@@ -113,17 +113,24 @@ for (const f of yamlFiles) yaml.set(f, parseYaml(f));
 
 // 1b. Translation catalogs: en.yml is the reference, fr.yml must have the same keys and the same
 // `$n` substitutions (contracts/locales.md). Checked as soon as both exist.
-function flatten(node: unknown, prefix: string, out: Map<string, string>): void {
-  if (isObj(node)) for (const [k, v] of Object.entries(node)) flatten(v, prefix ? `${prefix}.${k}` : k, out);
-  else out.set(prefix, String(node ?? ''));
+function flatten(node: unknown, prefix: string, out: Map<string, string>, file: string): void {
+  if (isObj(node)) {
+    for (const [k, v] of Object.entries(node)) flatten(v, prefix ? `${prefix}.${k}` : k, out, file);
+  } else if (node === null || node === undefined) {
+    out.set(prefix, '');
+  } else if (typeof node === 'object') {
+    fail(file, `value of "${prefix}" must be a string, a number or a boolean (found an array)`);
+  } else {
+    out.set(prefix, String(node as string | number | boolean | bigint));
+  }
 }
 const enFile = 'src/locales/en.yml';
 const frFile = 'src/locales/fr.yml';
 if (yaml.get(enFile) !== undefined && yaml.get(frFile) !== undefined) {
   const en = new Map<string, string>();
   const fr = new Map<string, string>();
-  flatten(yaml.get(enFile), '', en);
-  flatten(yaml.get(frFile), '', fr);
+  flatten(yaml.get(enFile), '', en, enFile);
+  flatten(yaml.get(frFile), '', fr, frFile);
   const subs = (v: string): string => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort(byCodeUnit).join(' ');
   for (const key of fr.keys()) if (!en.has(key)) fail(enFile, `key "${key}" missing (present in ${frFile})`);
   for (const key of en.keys()) if (!fr.has(key)) fail(frFile, `key "${key}" missing (present in ${enFile})`);
@@ -148,7 +155,7 @@ if (existsSync(abs('package.json'))) {
   }
 }
 if (existsSync(abs('mise.toml'))) {
-  const m = /^\s*bun\s*=\s*"(\d+\.\d+)/m.exec(read('mise.toml'));
+  const m = /^[^\S\n\r\u2028\u2029]*bun\s*=\s*"(\d+\.\d+)/m.exec(read('mise.toml'));
   if (m?.[1]) bunVersions.push(['mise.toml', m[1]]);
   else fail('mise.toml', 'Bun version not found (expected: bun = "x.y")');
 }

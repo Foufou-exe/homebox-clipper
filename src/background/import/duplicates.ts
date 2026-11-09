@@ -35,7 +35,7 @@ export async function findDuplicatesByName(
 ): Promise<Result<DuplicateMatch[]>> {
   const target = normalize(name);
   if (target === '') return ok([]);
-  const res = await client.searchEntities(`"${name.replace(/"/g, ' ').trim()}"`);
+  const res = await client.searchEntities(`"${name.replaceAll('"', ' ').trim()}"`);
   if (!res.ok) return fail('DUPLICATE_CHECK_FAILED');
   return ok(
     res.value

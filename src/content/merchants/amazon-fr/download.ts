@@ -3,7 +3,7 @@ import type { DownloadedDocument } from '@/shared/messages';
 import { MAX_DOCUMENT_BYTES, bytesToBase64, isPdf } from '@/shared/pdf';
 import { AMAZON_FR_ORIGIN } from './extractor';
 
-const PDF_CONTENT_TYPES = ['application/pdf', 'application/octet-stream', 'binary/octet-stream'];
+const PDF_CONTENT_TYPES = new Set(['application/pdf', 'application/octet-stream', 'binary/octet-stream']);
 
 /**
  * Downloads a document in the context of the amazon.fr page (first-party cookies, R10),
@@ -38,7 +38,7 @@ export async function downloadDocument(
   if (bytes.length > MAX_DOCUMENT_BYTES) return fail('FILE_TOO_LARGE');
 
   const contentType = (res.headers.get('Content-Type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-  if (contentType !== '' && !PDF_CONTENT_TYPES.includes(contentType)) return fail('NOT_A_PDF');
+  if (contentType !== '' && !PDF_CONTENT_TYPES.has(contentType)) return fail('NOT_A_PDF');
   if (!isPdf(bytes)) return fail('NOT_A_PDF');
 
   return ok({ base64: bytesToBase64(bytes), size: bytes.length, contentType: 'application/pdf' });

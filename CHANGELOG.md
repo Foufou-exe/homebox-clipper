@@ -15,6 +15,7 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ### Changed
 
+- Internal refactoring with no visible effect, following SonarQube findings: more robust regular expressions (no quadratic backtracking on the trailing slashes of the HomeBox address, the `mise.toml` check and the seller label), explicit error for a non-scalar translation value in `scripts/check-config.ts` and `scripts/dump-locales.ts`, modern JavaScript idioms (`exec`, `replaceAll`, `find`, `some`, `Set`, `dataset`), and a default case in `scripts/publish-wiki.sh`.
 - SonarQube coverage now excludes `scripts/` (Bun scripts tested as subprocesses, whose coverage V8 cannot measure); they are still analysed for issues.
 - The SonarQube workflow uses the same `actions/checkout` version as the other workflows and installs the dependencies with Bun to run the tests before the scan.
 

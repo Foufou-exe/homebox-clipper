@@ -57,6 +57,10 @@ function manualBytes(file: ManualFile): Result<Uint8Array> {
   return isPdf(bytes) ? ok(bytes) : fail('NOT_A_PDF');
 }
 
+function filesFrom(manualFiles: ManualFile[]): FileMap {
+  return new Map(manualFiles.map((f) => [f.docId, manualBytes(f)]));
+}
+
 const attachmentName = (doc: DocumentRef) => (/\.pdf$/i.test(doc.label) ? doc.label : `${doc.label}.pdf`);
 
 export function createOrchestrator(deps: OrchestratorDeps) {
@@ -270,10 +274,6 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     // FR-025: purchase data is erased as soon as the import has succeeded.
     await store.purge(p);
     return p;
-  }
-
-  function filesFrom(manualFiles: ManualFile[]): FileMap {
-    return new Map(manualFiles.map((f) => [f.docId, manualBytes(f)]));
   }
 
   return {

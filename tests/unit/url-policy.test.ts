@@ -1,5 +1,36 @@
 import { isPrivateHost, normalizeBaseUrl } from '@/background/config/url-policy';
 
+describe('normalizeBaseUrl : barres finales', () => {
+  it.each([
+    ['https://h.com//', 'https://h.com'],
+    ['https://h.com/a///', 'https://h.com/a'],
+    ['https://h.com/a//b/', 'https://h.com/a//b'],
+    ['https://h.com///api/', 'https://h.com//'],
+    ['https://h.com/a//api/v1//', 'https://h.com/a/'],
+    ['https://h.com//x', 'https://h.com//x'],
+  ])('normalise %s', (input, expected) => {
+    const r = normalizeBaseUrl(input);
+    expect(r.ok && r.value.baseUrl).toBe(expected);
+  });
+
+  it('chemin de 50 000 barres puis un caractère : traité en temps linéaire', () => {
+    const slashes = '/'.repeat(50_000);
+    const t0 = performance.now();
+    const r = normalizeBaseUrl(`https://h.com/${slashes}x`);
+    const ms = performance.now() - t0;
+    expect(r.ok && r.value.baseUrl).toBe(`https://h.com/${slashes}x`);
+    expect(ms).toBeLessThan(50);
+  });
+
+  it('chemin de 50 000 barres seules : réduit à l’origine', () => {
+    const t0 = performance.now();
+    const r = normalizeBaseUrl(`https://h.com/${'/'.repeat(50_000)}`);
+    const ms = performance.now() - t0;
+    expect(r.ok && r.value.baseUrl).toBe('https://h.com');
+    expect(ms).toBeLessThan(50);
+  });
+});
+
 describe('normalizeBaseUrl', () => {
   it.each([
     ['https://homebox.example.com', 'https://homebox.example.com'],

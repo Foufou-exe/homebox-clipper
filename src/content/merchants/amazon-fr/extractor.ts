@@ -39,7 +39,8 @@ const text = (el: Element) => el.textContent ?? '';
 const nonEmpty = (s: string) => (s === '' ? null : s);
 
 function sellerFrom(el: Element): string | null {
-  const match = cleanText(text(el)).match(/Vendu par\s*:?\s*(.+)$/i);
+  // cleanText leaves at most one space between words, so ` ?` is equivalent to `\s*` and cannot backtrack.
+  const match = /Vendu par ?:? ?(.+)$/i.exec(cleanText(text(el)));
   return match?.[1] ? cleanText(match[1], NAME_MAX) : null;
 }
 
@@ -140,14 +141,18 @@ function collectLinks(root: ParentNode, selectors: readonly string[], pageUrl: U
 }
 
 function toDocuments(urls: string[], orderNumber: string | null): DocumentRef[] {
-  const base = `facture-amazon${orderNumber ? `-${orderNumber}` : ''}`;
-  return urls.map((url, i) => ({
-    id: `detected-${i}`,
-    origin: 'detected',
-    kind: 'invoice',
-    label: `${base}${i === 0 ? '' : `-${i + 1}`}.pdf`,
-    url,
-  }));
+  const orderSuffix = orderNumber ? `-${orderNumber}` : '';
+  const base = `facture-amazon${orderSuffix}`;
+  return urls.map((url, i) => {
+    const indexSuffix = i === 0 ? '' : `-${i + 1}`;
+    return {
+      id: `detected-${i}`,
+      origin: 'detected',
+      kind: 'invoice',
+      label: `${base}${indexSuffix}.pdf`,
+      url,
+    };
+  });
 }
 
 export const amazonFrExtractor: MerchantExtractor = {
@@ -191,9 +196,9 @@ export const amazonFrExtractor: MerchantExtractor = {
     const popoverUrls = new Set<string>();
     for (const selector of SELECTORS.invoicePopoverTrigger) {
       try {
-        for (const el of Array.from(doc.querySelectorAll(selector))) {
+        for (const el of Array.from(doc.querySelectorAll<HTMLElement>(selector))) {
           const fromHref = sameOriginUrl(el.getAttribute('href'), pageUrl);
-          const fromData = (el.getAttribute('data-a-popover') ?? '').match(/"url"\s*:\s*"([^"]+)"/)?.[1];
+          const fromData = /"url"\s*:\s*"([^"]+)"/.exec(el.dataset.aPopover ?? '')?.[1];
           const url = fromHref ?? sameOriginUrl(fromData ?? null, pageUrl);
           if (url) popoverUrls.add(url);
         }

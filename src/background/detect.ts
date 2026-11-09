@@ -25,7 +25,7 @@ export async function detect(tabId: number): Promise<Result<DetectResult>> {
   } catch {
     return fail('NOT_AN_ORDER_PAGE');
   }
-  if (!MERCHANTS.find((m) => m.matchesUrl(url))) return fail('NOT_AN_ORDER_PAGE');
+  if (!MERCHANTS.some((m) => m.matchesUrl(url))) return fail('NOT_AN_ORDER_PAGE');
 
   if (!(await injectExtractor(tabId))) return fail('NOT_AN_ORDER_PAGE');
 

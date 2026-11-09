@@ -63,9 +63,16 @@ export function normalizeBaseUrl(input: string): Result<NormalizedUrl> {
     warning = 'local_http';
   }
 
-  const path = url.pathname.replace(/\/+$/, '').replace(/\/api(\/v1)?$/, '');
+  const path = trimTrailingSlashes(url.pathname).replace(/\/api(\/v1)?$/, '');
   const baseUrl = `${url.origin}${path}`;
   return ok(warning ? { baseUrl, origin: url.origin, warning } : { baseUrl, origin: url.origin });
+}
+
+/** Removes the trailing `/` characters in linear time (a `/\/+$/` regex backtracks quadratically). */
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end--;
+  return value.slice(0, end);
 }
 
 export function originOf(baseUrl: string): string {

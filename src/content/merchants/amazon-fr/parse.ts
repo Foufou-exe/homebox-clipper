@@ -18,7 +18,7 @@ export function parsePriceFr(input: string): { amount: number; currency: string 
   const text = input.replace(SPACES, '');
   const spaced = input.replace(SPACES, ' ');
   const currency = CURRENCIES.find(([re]) => re.test(spaced))?.[1];
-  const match = text.match(/\d[\d.,]*/);
+  const match = /\d[\d.,]*/.exec(text);
   if (!currency || !match) return null;
 
   let raw = match[0].replace(/[.,]$/, '');
@@ -29,9 +29,9 @@ export function parsePriceFr(input: string): { amount: number; currency: string 
     const thousands = decimal === ',' ? '.' : ',';
     raw = raw.split(thousands).join('').replace(decimal, '.');
   } else if (lastComma >= 0) {
-    raw = raw.replace(/,/g, '.');
+    raw = raw.replaceAll(',', '.');
   } else if (lastDot >= 0 && /\.\d{3}$/.test(raw) && currency === 'EUR') {
-    raw = raw.replace(/\./g, '');
+    raw = raw.replaceAll('.', '');
   }
   const amount = Number(raw);
   if (!Number.isFinite(amount) || amount < 0) return null;
@@ -58,7 +58,7 @@ const stripAccents = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 /** "22 octobre 2026", "1er févr. 2026" → "2026-10-22" */
 export function parseDateFr(input: string): string | null {
   const text = stripAccents(input.replace(SPACES, ' ')).toLowerCase();
-  const match = text.match(/(\d{1,2})(?:er)?\s+([a-z]+)\.?\s+(\d{4})/);
+  const match = /(\d{1,2})(?:er)?\s+([a-z]+)\.?\s+(\d{4})/.exec(text);
   if (!match) return null;
   const [, d, m, y] = match;
   const month = MONTHS[m ?? ''];
@@ -72,11 +72,11 @@ export function parseDateFr(input: string): string | null {
 
 /** Physical (123-1234567-1234567) or digital (D01-…) order number. */
 export function parseOrderNumber(input: string): string | null {
-  return input.match(/(?<![\d-])(?:\d{3}|D\d{2})-\d{7}-\d{7}(?![\d-])/)?.[0] ?? null;
+  return /(?<![\d-])(?:\d{3}|D\d{2})-\d{7}-\d{7}(?![\d-])/.exec(input)?.[0] ?? null;
 }
 
 export function parseQuantity(input: string): number | null {
-  const n = Number(input.match(/\d+/)?.[0]);
+  const n = Number(/\d+/.exec(input)?.[0]);
   return Number.isInteger(n) && n >= 1 ? n : null;
 }
 
