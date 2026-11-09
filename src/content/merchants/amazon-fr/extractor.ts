@@ -155,6 +155,42 @@ function toDocuments(urls: string[], orderNumber: string | null): DocumentRef[] 
   });
 }
 
+/** URL of the "Facture" menu of a trigger: its `href`, otherwise the `url` of its `data-a-popover`. Same origin only. */
+function popoverUrlOf(el: HTMLElement, pageUrl: URL): string | null {
+  const fromHref = sameOriginUrl(el.getAttribute('href'), pageUrl);
+  const fromData = /"url"\s*:\s*"([^"]+)"/.exec(el.dataset.aPopover ?? '')?.[1];
+  return fromHref ?? sameOriginUrl(fromData ?? null, pageUrl);
+}
+
+/** URLs of the "Facture" menus, deduplicated, in the order of the selectors then of the page. */
+function popoverUrls(doc: Document, pageUrl: URL): Set<string> {
+  const urls = new Set<string>();
+  for (const selector of SELECTORS.invoicePopoverTrigger) {
+    try {
+      for (const el of Array.from(doc.querySelectorAll<HTMLElement>(selector))) {
+        const url = popoverUrlOf(el, pageUrl);
+        if (url) urls.add(url);
+      }
+    } catch {
+      // next selector
+    }
+  }
+  return urls;
+}
+
+/** PDF links of one "Facture" menu; an unavailable menu gives none (the direct links are kept). */
+async function popoverPdfLinks(url: string, pageUrl: URL, fetchSameOrigin: typeof fetch): Promise<string[]> {
+  try {
+    const res = await fetchSameOrigin(url, { credentials: 'include' });
+    if (!res.ok) return [];
+    const popover = new DOMParser().parseFromString(await res.text(), 'text/html');
+    return collectLinks(popover, SELECTORS.invoicePopoverPdfLink, pageUrl);
+  } catch {
+    // menu unavailable: keep the direct links
+    return [];
+  }
+}
+
 export const amazonFrExtractor: MerchantExtractor = {
   id: 'amazon.fr',
   domains: [new URL(AMAZON_FR_ORIGIN).hostname],
@@ -192,31 +228,10 @@ export const amazonFrExtractor: MerchantExtractor = {
   async resolveDocuments(doc, pageUrl, fetchSameOrigin) {
     const orderNumber = firstField(doc, SELECTORS.orderNumber, (el) => parseOrderNumber(text(el))).value;
     const urls = collectLinks(doc, SELECTORS.invoiceLink, pageUrl);
-
-    const popoverUrls = new Set<string>();
-    for (const selector of SELECTORS.invoicePopoverTrigger) {
-      try {
-        for (const el of Array.from(doc.querySelectorAll<HTMLElement>(selector))) {
-          const fromHref = sameOriginUrl(el.getAttribute('href'), pageUrl);
-          const fromData = /"url"\s*:\s*"([^"]+)"/.exec(el.dataset.aPopover ?? '')?.[1];
-          const url = fromHref ?? sameOriginUrl(fromData ?? null, pageUrl);
-          if (url) popoverUrls.add(url);
-        }
-      } catch {
-        // next selector
-      }
-    }
-
-    for (const url of popoverUrls) {
-      try {
-        const res = await fetchSameOrigin(url, { credentials: 'include' });
-        if (!res.ok) continue;
-        const popover = new DOMParser().parseFromString(await res.text(), 'text/html');
-        for (const link of collectLinks(popover, SELECTORS.invoicePopoverPdfLink, pageUrl)) {
-          if (!urls.includes(link)) urls.push(link);
-        }
-      } catch {
-        // menu unavailable: keep the direct links
+    // One menu at a time, in the order of the triggers: the order of the documents is stable.
+    for (const url of popoverUrls(doc, pageUrl)) {
+      for (const link of await popoverPdfLinks(url, pageUrl, fetchSameOrigin)) {
+        if (!urls.includes(link)) urls.push(link);
       }
     }
     return toDocuments(urls, orderNumber);

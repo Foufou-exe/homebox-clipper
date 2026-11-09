@@ -63,6 +63,13 @@ function filesFrom(manualFiles: ManualFile[]): FileMap {
 
 const attachmentName = (doc: DocumentRef) => (/\.pdf$/i.test(doc.label) ? doc.label : `${doc.label}.pdf`);
 
+/** Error reported for a failed document: HomeBox-side failures are grouped under `ATTACHMENT_FAILED`. */
+function attachmentError(error: ErrorCode): ErrorCode {
+  return error === 'UNAUTHORIZED' || error === 'HOMEBOX_UNREACHABLE' || error === 'ATTACHMENT_FAILED'
+    ? 'ATTACHMENT_FAILED'
+    : error;
+}
+
 export function createOrchestrator(deps: OrchestratorDeps) {
   const { client, store, notify } = deps;
 
@@ -166,92 +173,120 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     }
   }
 
-  /**
-   * Runs the remaining steps of an import. Invariant (FR-021): once `entityId`
-   * is set, the object is never created again.
-   */
-  async function run(p: PendingImport, files: FileMap, photos: PhotoMap): Promise<PendingImport> {
+  /** Start of a run: the import becomes `running` again and is no longer orphaned. */
+  async function begin(p: PendingImport): Promise<void> {
     delete p.orphaned;
     p.status = 'running';
     p.error = null;
     await persist(p);
+  }
 
-    let created: EntityOut | null = null;
-    if (!p.entityId) {
-      // Early write (R8): if the service worker stops during the POST, the orphaned import will know
-      // that the object may have been created.
-      p.createAttempted = true;
-      delete p.createUncertain;
-      await persist(p);
-      const res = await client.createEntity({
-        name: p.draft.name,
-        description: p.draft.description || undefined,
-        quantity: p.draft.quantity,
-        // `parentId` only when a location is chosen: with no choice, the body stays that of spec 001.
-        ...(p.draft.location ? { parentId: p.draft.location.id } : {}),
-      });
-      if (!res.ok) {
-        p.steps.create = 'failed';
-        p.status = 'failed';
-        p.error = res.error === 'CREATE_FAILED' ? await creationFailureFor(p.draft.location) : res.error;
-        // Lost response (network, timeout): the POST may have succeeded. An explicit HTTP error is a definite failure.
-        // Unreadable 2xx response or one without `id`: the object may exist too, same handling.
-        const acceptedButUnreadable = res.httpStatus !== undefined && res.httpStatus >= 200 && res.httpStatus < 300;
-        if (res.error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
-        else p.createAttempted = false;
-        await persist(p);
-        return p;
-      }
-      created = res.value;
-      p.entityId = res.value.id;
-      p.steps.create = 'done';
-      await persist(p);
+  /**
+   * Definite or uncertain creation failure: the import ends `failed`. Lost response (network, timeout): the POST
+   * may have succeeded. An explicit HTTP error is a definite failure. Unreadable 2xx response or one without `id`:
+   * the object may exist too, same handling.
+   */
+  async function createFailed(p: PendingImport, error: ErrorCode, httpStatus: number | undefined): Promise<void> {
+    p.steps.create = 'failed';
+    p.status = 'failed';
+    p.error = error === 'CREATE_FAILED' ? await creationFailureFor(p.draft.location) : error;
+    const acceptedButUnreadable = httpStatus !== undefined && httpStatus >= 200 && httpStatus < 300;
+    if (error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
+    else p.createAttempted = false;
+    await persist(p);
+  }
+
+  /** POST /entities. Returns the created object, or `null` after a failure (import already persisted `failed`). */
+  async function createStep(p: PendingImport): Promise<EntityOut | null> {
+    // Early write (R8): if the service worker stops during the POST, the orphaned import will know
+    // that the object may have been created.
+    p.createAttempted = true;
+    delete p.createUncertain;
+    await persist(p);
+    const res = await client.createEntity({
+      name: p.draft.name,
+      description: p.draft.description || undefined,
+      quantity: p.draft.quantity,
+      // `parentId` only when a location is chosen: with no choice, the body stays that of spec 001.
+      ...(p.draft.location ? { parentId: p.draft.location.id } : {}),
+    });
+    if (!res.ok) {
+      await createFailed(p, res.error, res.httpStatus);
+      return null;
     }
-    const entityId = p.entityId;
+    p.entityId = res.value.id;
+    p.steps.create = 'done';
+    await persist(p);
+    return res.value;
+  }
 
-    let partialError: ErrorCode | null = null;
+  /**
+   * Invariant (FR-021): once `entityId` is set, the object is never created again. `null`: the creation failed.
+   * `created` is the POST response, reused by the PUT instead of reading the object again.
+   */
+  async function ensureEntity(p: PendingImport): Promise<{ entityId: string; created: EntityOut | null } | null> {
+    if (p.entityId) return { entityId: p.entityId, created: null };
+    const created = await createStep(p);
+    return created ? { entityId: created.id, created } : null;
+  }
 
-    if (p.steps.update !== 'done') {
-      const current = created ? ok(created) : await client.getEntity(entityId);
-      const res = current.ok
-        ? await client.updateEntity(
-            entityId,
-            entityOutToUpdate(current.value, {
-              purchasePrice: p.draft.purchasePrice ?? undefined,
-              purchaseDate: p.draft.purchaseDate ?? undefined,
-              purchaseFrom: p.draft.purchaseFrom || undefined,
-              notes: buildNotes(p.draft),
-              // A PUT without `parentId` would lose the location (V3): it is always sent.
-              parentId: current.value.parent?.id ?? p.draft.location?.id,
-            }),
-          )
-        : current;
-      p.steps.update = res.ok ? 'done' : 'failed';
-      if (!res.ok) partialError = res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED';
-      await persist(p);
-    }
+  /** PUT of the purchase data. Returns the error to report, if any. */
+  async function updateStep(p: PendingImport, entityId: string, created: EntityOut | null): Promise<ErrorCode | null> {
+    if (p.steps.update === 'done') return null;
+    const current = created ? ok(created) : await client.getEntity(entityId);
+    const res = current.ok
+      ? await client.updateEntity(
+          entityId,
+          entityOutToUpdate(current.value, {
+            purchasePrice: p.draft.purchasePrice ?? undefined,
+            purchaseDate: p.draft.purchaseDate ?? undefined,
+            purchaseFrom: p.draft.purchaseFrom || undefined,
+            notes: buildNotes(p.draft),
+            // A PUT without `parentId` would lose the location (V3): it is always sent.
+            parentId: current.value.parent?.id ?? p.draft.location?.id,
+          }),
+        )
+      : current;
+    p.steps.update = res.ok ? 'done' : 'failed';
+    await persist(p);
+    if (res.ok) return null;
+    return res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED';
+  }
 
+  /** Sends one document; returns the error to report, if any. */
+  async function attachDocument(
+    p: PendingImport,
+    entityId: string,
+    doc: DocumentRef,
+    files: FileMap,
+  ): Promise<ErrorCode | null> {
+    const bytes = await bytesFor(p, doc, files);
+    const res = bytes.ok
+      ? await client.addAttachment(entityId, {
+          bytes: bytes.value,
+          filename: attachmentName(doc),
+          type: doc.kind === 'invoice' ? 'receipt' : 'attachment',
+          mimeType: 'application/pdf',
+        })
+      : bytes;
+    p.steps.attachments[doc.id] = res.ok ? 'done' : 'failed';
+    await persist(p);
+    return res.ok ? null : attachmentError(res.error);
+  }
+
+  /** Documents not yet attached, in order. Returns the first error to report, if any. */
+  async function attachmentsStep(p: PendingImport, entityId: string, files: FileMap): Promise<ErrorCode | null> {
+    let firstError: ErrorCode | null = null;
     for (const doc of p.draft.documents) {
       if (p.steps.attachments[doc.id] === 'done') continue;
-      const bytes = await bytesFor(p, doc, files);
-      const res = bytes.ok
-        ? await client.addAttachment(entityId, {
-            bytes: bytes.value,
-            filename: attachmentName(doc),
-            type: doc.kind === 'invoice' ? 'receipt' : 'attachment',
-            mimeType: 'application/pdf',
-          })
-        : bytes;
-      p.steps.attachments[doc.id] = res.ok ? 'done' : 'failed';
-      if (!res.ok) {
-        partialError ??=
-          res.error === 'UNAUTHORIZED' || res.error === 'HOMEBOX_UNREACHABLE' || res.error === 'ATTACHMENT_FAILED'
-            ? 'ATTACHMENT_FAILED'
-            : res.error;
-      }
-      await persist(p);
+      const error = await attachDocument(p, entityId, doc, files);
+      firstError ??= error;
     }
+    return firstError;
+  }
 
+  /** Photo: duplicate guard on resume (R8), then sending. Returns the photo error to report, if any. */
+  async function photoStep(p: PendingImport, entityId: string, photos: PhotoMap): Promise<ErrorCode | null> {
     p.steps.photo ??= 'not_requested';
     p.photoError ??= null;
     await reconcilePhoto(p, entityId);
@@ -260,9 +295,13 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       await persist(p);
     }
     // As long as the photo has not failed, no photo error is kept.
-    if (p.steps.photo !== 'failed') p.photoError = null;
-    else partialError ??= p.photoError;
+    if (p.steps.photo === 'failed') return p.photoError;
+    p.photoError = null;
+    return null;
+  }
 
+  /** Final status: `partial` keeps the state for a retry; `success` purges it (FR-025). */
+  async function finish(p: PendingImport, partialError: ErrorCode | null): Promise<PendingImport> {
     if (partialError) {
       p.status = 'partial';
       p.error = partialError;
@@ -274,6 +313,21 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     // FR-025: purchase data is erased as soon as the import has succeeded.
     await store.purge(p);
     return p;
+  }
+
+  /**
+   * Runs the remaining steps of an import. Invariant (FR-021): once `entityId`
+   * is set, the object is never created again.
+   */
+  async function run(p: PendingImport, files: FileMap, photos: PhotoMap): Promise<PendingImport> {
+    await begin(p);
+    const entity = await ensureEntity(p);
+    if (!entity) return p;
+    // Each step runs even if a previous one failed; the first error is the one reported.
+    const updateError = await updateStep(p, entity.entityId, entity.created);
+    const attachmentsError = await attachmentsStep(p, entity.entityId, files);
+    const photoError = await photoStep(p, entity.entityId, photos);
+    return finish(p, updateError ?? attachmentsError ?? photoError);
   }
 
   return {
