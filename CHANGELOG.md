@@ -8,6 +8,8 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-09
+
 ### Added
 
 - SonarQube Cloud static analysis of the source code (`.github/workflows/sonarqube.yml`, `sonar-project.properties`), run on pull requests to the repository and on `main`; pull requests from forks are skipped because they cannot access the `SONAR_TOKEN` secret. Quality Gate badge in the READMEs. Only the repository's source code is analysed; the extension still sends no data.
@@ -89,6 +91,7 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 - API key encrypted at rest (AES-GCM, PBKDF2 derivation with 600,000 iterations, bound to the instance URL) (PR #1).
 
-[Unreleased]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Foufou-exe/homebox-clipper/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Foufou-exe/homebox-clipper/releases/tag/v0.1.0
