@@ -8,6 +8,15 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ## [Unreleased]
 
+### Added
+
+- SonarQube Cloud static analysis of the source code (`.github/workflows/sonarqube.yml`, `sonar-project.properties`), run on pull requests to the repository and on `main`; pull requests from forks are skipped because they cannot access the `SONAR_TOKEN` secret. Quality Gate badge in the READMEs. Only the repository's source code is analysed; the extension still sends no data.
+- Test coverage: `bun run test:coverage` script (Vitest, V8 provider) and upload of the `lcov` report to SonarQube Cloud. New development-only dependency `@vitest/coverage-v8` (same version as `vitest`), required by Vitest to measure coverage; it is not part of the extension. No coverage threshold is enforced.
+
+### Changed
+
+- The SonarQube workflow uses the same `actions/checkout` version as the other workflows and installs the dependencies with Bun to run the tests before the scan.
+
 ## [0.2.0] - 2026-11-08
 
 ### Added

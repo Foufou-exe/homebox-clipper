@@ -6,6 +6,7 @@
 |---------|------|
 | `bun run test` | Unit and contract tests (Vitest, happy-dom environment). **Not** `bun test`. |
 | `bun run test:watch` | Watch mode. |
+| `bun run test:coverage` | Tests with V8 coverage: summary in the terminal, `coverage/lcov.info` for SonarQube Cloud. Not part of `bun run ci`; the percentage is informational, no threshold is enforced. |
 | `bun run test:build` | Checks the production manifest (permissions, CSP); run **after** `bun run build`. |
 | `bun run typecheck` | Types (`vue-tsc --noEmit`). |
 | `bun run lint` | ESLint. |

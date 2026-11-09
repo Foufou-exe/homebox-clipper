@@ -40,6 +40,18 @@ The files of `.github/ISSUE_TEMPLATE/` and `.github/labels.yml` do not trigger t
 The script is tested by `tests/unit/check-config.test.ts`, on dummy repositories in
 `tests/fixtures/config/`.
 
+## SonarQube analysis
+
+The `.github/workflows/sonarqube.yml` workflow and `sonar-project.properties` configure the
+SonarQube Cloud analysis. Keep `sonar.sources` and `sonar.tests` in line with the directory layout
+(`src`, `scripts`, `tests`) when it changes, and extend the exclusions for new generated or fixture
+directories. The `SONAR_TOKEN` repository secret must exist; pull requests from forks skip the job
+because they cannot read it. The workflow runs `bun run test:coverage` before the scan and
+`sonar.javascript.lcov.reportPaths` points to `coverage/lcov.info`; the coverage is then visible on the
+SonarQube Cloud project page. Locally, run `bun run test:coverage` (the `coverage/` folder is ignored
+by git). Coverage uses the `@vitest/coverage-v8` dev dependency, which must stay at the same version as
+`vitest`; its `coverage` block in `vitest.config.ts` lists the included and excluded files. `bun run check:config` validates the YAML syntax of the workflow only.
+
 ## See also
 
 - [Contributing guide](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)

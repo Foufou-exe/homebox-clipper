@@ -11,6 +11,7 @@
     "postinstall": "wxt prepare",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
     "test:build": "vitest run --config vitest.build.config.ts",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^6.0.10",
+    "@vitest/coverage-v8": "5.0.5",
     "@vue/test-utils": "^2.5.1",
     "@wxt-dev/i18n": "^0.2.8",
     "@wxt-dev/module-vue": "^1.0.3",

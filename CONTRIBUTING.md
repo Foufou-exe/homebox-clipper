@@ -59,6 +59,7 @@ Every command is run with `bun run <script>`.
 | `bun run zip` | Archive ready to publish |
 | `bun run test` | Unit and contract tests (Vitest, **not** `bun test`) |
 | `bun run test:watch` | Tests in watch mode |
+| `bun run test:coverage` | Tests with a coverage report (`coverage/lcov.info`, not tracked by git) |
 | `bun run test:build` | Checks the built manifest (permissions, CSP), after `bun run build` |
 | `bun run typecheck` | Type checking (`vue-tsc`) |
 | `bun run lint` | ESLint |
@@ -83,6 +84,15 @@ browser, start page. See `web-ext.config.example.ts`.
 3. **`bun run ci` must pass locally before every push.** GitHub CI runs the same check on
    code pull requests and on `main`, but catching errors locally is faster. `bun run setup` can install a `pre-push` hook that runs it automatically.
 4. Open a **pull request** to `main` and fill in the template.
+
+### SonarQube analysis
+
+The `SonarQube` workflow analyses the source code on [SonarQube Cloud](https://sonarcloud.io/project/overview?id=Foufou-exe_homebox-clipper)
+for pull requests opened from a branch of this repository and for `main`. The result (Quality Gate,
+issues) is on the SonarQube Cloud project page and in the pull request checks. Pull requests from
+forks cannot access the `SONAR_TOKEN` secret: the analysis is skipped for them, so it never blocks
+them; maintainers can review the code after merging. The configuration is in
+`sonar-project.properties`.
 
 ## Project rules
 
