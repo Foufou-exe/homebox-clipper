@@ -1,29 +1,76 @@
 name: Release
 
-# Publishes a GitHub release (Chrome zip + SHA-256) when a version tag is pushed.
-# Only the maintainer pushes tags. No secret other than the automatic GITHUB_TOKEN.
+# Release Please keeps a "release PR" up to date on main (next version + CHANGELOG.md, computed from
+# the Conventional Commits). Merging that PR creates the vX.Y.Z tag and the GitHub release; the
+# `publish` job below then builds the Chrome archive and attaches it with its SHA-256.
+#
+# Why the build lives in this same workflow: a tag created with GITHUB_TOKEN does not trigger other
+# workflows, so a separate `on: push: tags` workflow would never run. The old tag trigger is removed
+# on purpose (a hand-pushed tag would bypass the changelog); `workflow_dispatch` with a `tag` input
+# replaces it to re-publish the files of an existing release (for example after a failed build).
+#
+# Triggers: push on main (no paths-ignore: `docs:` commits feed the changelog) and on demand.
+# No `schedule`, no matrix, no secret other than the automatic GITHUB_TOKEN.
 on:
   push:
-    tags: ['v*.*.*']
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag whose archive must be (re)built and attached, e.g. v0.3.0'
+        required: true
+        type: string
 
 permissions: {}
 
+# A single release run at a time, and never cancelled: cancelling in the middle of a release could
+# leave a tag without its archive. Runs are queued instead (Release Please is idempotent).
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
-  release:
+  release-please:
+    # The release PR and the tag come only from main; a manual run only re-publishes.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    # `!cancelled()` lets the job run even though `release-please` is skipped on workflow_dispatch.
+    if: >-
+      ${{ !cancelled() && (github.event_name == 'workflow_dispatch' ||
+      needs.release-please.outputs.release_created == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
     env:
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag_name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Validate the tag format
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag '$TAG' (expected vX.Y.Z)."
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.TAG }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -73,9 +120,16 @@ jobs:
             printf '```\n'
           } > "$RUNNER_TEMP/release-notes.md"
           echo "ZIP_FILE=$zip_file" >> "$GITHUB_ENV"
-      - name: Create the GitHub release
+      # Release Please already created the release (tag + notes); attach the files and complete the
+      # notes with the checksum. If the release does not exist (manual run), create it.
+      - name: Attach the archive to the GitHub release
         run: |
-          gh release create "$TAG" "$ZIP_FILE" "${ZIP_FILE}.sha256" \
-            --title "$TAG" \
-            --notes-file "$RUNNER_TEMP/release-notes.md" \
-            --verify-tag
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP_FILE" "${ZIP_FILE}.sha256" --clobber
+            gh release edit "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          else
+            gh release create "$TAG" "$ZIP_FILE" "${ZIP_FILE}.sha256" \
+              --title "$TAG" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --verify-tag
+          fi

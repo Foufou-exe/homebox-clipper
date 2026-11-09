@@ -21,7 +21,7 @@
 - [ ] Tests added or updated for the change
 - [ ] Tested in Chrome against a local HomeBox instance (`bun run homebox:up`), if the interface or the import are affected
 - [ ] Interface checked in the light **and** dark themes, if the UI is affected
-- [ ] `CHANGELOG.md` → `[Unreleased]` updated (or the change is not visible to users or contributors)
+- [ ] PR title follows Conventional Commits (`feat:`, `fix:`, `docs:`…): it feeds the CHANGELOG through Release Please
 - [ ] New interface text added to both `src/locales/en.yml` and `src/locales/fr.yml`, if the UI is affected
 - [ ] Merchant added or changed → `MERCHANTS.md` updated
 - [ ] No personal data, raw merchant page, API key, pepper or real instance address in the files, logs or screenshots
