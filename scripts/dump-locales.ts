@@ -5,6 +5,13 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 
+/** Code-unit order: deterministic on every machine (localeCompare would depend on the locale). */
+function byCodeUnit(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 const dir = join(import.meta.dir, '../src/locales');
 
 function flatten(node: unknown, prefix: string, out: Record<string, string>): void {
@@ -16,7 +23,7 @@ function flatten(node: unknown, prefix: string, out: Record<string, string>): vo
 }
 
 const catalogs: Record<string, Record<string, string>> = {};
-for (const file of readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+for (const file of readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort(byCodeUnit)) {
   const out: Record<string, string> = {};
   flatten(Bun.YAML.parse(readFileSync(join(dir, file), 'utf8')), '', out);
   catalogs[basename(file, extname(file))] = out;

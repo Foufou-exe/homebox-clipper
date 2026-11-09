@@ -6,6 +6,13 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
+/** Code-unit order: deterministic on every machine (localeCompare would depend on the locale). */
+function byCodeUnit(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 /** Required fields of the issue templates (`id`). */
 const REQUIRED_FIELDS: Record<string, string[]> = {
   'bug.yml': [
@@ -64,8 +71,7 @@ function listFiles(dir: string, ext: RegExp): string[] {
     }
   };
   walk(start);
-  // Code-unit order: deterministic on every machine (localeCompare would depend on the locale).
-  return out.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return out.sort(byCodeUnit);
 }
 
 function parseJsonc(rel: string): unknown {
@@ -118,7 +124,7 @@ if (yaml.get(enFile) !== undefined && yaml.get(frFile) !== undefined) {
   const fr = new Map<string, string>();
   flatten(yaml.get(enFile), '', en);
   flatten(yaml.get(frFile), '', fr);
-  const subs = (v: string): string => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(' ');
+  const subs = (v: string): string => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort(byCodeUnit).join(' ');
   for (const key of fr.keys()) if (!en.has(key)) fail(enFile, `key "${key}" missing (present in ${frFile})`);
   for (const key of en.keys()) if (!fr.has(key)) fail(frFile, `key "${key}" missing (present in ${enFile})`);
   for (const [key, value] of en) {
