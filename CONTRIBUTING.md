@@ -69,7 +69,7 @@ Every command is run with `bun run <script>`.
 | `bun run homebox:down` | Stops the local HomeBox instance |
 | `bun run homebox:logs` | Follows the HomeBox logs |
 | `bun run icons` | Regenerates `public/icon/*.png` from `src/assets/logo.svg` |
-| `bun run release:notes` | Prints a version's section of `CHANGELOG.md` (see "Changelog") |
+| `bun run release:notes` | Prints a version's section of `CHANGELOG.md` (see "Changelog and releases") |
 | `bun run wiki:publish` | Publishes `docs/wiki/` to the GitHub wiki (manual action, see "Documentation and wiki") |
 
 `bun run dev` can be customized with a local `web-ext.config.ts` file: another browser, no
@@ -79,8 +79,11 @@ browser, start page. See `web-ext.config.example.ts`.
 
 1. **One branch per topic**, created from an up-to-date `main`: `feat/…`, `fix/…`, `docs/…`,
    `chore/…`, `ci/…`.
-2. **Commits** in [Conventional Commits](https://www.conventionalcommits.org/en/) format
-   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), in English or French.
+2. **Commits** in [Conventional Commits](https://www.conventionalcommits.org/en/) format are
+   **mandatory** (`feat:`, `fix:`, `perf:`, `docs:`, `refactor:`, `test:`, `chore:`…), in English or
+   French: the next version number and the changelog are computed from them (see "Changelog and
+   releases"). With squash merge, the **pull request title** is what counts, so write it in the same
+   format.
 3. **`bun run ci` must pass locally before every push.** GitHub CI runs the same check on
    code pull requests and on `main`, but catching errors locally is faster. `bun run setup` can install a `pre-push` hook that runs it automatically.
 4. Open a **pull request** to `main` and fill in the template.
@@ -126,12 +129,33 @@ client, nor the interface needs to change.
 **Changing the interface**: colors are CSS variables in `src/ui/theme.css`.
 Check your changes in both the light and dark themes.
 
-## Changelog
+## Changelog and releases
 
-Every user-visible change is added to the `[Unreleased]` section of
-[CHANGELOG.md](CHANGELOG.md) (format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)),
-in the same PR. `bun run release:notes Unreleased` prints that section; the release procedure is
-in the wiki: [Releasing](https://github.com/Foufou-exe/homebox-clipper/wiki/Releasing).
+The changelog and the version number are **generated** by [Release Please](https://github.com/googleapis/release-please)
+from the Conventional Commits merged into `main`; do not edit `CHANGELOG.md` or the `package.json`
+version by hand.
+
+| Commit type | Effect |
+|-------------|--------|
+| `feat:` | new minor version (while below 1.0.0), section *Features* |
+| `fix:` | new patch version, section *Bug Fixes* |
+| `perf:` | patch version, section *Performance* |
+| `docs:`, `refactor:`, `revert:`, `build:` | appear in the changelog (*Documentation*, *Code Refactoring*, *Reverts*, *Build System*), without releasing on their own |
+| `ci:`, `test:`, `style:`, `chore:` | hidden from the changelog, no release |
+| `feat!:`, `fix!:` or a `BREAKING CHANGE:` footer | breaking change (minor version while below 1.0.0, major afterwards) |
+
+How a release happens:
+
+1. After each merge into `main`, the bot opens or updates a pull request titled
+   `chore: release X.Y.Z` (new version in `package.json`, new section in `CHANGELOG.md`).
+2. The maintainer reviews it and merges it when a release is wanted. This creates the `vX.Y.Z` tag
+   and the GitHub release.
+3. The same workflow (`.github/workflows/release.yml`) then builds the Chrome archive and attaches
+   `homebox-clipper-X.Y.Z-chrome.zip` and its `.sha256` to the release.
+
+`bun run release:notes X.Y.Z` prints a version's section of the changelog. Details and recovery
+procedure: [Releasing](https://github.com/Foufou-exe/homebox-clipper/wiki/Releasing). The history before
+0.3.0 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and stays as it is.
 
 ## Supported merchants
 
