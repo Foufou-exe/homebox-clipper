@@ -16,7 +16,9 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['lcov', 'text-summary'],
       reportsDirectory: 'coverage',
-      include: ['src/**/*.{ts,vue}', 'scripts/**/*.ts'],
+      // scripts/ is tested through Bun subprocesses (check-config, release-notes), which V8 coverage
+      // cannot see: including it would only report misleading 0 % lines.
+      include: ['src/**/*.{ts,vue}'],
       exclude: [
         'tests/**', // test code itself
         '**/*.d.ts', // type declarations only, no runtime code
