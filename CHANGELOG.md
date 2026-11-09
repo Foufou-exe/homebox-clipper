@@ -15,6 +15,7 @@ adheres to [SemVer](https://semver.org) versioning. The change types (`Added`, `
 
 ### Changed
 
+- SonarQube coverage now excludes `scripts/` (Bun scripts tested as subprocesses, whose coverage V8 cannot measure); they are still analysed for issues.
 - The SonarQube workflow uses the same `actions/checkout` version as the other workflows and installs the dependencies with Bun to run the tests before the scan.
 
 ### Security
