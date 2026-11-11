@@ -7,6 +7,14 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.3.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.3...v0.3.0) (2026-11-11)
+
+
+### Features
+
+* ajouter le support pour le téléchargement et l'extraction des données sur amazon.fr ([fb0434b](https://github.com/Foufou-exe/homebox-clipper/commit/fb0434b8608ee8cd8b767e0a4208a6905b53ba58))
+* import orders from Amazon.de, .es, .it, .com.be, .nl, .co.uk and .com ([#43](https://github.com/Foufou-exe/homebox-clipper/issues/43)) ([cfcdf96](https://github.com/Foufou-exe/homebox-clipper/commit/cfcdf9651893930750f9e5b92d4097d8978e1c71))
+
 ## [0.2.3](https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.2...v0.2.3) (2026-11-11)
 
 
