@@ -18,8 +18,6 @@
 
 </div>
 
-<p align="center"><img src="docs/demo/homebox-clipper-demo.gif" alt="Demo: importing an Amazon order into HomeBox, with its photo and invoice" width="800"></p>
-
 ---
 
 **homebox-clipper** is an import companion for online stores: from the order page, it detects the
@@ -48,6 +46,12 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **No broad permission**: no permanent access to any site; access to your instance is requested
   for its exact address only.
 - **Support** and **GitHub** links in the popup and the settings page.
+
+## Demo
+
+From an Amazon order page to an item in HomeBox, with its photo, invoice and location:
+
+<p align="center"><img src="docs/demo/homebox-clipper-demo.gif" alt="Demo: importing an Amazon order into HomeBox, with its photo and invoice" width="800"></p>
 
 ## Supported merchants
 
