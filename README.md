@@ -125,6 +125,8 @@ Notable changes are listed in **[CHANGELOG.md](CHANGELOG.md)**.
 
 To report a vulnerability, follow **[SECURITY.md](SECURITY.md)** (no public issue).
 
+Privacy: see the **[privacy policy](PRIVACY.md)**.
+
 ## Credits
 
 - The logo reuses the [HomeBox](https://github.com/sysadminsmedia/homebox) box

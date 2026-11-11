@@ -128,6 +128,8 @@ Les évolutions notables sont dans **[CHANGELOG.md](CHANGELOG.md)**.
 
 Pour signaler une vulnérabilité, suivez **[SECURITY.md](SECURITY.md)** (pas d'issue publique).
 
+Confidentialité : voir la **[politique de confidentialité](PRIVACY.fr.md)**.
+
 ## Crédits
 
 - Le logo reprend la boîte de [HomeBox](https://github.com/sysadminsmedia/homebox)
