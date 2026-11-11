@@ -7,6 +7,17 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.2.3](https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.2...v0.2.3) (2026-11-11)
+
+
+### Documentation
+
+* add Chrome Web Store screenshots ([f82d32d](https://github.com/Foufou-exe/homebox-clipper/commit/f82d32dac703d5f902f0470bab741cc7b6d0c527))
+* add Chrome Web Store screenshots ([#42](https://github.com/Foufou-exe/homebox-clipper/issues/42)) ([389665f](https://github.com/Foufou-exe/homebox-clipper/commit/389665f2cb40ffaf804da429c6d5b0e340351163))
+* add privacy policy and Chrome Web Store listing ([bd0856b](https://github.com/Foufou-exe/homebox-clipper/commit/bd0856badbcf1acf94718ed425a024203a9d7efb))
+* add privacy policy and Chrome Web Store listing ([#40](https://github.com/Foufou-exe/homebox-clipper/issues/40)) ([ee2e8c8](https://github.com/Foufou-exe/homebox-clipper/commit/ee2e8c874aacac44a7e5ed031e99b55a43b1cab1))
+* nettoyer le changelog et clarifier la génération des entrées ([e1e74e6](https://github.com/Foufou-exe/homebox-clipper/commit/e1e74e60e8e3046c65e42cc10c4eba92736b1b55))
+
 ## [0.2.2](https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.1...v0.2.2) (2026-11-09)
 
 
