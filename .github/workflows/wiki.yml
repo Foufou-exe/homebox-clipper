@@ -1,0 +1,63 @@
+name: Wiki
+
+# Publishes docs/wiki/ to the GitHub wiki (https://github.com/Foufou-exe/homebox-clipper/wiki) with the
+# same script as the manual `bun run wiki:publish` (scripts/publish-wiki.sh): local checks, link
+# rewriting, copy, commit "docs: sync wiki from <sha>", push. If the wiki is already up to date nothing
+# is pushed and the job succeeds.
+#
+# GITHUB_TOKEN is not used to write to the wiki: the job authenticates with a fine-grained personal
+# access token stored in the secret `WIKI_TOKEN` of the GitHub environment `wiki` (procedure: wiki page
+# "Releasing", section "Automatic wiki publication"). Without that secret (fork, token not created yet)
+# the job ends successfully with a notice, like `chrome-web-store` in release.yml.
+#
+# Triggers: push on main touching docs/wiki/ and on demand.
+# No `schedule`, no matrix.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/wiki/**'
+  workflow_dispatch:
+
+permissions: {}
+
+# One publication at a time; never cancelled in the middle of a push (the script is idempotent, a
+# queued run simply finds the wiki up to date).
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publish-wiki:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Holds the WIKI_TOKEN secret; the maintainer can add required reviewers on it for a manual approval.
+    environment: wiki
+    permissions:
+      contents: read # checkout only; the wiki is written with WIKI_TOKEN
+    steps:
+      # Secrets cannot be used in a job-level `if`, so the check is a step. A missing secret is not an
+      # error: the job ends successfully without doing anything.
+      - name: Check the wiki secret
+        id: check
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+        run: |
+          if [ -z "$WIKI_TOKEN" ]; then
+            echo "::notice::Wiki publication skipped: missing secret WIKI_TOKEN in the 'wiki' environment."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::add-mask::$WIKI_TOKEN"
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.check.outputs.enabled == 'true'
+        with:
+          persist-credentials: false
+      # No `set -x`; the script passes the token to git through the environment (never in a URL or in
+      # an argument) and prints nothing about it.
+      - name: Publish docs/wiki/ to the wiki
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+        run: sh scripts/publish-wiki.sh --yes

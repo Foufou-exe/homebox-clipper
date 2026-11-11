@@ -70,7 +70,7 @@ Every command is run with `bun run <script>`.
 | `bun run homebox:logs` | Follows the HomeBox logs |
 | `bun run icons` | Regenerates `public/icon/*.png` from `src/assets/logo.svg` |
 | `bun run release:notes` | Prints a version's section of `CHANGELOG.md` (see "Changelog and releases") |
-| `bun run wiki:publish` | Publishes `docs/wiki/` to the GitHub wiki (manual action, see "Documentation and wiki") |
+| `bun run wiki:publish` | Publishes `docs/wiki/` to the GitHub wiki (manual action; also automatic on `main`, see "Documentation and wiki") |
 
 `bun run dev` can be customized with a local `web-ext.config.ts` file: another browser, no
 browser, start page. See `web-ext.config.example.ts`.
@@ -178,7 +178,9 @@ the same keys and substitutions, and `bun run check:config` fails otherwise. Det
 ## Documentation and wiki
 
 Wiki pages live in `docs/wiki/` (in English) and are reviewed like the rest of the code.
-`bun run wiki:publish` pushes them to the GitHub wiki; it is a manual action, to be run only
+They are published to the GitHub wiki automatically on every push to `main` that changes
+`docs/wiki/` (workflow `wiki.yml`, secret `WIKI_TOKEN`; skipped if the secret is absent, see the wiki page
+"Releasing"). `bun run wiki:publish` remains available as a manual action, to be run only
 with the maintainer's approval. Wiki links to repository files are absolute URLs (`blob/main`).
 
 ## Maintaining the dev environment

@@ -5,12 +5,17 @@
 #   sh scripts/publish-wiki.sh             wiki clone, sync, confirmation, commit, push
 #   sh scripts/publish-wiki.sh --yes       same without confirmation (maintainer only)
 #
-# The script never modifies the main repository. Real mode requires SSH access to the repository
-# and the wiki's first page to have already been created from the GitHub interface.
+# The script never modifies the main repository. Real mode requires the wiki's first page to have
+# already been created from the GitHub interface, and one of these authentications:
+#   - default: SSH access to the repository (git@github.com:...);
+#   - CI: a token in the WIKI_TOKEN environment variable (fine-grained personal access token with
+#     "Contents: Read and write"); the wiki is then reached over HTTPS and the token is passed to git
+#     through the environment (never in the URL, never in the arguments, never printed).
 set -eu
 
 REPO_URL="https://github.com/Foufou-exe/homebox-clipper"
 WIKI_REMOTE="git@github.com:Foufou-exe/homebox-clipper.wiki.git"
+WIKI_REMOTE_HTTPS="https://github.com/Foufou-exe/homebox-clipper.wiki.git"
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 WIKI="$ROOT/docs/wiki"
@@ -113,11 +118,32 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 
 # --- Real mode -------------------------------------------------------------------------------
-echo "4. Cloning the wiki ($WIKI_REMOTE)"
+if [ -n "${WIKI_TOKEN:-}" ]; then
+  # Token authentication (CI). The Authorization header goes through git's environment-based config
+  # (GIT_CONFIG_*), scoped to github.com: it appears neither in the URL nor in any command line.
+  WIKI_REMOTE="$WIKI_REMOTE_HTTPS"
+  AUTH=$(printf 'x-access-token:%s' "$WIKI_TOKEN" | base64 | tr -d '\n')
+  # In GitHub Actions, also mask the encoded form (only the raw token is masked by the workflow).
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::add-mask::$AUTH"; fi
+  export GIT_CONFIG_COUNT=1
+  export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
+  export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $AUTH"
+  unset AUTH
+  export GIT_TERMINAL_PROMPT=0
+  # No configured identity on a CI runner.
+  export GIT_AUTHOR_NAME="github-actions[bot]" GIT_COMMITTER_NAME="github-actions[bot]"
+  export GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+  export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+  AUTH_MODE="token"
+else
+  AUTH_MODE="SSH"
+fi
+
+echo "4. Cloning the wiki ($WIKI_REMOTE, $AUTH_MODE authentication)"
 CLONE="$TMP/clone"
 if ! git clone --quiet "$WIKI_REMOTE" "$CLONE" 2>"$TMP/clone-error"; then
   cat "$TMP/clone-error" >&2
-  die "clone failed. Does the wiki exist? First create its first page from the repository's \"Wiki\" tab (the wiki must be enabled in Settings), then re-run. Also check your SSH access."
+  die "clone failed. Does the wiki exist? First create its first page from the repository's \"Wiki\" tab (the wiki must be enabled in Settings), then re-run. Also check your credentials (SSH access, or the WIKI_TOKEN token and its permissions)."
 fi
 if ! git -C "$CLONE" rev-parse --verify HEAD >/dev/null 2>&1; then
   die "the wiki is empty: create its first page from the repository's \"Wiki\" tab, then re-run."
