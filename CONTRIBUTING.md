@@ -152,6 +152,8 @@ How a release happens:
    and the GitHub release.
 3. The same workflow (`.github/workflows/release.yml`) then builds the Chrome archive and attaches
    `homebox-clipper-X.Y.Z-chrome.zip` and its `.sha256` to the release.
+4. Last, the `chrome-web-store` job uploads that archive to the Chrome Web Store and submits it for
+   review (skipped if the environment secrets are not set; see the wiki page "Releasing").
 
 `bun run release:notes X.Y.Z` prints a version's section of the changelog. Details and recovery
 procedure: [Releasing](https://github.com/Foufou-exe/homebox-clipper/wiki/Releasing). The history before
