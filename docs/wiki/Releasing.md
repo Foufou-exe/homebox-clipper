@@ -25,11 +25,93 @@ version and the changelog are computed from them.
    4. builds the archive with `bun run zip` and checks that it exists under the expected name and that its
       `manifest.json` carries the same version;
    5. attaches `homebox-clipper-X.Y.Z-chrome.zip` and its `.sha256` to the release and completes the notes
-      with the SHA-256 of the archive.
+      with the SHA-256 of the archive;
+4. then the `chrome-web-store` job downloads that archive from the release, uploads it to the Chrome Web
+   Store and submits it for review (see [Chrome Web Store](#chrome-web-store)). It is skipped with a
+   notice if its secrets are not configured.
 
 The build is in the same workflow because a tag created with the default `GITHUB_TOKEN` does not trigger
-other workflows. The token is limited to `contents: write` (plus `pull-requests: write` for the bot) and no
-other secret is used. Pushing a tag by hand no longer releases anything: it would bypass the changelog.
+other workflows. The `publish` token is limited to `contents: write` (plus `pull-requests: write` for the
+bot); the only other secrets are the five of the `chrome-web-store` environment, used by that job alone. Pushing a tag by hand no longer releases anything: it would bypass the changelog.
+
+## Chrome Web Store
+
+After each release, the `chrome-web-store` job of `release.yml` uploads the archive to the store and
+submits it for review with the [Chrome Web Store API v2](https://developer.chrome.com/docs/webstore/using-api),
+using plain `curl` calls (no third-party action). Google then reviews the update (this can take from hours
+to days); once approved, it is published automatically. The job fails with an explicit message on any API
+error, and is **skipped with a `::notice::`** (not an error) when the secrets below are missing.
+
+The API can only update an existing item: the account, the listing and the first version are created by hand.
+
+### 1. Create the developer account
+
+1. Sign in to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
+   with the Google account that will own the extension. Turn on **2-step verification** on it: Google
+   requires it to publish.
+2. Pay the one-time registration fee (5 USD) and accept the developer agreement.
+
+### 2. Make the first submission by hand
+
+1. Download `homebox-clipper-X.Y.Z-chrome.zip` from the latest GitHub release.
+2. In the dashboard, **Add new item** and upload the zip.
+3. Fill in the **Store listing** tab (description, screenshots, icon, category) and the **Privacy** tab
+   (single purpose, permission justifications, privacy policy URL), then **Submit for review**.
+4. Keep the default visibility. If you change the visibility by hand later, publish manually once before
+   the API can publish again.
+5. Note the two identifiers: the **item ID** (32 characters, on the item's *Package* tab, or in
+   `chrome://extensions` with developer mode on) and the **publisher ID** (dashboard, *Publisher* then
+   *Settings*; if you belong to several publishers, pick the right one).
+
+### 3. Create the OAuth credentials (Google Cloud Console)
+
+1. In the [Google Cloud Console](https://console.cloud.google.com), create or select a project, then enable
+   the **Chrome Web Store API** (*APIs & Services* then *Library*).
+2. *OAuth consent screen*: choose **External**, fill in the application name and your email, skip the
+   scopes, and add your own Google account as a **test user**.
+3. *Credentials* then *Create credentials* then **OAuth client ID**, type **Web application**, with the
+   authorized redirect URI `https://developers.google.com/oauthplayground`. Keep the **client ID** and the
+   **client secret**.
+4. Back on the consent screen, click **Publish app** (status *In production*). Otherwise, while it stays
+   in *Testing*, Google expires the refresh token after 7 days and the job starts failing with
+   `invalid_grant`. No verification is needed for your own use; the "unverified app" warning only appears
+   when you authorize.
+
+### 4. Generate the refresh token
+
+1. Open the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground), click the gear icon,
+   tick **Use your own OAuth credentials** and enter the client ID and secret.
+2. In *Step 1*, type the scope `https://www.googleapis.com/auth/chromewebstore` in the input field
+   and click **Authorize APIs**. Sign in with the account that **owns the item** and accept.
+3. In *Step 2*, click **Exchange authorization code for tokens** and copy the **refresh token**. Treat it
+   as a password: never paste it in an issue, a commit or a chat.
+
+### 5. Create the GitHub environment and secrets
+
+1. In the repository: *Settings* then *Environments* then **New environment**, named exactly
+   `chrome-web-store`.
+2. Optional: tick **Required reviewers** and add yourself. Each release then waits for your approval
+   before anything is sent to Google.
+3. Add these five **environment secrets** (names are exact):
+
+| Secret | Value |
+|--------|-------|
+| `CWS_CLIENT_ID` | OAuth client ID (step 3) |
+| `CWS_CLIENT_SECRET` | OAuth client secret (step 3) |
+| `CWS_REFRESH_TOKEN` | refresh token (step 4) |
+| `CWS_PUBLISHER_ID` | publisher ID (step 2) |
+| `CWS_EXTENSION_ID` | item ID (step 2) |
+
+Until all five exist, the job is skipped with a notice. Forks never have them.
+
+### Re-run a publication
+
+If the job failed (expired token, store rejection, upload still in progress...) or was skipped, fix the
+cause, then run the **Release** workflow manually (*Actions* then *Release* then *Run workflow*) with the
+existing tag, for example `v0.3.0`. The `publish` job rebuilds and re-attaches the archive, then the
+`chrome-web-store` job uploads it again. The store refuses an upload whose version is not higher than the
+one it already has: if that version was already uploaded successfully, only the review submission remains,
+which you can do from the dashboard. You can follow the review status in the dashboard.
 
 ## Commit types and the changelog
 

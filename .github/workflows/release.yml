@@ -9,8 +9,12 @@ name: Release
 # on purpose (a hand-pushed tag would bypass the changelog); `workflow_dispatch` with a `tag` input
 # replaces it to re-publish the files of an existing release (for example after a failed build).
 #
+# The `chrome-web-store` job then uploads the released archive to the Chrome Web Store and submits it
+# for review (Chrome Web Store API v2, plain curl calls, no third-party action). It runs in the GitHub
+# environment `chrome-web-store`, which holds the secrets; if they are missing it is skipped with a notice.
+#
 # Triggers: push on main (no paths-ignore: `docs:` commits feed the changelog) and on demand.
-# No `schedule`, no matrix, no secret other than the automatic GITHUB_TOKEN.
+# No `schedule`, no matrix, no secret other than GITHUB_TOKEN and the `chrome-web-store` environment ones.
 on:
   push:
     branches: [main]
@@ -133,3 +137,139 @@ jobs:
               --notes-file "$RUNNER_TEMP/release-notes.md" \
               --verify-tag
           fi
+
+  chrome-web-store:
+    needs: [release-please, publish]
+    # Only after a successful `publish` (the release then carries the archive).
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Holds the secrets; the maintainer can add required reviewers on it for a manual approval.
+    environment: chrome-web-store
+    permissions:
+      contents: read # `gh release download` on this repository only
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # Secrets cannot be used in a job-level `if`, so the check is a step. Missing secrets (fork,
+      # account not created yet) are not an error: the job ends successfully without doing anything.
+      - name: Check the Chrome Web Store secrets
+        id: check
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: |
+          missing=""
+          for name in CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN CWS_PUBLISHER_ID CWS_EXTENSION_ID; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice::Chrome Web Store step skipped: missing secret(s) in the 'chrome-web-store' environment:$missing."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Validate the tag format
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag '$TAG' (expected vX.Y.Z)."
+            exit 1
+          fi
+      - name: Download the release archive
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/cws"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/cws" \
+            --pattern 'homebox-clipper-*-chrome.zip' --pattern 'homebox-clipper-*-chrome.zip.sha256'
+          (cd "$RUNNER_TEMP/cws" && sha256sum -c ./*.sha256)
+          zip_file="$(ls "$RUNNER_TEMP"/cws/homebox-clipper-*-chrome.zip)"
+          echo "ZIP_FILE=$zip_file" >> "$GITHUB_ENV"
+      # Chrome Web Store API v2 (https://developer.chrome.com/docs/webstore/using-api): OAuth 2.0 refresh
+      # token exchanged for a short-lived access token, then `:upload` and `:publish` on the item.
+      # No `set -x` and no echo of any token; response bodies are only printed on error, and the token
+      # response is never printed.
+      - name: Upload to the Chrome Web Store and submit for review
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: |
+          set -euo pipefail
+          item="publishers/${CWS_PUBLISHER_ID}/items/${CWS_EXTENSION_ID}"
+          api="https://chromewebstore.googleapis.com/v2/${item}"
+          upload_api="https://chromewebstore.googleapis.com/upload/v2/${item}"
+          resp="$RUNNER_TEMP/cws-response.json"
+
+          # 1. Access token from the refresh token.
+          code="$(curl -sS -o "$resp" -w '%{http_code}' -X POST https://oauth2.googleapis.com/token \
+            --data-urlencode "client_id=${CWS_CLIENT_ID}" \
+            --data-urlencode "client_secret=${CWS_CLIENT_SECRET}" \
+            --data-urlencode "refresh_token=${CWS_REFRESH_TOKEN}" \
+            --data-urlencode "grant_type=refresh_token")"
+          if [ "$code" != "200" ]; then
+            echo "::error::OAuth token request failed (HTTP $code): $(jq -r '[.error, .error_description] | map(select(. != null)) | join(" - ")' "$resp" 2>/dev/null || echo 'unreadable response'). Check the CWS_CLIENT_ID, CWS_CLIENT_SECRET and CWS_REFRESH_TOKEN secrets (a refresh token expires after 7 days if the OAuth consent screen is still in 'Testing')."
+            exit 1
+          fi
+          token="$(jq -r '.access_token // empty' "$resp")"
+          rm -f "$resp"
+          if [ -z "$token" ]; then
+            echo "::error::OAuth response contains no access_token."
+            exit 1
+          fi
+          echo "::add-mask::$token"
+
+          # Calls the API; prints the body on error and fails with a clear message.
+          call() { # $1 = step label, rest = curl arguments
+            local label="$1"; shift
+            local http
+            http="$(curl -sS -o "$resp" -w '%{http_code}' -H "Authorization: Bearer $token" "$@")" || {
+              echo "::error::$label: network error."; exit 1; }
+            if [ "$http" -lt 200 ] || [ "$http" -ge 300 ]; then
+              echo "::error::$label failed (HTTP $http): $(jq -c '.error // .' "$resp" 2>/dev/null || head -c 500 "$resp")"
+              exit 1
+            fi
+          }
+
+          # 2. Upload the zip (the body is the raw archive; -T sends the file, -X forces POST).
+          echo "Uploading $(basename "$ZIP_FILE") to $CWS_EXTENSION_ID"
+          call "Upload" -X POST -T "$ZIP_FILE" "${upload_api}:upload"
+          state="$(jq -r '.uploadState // "UNKNOWN"' "$resp")"
+          echo "Upload state: $state"
+
+          # 3. IN_PROGRESS: poll fetchStatus (up to ~5 minutes) until the upload is finished.
+          attempts=0
+          while [ "$state" = "IN_PROGRESS" ]; do
+            attempts=$((attempts + 1))
+            if [ "$attempts" -gt 30 ]; then
+              echo "::error::The upload is still IN_PROGRESS after 5 minutes. Re-run the workflow later."
+              exit 1
+            fi
+            sleep 10
+            call "fetchStatus" -X GET "${api}:fetchStatus"
+            state="$(jq -r '.lastAsyncUploadState // "UNKNOWN"' "$resp")"
+            echo "Upload state: $state"
+          done
+          if [ "$state" != "SUCCEEDED" ]; then
+            echo "::error::Upload did not succeed (state: $state). The version in the zip must be higher than the one already on the store."
+            exit 1
+          fi
+
+          # 4. Submit for review (default publish type: published right after approval).
+          call "Publish" -X POST -H 'Content-Type: application/json' -d '{}' "${api}:publish"
+          state="$(jq -r '.state // "UNKNOWN"' "$resp")"
+          echo "Submission state: $state"
+          case "$state" in
+            PENDING_REVIEW|STAGED|PUBLISHED|PUBLISHED_TO_TESTERS)
+              echo "::notice::$TAG submitted to the Chrome Web Store (state: $state)." ;;
+            *)
+              echo "::error::Unexpected submission state: $state"
+              exit 1 ;;
+          esac
