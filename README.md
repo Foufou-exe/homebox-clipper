@@ -18,6 +18,8 @@
 
 </div>
 
+<p align="center"><img src="docs/demo/homebox-clipper-demo.gif" alt="Demo: importing an Amazon order into HomeBox, with its photo and invoice" width="800"></p>
+
 ---
 
 **homebox-clipper** is an import companion for online stores: from the order page, it detects the

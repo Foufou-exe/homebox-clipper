@@ -18,6 +18,8 @@
 
 </div>
 
+<p align="center"><img src="docs/demo/homebox-clipper-demo.gif" alt="Démo : import d'une commande Amazon dans HomeBox, avec sa photo et sa facture" width="800"></p>
+
 ---
 
 **homebox-clipper** est un compagnon d'import pour les sites marchands en ligne : depuis la page
