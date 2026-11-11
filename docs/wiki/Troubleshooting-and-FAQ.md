@@ -37,7 +37,7 @@ same. Messages are grouped by when they appear.
 | Message shown | Code | Probable cause | Fix |
 |---------------|------|----------------|-----|
 | The invoice is not yet available for this order. | `INVOICE_UNAVAILABLE` | Common right after the order or with some third-party sellers; missing link or error response from Amazon. | Try again later, or attach the PDF by hand. |
-| The invoice download was refused (Amazon session expired?). | `DOWNLOAD_REFUSED` | Amazon session expired, tab closed or reloaded, or link outside `www.amazon.fr`. | Sign in to Amazon again, reload the page, then retry. |
+| The invoice download was refused (Amazon session expired?). | `DOWNLOAD_REFUSED` | Amazon session expired, tab closed or reloaded, or link outside the origin of the store of the order (for example `www.amazon.de`). | Sign in to Amazon again, reload the page, then retry. |
 | The file is not a PDF. | `NOT_A_PDF` | The link leads to an HTML page (for example "Order summary"), or the chosen file does not have the `%PDF-` signature. | Download the invoice and attach it by hand. |
 | The file is larger than 15 MB. | `FILE_TOO_LARGE` | Document too large. | Compress the PDF or send only part of it. |
 | Select the file to attach again to retry. | `MANUAL_FILE_REQUIRED` | Recovery of an import whose file was added by hand: file bytes are never kept. | Select the file again, then "Retry". |
@@ -128,7 +128,8 @@ through a single abstraction layer, see [Architecture](Architecture.md)).
 
 **The extension stopped detecting my Amazon orders.** Amazon probably changed its layout. Use manual entry
 and report the problem without attaching the raw page. On the code side, the fix only touches
-`src/content/merchants/amazon-fr/selectors.ts` ([Architecture](Architecture.md)).
+`src/content/merchants/amazon/selectors.ts` (or `amazon/page-locales.ts` for a label or a month name of a
+page language) ([Architecture](Architecture.md)).
 
 **In which language does the extension appear?** In English, unless the browser's interface language is
 French. See [Translations](Translations.md).

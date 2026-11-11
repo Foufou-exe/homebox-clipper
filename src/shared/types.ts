@@ -1,3 +1,4 @@
+import type { MerchantId } from './merchant-ids';
 import type { ErrorCode } from './errors';
 
 /** Value extracted from a page, or an explicit absence (principle III). */
@@ -25,14 +26,15 @@ export interface DocumentRef {
   origin: 'detected' | 'manual';
   kind: 'invoice' | 'order_document';
   label: string;
-  /** For `detected`: URL on the same amazon.fr origin. */
+  /** For `detected`: URL on the same origin as the store page. */
   url?: string;
   size?: number;
   pdfValid?: boolean;
 }
 
 export interface DetectedPurchase {
-  source: 'amazon.fr';
+  /** Store of the order (set by its extractor, never read from the page). */
+  source: MerchantId;
   /** URL of the order page, without query parameters. */
   pageUrl: string;
   orderNumber: Field<string>;
@@ -47,7 +49,7 @@ export interface DetectedPurchase {
 export interface DraftPhoto {
   url: string;
   /** Gives the `imageHosts` list used to re-check the URL in the service worker. */
-  merchantId: DetectedPurchase['source'];
+  merchantId: MerchantId;
   /** True by default (FR-002); when unchecked, the photo is not fetched. */
   include: boolean;
 }

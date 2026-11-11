@@ -1,4 +1,4 @@
-import { downloadDocument } from '@/content/merchants/amazon-fr/download';
+import { downloadDocument } from '@/content/merchants/amazon/download';
 import { base64ToBytes } from '@/shared/pdf';
 
 const URL_PDF = 'https://www.amazon.fr/documents/download/x/invoice.pdf';
@@ -13,7 +13,7 @@ function respond(body: BodyInit | null, init: ResponseInit & { url?: string } = 
 describe('downloadDocument', () => {
   it('PDF 200 → base64 and size', async () => {
     const f = respond(PDF, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
-    const r = await downloadDocument(URL_PDF, f);
+    const r = await downloadDocument(URL_PDF, 'https://www.amazon.fr', f);
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value.size).toBe(PDF.length);
@@ -24,12 +24,12 @@ describe('downloadDocument', () => {
 
   it('HTML 200 (printable summary) → NOT_A_PDF', async () => {
     const f = respond('<html>Récapitulatif</html>', { status: 200, headers: { 'Content-Type': 'text/html' } });
-    expect(await downloadDocument(URL_PDF, f)).toMatchObject({ ok: false, error: 'NOT_A_PDF' });
+    expect(await downloadDocument(URL_PDF, 'https://www.amazon.fr', f)).toMatchObject({ ok: false, error: 'NOT_A_PDF' });
   });
 
   it('octet-stream without PDF signature → NOT_A_PDF', async () => {
     const f = respond('PK\u0003\u0004', { status: 200, headers: { 'Content-Type': 'application/octet-stream' } });
-    expect(await downloadDocument(URL_PDF, f)).toMatchObject({ ok: false, error: 'NOT_A_PDF' });
+    expect(await downloadDocument(URL_PDF, 'https://www.amazon.fr', f)).toMatchObject({ ok: false, error: 'NOT_A_PDF' });
   });
 
   it('redirect to the login page → DOWNLOAD_REFUSED', async () => {
@@ -38,18 +38,18 @@ describe('downloadDocument', () => {
       headers: { 'Content-Type': 'text/html' },
       url: 'https://www.amazon.fr/ap/signin?openid.return_to=x',
     });
-    expect(await downloadDocument(URL_PDF, f)).toMatchObject({ ok: false, error: 'DOWNLOAD_REFUSED' });
+    expect(await downloadDocument(URL_PDF, 'https://www.amazon.fr', f)).toMatchObject({ ok: false, error: 'DOWNLOAD_REFUSED' });
   });
 
   it.each([401, 403])('%i → DOWNLOAD_REFUSED', async (status) => {
-    expect(await downloadDocument(URL_PDF, respond(null, { status }))).toMatchObject({
+    expect(await downloadDocument(URL_PDF, 'https://www.amazon.fr', respond(null, { status }))).toMatchObject({
       ok: false,
       error: 'DOWNLOAD_REFUSED',
     });
   });
 
   it('404 → INVOICE_UNAVAILABLE', async () => {
-    expect(await downloadDocument(URL_PDF, respond(null, { status: 404 }))).toMatchObject({
+    expect(await downloadDocument(URL_PDF, 'https://www.amazon.fr', respond(null, { status: 404 }))).toMatchObject({
       ok: false,
       error: 'INVOICE_UNAVAILABLE',
     });
@@ -59,12 +59,12 @@ describe('downloadDocument', () => {
     const big = new Uint8Array(15 * 1024 * 1024 + 1);
     big.set(PDF);
     const f = respond(big, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
-    expect(await downloadDocument(URL_PDF, f)).toMatchObject({ ok: false, error: 'FILE_TOO_LARGE' });
+    expect(await downloadDocument(URL_PDF, 'https://www.amazon.fr', f)).toMatchObject({ ok: false, error: 'FILE_TOO_LARGE' });
   });
 
   it('URL outside amazon.fr → refused without a network call', async () => {
     const f = respond(PDF, { status: 200 });
-    expect(await downloadDocument('https://evil.example.com/invoice.pdf', f)).toMatchObject({
+    expect(await downloadDocument('https://evil.example.com/invoice.pdf', 'https://www.amazon.fr', f)).toMatchObject({
       ok: false,
       error: 'DOWNLOAD_REFUSED',
     });

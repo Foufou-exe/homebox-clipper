@@ -22,8 +22,10 @@
 
 **homebox-clipper** is an import companion for online stores: from the order page, it detects the
 product, price, date, order number, seller and PDF invoice, then creates the item in your HomeBox
-instance. You review, you confirm, it is filed away. **Amazon.fr is the first supported store**;
-more merchants are planned and the architecture is built to add them easily.
+instance. You review, you confirm, it is filed away. **Supported stores:** Amazon.fr (supported) and
+Amazon.de, Amazon.es, Amazon.it, Amazon.com.be, Amazon.nl, Amazon.co.uk and Amazon.com (testing:
+checked on reconstructed test pages, not yet on a real order page). More merchants are planned and the
+architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 
 > [!NOTE]
 > Nothing is ever sent without your confirmation, and nothing is sent anywhere other than **your**
@@ -31,7 +33,8 @@ more merchants are planned and the architecture is built to add them easily.
 
 ## Features
 
-- **Automatic detection** of an Amazon.fr order on its detail page.
+- **Automatic detection** of an Amazon order on its detail page, in the language of the page; prices in
+  pounds or dollars are kept as is, with a warning before confirmation (no currency conversion).
 - **Editable summary** before anything is sent, with undetected fields flagged.
 - **3-step import** (item, invoice PDF, photo); multi-item orders, manual PDF attachment and **duplicate detection**.
 - **Error recovery**: if the invoice could not be sent, retry without creating a duplicate.

@@ -2,7 +2,9 @@
 
 **HomeBox Clipper** is a Chrome extension (Manifest V3) that turns an online purchase into an
 [HomeBox](https://github.com/sysadminsmedia/homebox) inventory item, PDF invoice included, after your
-confirmation. It currently works with **Amazon.fr** (the "Order Details" page) and talks only to
+confirmation. It currently works with **Amazon** (the "Order Details" page): Amazon.fr, plus Amazon.de,
+.es, .it, .com.be, .nl, .co.uk and .com in testing (see [Supported-merchants](Supported-merchants.md)), and
+talks only to
 **your** self-hosted HomeBox instance (API tested with v0.27).
 
 > [!NOTE]

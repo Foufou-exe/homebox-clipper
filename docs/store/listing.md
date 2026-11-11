@@ -26,16 +26,16 @@ Its current value is below; the store summary can reuse it or the shorter text i
 
 ## 2. Short description (summary, 132 characters maximum)
 
-EN (123 characters):
+EN (120 characters):
 
 ```
-Import your Amazon.fr purchases and invoices into your self-hosted HomeBox inventory in one click, after your confirmation.
+Import your Amazon purchases and invoices into your self-hosted HomeBox inventory in one click, after your confirmation.
 ```
 
-FR (123 caractères) :
+FR (120 caractères) :
 
 ```
-Importez vos achats Amazon.fr et leurs factures dans votre inventaire HomeBox auto-hébergé, en un clic, après confirmation.
+Importez vos achats Amazon et leurs factures dans votre inventaire HomeBox auto-hébergé, en un clic, après confirmation.
 ```
 
 ## 3. Detailed description
@@ -43,12 +43,12 @@ Importez vos achats Amazon.fr et leurs factures dans votre inventaire HomeBox au
 EN:
 
 ```
-HomeBox Clipper turns an Amazon.fr purchase into an item of your self-hosted HomeBox inventory, invoice included, in one click.
+HomeBox Clipper turns an Amazon purchase (Amazon.fr, .de, .es, .it, .com.be, .nl, .co.uk, .com) into an item of your self-hosted HomeBox inventory, invoice included, in one click.
 
 HomeBox is an open-source home inventory application that you host yourself. You need your own HomeBox instance and an API key to use this extension.
 
 HOW IT WORKS
-1. Open the order details page on Amazon.fr.
+1. Open the order details page on your Amazon store.
 2. Click the extension icon: the product, price, date, order number, seller, quantity, PDF invoice and photo are detected.
 3. Review and edit the summary, choose the HomeBox location.
 4. Click "Add to HomeBox": the item, its invoice and its photo are created in your instance.
@@ -65,12 +65,12 @@ PRIVACY AND SECURITY
 - No server, no account, no analytics, no telemetry. Your data goes only to your own HomeBox instance.
 - Nothing is imported without your confirmation.
 - Your API key is stored encrypted with your passphrase (AES-GCM, PBKDF2 with 600,000 iterations), is never sent to Amazon or to any intermediary server, and is never written to logs.
-- No broad permission: the extension has no permanent access to any website. It reads the Amazon.fr tab only when you open it, and asks access to the exact address of your HomeBox instance only.
+- No broad permission: the extension has no permanent access to any website. It reads the Amazon tab only when you open it, and asks access to the exact address of your HomeBox instance only.
 - HTTPS is required, except for local network addresses (with a warning).
 - Open source (MIT license): https://github.com/Foufou-exe/homebox-clipper
 
 SUPPORTED STORES
-Amazon.fr today. More merchants are planned; request yours on GitHub.
+Amazon.fr today; Amazon.de, Amazon.es, Amazon.it, Amazon.com.be, Amazon.nl, Amazon.co.uk and Amazon.com in testing (checked on test pages, report any wrong detection). Prices in pounds or dollars are kept as is, without currency conversion. More merchants are planned; request yours on GitHub.
 
 HomeBox Clipper is an independent project, not affiliated with Amazon or the HomeBox team. Use of data complies with the Chrome Web Store User Data Policy, including the Limited Use requirements. Privacy policy: https://github.com/Foufou-exe/homebox-clipper/blob/main/PRIVACY.md
 ```
@@ -78,12 +78,12 @@ HomeBox Clipper is an independent project, not affiliated with Amazon or the Hom
 FR :
 
 ```
-HomeBox Clipper transforme un achat Amazon.fr en objet de votre inventaire HomeBox auto-hébergé, facture comprise, en un clic.
+HomeBox Clipper transforme un achat Amazon (Amazon.fr, .de, .es, .it, .com.be, .nl, .co.uk, .com) en objet de votre inventaire HomeBox auto-hébergé, facture comprise, en un clic.
 
 HomeBox est une application d'inventaire domestique open source que vous hébergez vous-même. Pour utiliser cette extension, il faut votre propre instance HomeBox et une clé API.
 
 FONCTIONNEMENT
-1. Ouvrez la page de détails d'une commande sur Amazon.fr.
+1. Ouvrez la page de détails d'une commande sur votre boutique Amazon.
 2. Cliquez sur l'icône de l'extension : le produit, le prix, la date, le numéro de commande, le vendeur, la quantité, la facture PDF et la photo sont détectés.
 3. Relisez et modifiez le récapitulatif, choisissez l'emplacement HomeBox.
 4. Cliquez sur « Ajouter à HomeBox » : l'objet, sa facture et sa photo sont créés dans votre instance.
@@ -100,12 +100,12 @@ CONFIDENTIALITÉ ET SÉCURITÉ
 - Aucun serveur, aucun compte, aucune statistique, aucune télémétrie. Vos données vont uniquement vers votre propre instance HomeBox.
 - Rien n'est importé sans votre confirmation.
 - Votre clé API est stockée chiffrée avec votre phrase de passe (AES-GCM, PBKDF2 avec 600 000 itérations), n'est jamais envoyée à Amazon ni à un serveur intermédiaire, et n'est jamais écrite dans les journaux.
-- Aucune permission large : l'extension n'a aucun accès permanent à un site. Elle lit l'onglet Amazon.fr uniquement quand vous l'ouvrez, et ne demande l'accès qu'à l'adresse exacte de votre instance HomeBox.
+- Aucune permission large : l'extension n'a aucun accès permanent à un site. Elle lit l'onglet Amazon uniquement quand vous l'ouvrez, et ne demande l'accès qu'à l'adresse exacte de votre instance HomeBox.
 - HTTPS obligatoire, sauf pour les adresses du réseau local (avec un avertissement).
 - Open source (licence MIT) : https://github.com/Foufou-exe/homebox-clipper
 
 MARCHANDS PRIS EN CHARGE
-Amazon.fr aujourd'hui. D'autres marchands sont prévus ; demandez le vôtre sur GitHub.
+Amazon.fr aujourd'hui ; Amazon.de, Amazon.es, Amazon.it, Amazon.com.be, Amazon.nl, Amazon.co.uk et Amazon.com en test (vérifiées sur des pages de test, signalez toute détection erronée). Un prix en livres ou en dollars est gardé tel quel, sans conversion de devise. D'autres marchands sont prévus ; demandez le vôtre sur GitHub.
 
 HomeBox Clipper est un projet indépendant, non affilié à Amazon ni à l'équipe HomeBox. L'utilisation des données respecte la Chrome Web Store User Data Policy, y compris les exigences de Limited Use. Politique de confidentialité : https://github.com/Foufou-exe/homebox-clipper/blob/main/PRIVACY.fr.md
 ```
@@ -117,13 +117,13 @@ HomeBox Clipper est un projet indépendant, non affilié à Amazon ni à l'équi
 EN:
 
 ```
-Import an Amazon.fr purchase (name, price, date, order number, seller, quantity, invoice and photo) into the user's own self-hosted HomeBox inventory, after the user reviews and confirms it.
+Import an Amazon purchase from a supported store (name, price, date, order number, seller, quantity, invoice and photo) into the user's own self-hosted HomeBox inventory, after the user reviews and confirms it.
 ```
 
 FR :
 
 ```
-Importer un achat Amazon.fr (nom, prix, date, numéro de commande, vendeur, quantité, facture et photo) dans l'inventaire HomeBox auto-hébergé de l'utilisateur, après relecture et confirmation de sa part.
+Importer un achat Amazon d'une boutique prise en charge (nom, prix, date, numéro de commande, vendeur, quantité, facture et photo) dans l'inventaire HomeBox auto-hébergé de l'utilisateur, après relecture et confirmation de sa part.
 ```
 
 ### Permission justifications
@@ -150,13 +150,13 @@ Conserve l'adresse de l'instance HomeBox de l'utilisateur, la clé API chiffrée
 EN:
 
 ```
-Grants temporary access to the Amazon.fr order tab only when the user clicks the extension icon, so the purchase can be read and the invoice downloaded from that page. It avoids any permanent host permission for Amazon.
+Grants temporary access to the Amazon order tab only when the user clicks the extension icon, so the purchase can be read and the invoice downloaded from that page. It avoids any permanent host permission for Amazon.
 ```
 
 FR :
 
 ```
-Donne un accès temporaire à l'onglet de commande Amazon.fr uniquement quand l'utilisateur clique sur l'icône de l'extension, pour lire l'achat et télécharger la facture depuis cette page. Cela évite toute permission d'hôte permanente pour Amazon.
+Donne un accès temporaire à l'onglet de commande Amazon uniquement quand l'utilisateur clique sur l'icône de l'extension, pour lire l'achat et télécharger la facture depuis cette page. Cela évite toute permission d'hôte permanente pour Amazon.
 ```
 
 **scripting**
@@ -164,13 +164,13 @@ Donne un accès temporaire à l'onglet de commande Amazon.fr uniquement quand l'
 EN:
 
 ```
-Used with activeTab to inject the extension's own bundled detection script (scripting.executeScript with a packaged file) into the Amazon.fr order tab at the moment the user opens the extension. No remote or dynamically built code is injected.
+Used with activeTab to inject the extension's own bundled detection script (scripting.executeScript with a packaged file) into the Amazon order tab at the moment the user opens the extension. No remote or dynamically built code is injected.
 ```
 
 FR :
 
 ```
-Utilisée avec activeTab pour injecter le script de détection fourni dans l'extension (scripting.executeScript avec un fichier packagé) dans l'onglet de commande Amazon.fr au moment où l'utilisateur ouvre l'extension. Aucun code distant ni construit dynamiquement n'est injecté.
+Utilisée avec activeTab pour injecter le script de détection fourni dans l'extension (scripting.executeScript avec un fichier packagé) dans l'onglet de commande Amazon au moment où l'utilisateur ouvre l'extension. Aucun code distant ni construit dynamiquement n'est injecté.
 ```
 
 **Host permissions (optional: `https://*/*` and `http://*/*`)**
@@ -224,9 +224,9 @@ ticked.
 | Authentication information | Yes | The user's HomeBox API key is stored encrypted locally and sent only to the user's HomeBox instance. |
 | Personal communications | No | Not handled. |
 | Location | No | No geographic location. The HomeBox "locations" are storage places in the user's inventory (identifiers only). |
-| Web history | No | Only the Amazon.fr order tab opened by the user is read, at the user's click. No browsing history is collected. |
+| Web history | No | Only the Amazon order tab opened by the user is read, at the user's click. No browsing history is collected. |
 | User activity | No | No clicks, keystrokes or usage tracking. |
-| Website content | Yes | Text and image address of the Amazon.fr order page (product, price, date, seller, photo) are read at the user's click and sent to the user's own HomeBox instance after confirmation. |
+| Website content | Yes | Text and image address of the Amazon order page (product, price, date, seller, photo) are read at the user's click and sent to the user's own HomeBox instance after confirmation. |
 
 Certifications (tick all three):
 
@@ -248,7 +248,7 @@ a fixture or an Amazon test account with a harmless product, an invoice PDF made
 neutral product photo (for example a generic hammer). Order number in the form `000-0000000-0000000`;
 seller `Example Seller`; price `19,99 €`.
 
-1. **Summary before import.** Popup open on an Amazon.fr order page with the editable summary: name,
+1. **Summary before import.** Popup open on an Amazon order page with the editable summary: name,
    price, date, fictitious order number, seller, detected invoice, photo checkbox, location field.
    Caption: "Review and edit everything before anything is sent." (FR: "Relisez et modifiez tout avant
    tout envoi.")

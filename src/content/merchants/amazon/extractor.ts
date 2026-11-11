@@ -1,13 +1,20 @@
 import type { DetectedProduct, DocumentRef, Field } from '@/shared/types';
 import type { MerchantExtractor } from '../types';
 import { isAllowedImageUrl } from '@/shared/image';
-import { cleanText, parseDateFr, parseOrderNumber, parsePriceFr, parseQuantity, toPhotoUrl } from './parse';
+import {
+  cleanText,
+  parseOrderDate,
+  parseOrderNumber,
+  parsePrice,
+  parseQuantity,
+  parseSeller,
+  resolvePageLanguage,
+  toPhotoUrl,
+} from './parse';
 import { SELECTORS } from './selectors';
+import type { AmazonStore, PageLanguage } from './stores';
 
-export const AMAZON_FR_ORIGIN = 'https://www.amazon.fr';
 const NAME_MAX = 255;
-/** Only image host observed on order pages (V7). */
-const IMAGE_HOSTS = ['m.media-amazon.com'] as const;
 
 const missing = <T>(reason: 'not_found' | 'unparsable' = 'not_found'): Field<T> => ({ value: null, reason });
 
@@ -38,10 +45,10 @@ export function firstField<T>(
 const text = (el: Element) => el.textContent ?? '';
 const nonEmpty = (s: string) => (s === '' ? null : s);
 
-function sellerFrom(el: Element): string | null {
-  // cleanText leaves at most one space between words, so ` ?` is equivalent to `\s*` and cannot backtrack.
-  const match = /Vendu par ?:? ?(.+)$/i.exec(cleanText(text(el)));
-  return match?.[1] ? cleanText(match[1], NAME_MAX) : null;
+/** Store of the page and language used to read it (`'unknown'`: language-dependent fields absent). */
+interface PageContext {
+  store: AmazonStore;
+  lang: PageLanguage | 'unknown';
 }
 
 function asinFrom(el: Element): string | null {
@@ -49,9 +56,9 @@ function asinFrom(el: Element): string | null {
 }
 
 /** The seller is displayed per product row: the first row that mentions it is used. */
-function sellerOf(rows: Element[]): Field<string> {
+function sellerOf(rows: Element[], ctx: PageContext): Field<string> {
   for (const row of rows) {
-    const seller = firstField(row, SELECTORS.seller, sellerFrom);
+    const seller = firstField(row, SELECTORS.seller, (el) => parseSeller(text(el), ctx.lang));
     if (seller.value !== null) return seller;
   }
   return missing();
@@ -89,16 +96,16 @@ function imageScope(row: Element, rows: Element[]): Element {
  * A logo or pixel from another host is rejected and the next selector is tried; without an
  * acceptable image, the absence is always `not_found`.
  */
-function photoField(scope: Element): Field<string> {
+function photoField(scope: Element, ctx: PageContext): Field<string> {
   const found = firstField(scope, SELECTORS.productImage, (el) => {
     const src = el.getAttribute('src') ?? '';
-    return isAllowedImageUrl(src, IMAGE_HOSTS) ? toPhotoUrl(src) : null;
+    return isAllowedImageUrl(src, ctx.store.imageHosts) ? toPhotoUrl(src) : null;
   });
   return found.value === null ? missing('not_found') : found;
 }
 
-function extractProduct(row: Element, index: number, rows: Element[]): DetectedProduct {
-  const price = firstField(row, SELECTORS.productPrice, (el) => parsePriceFr(text(el)));
+function extractProduct(row: Element, index: number, rows: Element[], ctx: PageContext): DetectedProduct {
+  const price = firstField(row, SELECTORS.productPrice, (el) => parsePrice(text(el), ctx.lang));
   const asin = firstField(row, SELECTORS.productAsin, asinFrom);
   const scope = imageScope(row, rows);
   const readQuantity = (el: Element) => parseQuantity(text(el));
@@ -111,26 +118,27 @@ function extractProduct(row: Element, index: number, rows: Element[]): DetectedP
     unitPrice: price.value ? { value: price.value.amount, selector: price.selector } : missing(price.reason),
     currency: price.value ? { value: price.value.currency, selector: price.selector } : missing(price.reason),
     quantity: quantity.value ? quantity : { value: 1, selector: 'default' },
-    imageUrl: photoField(scope),
+    imageUrl: photoField(scope, ctx),
   };
 }
 
-function sameOriginUrl(href: string | null, pageUrl: URL): string | null {
+/** Absolute URL of a link if it is on the origin of the store (FR-008), otherwise null. */
+function sameOriginUrl(href: string | null, pageUrl: URL, origin: string): string | null {
   if (!href) return null;
   try {
     const url = new URL(href, pageUrl);
-    return url.origin === AMAZON_FR_ORIGIN ? url.href : null;
+    return url.origin === origin ? url.href : null;
   } catch {
     return null;
   }
 }
 
-function collectLinks(root: ParentNode, selectors: readonly string[], pageUrl: URL): string[] {
+function collectLinks(root: ParentNode, selectors: readonly string[], pageUrl: URL, origin: string): string[] {
   const urls = new Set<string>();
   for (const selector of selectors) {
     try {
       for (const el of Array.from(root.querySelectorAll(selector))) {
-        const url = sameOriginUrl(el.getAttribute('href'), pageUrl);
+        const url = sameOriginUrl(el.getAttribute('href'), pageUrl, origin);
         if (url) urls.add(url);
       }
     } catch {
@@ -155,20 +163,20 @@ function toDocuments(urls: string[], orderNumber: string | null): DocumentRef[] 
   });
 }
 
-/** URL of the "Facture" menu of a trigger: its `href`, otherwise the `url` of its `data-a-popover`. Same origin only. */
-function popoverUrlOf(el: HTMLElement, pageUrl: URL): string | null {
-  const fromHref = sameOriginUrl(el.getAttribute('href'), pageUrl);
+/** URL of the "Invoice" menu of a trigger: its `href`, otherwise the `url` of its `data-a-popover`. Same origin only. */
+function popoverUrlOf(el: HTMLElement, pageUrl: URL, origin: string): string | null {
+  const fromHref = sameOriginUrl(el.getAttribute('href'), pageUrl, origin);
   const fromData = /"url"\s*:\s*"([^"]+)"/.exec(el.dataset.aPopover ?? '')?.[1];
-  return fromHref ?? sameOriginUrl(fromData ?? null, pageUrl);
+  return fromHref ?? sameOriginUrl(fromData ?? null, pageUrl, origin);
 }
 
 /** URLs of the "Facture" menus, deduplicated, in the order of the selectors then of the page. */
-function popoverUrls(doc: Document, pageUrl: URL): Set<string> {
+function popoverUrls(doc: Document, pageUrl: URL, origin: string): Set<string> {
   const urls = new Set<string>();
   for (const selector of SELECTORS.invoicePopoverTrigger) {
     try {
       for (const el of Array.from(doc.querySelectorAll<HTMLElement>(selector))) {
-        const url = popoverUrlOf(el, pageUrl);
+        const url = popoverUrlOf(el, pageUrl, origin);
         if (url) urls.add(url);
       }
     } catch {
@@ -179,61 +187,105 @@ function popoverUrls(doc: Document, pageUrl: URL): Set<string> {
 }
 
 /** PDF links of one "Facture" menu; an unavailable menu gives none (the direct links are kept). */
-async function popoverPdfLinks(url: string, pageUrl: URL, fetchSameOrigin: typeof fetch): Promise<string[]> {
+async function popoverPdfLinks(url: string, pageUrl: URL, origin: string, fetchSameOrigin: typeof fetch): Promise<string[]> {
   try {
     const res = await fetchSameOrigin(url, { credentials: 'include' });
     if (!res.ok) return [];
     const popover = new DOMParser().parseFromString(await res.text(), 'text/html');
-    return collectLinks(popover, SELECTORS.invoicePopoverPdfLink, pageUrl);
+    return collectLinks(popover, SELECTORS.invoicePopoverPdfLink, pageUrl, origin);
   } catch {
     // menu unavailable: keep the direct links
     return [];
   }
 }
 
-export const amazonFrExtractor: MerchantExtractor = {
-  id: 'amazon.fr',
-  domains: [new URL(AMAZON_FR_ORIGIN).hostname],
-  imageHosts: IMAGE_HOSTS,
-
-  matchesUrl(url) {
-    return url.origin === AMAZON_FR_ORIGIN;
-  },
-
-  isOrderPage(doc) {
-    return SELECTORS.orderPageMarker.some((s) => {
-      try {
-        return doc.querySelector(s) !== null;
-      } catch {
-        return false;
-      }
-    });
-  },
-
-  extract(doc, pageUrl) {
-    const orderNumber = firstField(doc, SELECTORS.orderNumber, (el) => parseOrderNumber(text(el)));
-    const rows = productRows(doc);
-    // FR-010: only the DetectedPurchase fields are read — no address, no payment.
-    return {
-      source: 'amazon.fr',
-      pageUrl: `${pageUrl.origin}${pageUrl.pathname}`,
-      orderNumber,
-      orderDate: firstField(doc, SELECTORS.orderDate, (el) => parseDateFr(text(el))),
-      seller: sellerOf(rows),
-      products: rows.map((row, i) => extractProduct(row, i, rows)),
-      documents: toDocuments(collectLinks(doc, SELECTORS.invoiceLink, pageUrl), orderNumber.value),
-    };
-  },
-
-  async resolveDocuments(doc, pageUrl, fetchSameOrigin) {
-    const orderNumber = firstField(doc, SELECTORS.orderNumber, (el) => parseOrderNumber(text(el))).value;
-    const urls = collectLinks(doc, SELECTORS.invoiceLink, pageUrl);
-    // One menu at a time, in the order of the triggers: the order of the documents is stable.
-    for (const url of popoverUrls(doc, pageUrl)) {
-      for (const link of await popoverPdfLinks(url, pageUrl, fetchSameOrigin)) {
-        if (!urls.includes(link)) urls.push(link);
-      }
+const hasAny = (doc: Document, selectors: readonly string[]) =>
+  selectors.some((s) => {
+    try {
+      return doc.querySelector(s) !== null;
+    } catch {
+      return false;
     }
-    return toDocuments(urls, orderNumber);
-  },
-};
+  });
+
+/**
+ * Language used to read the page (R2.1): the one of `<html lang>` if the store reads it. Without the
+ * attribute, the store languages are tried in order: the first one that reads the most language-dependent
+ * fields (order date, seller) wins, otherwise the main language. The seller breaks the tie when month names
+ * are shared (« November » in German and English).
+ */
+function pageContext(doc: Document, store: AmazonStore, rows: Element[]): PageContext {
+  const declared = resolvePageLanguage(doc, store);
+  if (declared !== null) return { store, lang: declared };
+  let best: PageContext = { store, lang: store.pageLanguages[0] ?? 'unknown' };
+  let bestScore = 0;
+  for (const lang of store.pageLanguages) {
+    const ctx = { store, lang };
+    const score = Number(orderDateOf(doc, ctx).value !== null) + Number(sellerOf(rows, ctx).value !== null);
+    if (score > bestScore) {
+      best = ctx;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function orderDateOf(doc: Document, ctx: PageContext): Field<string> {
+  const { lang, store } = ctx;
+  // Page language not recognized for this store: no date is guessed (FR-004).
+  if (lang === 'unknown') return firstField<string>(doc, SELECTORS.orderDate, () => null);
+  return firstField(doc, SELECTORS.orderDate, (el) => parseOrderDate(text(el), lang, store.numericDateOrder));
+}
+
+/** Extractor of one Amazon store (contracts/amazon-stores.md): same code, parameterized by the table. */
+export function createAmazonExtractor(store: AmazonStore): MerchantExtractor {
+  const { origin } = store;
+  const orderNumberOf = (doc: Document) => firstField(doc, SELECTORS.orderNumber, (el) => parseOrderNumber(text(el)));
+
+  return {
+    id: store.id,
+    displayName: store.displayName,
+    domains: [new URL(origin).hostname],
+    imageHosts: store.imageHosts,
+
+    matchesUrl(url) {
+      return url.origin === origin;
+    },
+
+    isOrderPage(doc, pageUrl) {
+      if (hasAny(doc, SELECTORS.orderPageMarker)) return true;
+      // The path widens the recognition (marker changed on a store), never restricts it (R3, SC-007).
+      const knownPath = SELECTORS.orderDetailsPath.some((p) => pageUrl.pathname.startsWith(p));
+      return knownPath && orderNumberOf(doc).value !== null;
+    },
+
+    extract(doc, pageUrl) {
+      const rows = productRows(doc);
+      const ctx = pageContext(doc, store, rows);
+      const orderNumber = orderNumberOf(doc);
+      // FR-010: only the DetectedPurchase fields are read — no address, no payment.
+      return {
+        source: store.id,
+        pageUrl: `${pageUrl.origin}${pageUrl.pathname}`,
+        orderNumber,
+        orderDate: orderDateOf(doc, ctx),
+        seller: sellerOf(rows, ctx),
+        products: rows.map((row, i) => extractProduct(row, i, rows, ctx)),
+        documents: toDocuments(collectLinks(doc, SELECTORS.invoiceLink, pageUrl, origin), orderNumber.value),
+      };
+    },
+
+    async resolveDocuments(doc, pageUrl, fetchSameOrigin) {
+      const orderNumber = orderNumberOf(doc).value;
+      const urls = collectLinks(doc, SELECTORS.invoiceLink, pageUrl, origin);
+      // One menu at a time, in the order of the triggers: the order of the documents is stable.
+      for (const url of popoverUrls(doc, pageUrl, origin)) {
+        for (const link of await popoverPdfLinks(url, pageUrl, origin, fetchSameOrigin)) {
+          if (!urls.includes(link)) urls.push(link);
+        }
+      }
+      return toDocuments(urls, orderNumber);
+    },
+  };
+}
+

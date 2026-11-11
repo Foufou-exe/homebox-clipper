@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ERROR_CODES } from '@/shared/errors';
-import { IDENTICAL_OK, loadCatalog } from './i18n-harness';
+import { IDENTICAL_OK, loadCatalog, makeGetMessage } from './i18n-harness';
 
 const catalog = loadCatalog('fr');
 const en = loadCatalog('en');
@@ -35,8 +35,10 @@ describe('en.yml / fr.yml catalog parity (step B)', () => {
     for (const [key, value] of Object.entries(en)) expect(value, key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
   });
 
-  it('HomeBox note: the English summary.orderNote contains $1 (order number)', () => {
-    expect(en['summary.orderNote']).toBe('Amazon.fr order: $1');
+  // 006: the template gains the store ($1) before the order number ($2). The text rendered for Amazon.fr
+  // is unchanged (test below); this raw-template assertion is the only one adapted (SC-007).
+  it('HomeBox note: the English summary.orderNote contains $1 (store) and $2 (order number)', () => {
+    expect(en['summary.orderNote']).toBe('$1 order: $2');
   });
 });
 
@@ -109,5 +111,77 @@ describe('project links keys (004, FR-009, FR-010, SC-005)', () => {
     expect(cat['links.githubAria']!.startsWith(cat['links.github']!)).toBe(true);
     expect(cat['links.supportAria']).toContain(tab);
     expect(cat['links.githubAria']).toContain(tab);
+  });
+});
+
+describe('store of origin in the HomeBox texts (006, contracts/ui-messages.md)', () => {
+  const render = (cat: Record<string, string>, key: string, subs: string[]) => makeGetMessage(cat)(key, subs);
+
+  it('Amazon.fr: rendered text identical to the former one (SC-007)', () => {
+    expect(render(en, 'summary.orderNote', ['Amazon.fr', '999-0000000-0000001'])).toBe('Amazon.fr order: 999-0000000-0000001');
+    expect(render(catalog, 'summary.orderNote', ['Amazon.fr', '999-0000000-0000001'])).toBe(
+      'Commande Amazon.fr : 999-0000000-0000001',
+    );
+    expect(render(en, 'summary.defaultDescription', ['Amazon.fr', '22 October 2026'])).toBe('Purchased on Amazon.fr on 22 October 2026');
+    expect(render(catalog, 'summary.defaultDescription', ['Amazon.fr', '22/10/2026'])).toBe('Acheté sur Amazon.fr le 22/10/2026');
+    expect(render(en, 'summary.defaultDescriptionNoDate', ['Amazon.fr'])).toBe('Purchased on Amazon.fr');
+    expect(render(catalog, 'summary.defaultDescriptionNoDate', ['Amazon.fr'])).toBe('Acheté sur Amazon.fr');
+  });
+
+  it('exact templates', () => {
+    expect([en['summary.orderNote'], catalog['summary.orderNote']]).toEqual(['$1 order: $2', 'Commande $1 : $2']);
+    expect([en['summary.defaultDescription'], catalog['summary.defaultDescription']]).toEqual([
+      'Purchased on $1 on $2',
+      'Acheté sur $1 le $2',
+    ]);
+    expect([en['summary.defaultDescriptionNoDate'], catalog['summary.defaultDescriptionNoDate']]).toEqual([
+      'Purchased on $1',
+      'Acheté sur $1',
+    ]);
+    expect([en['summary.orderNoteNoStore'], catalog['summary.orderNoteNoStore']]).toEqual(['Order: $1', 'Commande : $1']);
+  });
+});
+
+describe('currency warning without conversion (006, US2, FR-006)', () => {
+  it('exact texts', () => {
+    expect(en['fields.currencyWarning']).toBe('Detected currency: $1. HomeBox will store the amount as is, without conversion.');
+    expect(catalog['fields.currencyWarning']).toBe(
+      'Devise détectée : $1. HomeBox enregistrera le montant tel quel, sans conversion.',
+    );
+  });
+
+  it('same substitution in both languages', () => {
+    expect(subs(en['fields.currencyWarning']!)).toEqual(['$1']);
+    expect(subs(catalog['fields.currencyWarning']!)).toEqual(['$1']);
+  });
+});
+
+describe('list of the stores (006, US3, FR-012, FR-016)', () => {
+  it.each(['summary.supportedStores', 'summary.storeTesting', 'summary.reportHint'])('%s in both catalogs', (key) => {
+    expect(en).toHaveProperty([key]);
+    expect(catalog).toHaveProperty([key]);
+    expect(subs(en[key]!)).toEqual(subs(catalog[key]!));
+  });
+
+  it('exact texts (contracts/ui-messages.md)', () => {
+    expect(en['summary.supportedStores']).toBe('The import works on the order details page of these Amazon stores: $1.');
+    expect(catalog['summary.supportedStores']).toBe(
+      "L'import fonctionne sur la page de détails d'une commande de ces boutiques Amazon : $1.",
+    );
+    expect([en['summary.storeTesting'], catalog['summary.storeTesting']]).toEqual(['$1 (testing)', '$1 (en test)']);
+    expect(en['summary.reportHint']).toBe(
+      'Page not detected correctly? Report it with the Support link below. Do not attach the page: it contains your personal data.',
+    );
+    expect(catalog['summary.reportHint']).toBe(
+      'Page mal détectée ? Signalez-la avec le lien Support ci-dessous. Ne joignez pas la page : elle contient vos données personnelles.',
+    );
+  });
+
+  it('no store list written in the catalogs (adding a store needs no translation)', () => {
+    for (const cat of [en, catalog]) {
+      for (const [key, value] of Object.entries(cat)) {
+        expect(value, key).not.toMatch(/Amazon\.(?:de|es|it|nl|co\.uk|com)\b/);
+      }
+    }
   });
 });

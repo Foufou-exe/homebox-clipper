@@ -108,9 +108,11 @@ The full principles are in the project constitution. The essentials:
 - **Minimal permissions**: any manifest change (permissions, CSP) must be flagged and justified
   in the PR. `bun run test:build` checks the built manifest.
 - **Merchant selectors**: only in the `selectors.ts` of its folder (for example
-  `src/content/merchants/amazon-fr/selectors.ts`), with several selectors per field.
+  `src/content/merchants/amazon/selectors.ts`), with several selectors per field; texts of a page
+  language (labels, month names) only in `src/content/merchants/amazon/page-locales.ts`.
 - **Tests**: each extractor is tested on **anonymized** pages
-  (for example `tests/fixtures/amazon-fr/`, procedure in that folder's README). **Never commit**
+  (for example `tests/fixtures/amazon-fr/` or `tests/fixtures/amazon-de/`, procedure in the folder's
+  README and `scripts/fixtures/anonymize-amazon.ts`). **Never commit**
   a raw merchant page, an API key, a pepper or a real instance address.
 - **Interface texts**: any interface text you add goes into both `src/locales/en.yml` **and**
   `src/locales/fr.yml` in the same contribution (same keys, same `$n` substitutions);
@@ -118,8 +120,9 @@ The full principles are in the project constitution. The essentials:
 
 ## Common cases
 
-**Amazon changed its layout**: capture the page in `tests/fixtures/amazon-fr/raw/`
-(ignored by git), anonymize it, add a failing test, then fix `selectors.ts`.
+**Amazon changed its layout**: capture the page in `tests/fixtures/amazon-<store>/raw/`
+(ignored by git), anonymize it with `scripts/fixtures/anonymize-amazon.ts` (leak check at 0), add a
+failing test, then fix `selectors.ts` or `page-locales.ts`.
 
 **Adding a merchant**: a `src/content/merchants/<merchant>/` folder that implements
 `MerchantExtractor` (`src/content/merchants/types.ts`), with its selectors, its fixtures and an

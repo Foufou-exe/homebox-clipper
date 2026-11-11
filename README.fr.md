@@ -23,8 +23,10 @@
 **homebox-clipper** est un compagnon d'import pour les sites marchands en ligne : depuis la page
 de commande, il détecte le produit, le prix, la date, le numéro de commande, le vendeur et la
 facture PDF, puis crée l'objet dans votre instance HomeBox. Vous vérifiez, vous confirmez, c'est
-rangé. **Amazon.fr est le premier site pris en charge** ; d'autres marchands sont prévus et
-l'architecture est faite pour en ajouter facilement.
+rangé. **Boutiques :** Amazon.fr (prise en charge) et Amazon.de, Amazon.es, Amazon.it,
+Amazon.com.be, Amazon.nl, Amazon.co.uk et Amazon.com (en test : vérifiées sur des pages de test
+reconstituées, pas encore sur une vraie page de commande). D'autres marchands sont prévus et
+l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MERCHANTS.fr.md).
 
 > [!NOTE]
 > Rien n'est jamais envoyé sans votre confirmation, et rien n'est envoyé ailleurs qu'à **votre**
@@ -32,7 +34,9 @@ l'architecture est faite pour en ajouter facilement.
 
 ## Fonctionnalités
 
-- **Détection automatique** d'une commande Amazon.fr sur sa page de détail.
+- **Détection automatique** d'une commande Amazon sur sa page de détail, dans la langue de la page ; un
+  prix en livres ou en dollars est gardé tel quel, avec un avertissement avant confirmation (aucune
+  conversion de devise).
 - **Résumé modifiable** avant tout envoi, avec les champs non détectés signalés.
 - **Import en 3 étapes** (objet, facture PDF, photo) ; commandes multi-articles, **ajout manuel** d'un PDF et **détection des doublons**.
 - **Reprise sur erreur** : si la facture n'a pas pu être envoyée, réessayez sans créer de doublon.

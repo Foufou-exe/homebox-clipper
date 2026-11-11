@@ -11,7 +11,8 @@ components or in the code of `src/ui/`.
 - In the interface, `uiLanguage()` (`src/ui/i18n.ts`) picks the language from the browser's interface
   language: `fr` for `fr`, `fr-CA`..., `en` for anything else. It also drives the `lang` attribute of the
   pages and the date format (`formatDate`: `22/10/2026` in French, `22 October 2026` in English).
-- The notes written in HomeBox (for example "Amazon.fr order: <number>") follow the same language.
+- The notes written in HomeBox (for example "Amazon.de order: <number>") follow the same language; the
+  store name comes from the code (`MERCHANT_CATALOG`), never from the catalogs.
 
 ## Catalog format
 
@@ -22,7 +23,7 @@ components or in the code of `src/ui/`.
 - **Naming**: segments in `camelCase`, except the last segment of `error.*`, which reuses the error code
   in `UPPER_SNAKE_CASE` (`error.UNAUTHORIZED`, `error.NOT_AN_ORDER_PAGE`).
 - Dynamic values use **positional substitutions** `$1`, `$2`..., never concatenation in the code
-  (example: `summary.orderNote` is "Amazon.fr order: $1").
+  (example: `summary.orderNote` is "$1 order: $2", `$1` being the store and `$2` the order number).
 - `extName` and `extDescription` feed the extension's name and description in the manifest.
 - Forbidden in a message: the API key, an instance address, purchase data.
 

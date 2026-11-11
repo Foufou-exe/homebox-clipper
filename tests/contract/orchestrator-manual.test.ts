@@ -51,3 +51,13 @@ describe('orchestrator — manual entry and files (US3)', () => {
     expect(update).not.toHaveProperty('purchasePrice');
   });
 });
+
+describe('orchestrator — manual entry note (006)', () => {
+  it('order number typed by hand, no page: note "Commande : <no.>" without a store', async () => {
+    const { client, orchestrator } = setup();
+    const r = await orchestrator.startImport(3, [draft({ pageUrl: null, documents: [] })], []);
+    expect(r.ok && r.value[0]?.status).toBe('success');
+    const update = client.updateEntity.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(update.notes).toBe('Commande : 999-0000000-0000001');
+  });
+});

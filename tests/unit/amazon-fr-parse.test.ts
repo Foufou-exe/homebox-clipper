@@ -1,11 +1,15 @@
 import {
   cleanText,
-  parseDateFr,
+  parseOrderDate,
   parseOrderNumber,
-  parsePriceFr,
+  parsePrice,
   parseQuantity,
   toPhotoUrl,
-} from '@/content/merchants/amazon-fr/parse';
+} from '@/content/merchants/amazon/parse';
+
+/** Amazon.fr cases: the former parsePriceFr / parseDateFr are the generic parsers with lang = 'fr' (SC-007). */
+const parsePriceFr = (input: string) => parsePrice(input, 'fr');
+const parseDateFr = (input: string) => parseOrderDate(input, 'fr', 'DMY');
 
 describe('parsePriceFr', () => {
   it.each([

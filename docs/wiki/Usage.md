@@ -3,9 +3,11 @@
 Prerequisite: the extension is [installed](Installation.md) and [configured](Configuration.md), and
 unlocked for the current session.
 
-## Import an Amazon.fr purchase
+## Import an Amazon purchase
 
-1. On Amazon.fr, open your orders, then the order details page ("Order Details").
+1. On your Amazon store (Amazon.fr, .de, .es, .it, .com.be, .nl, .co.uk or .com), open your orders,
+   then the order details page ("Order Details"). The page may be in the main language of the store or
+   in English (French or Dutch on Amazon.com.be).
 2. Click the extension icon. Only at that moment does the extension inject its detection code into that
    tab (`activeTab` permission) and display the purchase summary.
 3. Check and fix the fields: product name (required), description, purchase price, quantity, purchase
@@ -23,12 +25,12 @@ Nothing is written to HomeBox before this click. The popup always shows the targ
 | Summary information | HomeBox field |
 |---------------------|---------------|
 | Product name | Name |
-| Description (default "Purchased on Amazon.fr on 22 October 2026", date in the interface language) | Description |
+| Description (default "Purchased on <store> on 22 October 2026", for example "Purchased on Amazon.de on 9 November 2026", date in the interface language) | Description |
 | Quantity | Quantity |
 | Unit price | Purchase price |
 | Purchase date | Purchase date |
-| Seller (default "Amazon.fr") | Purchased from |
-| Order number and order page link | Notes ("Amazon.fr order: <number>" then the page address) |
+| Seller (default: the store, for example "Amazon.de") | Purchased from |
+| Order number and order page link | Notes ("<store> order: <number>", for example "Amazon.de order: ...", then the page address; "Order: <number>" in manual entry) |
 | PDF invoice | Attachment of type **Receipt** |
 | Order document added by hand | Attachment of type **Attachment** |
 | Product photo (box checked) | Attachment of type **Photo**, the item's primary image |
@@ -73,7 +75,9 @@ selected documents attached.
 ## Manual entry
 
 On a page that is not an Amazon order (product page, another site), the extension shows "No purchase
-detected on this page." and offers an empty form. Fill it in and, if needed, attach a PDF from your
+detected on this page.", the list of the supported Amazon stores (with "(testing)" after the stores still
+in testing) and an invitation to report a badly detected page with the Support link, then offers an empty
+form. Fill it in and, if needed, attach a PDF from your
 computer with **Choose a PDF...** (type: *Invoice* or *Order document*).
 
 Manual entry is also useful when detection gets it wrong: you can fix each field, or **replace the
@@ -138,8 +142,10 @@ only request is the one your browser makes when you click.
 
 ## Limits
 
-- Amazon.fr only, and only the "Order Details" page: see [Supported-merchants](Supported-merchants.md).
-- HomeBox stores an amount without a currency: for a purchase in a currency other than the euro, the
-  extension warns you ("Detected currency: ...") but does not convert.
+- Amazon stores only (Amazon.fr, .de, .es, .it, .com.be, .nl, .co.uk, .com), and only the "Order Details"
+  page: see [Supported-merchants](Supported-merchants.md). All but Amazon.fr are still in testing.
+- HomeBox stores an amount without a currency: for a purchase in a currency other than the euro (pounds on
+  Amazon.co.uk, dollars on Amazon.com), the extension warns you before confirmation ("Detected currency:
+  GBP. HomeBox will store the amount as is, without conversion.") and never converts it.
 - Detection depends on Amazon's HTML, which changes regularly: if a field is not detected, use manual
   entry and [report the badly detected page](https://github.com/Foufou-exe/homebox-clipper/issues).

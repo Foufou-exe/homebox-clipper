@@ -26,7 +26,7 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 | Creation of unwanted items | No write to HomeBox without a click on "Add to HomeBox"; all fields can be edited before sending. |
 | Booby-trapped image URL (modified merchant page) | The URL is checked twice (at extraction, then in the service worker): `https`, host **strictly equal** to the merchant's (`m.media-amazon.com`), no port or credentials. Redirects refused. |
 | Booby-trapped file passed off as a photo (HTML, SVG, GIF) | Only JPEG, PNG and WebP (byte signature checked) of 5 MB at most are sent; the type sent comes from the signature, not from the response header. |
-| Booby-trapped file passed off as an invoice | Only real PDFs (`%PDF-` signature) of 15 MB at most are sent; download limited to the `https://www.amazon.fr` origin. |
+| Booby-trapped file passed off as an invoice | Only real PDFs (`%PDF-` signature) of 15 MB at most are sent; download limited to the exact origin of the Amazon store of the order (for example `https://www.amazon.de`); a link to another store or site is refused. |
 
 ## Where data is stored
 

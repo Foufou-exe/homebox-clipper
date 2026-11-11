@@ -1,10 +1,17 @@
-import { amazonFrExtractor as ex, firstField } from '@/content/merchants/amazon-fr/extractor';
+import { firstField } from '@/content/merchants/amazon/extractor';
+import { amazonFr } from './fixtures';
+
+const ex = amazonFr();
 import { Window } from 'happy-dom';
 import { fixtureHtml, loadFixture, ORDER_URL } from './fixtures';
 
 const extract = (name: string) => {
   const { doc, url } = loadFixture(name);
   return ex.extract(doc, url);
+};
+const isOrderPage = (name: string) => {
+  const { doc, url } = loadFixture(name);
+  return ex.isOrderPage(doc, url);
 };
 
 describe('amazonFrExtractor', () => {
@@ -80,9 +87,9 @@ describe('amazonFrExtractor', () => {
   });
 
   it("isOrderPage distinguishes a product page from an order page", () => {
-    expect(ex.isOrderPage(loadFixture('order-single-item-invoice.html').doc)).toBe(true);
-    expect(ex.isOrderPage(loadFixture('order-alt-layout.html').doc)).toBe(true);
-    expect(ex.isOrderPage(loadFixture('not-an-order.html').doc)).toBe(false);
+    expect(isOrderPage('order-single-item-invoice.html')).toBe(true);
+    expect(isOrderPage('order-alt-layout.html')).toBe(true);
+    expect(isOrderPage('not-an-order.html')).toBe(false);
   });
 
   it('page non-commande : champs explicitement absents', () => {
@@ -267,8 +274,7 @@ describe('amazonFrExtractor: anonymized fixtures of real pages', () => {
     const rowNumbers = prices.map((_, i) => i + 1);
 
     it('recognized as an order page, order fields detected', () => {
-      const { doc } = loadFixture(fixture);
-      expect(ex.isOrderPage(doc)).toBe(true);
+      expect(isOrderPage(fixture)).toBe(true);
       const p = extract(fixture);
       expect(p.orderNumber).toEqual({ value: order, selector: '[data-component="orderId"]' });
       expect(p.orderDate).toEqual({ value: '2024-03-15', selector: '[data-component="orderDate"]' });

@@ -9,7 +9,7 @@ developer mode.
 |------|---------|
 | Browser | Recent Google Chrome or Chromium (Brave, Edge, Vivaldi... should work, untested) |
 | HomeBox | [sysadminsmedia/homebox](https://github.com/sysadminsmedia/homebox) instance exposing the `/api/v1/entities` API (tested with **v0.27.0**) |
-| Account | An Amazon.fr account, signed in in the same browser |
+| Account | An account on a supported Amazon store (Amazon.fr, .de, .es, .it, .com.be, .nl, .co.uk, .com), signed in in the same browser |
 | To build | [Bun](https://bun.sh) 1.4 (version pinned in `package.json`) and [Node.js](https://nodejs.org) LTS |
 
 `mise install` installs Bun and Node at the right versions thanks to the repository's `mise.toml` file.
