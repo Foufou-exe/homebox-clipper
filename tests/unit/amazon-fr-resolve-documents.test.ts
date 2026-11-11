@@ -1,5 +1,7 @@
 import { Window } from 'happy-dom';
-import { amazonFrExtractor as ex } from '@/content/merchants/amazon-fr/extractor';
+import { amazonFr } from './fixtures';
+
+const ex = amazonFr();
 import { ORDER_URL } from './fixtures';
 
 /**

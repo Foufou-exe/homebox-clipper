@@ -192,3 +192,34 @@ describe('photo-fetch: logs and key isolation (FR-023, FR-026)', () => {
     expect(source).not.toMatch(/homebox\/client|key-vault|config-store|apiKey|Authorization/i);
   });
 });
+
+describe('photo-fetch: the 8 Amazon stores (006, FR-009, FR-017, Q-U16)', () => {
+  const STORES = [
+    'amazon.fr',
+    'amazon.de',
+    'amazon.es',
+    'amazon.it',
+    'amazon.com.be',
+    'amazon.nl',
+    'amazon.co.uk',
+    'amazon.com',
+  ] as const;
+
+  it.each(STORES)('%s: m.media-amazon.com allowed', async (merchantId) => {
+    const f = fakeFetch(() => image(JPEG));
+    expect((await fetchPhoto(photo({ merchantId }), f.fetch)).ok).toBe(true);
+    expect(f.calls.map((c) => c.url)).toEqual([URL_OK]);
+  });
+
+  it.each(STORES)('%s: another Amazon image host → PHOTO_UNAVAILABLE without a request', async (merchantId) => {
+    const f = fakeFetch(() => image(JPEG));
+    for (const url of [
+      'https://images-eu.ssl-images-amazon.com/images/I/test-1.jpg',
+      'https://images-na.ssl-images-amazon.com/images/I/test-1.jpg',
+      'https://www.amazon.de/images/I/test-1.jpg',
+    ]) {
+      expect(await fetchPhoto(photo({ merchantId, url }), f.fetch)).toEqual({ ok: false, error: 'PHOTO_UNAVAILABLE' });
+    }
+    expect(f.calls).toHaveLength(0);
+  });
+});

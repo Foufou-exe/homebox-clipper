@@ -19,8 +19,8 @@ control**; you are the controller of that data. Project page:
 
 | Data | Source | Purpose | Where it goes |
 |------|--------|---------|---------------|
-| Purchase details read from the Amazon.fr order page you have open: product name, price, quantity, purchase date, order number, seller, order page address, product photo address | The Amazon.fr "Order Details" page, read **only when you open the extension** on that tab | Pre-fill the summary you review and edit | Shown in the popup; sent to **your HomeBox instance** after you confirm |
-| PDF invoice | Downloaded from `https://www.amazon.fr` with your own Amazon session, or a PDF you pick from your computer | Attach it to the HomeBox item | Sent to your HomeBox instance after you confirm |
+| Purchase details read from the order page of a supported Amazon store (Amazon.fr, .de, .es, .it, .com.be, .nl, .co.uk, .com) you have open: product name, price, quantity, purchase date, order number, seller, order page address, product photo address | The "Order Details" page of that Amazon store, read **only when you open the extension** on that tab | Pre-fill the summary you review and edit | Shown in the popup; sent to **your HomeBox instance** after you confirm |
+| PDF invoice | Downloaded only from the origin of the store of the order (for example `https://www.amazon.de`), with your own session on that store, or a PDF you pick from your computer | Attach it to the HomeBox item | Sent to your HomeBox instance after you confirm |
 | Product photo | Downloaded from Amazon's image server (`m.media-amazon.com`) without cookies, referrer or API key, only if its box is checked | Attach it as the item's main image | Sent to your HomeBox instance after you confirm; never kept by the extension |
 | HomeBox instance address | You enter it in the settings | Know where to send the import | Stored locally in the browser |
 | HomeBox API key | You enter it in the settings | Authenticate requests to your instance | Stored **encrypted** locally (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations); sent only to your instance |
@@ -29,7 +29,7 @@ control**; you are the controller of that data. Project page:
 | Theme preference | You | Display | Stored locally |
 
 The extension does **not** read your delivery address, your payment method, your browsing history or
-any page other than the Amazon.fr order page you open it on. The invoice PDF is sent as it is: it may
+any page other than the Amazon order page you open it on. The invoice PDF is sent as it is: it may
 contain information printed by Amazon on the document, such as your name or address; it goes only to
 your HomeBox instance.
 
@@ -47,8 +47,12 @@ your HomeBox instance.
 
 ## No transfer to third parties
 
-- The extension contacts only: (1) the Amazon.fr page you opened it on, and Amazon's servers to
-  download your invoice and the product photo at the moment of import; (2) **your** HomeBox instance.
+- The extension contacts only: (1) the Amazon store page you opened it on (its exact origin, for
+  example `https://www.amazon.de`), to download your invoice, and Amazon's image server
+  (`m.media-amazon.com`) for the product photo, at the moment of import; (2) **your** HomeBox
+  instance. It never contacts another Amazon store than the one of the order.
+- Prices are kept in the currency of the order: no exchange-rate service or other third party is
+  contacted (no currency conversion).
 - Your data and your API key are **never** sent to the author, to an intermediary server, to Amazon
   (the API key never leaves the extension towards Amazon) or to any other third party.
 - There is no advertising, no analytics, no telemetry, no tracking and no sale of data.

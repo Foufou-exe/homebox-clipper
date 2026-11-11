@@ -1,10 +1,24 @@
 /**
- * ONLY file containing Amazon.fr selectors (constitution, principle III).
+ * ONLY file containing Amazon selectors, shared by every Amazon store (constitution, principle III).
+ * No page-language text here: those live in page-locales.ts.
  * For each field: a list ordered by priority; the first selector that yields a value
  * usable wins. If Amazon changes its page layout, fix it here and add
  * a fixture reproducing the new structure (principle VII).
  */
 export const SELECTORS = {
+  /**
+   * Paths of the "order details" page: with a readable order number, they recognize an order page whose
+   * DOM marker is missing (R3). They widen the recognition, never restrict it.
+   */
+  orderDetailsPath: [
+    '/your-orders/order-details',
+    // To confirm on a real page.
+    '/gp/your-account/order-details',
+    // To confirm on a real page.
+    '/gp/css/order-details',
+    // To confirm on a real page.
+    '/gp/digital/your-account/order-summary.html',
+  ],
   /** Presence = order detail page. */
   orderPageMarker: [
     '[data-component="orderDetails"]',
@@ -24,7 +38,7 @@ export const SELECTORS = {
     '.order-date-invoice-item',
     '#orderDetails',
   ],
-  /** "Vendu par: …" ("Sold by") mention (read from the first product row that contains it). */
+  /** "Sold by: …" mention (read from the first product row that contains it; labels in page-locales.ts). */
   seller: ['[data-component="orderedMerchant"]', '.a-color-secondary', '.a-size-small'],
   /** One row per ordered product. */
   productRow: [
@@ -63,7 +77,7 @@ export const SELECTORS = {
     'a[href*="/documents/download/"][href*="invoice"]',
     'a[href*="/documents/download/"]',
   ],
-  /** Link or trigger of the "Facture" (invoice) menu, loaded on demand. */
+  /** Link or trigger of the "Invoice" menu, loaded on demand (detected by its link, whatever the language). */
   invoicePopoverTrigger: [
     '[data-component="orderInvoice"] [data-a-popover]',
     '[data-a-popover*="invoice/popover"]',

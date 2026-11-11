@@ -3,8 +3,9 @@
 # Merchants roadmap
 
 homebox-clipper imports an online purchase from a merchant's "Your orders" page into your
-self-hosted [HomeBox](https://github.com/sysadminsmedia/homebox). Only one merchant is supported
-today (Amazon.fr). This page is the roadmap: the best-known order sites, France first, then
+self-hosted [HomeBox](https://github.com/sysadminsmedia/homebox). One merchant is supported
+today, Amazon, on eight stores: Amazon.fr (supported) and Amazon.de, .es, .it, .com.be, .nl, .co.uk
+and .com (testing). This page is the roadmap: the best-known order sites, France first, then
 country by country, ranked by priority.
 
 Your store is not listed? [Request it](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml).
@@ -14,6 +15,7 @@ Your store is not listed? [Request it](https://github.com/Foufou-exe/homebox-cli
 | Status | Meaning |
 |--------|---------|
 | ✅ supported | Works today and is listed in the extension's merchant registry |
+| 🟡 testing | Enabled, checked on reconstructed test pages only, not yet on a real anonymized order page: please report any wrong detection |
 | 🧪 planned (next) | Decided, next in line |
 | 📋 backlog | Candidate, not scheduled |
 
@@ -32,6 +34,13 @@ on real pages, not promises. See [Sources](#sources).
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
 | Amazon France | `www.amazon.fr` | ✅ supported | P1 | Order detail page; name, price, date, order number, seller, quantity, photo, invoice |
+| Amazon Germany | `www.amazon.de` | 🟡 testing | P1 | Same fields as Amazon.fr; reconstructed test pages only; page languages: German, English |
+| Amazon Spain | `www.amazon.es` | 🟡 testing | P1 | Same fields as Amazon.fr; reconstructed test pages only; page languages: Spanish, English |
+| Amazon Italy | `www.amazon.it` | 🟡 testing | P1 | Same fields as Amazon.fr; reconstructed test pages only; page languages: Italian, English |
+| Amazon Belgium | `www.amazon.com.be` | 🟡 testing | P1 | Same fields as Amazon.fr; reconstructed test pages only; page languages: French, Dutch, English |
+| Amazon Netherlands | `www.amazon.nl` | 🟡 testing | P1 | Same fields as Amazon.fr; reconstructed test pages only; page languages: Dutch, English |
+| Amazon United Kingdom | `www.amazon.co.uk` | 🟡 testing | P1 | Same fields as Amazon.fr; reconstructed test pages only; page languages: English; price in GBP, no conversion |
+| Amazon United States | `www.amazon.com` | 🟡 testing | P1 | Same fields as Amazon.fr; reconstructed test pages only; page languages: English; price in USD, no conversion; invoice often HTML only |
 
 **Partial support:** _None yet._
 
@@ -54,7 +63,7 @@ on real pages, not promises. See [Sources](#sources).
 
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| Amazon.de | `www.amazon.de` | 🧪 planned (next) | P1 | Extension of the Amazon extractor |
+| Amazon.de | `www.amazon.de` | 🟡 testing | P1 | Same Amazon extractor; testing until checked on a real page |
 | eBay | `www.ebay.de` | 📋 backlog | P1 | Marketplace, private sellers and shops |
 | Otto | `www.otto.de` | 📋 backlog | P1 | Generalist retailer plus marketplace |
 | MediaMarkt | `www.mediamarkt.de` | 📋 backlog | P2 | Electronics; PDF invoice to check |
@@ -67,7 +76,7 @@ on real pages, not promises. See [Sources](#sources).
 
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| Amazon.co.uk | `www.amazon.co.uk` | 🧪 planned (next) | P1 | Extension of the Amazon extractor |
+| Amazon.co.uk | `www.amazon.co.uk` | 🟡 testing | P1 | Same Amazon extractor; testing until checked on a real page |
 | eBay | `www.ebay.co.uk` | 📋 backlog | P1 | Marketplace |
 | Argos | `www.argos.co.uk` | 📋 backlog | P2 | Generalist retailer |
 | Currys | `www.currys.co.uk` | 📋 backlog | P2 | Electronics and appliances |
@@ -79,7 +88,7 @@ on real pages, not promises. See [Sources](#sources).
 
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| Amazon.es | `www.amazon.es` | 🧪 planned (next) | P1 | Extension of the Amazon extractor |
+| Amazon.es | `www.amazon.es` | 🟡 testing | P1 | Same Amazon extractor; testing until checked on a real page |
 | El Corte Inglés | `www.elcorteingles.es` | 📋 backlog | P1 | Department store; PDF invoice to check |
 | PcComponentes | `www.pccomponentes.com` | 📋 backlog | P2 | Electronics and computing |
 | MediaMarkt | `www.mediamarkt.es` | 📋 backlog | P2 | Electronics |
@@ -92,7 +101,7 @@ on real pages, not promises. See [Sources](#sources).
 
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| Amazon.it | `www.amazon.it` | 🧪 planned (next) | P1 | Extension of the Amazon extractor |
+| Amazon.it | `www.amazon.it` | 🟡 testing | P1 | Same Amazon extractor; testing until checked on a real page |
 | eBay | `www.ebay.it` | 📋 backlog | P2 | Marketplace |
 | MediaWorld | `www.mediaworld.it` | 📋 backlog | P2 | Electronics (MediaMarkt group) |
 | Unieuro | `www.unieuro.it` | 📋 backlog | P2 | Electronics and appliances |
@@ -104,7 +113,7 @@ on real pages, not promises. See [Sources](#sources).
 
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| Amazon.com.be | `www.amazon.com.be` | 🧪 planned (next) | P1 | Extension of the Amazon extractor |
+| Amazon.com.be | `www.amazon.com.be` | 🟡 testing | P1 | Same Amazon extractor; testing until checked on a real page |
 | bol | `www.bol.com` | 📋 backlog | P1 | Marketplace shared with the Netherlands |
 | Coolblue | `www.coolblue.be` | 📋 backlog | P2 | Electronics and appliances |
 | MediaMarkt | `www.mediamarkt.be` | 📋 backlog | P2 | Electronics |
@@ -116,7 +125,7 @@ on real pages, not promises. See [Sources](#sources).
 
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| Amazon.nl | `www.amazon.nl` | 🧪 planned (next) | P1 | Extension of the Amazon extractor |
+| Amazon.nl | `www.amazon.nl` | 🟡 testing | P1 | Same Amazon extractor; testing until checked on a real page |
 | bol | `www.bol.com` | 📋 backlog | P1 | Largest Dutch marketplace |
 | Coolblue | `www.coolblue.nl` | 📋 backlog | P1 | Electronics and appliances |
 | MediaMarkt | `www.mediamarkt.nl` | 📋 backlog | P2 | Electronics |
@@ -128,7 +137,7 @@ on real pages, not promises. See [Sources](#sources).
 
 | Site | Domain | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| Amazon.com | `www.amazon.com` | 🧪 planned (next) | P1 | Extension of the Amazon extractor |
+| Amazon.com | `www.amazon.com` | 🟡 testing | P1 | Same Amazon extractor; testing until checked on a real page |
 | Walmart | `www.walmart.com` | 📋 backlog | P1 | Own sales plus marketplace |
 | eBay | `www.ebay.com` | 📋 backlog | P1 | Marketplace |
 | Target | `www.target.com` | 📋 backlog | P2 | Generalist retailer |
@@ -163,8 +172,9 @@ Short list; more will follow on request.
 
 ## How support is added
 
-1. **Amazon domains first.** The next step is to extend the Amazon extractor to the other Amazon
-   domains (`.de`, `.es`, `.it`, `.com.be`, `.nl`, `.co.uk`, `.com`, ...).
+1. **Amazon domains first.** The Amazon extractor now covers `.fr`, `.de`, `.es`, `.it`, `.com.be`,
+   `.nl`, `.co.uk` and `.com`. A store moves from "testing" to "supported" once an anonymized real order
+   page covers it. Other Amazon domains (`.ca`, `.pl`, `.se`, ...) will follow on request.
 2. **Other sites one by one.** Each site needs a dedicated extractor, written and tested against
    **real order pages, anonymised** (names, addresses, order numbers and prices masked). Never
    attach raw pages or personal data to an issue.

@@ -4,12 +4,12 @@ import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { sendToTab, type DetectResult } from '@/shared/messages';
 import { register } from './router';
 
-export const AMAZON_FR_SCRIPT = '/content-scripts/amazon-fr.js';
+export const AMAZON_SCRIPT = '/content-scripts/amazon.js';
 
 /** Idempotent injection (the script ignores a second run). Requires activeTab access. */
 export async function injectExtractor(tabId: number): Promise<boolean> {
   try {
-    await browser.scripting.executeScript({ target: { tabId }, files: [AMAZON_FR_SCRIPT] });
+    await browser.scripting.executeScript({ target: { tabId }, files: [AMAZON_SCRIPT] });
     return true;
   } catch {
     return false;

@@ -3,8 +3,9 @@
 # Feuille de route des marchands
 
 homebox-clipper importe un achat en ligne depuis la page « Vos commandes » d'un marchand vers votre
-instance [HomeBox](https://github.com/sysadminsmedia/homebox) auto-hébergée. Un seul marchand est
-supporté aujourd'hui (Amazon.fr). Cette page est la feuille de route : les sites de commande les
+instance [HomeBox](https://github.com/sysadminsmedia/homebox) auto-hébergée. Un marchand est
+supporté aujourd'hui, Amazon, sur huit boutiques : Amazon.fr (supported, prise en charge) et Amazon.de,
+.es, .it, .com.be, .nl, .co.uk et .com (testing, en test). Cette page est la feuille de route : les sites de commande les
 plus connus, la France d'abord, puis pays par pays, classés par priorité.
 
 Votre boutique n'y figure pas ? [Demandez-la](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml).
@@ -14,6 +15,7 @@ Votre boutique n'y figure pas ? [Demandez-la](https://github.com/Foufou-exe/home
 | Statut | Signification |
 |--------|---------------|
 | ✅ supported | Fonctionne aujourd'hui et figure dans le registre des marchands de l'extension |
+| 🟡 testing | Activé (en test), vérifié seulement sur des pages de test reconstituées, pas encore sur une vraie page de commande anonymisée : signalez toute détection erronée |
 | 🧪 planned (next) | Décidé, prochain sur la liste |
 | 📋 backlog | Candidat, non planifié |
 
@@ -32,6 +34,13 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
 | Amazon France | `www.amazon.fr` | ✅ supported | P1 | Page de détail d'une commande ; nom, prix, date, numéro de commande, vendeur, quantité, photo, facture |
+| Amazon Allemagne | `www.amazon.de` | 🟡 testing | P1 | Mêmes champs qu'Amazon.fr ; pages de test reconstituées seulement ; langues de page : allemand, anglais |
+| Amazon Espagne | `www.amazon.es` | 🟡 testing | P1 | Mêmes champs qu'Amazon.fr ; pages de test reconstituées seulement ; langues de page : espagnol, anglais |
+| Amazon Italie | `www.amazon.it` | 🟡 testing | P1 | Mêmes champs qu'Amazon.fr ; pages de test reconstituées seulement ; langues de page : italien, anglais |
+| Amazon Belgique | `www.amazon.com.be` | 🟡 testing | P1 | Mêmes champs qu'Amazon.fr ; pages de test reconstituées seulement ; langues de page : français, néerlandais, anglais |
+| Amazon Pays-Bas | `www.amazon.nl` | 🟡 testing | P1 | Mêmes champs qu'Amazon.fr ; pages de test reconstituées seulement ; langues de page : néerlandais, anglais |
+| Amazon Royaume-Uni | `www.amazon.co.uk` | 🟡 testing | P1 | Mêmes champs qu'Amazon.fr ; pages de test reconstituées seulement ; langues de page : anglais ; prix en GBP, sans conversion |
+| Amazon États-Unis | `www.amazon.com` | 🟡 testing | P1 | Mêmes champs qu'Amazon.fr ; pages de test reconstituées seulement ; langues de page : anglais ; prix en USD, sans conversion ; facture souvent HTML seulement |
 
 **Support partiel :** _None yet._ (aucun pour l'instant)
 
@@ -54,7 +63,7 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
-| Amazon.de | `www.amazon.de` | 🧪 planned (next) | P1 | Extension de l'extracteur Amazon |
+| Amazon.de | `www.amazon.de` | 🟡 testing | P1 | Même extracteur Amazon ; en test tant qu'il n'est pas vérifié sur une vraie page |
 | eBay | `www.ebay.de` | 📋 backlog | P1 | Marketplace, particuliers et boutiques |
 | Otto | `www.otto.de` | 📋 backlog | P1 | Généraliste avec marketplace |
 | MediaMarkt | `www.mediamarkt.de` | 📋 backlog | P2 | Électronique ; facture PDF à vérifier |
@@ -67,7 +76,7 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
-| Amazon.co.uk | `www.amazon.co.uk` | 🧪 planned (next) | P1 | Extension de l'extracteur Amazon |
+| Amazon.co.uk | `www.amazon.co.uk` | 🟡 testing | P1 | Même extracteur Amazon ; en test tant qu'il n'est pas vérifié sur une vraie page |
 | eBay | `www.ebay.co.uk` | 📋 backlog | P1 | Marketplace |
 | Argos | `www.argos.co.uk` | 📋 backlog | P2 | Généraliste |
 | Currys | `www.currys.co.uk` | 📋 backlog | P2 | Électronique et électroménager |
@@ -79,7 +88,7 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
-| Amazon.es | `www.amazon.es` | 🧪 planned (next) | P1 | Extension de l'extracteur Amazon |
+| Amazon.es | `www.amazon.es` | 🟡 testing | P1 | Même extracteur Amazon ; en test tant qu'il n'est pas vérifié sur une vraie page |
 | El Corte Inglés | `www.elcorteingles.es` | 📋 backlog | P1 | Grand magasin ; facture PDF à vérifier |
 | PcComponentes | `www.pccomponentes.com` | 📋 backlog | P2 | Électronique et informatique |
 | MediaMarkt | `www.mediamarkt.es` | 📋 backlog | P2 | Électronique |
@@ -92,7 +101,7 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
-| Amazon.it | `www.amazon.it` | 🧪 planned (next) | P1 | Extension de l'extracteur Amazon |
+| Amazon.it | `www.amazon.it` | 🟡 testing | P1 | Même extracteur Amazon ; en test tant qu'il n'est pas vérifié sur une vraie page |
 | eBay | `www.ebay.it` | 📋 backlog | P2 | Marketplace |
 | MediaWorld | `www.mediaworld.it` | 📋 backlog | P2 | Électronique (groupe MediaMarkt) |
 | Unieuro | `www.unieuro.it` | 📋 backlog | P2 | Électronique et électroménager |
@@ -104,7 +113,7 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
-| Amazon.com.be | `www.amazon.com.be` | 🧪 planned (next) | P1 | Extension de l'extracteur Amazon |
+| Amazon.com.be | `www.amazon.com.be` | 🟡 testing | P1 | Même extracteur Amazon ; en test tant qu'il n'est pas vérifié sur une vraie page |
 | bol | `www.bol.com` | 📋 backlog | P1 | Marketplace partagée avec les Pays-Bas |
 | Coolblue | `www.coolblue.be` | 📋 backlog | P2 | Électronique et électroménager |
 | MediaMarkt | `www.mediamarkt.be` | 📋 backlog | P2 | Électronique |
@@ -116,7 +125,7 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
-| Amazon.nl | `www.amazon.nl` | 🧪 planned (next) | P1 | Extension de l'extracteur Amazon |
+| Amazon.nl | `www.amazon.nl` | 🟡 testing | P1 | Même extracteur Amazon ; en test tant qu'il n'est pas vérifié sur une vraie page |
 | bol | `www.bol.com` | 📋 backlog | P1 | Première marketplace néerlandaise |
 | Coolblue | `www.coolblue.nl` | 📋 backlog | P1 | Électronique et électroménager |
 | MediaMarkt | `www.mediamarkt.nl` | 📋 backlog | P2 | Électronique |
@@ -128,7 +137,7 @@ sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [
 
 | Site | Domaine | Statut | Priorité | Notes |
 |------|---------|--------|----------|-------|
-| Amazon.com | `www.amazon.com` | 🧪 planned (next) | P1 | Extension de l'extracteur Amazon |
+| Amazon.com | `www.amazon.com` | 🟡 testing | P1 | Même extracteur Amazon ; en test tant qu'il n'est pas vérifié sur une vraie page |
 | Walmart | `www.walmart.com` | 📋 backlog | P1 | Ventes en propre et marketplace |
 | eBay | `www.ebay.com` | 📋 backlog | P1 | Marketplace |
 | Target | `www.target.com` | 📋 backlog | P2 | Généraliste |
@@ -163,8 +172,10 @@ Liste courte ; d'autres suivront sur demande.
 
 ## Comment un marchand est ajouté
 
-1. **Les domaines Amazon d'abord.** La prochaine étape est d'étendre l'extracteur Amazon aux autres
-   domaines Amazon (`.de`, `.es`, `.it`, `.com.be`, `.nl`, `.co.uk`, `.com`, ...).
+1. **Les domaines Amazon d'abord.** L'extracteur Amazon couvre désormais `.fr`, `.de`, `.es`, `.it`,
+   `.com.be`, `.nl`, `.co.uk` et `.com`. Une boutique passe de « en test » à « prise en charge » dès
+   qu'une vraie page de commande anonymisée la couvre. Les autres domaines Amazon (`.ca`, `.pl`, `.se`,
+   ...) suivront à la demande.
 2. **Les autres sites un par un.** Chaque site demande un extracteur dédié, écrit et testé sur de
    **vraies pages de commande, anonymisées** (noms, adresses, numéros de commande et prix masqués).
    Ne joignez jamais de page brute ni de donnée personnelle à un ticket.

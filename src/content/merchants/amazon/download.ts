@@ -1,16 +1,17 @@
 import { fail, ok, type Result } from '@/shared/errors';
 import type { DownloadedDocument } from '@/shared/messages';
 import { MAX_DOCUMENT_BYTES, bytesToBase64, isPdf } from '@/shared/pdf';
-import { AMAZON_FR_ORIGIN } from './extractor';
 
 const PDF_CONTENT_TYPES = new Set(['application/pdf', 'application/octet-stream', 'binary/octet-stream']);
 
 /**
- * Downloads a document in the context of the amazon.fr page (first-party cookies, R10),
- * checks that it is a real PDF, then encodes it as base64 for the service worker.
+ * Downloads a document in the context of the store page (first-party cookies, R10), checks that it is a
+ * real PDF, then encodes it as base64 for the service worker. `allowedOrigin` is the origin of the store
+ * of the page (FR-008): it comes from the extractor, never from a message.
  */
 export async function downloadDocument(
   rawUrl: string,
+  allowedOrigin: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Result<DownloadedDocument>> {
   let url: URL;
@@ -19,7 +20,7 @@ export async function downloadDocument(
   } catch {
     return fail('INVOICE_UNAVAILABLE');
   }
-  if (url.origin !== AMAZON_FR_ORIGIN) return fail('DOWNLOAD_REFUSED');
+  if (url.origin !== allowedOrigin) return fail('DOWNLOAD_REFUSED');
 
   let res: Response;
   try {

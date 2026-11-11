@@ -485,3 +485,63 @@ describe('orchestrator — last-location memory (US3)', () => {
     expect(r.ok && r.value[0]?.status).toBe('success');
   });
 });
+
+describe('HomeBox note: store of origin found from draft.pageUrl (006, FR-007)', () => {
+  const NUMBER = '999-0000000-0000001';
+  const DE = 'https://www.amazon.de/your-orders/order-details';
+
+  it('Amazon.de: "Commande Amazon.de : <no.>" / "Amazon.de order: <no.>"', () => {
+    expect(buildNotes(draft({ pageUrl: DE }))).toBe(`Commande Amazon.de : ${NUMBER}\n${DE}`);
+    setTestLanguage('en');
+    expect(buildNotes(draft({ pageUrl: DE }))).toBe(`Amazon.de order: ${NUMBER}\n${DE}`);
+  });
+
+  it.each([
+    ['https://www.amazon.co.uk/your-orders/order-details', 'Amazon.co.uk'],
+    ['https://www.amazon.com/your-orders/order-details', 'Amazon.com'],
+    ['https://www.amazon.com.be/your-orders/order-details', 'Amazon.com.be'],
+  ])('%s → %s', (pageUrl, name) => {
+    setTestLanguage('en');
+    expect(buildNotes(draft({ pageUrl }))).toBe(`${name} order: ${NUMBER}\n${pageUrl}`);
+  });
+
+  it('manual entry (no page): "Commande : <no.>" / "Order: <no.>", no store claimed', () => {
+    expect(buildNotes(draft({ pageUrl: null }))).toBe(`Commande : ${NUMBER}`);
+    setTestLanguage('en');
+    expect(buildNotes(draft({ pageUrl: null }))).toBe(`Order: ${NUMBER}`);
+  });
+
+  it('page of an unknown store or lookalike origin: summary.orderNoteNoStore', () => {
+    setTestLanguage('en');
+    for (const pageUrl of ['https://www.amazon.ca/x', 'https://www.amazon.de.evil.example/x', 'http://www.amazon.de/x']) {
+      expect(buildNotes(draft({ pageUrl }))).toBe(`Order: ${NUMBER}\n${pageUrl}`);
+    }
+  });
+
+  it('import from Amazon.de: same HomeBox sequence, note with the store of origin', async () => {
+    const { client, orchestrator } = setup();
+    const r = await orchestrator.startImport(7, [draft({ pageUrl: DE, purchaseFrom: 'Amazon.de', documents: [] })], []);
+    expect(r.ok && r.value[0]?.status).toBe('success');
+    expect(client.createEntity).toHaveBeenCalledTimes(1);
+    expect(client.updateEntity).toHaveBeenCalledTimes(1);
+    const update = client.updateEntity.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(update.notes).toBe(`Commande Amazon.de : ${NUMBER}\n${DE}`);
+    expect(update.purchaseFrom).toBe('Amazon.de');
+  });
+});
+
+describe('foreign currency: amount sent as is, no conversion (006, US2-3, FR-006)', () => {
+  it.each([
+    ['https://www.amazon.co.uk/your-orders/order-details', 'GBP', 1299.99],
+    ['https://www.amazon.com/your-orders/order-details', 'USD', 1234.5],
+  ])('%s: price typed by hand (%s %d) sent unchanged, no request outside HomeBox', async (pageUrl, currency, amount) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const { client, orchestrator } = setup();
+    const r = await orchestrator.startImport(7, [draft({ pageUrl, currency, purchasePrice: amount, documents: [] })], []);
+    expect(r.ok && r.value[0]?.status).toBe('success');
+    const update = client.updateEntity.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(update.purchasePrice).toBe(amount);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+});

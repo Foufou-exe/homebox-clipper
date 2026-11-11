@@ -22,6 +22,12 @@ import OrderLocationField from './OrderLocationField.vue';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields } from './drafts';
+import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
+
+/** Stores where the import works, in the order of the table; "(testing)" after a testing store (FR-012, FR-016). */
+const supportedStores = MERCHANT_CATALOG.map((e) =>
+  e.status === 'testing' ? t('summary.storeTesting', [e.displayName]) : e.displayName,
+).join(', ');
 
 const props = defineProps<{ tabId: number; config: ConfigView }>();
 const emit = defineEmits<{
@@ -223,6 +229,10 @@ function submit() {
     <template v-else>
       <ErrorBanner v-if="detectError" :code="detectError" tone="warning" />
       <ErrorBanner v-for="w in warnings" :key="w" :code="w" tone="warning" />
+      <template v-if="detectError === 'NOT_AN_ORDER_PAGE'">
+        <p class="muted">{{ t('summary.supportedStores', [supportedStores]) }}</p>
+        <p class="muted">{{ t('summary.reportHint') }}</p>
+      </template>
       <p v-if="detectError" class="muted">{{ t('summary.manualHint') }}</p>
 
       <OrderLocationField v-if="multi" v-model="orderModel" :state="locState" :error="locError" :options="locations" :multi="true" />

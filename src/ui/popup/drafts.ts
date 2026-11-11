@@ -1,7 +1,6 @@
+import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
 import { formatDate, t } from '@/ui/i18n';
 import type { DetectedProduct, DetectedPurchase, ImportDraft } from '@/shared/types';
-
-export const DEFAULT_SELLER = 'Amazon.fr';
 
 export function formatSize(bytes: number | undefined): string {
   if (bytes === undefined) return '';
@@ -10,10 +9,11 @@ export function formatSize(bytes: number | undefined): string {
   return t('common.sizeMb', [(bytes / 1024 / 1024).toFixed(1)]);
 }
 
-export function defaultDescription(purchaseDate: string | null): string {
+/** Description of the item: the store of origin and the purchase date in the interface language (FR-007). */
+export function defaultDescription(purchaseDate: string | null, storeName: string): string {
   return purchaseDate
-    ? t('summary.defaultDescription', [formatDate(purchaseDate)])
-    : t('summary.defaultDescriptionNoDate');
+    ? t('summary.defaultDescription', [storeName, formatDate(purchaseDate)])
+    : t('summary.defaultDescriptionNoDate', [storeName]);
 }
 
 export function emptyDraft(): ImportDraft {
@@ -33,17 +33,25 @@ export function emptyDraft(): ImportDraft {
   };
 }
 
+/** Store of a detected purchase: `source` is always set by its extractor. */
+function storeOf(purchase: DetectedPurchase) {
+  return MERCHANT_CATALOG.find((e) => e.id === purchase.source);
+}
+
 /** Editable draft pre-filled with the detected values (or empty if not detected). */
 export function draftFrom(purchase: DetectedPurchase, product: DetectedProduct | null): ImportDraft {
   const date = purchase.orderDate.value;
   const imageUrl = product?.imageUrl.value ?? null;
+  const store = storeOf(purchase);
+  const storeName = store?.displayName ?? purchase.source;
   return {
     name: product?.name.value ?? '',
-    description: defaultDescription(date),
+    description: defaultDescription(date, storeName),
     purchasePrice: product?.unitPrice.value ?? null,
-    currency: product?.currency.value ?? 'EUR',
+    // Price not detected: currency of the store (GBP on Amazon.co.uk), never a conversion (R9).
+    currency: product?.currency.value ?? store?.defaultCurrency ?? 'EUR',
     purchaseDate: date,
-    purchaseFrom: purchase.seller.value ?? DEFAULT_SELLER,
+    purchaseFrom: purchase.seller.value ?? storeName,
     orderNumber: purchase.orderNumber.value,
     quantity: product?.quantity.value ?? 1,
     pageUrl: purchase.pageUrl,

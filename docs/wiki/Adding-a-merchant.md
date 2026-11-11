@@ -12,11 +12,12 @@ Defined in `src/content/merchants/types.ts`:
 
 | Member | Role |
 |--------|------|
-| `id` | Merchant identifier (type of `DetectedPurchase['source']`, today `'amazon.fr'`). |
-| `domains: readonly string[]` | The merchant's domains (for example `['www.amazon.fr']`). Source of the check that keeps `MERCHANTS.md` up to date. |
+| `id` | Merchant identifier, of type `MerchantId` (`src/content/merchants/catalog.ts`), today one per Amazon store (`'amazon.fr'`, `'amazon.de'`...). Never renamed: it is persisted in `DraftPhoto.merchantId`. |
+| `displayName` | Name shown in the interface and written into HomeBox ("Amazon.de"). |
+| `domains: readonly string[]` | The merchant's domains (for example `['www.amazon.de']`). Source of the check that keeps `MERCHANTS.md` up to date. |
 | `imageHosts: readonly string[]` | **Required.** **Exact** hosts allowed for the product photo (no suffix or wildcard). An empty list means "no photo for this merchant". |
 | `matchesUrl(url)` | True if the URL belongs to this merchant; tested **before any injection**. |
-| `isOrderPage(doc)` | True if the document is an order details page. |
+| `isOrderPage(doc, pageUrl)` | True if the document is an order details page (DOM marker, or known path and readable order number). |
 | `extract(doc, pageUrl)` | **Pure** extraction: no network, no side effect, never throws. Returns a `DetectedPurchase`. |
 | `resolveDocuments(doc, pageUrl, fetchSameOrigin)` | Resolves the real PDF URLs ("Invoice" menu, etc.), same origin only. |
 
@@ -32,7 +33,8 @@ a decision specific to that merchant is needed before adding any access.
 
 ## 2. Create the module
 
-In `src/content/merchants/<merchant>/`, modeled on `amazon-fr/`:
+In `src/content/merchants/<merchant>/`, modeled on `amazon/` (one module for several stores of the same
+merchant, parameterized by a table: `amazon/stores.ts`; page-language texts in `amazon/page-locales.ts`):
 
 | File | Content |
 |------|---------|
@@ -46,11 +48,11 @@ at download; no DOM dependency outside this folder.
 
 ## 3. Injectable entry point
 
-Create `src/entrypoints/<merchant>.content.ts` modeled on `amazon-fr.content.ts`:
+Create `src/entrypoints/<merchant>.content.ts` modeled on `amazon.content.ts`:
 `registration: 'runtime'` (never a static script), `matches` limited to the merchant's pages, listening to
 extraction and download messages (`sender.id` checked, message validated). The script is injected on
 demand, when the popup opens, thanks to `activeTab`. Look in `src/background/detect.ts` to see how the
-detected merchant's script is injected (today the `AMAZON_FR_SCRIPT` constant).
+detected merchant's script is injected (today the `AMAZON_SCRIPT` constant).
 
 No host permission must be added to the manifest: if your merchant seems to require one, say so and
 justify it in the pull request.
@@ -81,8 +83,9 @@ of its domains must appear in a line of the Supported or Partial sections). The 
 
 Visible texts come from `src/locales/en.yml` and `src/locales/fr.yml`: any text you add goes in **both**
 files in the same contribution (rule FR-004c, see [Translations](Translations.md)). If your merchant writes
-text into HomeBox (like the note "Amazon.fr order: ..." or the description "Purchased on Amazon.fr on
-..."), add dedicated keys with `$1`, `$2` substitutions rather than concatenating in the code.
+text into HomeBox, the note "<store> order: ..." and the description "Purchased on <store> on ..." already
+take the store name from `MERCHANT_CATALOG` (`displayName`): add the merchant to the catalog rather than new
+keys. Any other text uses dedicated keys with `$1`, `$2` substitutions, never concatenation in the code.
 
 ## 8. Verify
 

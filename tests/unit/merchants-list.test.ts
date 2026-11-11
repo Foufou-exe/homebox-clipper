@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { AMAZON_STORES } from '@/content/merchants/amazon/stores';
 import { MERCHANTS } from '@/content/merchants/registry';
 
 const md = readFileSync(resolve(__dirname, '../../MERCHANTS.md'), 'utf8');
@@ -41,5 +42,42 @@ describe('MERCHANTS.md: consistency with the registry', () => {
 
   it('empty sections show the "None yet" notice', () => {
     expect(md).toMatch(/_None yet\._/);
+  });
+});
+
+/** Status of each store, identical in the table, MERCHANTS.md and MERCHANTS.fr.md (006, FR-015, Q-U15). */
+describe('MERCHANTS.md and MERCHANTS.fr.md: status of the Amazon stores', () => {
+  const docs = {
+    'MERCHANTS.md': md,
+    'MERCHANTS.fr.md': readFileSync(resolve(__dirname, '../../MERCHANTS.fr.md'), 'utf8'),
+  };
+  const STATUS = { supported: '✅ supported', testing: '🟡 testing' } as const;
+
+  /** Table rows of a section, by section-title pattern. */
+  const rowsOf = (text: string, section: RegExp) => {
+    const rows: string[] = [];
+    let active = false;
+    for (const line of text.split('\n')) {
+      if (line.startsWith('## ')) active = section.test(line);
+      else if (active && line.startsWith('|')) rows.push(line);
+    }
+    return rows;
+  };
+
+  describe.each(Object.entries(docs))('%s', (_file, text) => {
+    it('the legend defines 🟡 testing', () => {
+      expect(rowsOf(text, /^## L[eé]gend/).some((row) => row.includes(STATUS.testing))).toBe(true);
+    });
+
+    it.each(AMAZON_STORES.map((s) => [s.id, s] as const))('%s: Supported row and country row carry the status of the table', (_id, s) => {
+      const domain = `\`${new URL(s.origin).hostname}\``;
+      const supported = rowsOf(text, /Supported/).filter((row) => row.includes(domain));
+      expect(supported).toHaveLength(1);
+      expect(supported[0]).toContain(STATUS[s.status]);
+      const all = text.split('\n').filter((line) => line.startsWith('|') && line.includes(domain));
+      // Supported row + country row, all with the same status.
+      expect(all.length).toBeGreaterThanOrEqual(2);
+      for (const row of all) expect(row).toContain(STATUS[s.status]);
+    });
   });
 });

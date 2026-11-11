@@ -20,8 +20,8 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 
 | Donnée | Origine | Finalité | Destination |
 |--------|---------|----------|-------------|
-| Détails de l'achat lus sur la page de commande Amazon.fr ouverte : nom du produit, prix, quantité, date d'achat, numéro de commande, vendeur, adresse de la page de commande, adresse de la photo du produit | Page « Détails de la commande » d'Amazon.fr, lue **uniquement quand vous ouvrez l'extension** sur cet onglet | Préremplir le récapitulatif que vous relisez et modifiez | Affichés dans la fenêtre de l'extension ; envoyés à **votre instance HomeBox** après votre confirmation |
-| Facture PDF | Téléchargée depuis `https://www.amazon.fr` avec votre propre session Amazon, ou PDF choisi sur votre ordinateur | La joindre à l'objet HomeBox | Envoyée à votre instance HomeBox après votre confirmation |
+| Détails de l'achat lus sur la page de commande ouverte d'une boutique Amazon prise en charge (Amazon.fr, .de, .es, .it, .com.be, .nl, .co.uk, .com) : nom du produit, prix, quantité, date d'achat, numéro de commande, vendeur, adresse de la page de commande, adresse de la photo du produit | Page « Détails de la commande » de cette boutique Amazon, lue **uniquement quand vous ouvrez l'extension** sur cet onglet | Préremplir le récapitulatif que vous relisez et modifiez | Affichés dans la fenêtre de l'extension ; envoyés à **votre instance HomeBox** après votre confirmation |
+| Facture PDF | Téléchargée uniquement depuis l'origine de la boutique de la commande (par exemple `https://www.amazon.de`), avec votre propre session sur cette boutique, ou PDF choisi sur votre ordinateur | La joindre à l'objet HomeBox | Envoyée à votre instance HomeBox après votre confirmation |
 | Photo du produit | Téléchargée depuis le serveur d'images d'Amazon (`m.media-amazon.com`) sans cookie, sans référent ni clé API, uniquement si sa case est cochée | La joindre comme image principale de l'objet | Envoyée à votre instance HomeBox après votre confirmation ; jamais conservée par l'extension |
 | Adresse de l'instance HomeBox | Vous la saisissez dans les paramètres | Savoir où envoyer l'import | Stockée localement dans le navigateur |
 | Clé API HomeBox | Vous la saisissez dans les paramètres | Authentifier les requêtes vers votre instance | Stockée **chiffrée** localement (AES-GCM 256, clé dérivée de votre phrase de passe avec PBKDF2-SHA256, 600 000 itérations) ; envoyée uniquement à votre instance |
@@ -30,7 +30,7 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Préférence de thème | Vous | Affichage | Stockée localement |
 
 L'extension ne lit **pas** votre adresse de livraison, votre moyen de paiement, votre historique de
-navigation, ni aucune page autre que la page de commande Amazon.fr sur laquelle vous l'ouvrez. La
+navigation, ni aucune page autre que la page de commande Amazon sur laquelle vous l'ouvrez. La
 facture PDF est transmise telle quelle : elle peut contenir des informations imprimées par Amazon sur le
 document, comme votre nom ou votre adresse ; elle ne part que vers votre instance HomeBox.
 
@@ -50,9 +50,12 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
 
 ## Aucun transfert à des tiers
 
-- L'extension ne contacte que : (1) la page Amazon.fr sur laquelle vous l'avez ouverte, et les serveurs
-  d'Amazon pour télécharger votre facture et la photo du produit au moment de l'import ; (2) **votre**
-  instance HomeBox.
+- L'extension ne contacte que : (1) la page de la boutique Amazon sur laquelle vous l'avez ouverte (son
+  origine exacte, par exemple `https://www.amazon.de`), pour télécharger votre facture, et le serveur
+  d'images d'Amazon (`m.media-amazon.com`) pour la photo du produit, au moment de l'import ; (2) **votre**
+  instance HomeBox. Elle ne contacte jamais une autre boutique Amazon que celle de la commande.
+- Les prix restent dans la devise de la commande : aucun service de taux de change ni autre tiers n'est
+  contacté (aucune conversion de devise).
 - Vos données et votre clé API ne sont **jamais** envoyées à l'auteur, à un serveur intermédiaire, à
   Amazon (la clé API ne part jamais de l'extension vers Amazon) ni à un autre tiers.
 - Il n'y a ni publicité, ni statistiques, ni télémétrie, ni pistage, ni vente de données.

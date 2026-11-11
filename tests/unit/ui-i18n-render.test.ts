@@ -28,6 +28,7 @@ import UnlockView from '@/ui/popup/UnlockView.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
 import { IDENTICAL_OK, loadCatalog, setTestLanguage } from './i18n-harness';
 import { ERROR_CODES } from '@/shared/errors';
+import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
 
 // The `@/platform/i18n` mock (setup-i18n.ts) serves the real fr.yml catalog: the rendering must therefore
 // only display catalog values, apart from data (props, fields) neutralized by DATA.
@@ -176,7 +177,88 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       },
     });
     expectCatalogTexts(wrapper, ['USD']);
-    expect(wrapper.text()).toContain('Devise détectée : USD. HomeBox enregistre le montant sans devise.');
+    expect(wrapper.text()).toContain('Devise détectée : USD. HomeBox enregistrera le montant tel quel, sans conversion.');
+  });
+
+  describe('NOT_AN_ORDER_PAGE: list of the stores and Support invitation (006, US3, FR-012, FR-016, Q-U13)', () => {
+    const mountDetect = async (result: unknown) => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(msg.type === 'detect/run' ? result : fail('LOCATIONS_UNAVAILABLE')) as never,
+      );
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      await flushPromises();
+      return wrapper;
+    };
+    const expectedList = (cat: Record<string, string>) =>
+      MERCHANT_CATALOG.map((e) => (e.status === 'testing' ? cat['summary.storeTesting']!.replace('$1', e.displayName) : e.displayName)).join(', ');
+
+    it('the 8 stores in the order of the table, "(en test)" for each testing store, none for Amazon.fr', async () => {
+      const wrapper = await mountDetect(fail('NOT_AN_ORDER_PAGE'));
+      const list = expectedList(catalog);
+      expect(list.startsWith('Amazon.fr, Amazon.de (en test), ')).toBe(true);
+      expect(list).not.toContain('Amazon.fr (en test)');
+      const texts = wrapper.findAll('p.muted').map((p) => p.text());
+      expect(texts).toContain(catalog['summary.supportedStores']!.replace('$1', list));
+      expect(texts).toContain(catalog['summary.reportHint']);
+      expect(texts).toContain(catalog['summary.manualHint']);
+      expect(wrapper.text()).toContain(catalog['error.NOT_AN_ORDER_PAGE']);
+      expect(wrapper.findAll('a').length).toBe(0);
+      expectCatalogTexts(wrapper, [DATA, list]);
+    });
+
+    it.each(['UNAUTHORIZED', 'HOMEBOX_UNREACHABLE', 'PRODUCT_NOT_FOUND'] as const)('%s: no list, no invitation', async (code) => {
+      const wrapper = await mountDetect(fail(code));
+      const texts = wrapper.findAll('p.muted').map((p) => p.text());
+      expect(texts.some((t) => t.startsWith(catalog['summary.supportedStores']!.split('$1')[0]!))).toBe(false);
+      expect(texts).not.toContain(catalog['summary.reportHint']);
+      expect(texts).toContain(catalog['summary.manualHint']);
+    });
+
+    it('purchase detected: no list', async () => {
+      const wrapper = await mountDetect(ok({ purchase: purchase([product('a')]), warnings: [] }));
+      expect(wrapper.text()).not.toContain(catalog['summary.reportHint']);
+    });
+  });
+
+  describe('currency warning before confirmation (006, US2, SC-004, Q-U14)', () => {
+    const storePurchase = (source: DetectedPurchase['source'], origin: string, currencies: string[]): DetectedPurchase => ({
+      ...purchase(currencies.map((c, i) => ({ ...product(`p${i}`), currency: found(c) }))),
+      source,
+      pageUrl: `${origin}/your-orders/order-details`,
+    });
+    const mountWith = async (p: DetectedPurchase) => {
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(msg.type === 'detect/run' ? ok({ purchase: p, warnings: [] }) : fail('LOCATIONS_UNAVAILABLE')) as never,
+      );
+      const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+      await flushPromises();
+      return wrapper;
+    };
+
+    it.each([
+      ['amazon.co.uk', 'https://www.amazon.co.uk', 'GBP'],
+      ['amazon.com', 'https://www.amazon.com', 'USD'],
+    ] as const)('%s: warning shown in the summary, before any click on "Ajouter"', async (source, origin, currency) => {
+      const wrapper = await mountWith(storePurchase(source, origin, [currency]));
+      const notes = wrapper.findAll('p.warn[role="note"]');
+      expect(notes.map((n) => n.text())).toEqual([
+        catalog['fields.currencyWarning']!.replace('$1', currency),
+      ]);
+      expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'import/start' }));
+      expectCatalogTexts(wrapper, [DATA, currency]);
+    });
+
+    it('EUR: no warning', async () => {
+      const wrapper = await mountWith(storePurchase('amazon.de', 'https://www.amazon.de', ['EUR']));
+      expect(wrapper.findAll('p.warn[role="note"]')).toHaveLength(0);
+    });
+
+    it('follows the rows: one warning per foreign-currency row, gone when the row is deselected', async () => {
+      const wrapper = await mountWith(storePurchase('amazon.co.uk', 'https://www.amazon.co.uk', ['GBP', 'EUR']));
+      expect(wrapper.findAll('p.warn[role="note"]')).toHaveLength(1);
+      await wrapper.findAll('label.pick input[type="checkbox"]')[0]!.setValue(false);
+      expect(wrapper.findAll('p.warn[role="note"]')).toHaveLength(0);
+    });
   });
 
   it('DocumentPicker', () => {
@@ -1149,7 +1231,7 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
       },
     });
     expectEnglish(wrapper, ['USD']);
-    expect(wrapper.text()).toContain('Detected currency: USD. HomeBox stores the amount without a currency.');
+    expect(wrapper.text()).toContain('Detected currency: USD. HomeBox will store the amount as is, without conversion.');
   });
 
   it('DocumentPicker and UnlockView', () => {
@@ -1192,7 +1274,11 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
     vi.mocked(send).mockResolvedValue(fail('NOT_AN_ORDER_PAGE') as never);
     const manual = mount(SummaryView, { props: { tabId: 1, config: config() } });
     await flushPromises();
-    expectEnglish(manual, [DATA]);
+    const list = MERCHANT_CATALOG.map((e) => (e.status === 'testing' ? `${e.displayName} (testing)` : e.displayName)).join(', ');
+    expect(list.startsWith('Amazon.fr, Amazon.de (testing), ')).toBe(true);
+    expect(manual.text()).toContain(en['summary.supportedStores']!.replace('$1', list));
+    expect(manual.text()).toContain(en['summary.reportHint']);
+    expectEnglish(manual, [DATA, list]);
   });
 
   it('popup App and options App', async () => {

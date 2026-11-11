@@ -1,0 +1,36 @@
+# Amazon.com fixtures
+
+Order pages of Amazon.com (`https://www.amazon.com`) used by the extractor tests (constitution, principle VII).
+
+## Current state: reconstructed pages, store status "testing" (2026-11-11)
+
+No real Amazon.com page has been captured yet. These pages are **reconstructed** by
+`scripts/fixtures/reconstruct-amazon.ts` from the **already anonymized** Amazon.fr fixtures
+(`tests/fixtures/amazon-fr/real-*.html`); the script never reads a `raw/` folder. Their structure is
+therefore the one of Amazon.fr, assumed identical: this is exactly what the "testing" status of the store
+announces (FR-014). Their content is 100 % fictional.
+
+Method (research.md, R7):
+
+1. `<html lang>` set to the page language: English (`en-us`);
+2. only the generic labels are replaced (invoice, "sold by", order date, from `src/content/merchants/amazon/page-locales.ts`); the other interface texts stay those of the Amazon.fr pages;
+3. fictional date rewritten as `November 9, 2026` (month/day order) (day ≤ 12, so a day/month swap is detected, SC-002);
+4. fictional prices rewritten as `$1,111.11` (USD, amounts ≥ 1000, so a factor of 1000 is detected, SC-003);
+5. absolute links moved to `https://www.amazon.com`.
+
+Regenerate with `bun scripts/fixtures/reconstruct-amazon.ts` (never edit these files by hand).
+
+| Fixture | Source | Expected content |
+|---------|--------|------------------|
+| `reconstructed-order-single.html` | `real-order-single.html` without its invoice menu | 1 product, every field, no invoice |
+| `reconstructed-order-multi.html` | `real-order-qty.html` | 2 products, quantities 2 and 3, third-party seller "Vendeur Fictif", invoice through the menu |
+| `reconstructed-order-invoice.html` | `real-order-single.html` | 1 product, the "Invoice" menu holds only the printable HTML summary, no PDF (as often on Amazon.com): no invoice is detected, the import goes on without an attachment |
+| `reconstructed-invoice-popover.html` | `real-invoice-popover-single.html` | content of the "Invoice" menu (PDF link removed) |
+
+## Moving to "supported"
+
+A real order page of the user is saved in `raw/` (ignored by git, never committed nor attached to an
+issue), anonymized with `scripts/fixtures/anonymize-amazon.ts` (allow list, leak check = 0), checked with
+`grep -iE "@|\+[0-9]{2}|\b0[67][0-9 ]{8}\b|<script"` (empty), then added here as `real-order-*.html`. Only then
+can the status of the store become `supported` in `src/content/merchants/amazon/stores.ts`, `MERCHANTS.md`
+and `MERCHANTS.fr.md`, in the same pull request (tests check the three).

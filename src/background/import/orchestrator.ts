@@ -1,5 +1,6 @@
 import { entityOutToUpdate, type HomeBoxClient } from '@/background/homebox/client';
 import type { EntityOut } from '@/background/homebox/types';
+import { storeForPageUrl } from '@/content/merchants/catalog';
 import { getMessage } from '@/platform/i18n';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { findDuplicatesByName } from './duplicates';
@@ -23,7 +24,7 @@ export interface OrchestratorDeps {
     get(id: string): Promise<PendingImport | null>;
     purge(p: PendingImport): Promise<void>;
   };
-  /** Downloads a detected document via the script injected in the amazon.fr tab. */
+  /** Downloads a detected document via the script injected in the tab of the Amazon store of the order. */
   downloadDetected(tabId: number, url: string): Promise<Result<{ base64: string }>>;
   /** Fetches the photo from the merchant's server (separate module: it never has access to the key). */
   fetchPhoto(photo: DraftPhoto): Promise<Result<FetchedPhoto>>;
@@ -45,9 +46,14 @@ function initialPhotoStep(photo: DraftPhoto | null): PhotoStep {
   return photo.include ? 'pending' : 'not_requested';
 }
 
+/** HomeBox note: the store of origin, found from the page of the order (FR-007), then the page address. */
 export function buildNotes(draft: ImportDraft): string | undefined {
   if (!draft.orderNumber) return undefined;
-  return [getMessage('summary.orderNote', [draft.orderNumber]), draft.pageUrl].filter(Boolean).join('\n');
+  const store = storeForPageUrl(draft.pageUrl);
+  const note = store
+    ? getMessage('summary.orderNote', [store.displayName, draft.orderNumber])
+    : getMessage('summary.orderNoteNoStore', [draft.orderNumber]);
+  return [note, draft.pageUrl].filter(Boolean).join('\n');
 }
 
 function manualBytes(file: ManualFile): Result<Uint8Array> {
