@@ -18,8 +18,6 @@
 
 </div>
 
-<p align="center"><img src="docs/demo/homebox-clipper-demo.gif" alt="Démo : import d'une commande Amazon dans HomeBox, avec sa photo et sa facture" width="800"></p>
-
 ---
 
 **homebox-clipper** est un compagnon d'import pour les sites marchands en ligne : depuis la page
@@ -51,6 +49,12 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
 - **Aucune permission générale** : pas d'accès permanent à un site ; l'accès à votre instance est
   demandé pour son adresse exacte uniquement.
 - Liens **Support** et **GitHub** dans la fenêtre de l'extension et la page des réglages.
+
+## Démo
+
+D'une page de commande Amazon à un objet dans HomeBox, avec sa photo, sa facture et son emplacement :
+
+<p align="center"><img src="docs/demo/homebox-clipper-demo.gif" alt="Démo : import d'une commande Amazon dans HomeBox, avec sa photo et sa facture" width="800"></p>
 
 ## Marchands pris en charge
 
