@@ -164,3 +164,42 @@ Prerequisites for the real publication: the wiki must be enabled and its **first
 from the repository's "Wiki" tab (GitHub does not initialize the `.wiki.git` repository before that), and
 your SSH access to the repository must work. Without a `y` confirmation, nothing is pushed; the `--yes`
 option is reserved for the maintainer.
+
+## Automatic wiki publication
+
+The workflow `.github/workflows/wiki.yml` runs the same script (`scripts/publish-wiki.sh --yes`) on every
+push to `main` that changes `docs/wiki/`, and on demand from the "Actions" tab ("Wiki", **Run workflow**).
+If the wiki is already up to date, nothing is pushed and the run succeeds. The commit message is the same
+as for the manual publication (`docs: sync wiki from <sha>`).
+
+The default `GITHUB_TOKEN` is not used for the wiki: the job needs a personal access token stored as the
+secret `WIKI_TOKEN` of an environment named `wiki`. **Without that secret the job is skipped with a
+notice and ends successfully**, so the workflow is harmless on forks or before the setup.
+
+One-time setup (the wiki's first page must already exist, see the previous section):
+
+1. On GitHub, open your avatar, then **Settings**, **Developer settings**, **Personal access tokens**,
+   **Fine-grained tokens**, and **Generate new token**.
+2. Give it a name (for example `homebox-clipper wiki`) and an **expiration** (for example 90 days or one
+   year; put the renewal date in your calendar, the workflow fails with an authentication error once the
+   token has expired).
+3. **Repository access**: *Only select repositories*, then choose `homebox-clipper`.
+4. **Permissions**, **Repository permissions**: *Contents: Read and write* (*Metadata: Read-only* is
+   added automatically). No other permission.
+5. Generate the token and copy it (it is shown only once).
+6. In the repository, open **Settings**, **Environments**, **New environment**, name it exactly `wiki`.
+   Optionally add *Required reviewers* to approve each publication, and restrict *Deployment branches* to
+   `main`.
+7. In that environment, under **Environment secrets**, **Add secret**: name `WIKI_TOKEN`, value the token.
+8. Check with **Actions**, **Wiki**, **Run workflow**.
+
+To rotate the token, generate a new one and replace the value of `WIKI_TOKEN`; to disable the automatic
+publication, delete the secret (or the environment).
+
+The manual publication (`bun run wiki:publish`, SSH) remains available and unchanged. Sources for this
+procedure: GitHub documentation on [fine-grained personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+and on [environment secrets](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment).
+GitHub's documentation on [editing wiki pages](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages)
+says the wiki is a Git repository (`<repository>.wiki.git`) but does not state which token permission
+writes to it: *Contents: Read and write* is the permission that allows a Git push to a repository, and
+the first run confirms it for the wiki (the job prints a clone or push error otherwise).
