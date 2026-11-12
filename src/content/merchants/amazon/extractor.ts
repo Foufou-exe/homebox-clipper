@@ -11,6 +11,7 @@ import {
   resolvePageLanguage,
   toPhotoUrl,
 } from './parse';
+import { documentId, documentLabel } from '../document-labels';
 import { SELECTORS } from './selectors';
 import type { AmazonStore, PageLanguage } from './stores';
 
@@ -149,18 +150,13 @@ function collectLinks(root: ParentNode, selectors: readonly string[], pageUrl: U
 }
 
 function toDocuments(urls: string[], orderNumber: string | null): DocumentRef[] {
-  const orderSuffix = orderNumber ? `-${orderNumber}` : '';
-  const base = `facture-amazon${orderSuffix}`;
-  return urls.map((url, i) => {
-    const indexSuffix = i === 0 ? '' : `-${i + 1}`;
-    return {
-      id: `detected-${i}`,
-      origin: 'detected',
-      kind: 'invoice',
-      label: `${base}${indexSuffix}.pdf`,
-      url,
-    };
-  });
+  return urls.map((url, i) => ({
+    id: documentId('invoice', i),
+    origin: 'detected',
+    kind: 'invoice',
+    label: documentLabel('invoice', 'amazon', orderNumber, i),
+    url,
+  }));
 }
 
 /** URL of the "Invoice" menu of a trigger: its `href`, otherwise the `url` of its `data-a-popover`. Same origin only. */

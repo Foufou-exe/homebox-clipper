@@ -118,7 +118,7 @@ Sign in to Amazon.fr in the same browser, then:
 | 5 | Product page (not an order) → popup | "No purchase detected on this page." and an empty form; attach a local PDF → import OK |
 | 6 | Attach a `.png` renamed to `.pdf` | "The file is not a PDF." |
 | 7 | `docker compose stop` then import | "HomeBox is unreachable. Check the address and your connection." (restart with `docker compose start`) |
-| 8 | Start an import then `docker compose stop` right after the creation | "The item was created but uploading the invoice failed." ; `docker compose start` → *Retry the invoice upload* → a single item, with its invoice |
+| 8 | Start an import then `docker compose stop` right after the creation | "The item was created but sending a document failed." ; `docker compose start` → *Retry the document upload* → a single item, with its documents |
 | 9 | Popup → 🔒, then reopen | Passphrase requested; a wrong passphrase shows "Incorrect passphrase." |
 | 10 | Revoke the key in HomeBox, then import | "Invalid or expired API key." |
 | 11 | Extension DevTools → *Application → Extension storage → Local* | `homeboxConfig` contains an encrypted block (`ct`) and no clear-text key |

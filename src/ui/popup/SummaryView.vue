@@ -19,6 +19,7 @@ import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
 import OrderLocationField from './OrderLocationField.vue';
+import { DOCUMENT_KIND_KEYS, DOCUMENT_KIND_OPTIONS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields } from './drafts';
@@ -309,12 +310,14 @@ function submit() {
               <span>
                 {{ d.doc.label }}
                 <small class="muted">
-                  <span class="chip">{{ d.doc.kind === 'order_document' ? t('documents.orderDocument') : t('documents.invoice') }}</span>
                   {{ d.doc.origin === 'detected' ? t('summary.originDetected') : t('summary.originLocal') }}
                   {{ formatSize(d.doc.size) }}
                 </small>
               </span>
             </label>
+            <select v-model="d.doc.kind" class="kind" :aria-label="t('documents.kindFor', [d.doc.label])">
+              <option v-for="k in DOCUMENT_KIND_OPTIONS" :key="k" :value="k">{{ t(DOCUMENT_KIND_KEYS[k].label) }}</option>
+            </select>
             <button v-if="d.doc.origin === 'manual'" class="link" type="button" @click="removeManual(d.doc.id)">
               {{ t('summary.remove') }}
             </button>
@@ -408,6 +411,18 @@ function submit() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.kind {
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px;
+  max-width: 100%;
 }
 .link {
   border: none;

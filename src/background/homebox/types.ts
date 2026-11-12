@@ -1,3 +1,5 @@
+import type { AttachmentType } from '@/shared/document-kinds';
+
 /** Subset of the HomeBox v0.27 Swagger used by the extension (contracts/homebox-api.md). */
 
 export interface EntityCreate {
@@ -79,7 +81,7 @@ export interface EntitySummary {
 export interface AttachmentUpload {
   bytes: Uint8Array;
   filename: string;
-  type: 'receipt' | 'attachment' | 'photo';
+  type: AttachmentType;
   /** MIME type of the `Blob`: `application/pdf` for documents, the image's own type for the photo. */
   mimeType: string;
   /** Sent only when true: a PDF never has a `primary` field. */

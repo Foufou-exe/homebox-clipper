@@ -39,7 +39,8 @@ export async function detect(tabId: number): Promise<Result<DetectResult>> {
 
   const warnings: ErrorCode[] = [];
   if (!res.value.products.some((p) => p.name.value !== null)) warnings.push('PRODUCT_NOT_FOUND');
-  if (res.value.documents.length === 0) warnings.push('INVOICE_MISSING');
+  // Only an invoice settles the question: a delivery note alone is not an invoice (spec 007, R2.5).
+  if (!res.value.documents.some((d) => d.kind === 'invoice')) warnings.push('INVOICE_MISSING');
   return ok({ purchase: res.value, warnings });
 }
 

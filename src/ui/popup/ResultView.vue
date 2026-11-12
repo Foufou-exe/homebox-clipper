@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { PendingImport, PhotoStep } from '@/shared/types';
+import type { DocumentRef, PendingImport, PhotoStep } from '@/shared/types';
+import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import RecoveryView from './RecoveryView.vue';
 
@@ -41,6 +42,18 @@ const photoResult = (p: PendingImport) => {
 /** Location retained for the object, once created (US2-5). Absent from a state persisted by a previous version. */
 const locationResult = (p: PendingImport) =>
   p.entityId && p.draft.location ? t('result.locationAt', [p.draft.location.path.join(t('location.pathSeparator'))]) : null;
+const kindKeys = (d: DocumentRef) => DOCUMENT_KIND_KEYS[d.kind] ?? DOCUMENT_KIND_KEYS.order_document;
+/** "With its manual" for one document, "with its documents" for several. */
+const withDocuments = (p: PendingImport) => {
+  const [only] = p.draft.documents;
+  return only && p.draft.documents.length === 1 ? t(kindKeys(only).withDocument) : t('result.withDocuments');
+};
+/** Documents attached as a plain attachment after a 422 (the user is always told, never silent). */
+const fallbackNotes = (p: PendingImport) =>
+  (p.attachmentFallbacks ?? []).flatMap((id) => {
+    const d = p.draft.documents.find((x) => x.id === id);
+    return d ? [t('documents.storedAsAttachment', [d.label, t(kindKeys(d).label)])] : [];
+  });
 const itemLink = (p: PendingImport) => (p.entityId ? `${props.baseUrl}/item/${p.entityId}` : null);
 const allDone = computed(() => !props.running && props.pendings.every((p) => p.status === 'success'));
 </script>
@@ -60,7 +73,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
           <li>{{ t('result.stepCreate', [stepLabel(p.steps.create)]) }}</li>
           <li>{{ t('result.stepUpdate', [stepLabel(p.steps.update)]) }}</li>
           <li v-for="d in p.draft.documents" :key="d.id">
-            {{ t('result.stepDocument', [d.label, stepLabel(p.steps.attachments[d.id] ?? 'pending')]) }}
+            {{ t('result.stepDocument', [d.label, t(kindKeys(d).label), stepLabel(p.steps.attachments[d.id] ?? 'pending')]) }}
           </li>
           <li v-if="photoStepLabel(p)">{{ t('result.stepPhoto', [photoStepLabel(p) ?? '']) }}</li>
         </ul>
@@ -68,11 +81,12 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 
       <p v-else-if="p.status === 'success'">
         ✓ <strong>{{ p.draft.name }}</strong>
-        <template v-if="p.draft.documents.length">{{ ' ' }}{{ p.draft.documents.length > 1 ? t('result.withDocuments') : t('result.withInvoice') }}</template>
+        <template v-if="p.draft.documents.length">{{ ' ' }}{{ withDocuments(p) }}</template>
         —
         <a v-if="itemLink(p)" :href="itemLink(p) ?? undefined" target="_blank" rel="noopener">{{ t('result.openInHomebox') }}</a>
         <small v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</small>
         <small v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</small>
+        <small v-for="note in fallbackNotes(p)" :key="note" class="photo-result">{{ note }}</small>
       </p>
 
       <template v-else>

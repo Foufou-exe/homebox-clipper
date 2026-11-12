@@ -79,3 +79,30 @@ describe('detect: one script for the 8 stores (006, FR-001, FR-010)', () => {
     expect(r.ok && r.value.warnings).toEqual(['INVOICE_MISSING']);
   });
 });
+
+describe('detect: INVOICE_MISSING with delivery notes (007, Q-U12, R2.5)', () => {
+  const doc = (kind: 'invoice' | 'delivery_note', i: number) => ({
+    id: `detected-${i}`,
+    origin: 'detected' as const,
+    kind,
+    label: `${kind}-${i}.pdf`,
+    url: 'https://www.amazon.com/doc.pdf',
+  });
+  const warningsFor = async (documents: DetectedPurchase['documents']) => {
+    tab.url = 'https://www.amazon.com/your-orders/order-details';
+    vi.mocked(sendToTab).mockResolvedValue(ok(purchase(documents)) as never);
+    const r = await detect(1);
+    return r.ok ? r.value.warnings : [];
+  };
+
+  it('only a delivery note → INVOICE_MISSING', async () => {
+    expect(await warningsFor([doc('delivery_note', 0)])).toContain('INVOICE_MISSING');
+  });
+  it('an invoice alone, or with a delivery note → no INVOICE_MISSING', async () => {
+    expect(await warningsFor([doc('invoice', 0)])).not.toContain('INVOICE_MISSING');
+    expect(await warningsFor([doc('invoice', 0), doc('delivery_note', 1)])).not.toContain('INVOICE_MISSING');
+  });
+  it('no document → INVOICE_MISSING, as today', async () => {
+    expect(await warningsFor([])).toContain('INVOICE_MISSING');
+  });
+});

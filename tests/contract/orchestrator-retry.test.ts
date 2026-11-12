@@ -460,3 +460,69 @@ describe('orchestrator — resume after LOCATION_NOT_FOUND (T070, FR-018)', () =
     expect(ctx.client.createEntity).toHaveBeenLastCalledWith(expect.objectContaining({ parentId: 'loc-cave' }));
   });
 });
+
+describe('orchestrator: resume keeps the document type (007, Q-U7, FR-010)', () => {
+  const typed = (id: string, kind: DocumentRef['kind']): DocumentRef => ({
+    id,
+    origin: 'detected',
+    kind,
+    label: `${id}.pdf`,
+    url: `https://www.amazon.fr/documents/download/${id}.pdf`,
+  });
+
+  it.each([
+    ['warranty', 'w1'],
+    ['manual', 'm1'],
+  ] as const)('%s fails (500), then resume: same type replayed, object not recreated, invoice not resent', async (kind, id) => {
+    const { client, orchestrator } = setup({ attach: [ok(undefined), err('ATTACHMENT_FAILED', 500)] });
+    const first = await orchestrator.startImport(5, [draft({ documents: [typed('inv', 'invoice'), typed(id, kind)] })], []);
+    const p = first.ok ? first.value[0] : undefined;
+    expect(p).toMatchObject({ status: 'partial', error: 'ATTACHMENT_FAILED' });
+    expect(p?.steps.attachments).toEqual({ inv: 'done', [id]: 'failed' });
+
+    const retry = await orchestrator.retryImport(p!.id);
+    expect(retry.ok && retry.value.status).toBe('success');
+    expect(client.createEntity).toHaveBeenCalledTimes(1);
+    expect(client.addAttachment).toHaveBeenCalledTimes(3);
+    expect(client.addAttachment.mock.calls.map(([, f]) => f.type)).toEqual(['receipt', kind, kind]);
+  });
+
+  it('a state persisted before the feature (no attachmentFallbacks) is read and resumed without migration', async () => {
+    for (const kind of ['invoice', 'order_document'] as const) {
+      const { client, orchestrator } = setup();
+      const base = pendingBase({ documents: [typed('detected-0', kind)] });
+      await pendingStore.save({ ...base, entityId: 'e9', steps: { ...base.steps, create: 'done', update: 'done' } });
+      const retry = await orchestrator.retryImport('o1');
+      expect(retry.ok && retry.value.status).toBe('success');
+      expect(client.createEntity).not.toHaveBeenCalled();
+      expect(client.addAttachment.mock.calls[0]?.[1].type).toBe(kind === 'invoice' ? 'receipt' : 'attachment');
+    }
+  });
+
+  it('a document sent by fallback is not resent on resume and stays in attachmentFallbacks', async () => {
+    const { client, orchestrator } = setup({
+      attach: [err('ATTACHMENT_FAILED', 422), ok(undefined)],
+      update: [err('UPDATE_FAILED', 400)],
+    });
+    const first = await orchestrator.startImport(5, [draft({ documents: [typed('m1', 'manual')] })], []);
+    const p = first.ok ? first.value[0] : undefined;
+    expect(p).toMatchObject({ status: 'partial', attachmentFallbacks: ['m1'] });
+    const before = client.addAttachment.mock.calls.length;
+    const retry = await orchestrator.retryImport(p!.id);
+    expect(retry.ok && retry.value.status).toBe('success');
+    expect(client.addAttachment.mock.calls.length).toBe(before);
+  });
+
+  it('a local document keeps its type when its file is reselected', async () => {
+    const local: DocumentRef = { id: 'manual-7', origin: 'manual', kind: 'warranty', label: 'garantie.pdf' };
+    const { client, orchestrator } = setup({ attach: [err('ATTACHMENT_FAILED', 500)] });
+    const first = await orchestrator.startImport(5, [draft({ documents: [local] })], [
+      { docId: 'manual-7', filename: 'garantie.pdf', base64: PDF_B64 },
+    ]);
+    const p = first.ok ? first.value[0] : undefined;
+    expect(p?.draft.documents[0]?.kind).toBe('warranty');
+    const retry = await orchestrator.retryImport(p!.id, [{ docId: 'manual-7', filename: 'garantie.pdf', base64: PDF_B64 }]);
+    expect(retry.ok && retry.value.status).toBe('success');
+    expect(client.addAttachment.mock.calls.map(([, f]) => f.type)).toEqual(['warranty', 'warranty']);
+  });
+});

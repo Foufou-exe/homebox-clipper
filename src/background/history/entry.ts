@@ -1,4 +1,5 @@
 import { storeForPageUrl } from '@/content/merchants/catalog';
+import type { DocumentKind } from '@/shared/document-kinds';
 import type { MerchantId } from '@/shared/merchant-ids';
 import type {
   HistoryMissing,
@@ -33,15 +34,26 @@ export function statusOf(p: PendingImport): HistoryStatus {
   return p.status;
 }
 
+/** What is missing for a document that was not sent, by kind (spec 007). Exhaustive on the five kinds. */
+const MISSING_OF_KIND: Record<DocumentKind, HistoryMissing> = {
+  invoice: 'invoice',
+  manual: 'manual',
+  warranty: 'warranty',
+  delivery_note: 'deliveryNote',
+  order_document: 'documents',
+};
+const DOCUMENT_MISSING_ORDER: readonly HistoryMissing[] = ['invoice', 'manual', 'warranty', 'deliveryNote', 'documents'];
+
 /** research.md R3.1: what is missing from an object created in HomeBox. */
 export function missingOf(p: PendingImport): HistoryMissing[] {
   if (!p.entityId) return [];
   const missing: HistoryMissing[] = [];
-  const notSent = (kind: 'invoice' | 'order_document') =>
-    p.draft.documents.some((d) => d.kind === kind && p.steps.attachments[d.id] !== 'done');
   if (p.steps.update !== 'done') missing.push('details');
-  if (notSent('invoice')) missing.push('invoice');
-  if (notSent('order_document')) missing.push('documents');
+  const notSent = new Set(
+    p.draft.documents.filter((d) => p.steps.attachments[d.id] !== 'done').map((d) => MISSING_OF_KIND[d.kind]),
+  );
+  // Display order, without duplicates.
+  for (const m of DOCUMENT_MISSING_ORDER) if (notSent.has(m)) missing.push(m);
   const photo = p.steps.photo ?? 'not_requested';
   if (photo === 'pending' || photo === 'sending' || photo === 'failed') missing.push('photo');
   return missing;

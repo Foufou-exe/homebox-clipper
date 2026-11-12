@@ -313,3 +313,88 @@ describe('import history privacy (012, Q-U4, Q-U18, Q-U28, FR-003, FR-010, FR-01
     }
   });
 });
+
+describe('document types privacy (007, Q-U19, principle I, FR-011)', () => {
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+  const docs = [
+    { id: 'detected-MARQUEUR-1', origin: 'detected' as const, kind: 'manual' as const, label: 'MARQUEUR-manuel.pdf', url: 'https://www.amazon.fr/d/1.pdf' },
+    { id: 'detected-MARQUEUR-2', origin: 'detected' as const, kind: 'warranty' as const, label: 'MARQUEUR-garantie.pdf', url: 'https://www.amazon.fr/d/2.pdf' },
+  ];
+
+  async function run(homebox: Parameters<typeof mockFetch>) {
+    fakeBrowser.reset();
+    await configStore.save({ baseUrl: 'https://homebox.example.com', apiKey: KEY, passphrase: 'une phrase de passe solide' }, 1_000);
+    const m = mockFetch(...homebox);
+    const key = await importHistoryKey((await configStore.getHistoryKey())!);
+    const writer = historyStore.forKey(key);
+    const orchestrator = createOrchestrator({
+      client: createHomeBoxClient({ baseUrl: 'https://homebox.example.com', apiKey: KEY, fetchImpl: m.fetch }),
+      store: pendingStore,
+      downloadDetected: async () => ok({ base64: PDF_B64 }),
+      fetchPhoto: async () => ok({ bytes: new Uint8Array(), mimeType: 'image/jpeg', filename: 'p.jpg' }),
+      notify: () => undefined,
+      newId: () => 'p-doc-1',
+      history: { start: (p) => writer.start(p, 'https://homebox.example.com'), update: (p) => writer.update(p) },
+    });
+    return { orchestrator, m };
+  }
+
+  it('a manual, a warranty and a 422 fallback: no document data in the console, in storage or off the instance', async () => {
+    const spies = spyConsole();
+    const { orchestrator, m } = await run([
+      json(201, { id: 'e1', name: 'x' }),
+      json(200, {}),
+      json(422, { error: 'MARQUEUR-manuel.pdf' }),
+      json(201, {}),
+      json(500, {}),
+    ]);
+    const r = await orchestrator.startImport(1, [draft({ documents: docs })], []);
+    expect(r.ok && r.value[0]).toMatchObject({ status: 'partial', attachmentFallbacks: ['detected-MARQUEUR-1'] });
+
+    const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+    for (const v of [KEY, 'MARQUEUR', 'manual', 'warranty', 'Clavier sans fil Exemple Pro', '999-0000000-0000001']) {
+      expect(output).not.toContain(v);
+    }
+    // History: no document name, label, id or fallback (the session state is not the history).
+    const local = JSON.stringify(await fakeBrowser.storage.local.get(null));
+    for (const v of ['MARQUEUR', 'attachmentFallbacks', 'detected-', 'manual-']) expect(local).not.toContain(v);
+    // The fallback goes to the same instance, nowhere else.
+    expect(m.calls).toHaveLength(5);
+    for (const call of m.calls) expect(call.url.startsWith('https://homebox.example.com/')).toBe(true);
+    expect(m.calls[3]?.url).toBe(m.calls[2]?.url);
+  });
+
+  it('attachmentFallbacks is in no history/list response', async () => {
+    const { orchestrator } = await run([
+      json(201, { id: 'e1', name: 'x' }),
+      json(200, {}),
+      json(422, {}),
+      json(201, {}),
+      json(201, {}),
+    ]);
+    await orchestrator.startImport(1, [draft({ documents: docs })], []);
+    const ext = 'chrome-extension://abcdefghijklmnop/';
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => ext + p.replace(/^\//, ''));
+    registerHistoryHandlers();
+    const listed = await dispatch({ type: 'history/list' }, { id: fakeBrowser.runtime.id, url: `${ext}popup.html` });
+    const text = JSON.stringify(listed);
+    expect(text).not.toContain('attachmentFallbacks');
+    expect(text).not.toContain('MARQUEUR');
+  });
+
+  it('source sweep: no console. in src/ outside the logger; no network call in the new modules', () => {
+    const all = (dir: string): string[] =>
+      readdirSync(dir).flatMap((f) => {
+        const p = join(dir, f);
+        return statSync(p).isDirectory() ? all(p) : [p];
+      });
+    for (const f of all(resolve(__dirname, '../../src')).filter((p) => /\.(ts|vue)$/.test(p) && !p.endsWith('shared/logger.ts'))) {
+      expect(readFileSync(f, 'utf8'), f).not.toMatch(/console\./);
+    }
+    for (const rel of ['src/shared/document-kinds.ts', 'src/ui/document-kind-keys.ts']) {
+      const src = readFileSync(resolve(__dirname, '../..', rel), 'utf8');
+      for (const banned of ['fetch(', 'XMLHttpRequest', 'sendBeacon']) expect(src, `${rel}: ${banned}`).not.toContain(banned);
+    }
+  });
+});

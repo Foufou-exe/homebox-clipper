@@ -47,7 +47,7 @@ export async function seal(
 }
 
 const STATUSES: readonly HistoryStatus[] = ['running', 'complete', 'partial', 'failed'];
-const MISSING: readonly HistoryMissing[] = ['details', 'invoice', 'documents', 'photo'];
+const MISSING: readonly HistoryMissing[] = ['details', 'invoice', 'manual', 'warranty', 'deliveryNote', 'documents', 'photo'];
 const KEYS = new Set([
   'v',
   'id',

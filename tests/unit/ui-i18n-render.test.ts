@@ -48,6 +48,9 @@ const LETTER = /[A-Za-zÀ-ÿ]{2,}/;
 
 /** Catalog value → anchored expression; `$n` accepts any data. */
 const patterns = Object.values(catalog)
+  // ADAPTED (007): also the variant without file size, as the English helper does, because `visibleTexts`
+  // strips sizes ("5 Mo") and `result.stepDocument` ("$1 ($2) : $3") no longer matches by accident.
+  .flatMap((v) => [v, v.replace(/ ?\b\d+(?:\.\d)? (?:o|Ko|Mo|B|KB|MB)\b/g, '').replace(/\s+/g, ' ').trim()])
   .filter((v) => v.replace(/\$\d/g, '').trim().length >= 1)
   .map((v) => new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's'));
 
@@ -342,8 +345,13 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       );
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
       await flushPromises();
-      expect(wrapper.text()).toContain('Facture détectée sur la page 2 Ko');
-      expect(wrapper.text()).toContain('Bon de commande fichier local 12 o');
+      // ADAPTED (007, research.md R6.2, FR-007): the kind of a document is no longer a static label but a
+      // drop-down list, so the visible text of a row no longer holds the kind outside the list. The kind is
+      // asserted on the value of the row's <select>, the origin and the size on the text.
+      const kinds = wrapper.findAll('ul.docs select').map((s) => (s.element as HTMLSelectElement).value);
+      expect(kinds).toEqual(['invoice', 'order_document']);
+      expect(wrapper.text()).toContain('détectée sur la page 2 Ko');
+      expect(wrapper.text()).toContain('fichier local 12 o');
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
       expectCatalogTexts(wrapper, [DATA]);
@@ -1488,5 +1496,120 @@ describe('import history, delete / clear / options: texts from the catalog, in f
     await flushPromises();
     await enApp.find('#apiKey').setValue('hb_xxxxxxxx');
     expect(enApp.text()).toContain('The extension is locked: setting a new passphrase now erases');
+  });
+});
+
+describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-009, FR-012)', () => {
+  const en = loadCatalog('en');
+  const KINDS = [
+    ['invoice', 'Facture', 'Invoice', 'avec sa facture', 'with its invoice', 'documents.sendFailed.invoice'],
+    ['manual', 'Manuel', 'Manual', 'avec son manuel', 'with its manual', 'documents.sendFailed.manual'],
+    ['warranty', 'Garantie', 'Warranty', 'avec sa garantie', 'with its warranty', 'documents.sendFailed.warranty'],
+    ['delivery_note', 'Bon de livraison', 'Delivery note', 'avec son bon de livraison', 'with its delivery note', 'documents.sendFailed.deliveryNote'],
+    ['order_document', 'Bon de commande', 'Order document', 'avec son bon de commande', 'with its order document', 'documents.sendFailed.orderDocument'],
+  ] as const;
+  const docOf = (kind: DocumentRef['kind'], id = 'x1', label = 'fichier.pdf'): DocumentRef => ({ id, origin: 'detected', kind, label });
+  const cat = (lang: 'fr' | 'en') => (lang === 'fr' ? catalog : en);
+
+  it.each(KINDS)('ResultView success, one %s: "avec …" in both languages', (kind, _f, _e, withFr, withEn) => {
+    const p = pending({
+      status: 'success',
+      error: null,
+      draft: draft({ documents: [docOf(kind)] }),
+      steps: { create: 'done', update: 'done', attachments: { x1: 'done' }, photo: 'unavailable' },
+    });
+    const fr = mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } });
+    expect(fr.text()).toContain(withFr);
+    expectCatalogTexts(fr, [DATA]);
+    setTestLanguage('en');
+    const enW = mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } });
+    expect(enW.text()).toContain(withEn);
+  });
+
+  it('several documents: result.withDocuments', () => {
+    const p = pending({
+      status: 'success',
+      error: null,
+      draft: draft({ documents: [docOf('manual', 'a'), docOf('warranty', 'b')] }),
+      steps: { create: 'done', update: 'done', attachments: { a: 'done', b: 'done' }, photo: 'unavailable' },
+    });
+    expect(mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } }).text()).toContain('avec ses documents');
+  });
+
+  describe.each(['fr', 'en'] as const)('partial import (%s)', (lang) => {
+    const partial = pending({
+      status: 'partial',
+      error: 'ATTACHMENT_FAILED',
+      draft: draft({ documents: [docOf('invoice', 'i1', 'facture.pdf'), docOf('manual', 'm1', 'guide.pdf')] }),
+      steps: { create: 'done', update: 'done', attachments: { i1: 'done', m1: 'failed' }, photo: 'unavailable' },
+    });
+
+    it('lists every document with its kind and state, one failure line per failed document, nothing for the sent invoice', () => {
+      setTestLanguage(lang);
+      const c = cat(lang);
+      const wrapper = mount(ResultView, { props: { pendings: [partial], baseUrl: DATA, running: false } });
+      const text = wrapper.text();
+      const sub = (key: string, args: string[]) => args.reduce((acc, a, i) => acc.replace(`$${i + 1}`, a), c[key]!);
+      expect(text).toContain(sub('result.stepDocument', ['facture.pdf', c['documents.invoice']!, c['result.stepDone']!]));
+      expect(text).toContain(sub('result.stepDocument', ['guide.pdf', c['documents.manual']!, c['result.stepFailed']!]));
+      expect(text).toContain(c['documents.sendFailed.manual']);
+      expect(text).not.toContain(c['documents.sendFailed.invoice']);
+      // The failure is text, in the page order, not only a colour.
+      expect(wrapper.find('.doc-failed').text()).toBe(c['documents.sendFailed.manual']);
+      if (lang === 'fr') expectCatalogTexts(wrapper, [DATA, 'facture.pdf', 'guide.pdf']);
+    });
+
+    it('retry button: "Réessayer l\'envoi des documents" / "Retry the document upload"', () => {
+      setTestLanguage(lang);
+      const wrapper = mount(RecoveryView, { props: { pending: partial, baseUrl: DATA } });
+      expect(wrapper.find('button.primary').text()).toBe(lang === 'fr' ? "Réessayer l'envoi des documents" : 'Retry the document upload');
+    });
+  });
+
+  it.each(KINDS)('failure line for a %s', (kind, _f, _e, _wf, _we, key) => {
+    const p = pending({
+      draft: draft({ documents: [docOf(kind, 'z1')] }),
+      steps: { create: 'done', update: 'done', attachments: { z1: 'failed' }, photo: 'unavailable' },
+      error: 'ATTACHMENT_FAILED',
+    });
+    expect(mount(RecoveryView, { props: { pending: p, baseUrl: DATA } }).text()).toContain(catalog[key]!);
+  });
+
+  it.each(['fr', 'en'] as const)('fallback line for each id of attachmentFallbacks, in the result and resume screens (%s)', (lang) => {
+    setTestLanguage(lang);
+    const c = cat(lang);
+    const docs = [docOf('manual', 'm1', 'guide.pdf'), docOf('warranty', 'w1', 'garantie.pdf')];
+    const attachments = { m1: 'done', w1: 'done' } as const;
+    const ok1 = pending({
+      status: 'success',
+      error: null,
+      draft: draft({ documents: docs }),
+      steps: { create: 'done', update: 'done', attachments: { ...attachments }, photo: 'unavailable' },
+      attachmentFallbacks: ['m1', 'w1'],
+    });
+    const line = (name: string, type: string) => c['documents.storedAsAttachment']!.replace('$1', name).replace('$2', type);
+    const result = mount(ResultView, { props: { pendings: [ok1], baseUrl: DATA, running: false } });
+    expect(result.text()).toContain(line('guide.pdf', c['documents.manual']!));
+    expect(result.text()).toContain(line('garantie.pdf', c['documents.warranty']!));
+    const resume = mount(RecoveryView, { props: { pending: { ...ok1, status: 'partial', error: 'UPDATE_FAILED' }, baseUrl: DATA } });
+    expect(resume.text()).toContain(line('guide.pdf', c['documents.manual']!));
+    // No fallback: no such line.
+    const plain = mount(ResultView, { props: { pendings: [{ ...ok1, attachmentFallbacks: undefined }], baseUrl: DATA, running: false } });
+    expect(plain.text()).not.toContain(line('guide.pdf', c['documents.manual']!));
+  });
+
+  it('every select of a document kind has an accessible name', async () => {
+    vi.mocked(send).mockImplementation((msg) =>
+      Promise.resolve(msg.type === 'detect/run' ? ok({ purchase: purchase([product('a')]), warnings: [] }) : ok({ locations: [], lastUsedId: null })) as never,
+    );
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    const selects = wrapper.findAll('select');
+    expect(selects.length).toBeGreaterThanOrEqual(2);
+    for (const s of selects) {
+      const labelled = s.attributes('aria-label') || (s.attributes('id') && wrapper.find(`label[for="${s.attributes('id')}"]`).exists());
+      expect(labelled, 'accessible name').toBeTruthy();
+    }
+    expectCatalogTexts(wrapper, [DATA]);
   });
 });

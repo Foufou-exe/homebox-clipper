@@ -27,7 +27,7 @@ control**; you are the controller of that data. Project page:
 | Passphrase | You choose it | Encrypt and unlock the API key | **Never stored** |
 | HomeBox location list and last location used (identifiers only) | Your HomeBox instance | Let you choose where the item is filed | Read from your instance; identifiers kept locally |
 | Theme preference | You | Display | Stored locally |
-| Import history: product name, store, order number, import and purchase dates, HomeBox instance address, item identifier, result (complete, partial, failed) and what is missing (invoice, photo, documents, purchase details) | Each import you confirm | Let you find an imported item, open it in HomeBox and spot an incomplete import | Stored locally, **encrypted with your passphrase**; never sent anywhere (on by default, can be turned off) |
+| Import history: product name, store, order number, import and purchase dates, HomeBox instance address, item identifier, result (complete, partial, failed) and what is missing (invoice, manual, warranty, delivery note, documents, photo, purchase details) | Each import you confirm | Let you find an imported item, open it in HomeBox and spot an incomplete import | Stored locally, **encrypted with your passphrase**; never sent anywhere (on by default, can be turned off) |
 
 The extension does **not** read your delivery address, your payment method, your browsing history or
 any page other than the Amazon order page you open it on. The invoice PDF is sent as it is: it may

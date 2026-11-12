@@ -60,3 +60,60 @@ describe('DocumentPicker', () => {
     expect(wrapper.text()).toContain('The file is not a PDF.');
   });
 });
+
+describe('DocumentPicker: five kinds (007, Q-U13, FR-001, SC-002)', () => {
+  const catalogFr = loadCatalog('fr');
+  async function pick(wrapper: ReturnType<typeof mount>, file: File) {
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
+    await input.trigger('change');
+    await flushPromises();
+  }
+
+  it('one select with five options in order, default invoice', () => {
+    const wrapper = mount(DocumentPicker);
+    expect(wrapper.findAll('select')).toHaveLength(1);
+    const options = wrapper.findAll('option');
+    expect(options.map((o) => o.attributes('value'))).toEqual(['invoice', 'manual', 'warranty', 'delivery_note', 'order_document']);
+    expect(options.map((o) => o.text())).toEqual(
+      ['documents.invoice', 'documents.manual', 'documents.warranty', 'documents.deliveryNote', 'documents.orderDocument'].map((k) => catalogFr[k]),
+    );
+    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('invoice');
+  });
+
+  it.each(['invoice', 'manual', 'warranty', 'delivery_note', 'order_document'])('choosing %s emits that kind', async (kind) => {
+    const wrapper = mount(DocumentPicker, { props: { allowReplace: true } });
+    await wrapper.find('select').setValue(kind);
+    await pick(wrapper, pdfFile('x.pdf'));
+    const [picked] = wrapper.emitted('add')?.[0] as [PickedDocument];
+    expect(picked.doc.kind).toBe(kind);
+  });
+
+  it.each([
+    ['invoice', true],
+    ['order_document', true],
+    ['manual', false],
+    ['warranty', false],
+    ['delivery_note', false],
+  ] as const)('"replace the detected invoice": %s → shown and effective = %s', async (kind, expected) => {
+    const wrapper = mount(DocumentPicker, { props: { allowReplace: true } });
+    await wrapper.find('select').setValue(kind);
+    expect(wrapper.text().includes(catalogFr['documents.replaceDetected']!)).toBe(expected);
+    await pick(wrapper, pdfFile('x.pdf'));
+    const [picked] = wrapper.emitted('add')?.[0] as [PickedDocument];
+    expect(picked.replaceDetected).toBe(expected);
+  });
+
+  it('with fixedDocId (resume): the kind select stays hidden', () => {
+    const wrapper = mount(DocumentPicker, { props: { fixedDocId: 'manual-1' } });
+    expect(wrapper.find('select').exists()).toBe(false);
+  });
+
+  it.each(['manual', 'warranty', 'delivery_note'])('%s: a non-PDF file is refused as before', async (kind) => {
+    const wrapper = mount(DocumentPicker);
+    await wrapper.find('select').setValue(kind);
+    await pick(wrapper, new File(['<html>'], 'faux.pdf'));
+    expect(wrapper.emitted('add')).toBeUndefined();
+    expect(wrapper.text()).toContain(NOT_A_PDF);
+  });
+});

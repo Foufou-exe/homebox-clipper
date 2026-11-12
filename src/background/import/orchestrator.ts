@@ -2,6 +2,7 @@ import { entityOutToUpdate, type HomeBoxClient } from '@/background/homebox/clie
 import type { EntityOut } from '@/background/homebox/types';
 import { storeForPageUrl } from '@/content/merchants/catalog';
 import { getMessage } from '@/platform/i18n';
+import { homeboxTypeOf, isOptionalHomeboxType } from '@/shared/document-kinds';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { logError } from '@/shared/logger';
 import { findDuplicatesByName } from './duplicates';
@@ -76,7 +77,16 @@ function filesFrom(manualFiles: ManualFile[]): FileMap {
   return new Map(manualFiles.map((f) => [f.docId, manualBytes(f)]));
 }
 
-const attachmentName = (doc: DocumentRef) => (/\.pdf$/i.test(doc.label) ? doc.label : `${doc.label}.pdf`);
+/** A delivery note whose name already says what it is keeps it (no double prefix); otherwise the prefix is added. */
+const EXPLICIT_DELIVERY_NOTE = /bon[-_ ]?de[-_ ]?livraison|delivery[-_ ]?note|packing[-_ ]?slip|bordereau/i;
+
+function attachmentName(doc: DocumentRef): string {
+  const base =
+    doc.kind === 'delivery_note' && !EXPLICIT_DELIVERY_NOTE.test(doc.label)
+      ? `${getMessage('documents.deliveryNotePrefix')}${doc.label}`
+      : doc.label;
+  return /\.pdf$/i.test(base) ? base : `${base}.pdf`;
+}
 
 /** Error reported for a failed document: HomeBox-side failures are grouped under `ATTACHMENT_FAILED`. */
 function attachmentError(error: ErrorCode): ErrorCode {
@@ -287,14 +297,18 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     files: FileMap,
   ): Promise<ErrorCode | null> {
     const bytes = await bytesFor(p, doc, files);
-    const res = bytes.ok
-      ? await client.addAttachment(entityId, {
-          bytes: bytes.value,
-          filename: attachmentName(doc),
-          type: doc.kind === 'invoice' ? 'receipt' : 'attachment',
-          mimeType: 'application/pdf',
-        })
-      : bytes;
+    let res: Result<unknown> = bytes;
+    if (bytes.ok) {
+      // The HomeBox type is only ever computed here, from the validated kind (V4).
+      const type = homeboxTypeOf(doc.kind);
+      const upload = { bytes: bytes.value, filename: attachmentName(doc), mimeType: 'application/pdf' };
+      res = await client.addAttachment(entityId, { ...upload, type });
+      // An instance that refuses the manual/warranty type (422): one retry, same file, same instance (R1, V5).
+      if (!res.ok && res.httpStatus === 422 && isOptionalHomeboxType(type)) {
+        res = await client.addAttachment(entityId, { ...upload, type: 'attachment' });
+        if (res.ok) (p.attachmentFallbacks ??= []).push(doc.id);
+      }
+    }
     p.steps.attachments[doc.id] = res.ok ? 'done' : 'failed';
     await persist(p);
     return res.ok ? null : attachmentError(res.error);

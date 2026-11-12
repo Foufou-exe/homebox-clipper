@@ -36,8 +36,8 @@ same. Messages are grouped by when they appear.
 
 | Message shown | Code | Probable cause | Fix |
 |---------------|------|----------------|-----|
-| The invoice is not yet available for this order. | `INVOICE_UNAVAILABLE` | Common right after the order or with some third-party sellers; missing link or error response from Amazon. | Try again later, or attach the PDF by hand. |
-| The invoice download was refused (Amazon session expired?). | `DOWNLOAD_REFUSED` | Amazon session expired, tab closed or reloaded, or link outside the origin of the store of the order (for example `www.amazon.de`). | Sign in to Amazon again, reload the page, then retry. |
+| The document is not available yet for this order. | `INVOICE_UNAVAILABLE` | Common right after the order or with some third-party sellers; missing link or error response from Amazon. | Try again later, or attach the PDF by hand. |
+| The document download was refused (Amazon session expired?). | `DOWNLOAD_REFUSED` | Amazon session expired, tab closed or reloaded, or link outside the origin of the store of the order (for example `www.amazon.de`). | Sign in to Amazon again, reload the page, then retry. |
 | The file is not a PDF. | `NOT_A_PDF` | The link leads to an HTML page (for example "Order summary"), or the chosen file does not have the `%PDF-` signature. | Download the invoice and attach it by hand. |
 | The file is larger than 15 MB. | `FILE_TOO_LARGE` | Document too large. | Compress the PDF or send only part of it. |
 | Select the file to attach again to retry. | `MANUAL_FILE_REQUIRED` | Recovery of an import whose file was added by hand: file bytes are never kept. | Select the file again, then "Retry". |
@@ -50,7 +50,7 @@ same. Messages are grouped by when they appear.
 | The duplicate check could not be performed. | `DUPLICATE_CHECK_FAILED` | The search in HomeBox failed. Not blocking at the summary; **blocking when recovering an uncertain creation** (no creation is sent). | At the summary: check by hand in HomeBox, then continue. During recovery: check in HomeBox whether the item exists, then retry or abandon. |
 | Creating the item in HomeBox failed. | `CREATE_FAILED` | HomeBox refused or could not process the creation. Nothing was created. | Check the state of the instance, then "Retry the import". |
 | The item was created but its purchase details were not saved. | `UPDATE_FAILED` | The update (price, date, seller, notes) failed after the creation. | "Retry the import": the existing item is completed, never recreated. |
-| The item was created but uploading the invoice failed. | `ATTACHMENT_FAILED` | Instance unreachable or HomeBox error while uploading the attachment. | "Retry the invoice upload": a single item, with its invoice. |
+| The item was created but sending a document failed. | `ATTACHMENT_FAILED` | Instance unreachable or HomeBox error while uploading the attachment. The popup also names the document ("The manual could not be sent."). | "Retry the document upload": a single item, with its documents. |
 
 ## Product photo
 

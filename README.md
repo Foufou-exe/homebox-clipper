@@ -38,7 +38,8 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
   pounds or dollars are kept as is, with a warning before confirmation (no currency conversion).
 - **Editable summary** before anything is sent, with undetected fields flagged.
 - **3-step import** (item, invoice PDF, photo); multi-item orders, manual PDF attachment and **duplicate detection**.
-- **Error recovery**: if the invoice could not be sent, retry without creating a duplicate.
+- **Error recovery**: if a document could not be sent, retry without creating a duplicate.
+- **Document types**: attached PDFs can be typed as manual, warranty, delivery note, invoice or order document, and are filed in the matching section of HomeBox.
 - **Import history**: your latest imports with their result and a link to the item, kept only in your browser and encrypted with your passphrase (200 entries, 12 months; can be cleared or turned off).
 - **Product photo** attached to the item as its main image (can be unticked per product).
 - **Location choice** among your HomeBox locations, with search; the last one used is suggested.

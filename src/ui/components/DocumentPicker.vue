@@ -2,6 +2,7 @@
 import { ref, useId } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import type { DocumentRef } from '@/shared/types';
+import { DOCUMENT_KIND_KEYS, DOCUMENT_KIND_OPTIONS, canReplaceDetected } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import { readPdf, type PickedDocument } from '@/ui/read-pdf';
 import ErrorBanner from './ErrorBanner.vue';
@@ -30,7 +31,7 @@ async function onChange(event: Event) {
   emit('add', {
     doc: { id: docId, origin: 'manual', kind: kind.value, label: file.name, size: file.size, pdfValid: true },
     file: { docId, filename: file.name, base64: result.base64 },
-    replaceDetected: props.allowReplace === true && replaceDetected.value,
+    replaceDetected: props.allowReplace === true && canReplaceDetected(kind.value) && replaceDetected.value,
   });
 }
 </script>
@@ -40,15 +41,14 @@ async function onChange(event: Event) {
     <div class="row">
       <label :for="`${id}-kind`" class="sr-only">{{ t('documents.kindLabel') }}</label>
       <select v-if="!fixedDocId" :id="`${id}-kind`" v-model="kind">
-        <option value="invoice">{{ t('documents.invoice') }}</option>
-        <option value="order_document">{{ t('documents.orderDocument') }}</option>
+        <option v-for="k in DOCUMENT_KIND_OPTIONS" :key="k" :value="k">{{ t(DOCUMENT_KIND_KEYS[k].label) }}</option>
       </select>
       <label class="file">
         <input ref="input" type="file" accept="application/pdf,.pdf" @change="onChange" />
         <span>{{ t('documents.choose') }}</span>
       </label>
     </div>
-    <label v-if="allowReplace" class="inline">
+    <label v-if="allowReplace && canReplaceDetected(kind)" class="inline">
       <input v-model="replaceDetected" type="checkbox" />
       {{ t('documents.replaceDetected') }}
     </label>
