@@ -1,0 +1,34 @@
+# Discussion category form for "Ideas". Syntax:
+# https://docs.github.com/en/discussions/managing-discussions-for-your-community/syntax-for-discussion-category-forms
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea! Nothing is too small. Ideas are discussed here first; the ones that get a clear plan become issues.
+
+        Looking for a new store? Check the [merchants roadmap](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md) first, then use the [merchant request form](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml) for a store that is not listed.
+
+        Never attach raw store pages, API keys, real instance addresses (public or local) or personal data.
+  - type: textarea
+    id: need
+    attributes:
+      label: What would you like to be able to do?
+      description: Describe the need or the annoyance, rather than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Your idea
+      description: How could it work? Alternatives are welcome too.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing discussions, issues and the merchants roadmap.
+          required: true
+        - label: I removed any personal data, API key and real instance address from this post.
+          required: true

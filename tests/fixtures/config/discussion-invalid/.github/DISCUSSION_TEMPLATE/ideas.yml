@@ -1,0 +1,4 @@
+body:
+  - type: markdown
+    attributes:
+      value: A form without the privacy warning and without any field.

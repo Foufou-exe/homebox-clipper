@@ -10,6 +10,7 @@
 
 [![CI](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml/badge.svg)](https://github.com/Foufou-exe/homebox-clipper/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Foufou-exe/homebox-clipper)](https://github.com/Foufou-exe/homebox-clipper/releases)
+[![Discussions](https://img.shields.io/github/discussions/Foufou-exe/homebox-clipper)](https://github.com/Foufou-exe/homebox-clipper/discussions)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
@@ -129,6 +130,10 @@ bun run dev
 
 Avant chaque push, lancez `bun run ci` (la même vérification tourne sur GitHub pour les pull requests). Règles du projet,
 conteneur de développement et façon de travailler : **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
+## Communauté
+
+Une question, une idée, ou simplement envie de dire bonjour ? Rejoignez les **[Discussions](https://github.com/Foufou-exe/homebox-clipper/discussions)** : demandez de l'aide dans Q&A, proposez des idées, montrez votre installation. Merci de lire le **[code de conduite](CODE_OF_CONDUCT.md)** (en anglais) et **[SUPPORT.md](SUPPORT.md)** (en anglais) pour savoir où poser quelle question.
 
 ## Changelog
 

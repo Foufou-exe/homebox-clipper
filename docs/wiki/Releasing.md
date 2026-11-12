@@ -141,6 +141,7 @@ them.
 
 ## After the release
 
+- The `publish` job opens an announcement in the Discussions `announcements` category (skipped if the release already has a discussion; a warning, never a failure, if the category is missing). See [Moderating-Discussions](Moderating-Discussions.md).
 - Open the release page and check the notes, the two attached files and the checksum.
 - Check that the archive loads in Chrome: download it, verify with `sha256sum -c`, unzip it, then in
   `chrome://extensions` enable developer mode and use **Load unpacked** on the unzipped folder.

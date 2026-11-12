@@ -37,6 +37,7 @@ describe('scripts/check-config.ts', () => {
     ['required-missing', '.github/ISSUE_TEMPLATE/bug.yml'],
     ['schema-invalid', '.github/ISSUE_TEMPLATE/bug.yml'],
     ['privacy-missing', '.github/ISSUE_TEMPLATE/feature.yml'],
+    ['discussion-invalid', '.github/DISCUSSION_TEMPLATE/ideas.yml'],
     ['locale-keys', 'src/locales/en.yml'],
     ['locale-subs', 'src/locales/en.yml'],
   ])('refuse %s en citant %s', (name, file) => {

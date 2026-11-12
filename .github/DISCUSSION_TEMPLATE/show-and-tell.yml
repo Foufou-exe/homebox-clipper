@@ -1,0 +1,30 @@
+# Discussion category form for "Show and tell". Syntax:
+# https://docs.github.com/en/discussions/managing-discussions-for-your-community/syntax-for-discussion-category-forms
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We would love to see how you use homebox-clipper with HomeBox: your setup, your workflow, a tip, a script or a nice result.
+
+        Never attach raw store pages, API keys, real instance addresses (public or local) or personal data. Blur or crop screenshots before posting.
+  - type: textarea
+    id: showcase
+    attributes:
+      label: What do you want to share?
+      description: A few lines are enough. Screenshots are welcome once anonymized.
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Your setup
+      description: Optional. Browser, HomeBox version, how you organize your locations.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed any personal data, API key and real instance address from this post.
+          required: true
