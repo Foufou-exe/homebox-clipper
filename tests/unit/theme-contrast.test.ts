@@ -42,3 +42,28 @@ describe('action text contrast (--accent-text on --bg, WCAG AA 4.5:1)', () => {
     expect(popup).toMatch(/\.project-footer\s*{[^}]*background:\s*var\(--bg\)/);
   });
 });
+
+describe('import history status badges (012, Q-U26, WCAG AA 4.5:1)', () => {
+  const pairs = [
+    ['complete', '--success-fg', '--success-bg'],
+    ['partial', '--warn-fg', '--warn-bg'],
+    ['running', '--warn-fg', '--warn-bg'],
+    ['failed', '--danger-fg', '--danger-bg'],
+  ] as const;
+
+  it.each(Object.entries(blocks).flatMap(([name, vars]) => pairs.map(([status, fg, bg]) => [name, status, vars, fg, bg] as const)))(
+    'theme %s, badge %s',
+    (_name, _status, vars, fg, bg) => {
+      expect(ratio(vars[fg]!, vars[bg]!)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it('HistoryList.vue uses these tokens for each badge and has a visible link focus', () => {
+    const src = readFileSync(resolve(__dirname, '../../src/ui/components/HistoryList.vue'), 'utf8');
+    for (const [status, fg, bg] of pairs) {
+      const rule = new RegExp(`\\.badge-${status}[^{]*{[^}]*background:\\s*var\\(${bg}\\)[^}]*color:\\s*var\\(${fg}\\)`);
+      expect(src, status).toMatch(rule);
+    }
+    expect(src).toMatch(/a:focus-visible\s*{[^}]*outline:\s*2px solid var\(--accent\)/);
+  });
+});

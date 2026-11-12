@@ -17,7 +17,7 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 
 | Threat | Protection |
 |--------|------------|
-| A file of the Chrome profile is read (disk copy, backup) | The key is stored only **encrypted** (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations, random salt and IV) in `storage.local`. |
+| A file of the Chrome profile is read (disk copy, backup) | The key is stored only **encrypted** (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations, random salt and IV) in `storage.local`. The import history is encrypted too (see [Import history](#import-history)): only the number of entries and their approximate size can be seen. |
 | Someone edits the stored address to divert the key to another server | The instance address is used as **associated data** for the encryption: changing it without the passphrase makes decryption impossible. |
 | A web page (Amazon) tries to read the key | Only the **service worker** uses the key. The script injected into the page has access to neither storage nor the settings, and no message addressed to it contains the address or the key. |
 | A page script tries to call the service worker | Messages are **typed and validated** on reception; those touching settings, unlocking, detection and imports are refused unless they come from an extension page (popup, options). |
@@ -35,12 +35,40 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 | Instance address, **encrypted** API key, masked key (`hb_••••abcd`), result of the last test | `storage.local` | Until "Delete settings" or uninstallation |
 | **Decrypted** API key | `storage.session` (memory) | Until locking (🔒), browser close, or extension reload, update or disabling |
 | Passphrase | **Nowhere** | Never saved |
-| In-progress imports (purchase data needed for a recovery) | `storage.session` (memory) | Erased as soon as the import succeeds or is abandoned; without file bytes |
+| In-progress imports (purchase data needed for a recovery) | `storage.session` (memory) | Erased as soon as the import succeeds or is abandoned; without file bytes. Only a minimal, **encrypted** extract is kept in the import history (next row) |
+| Import history (`importHistory:<id>`, one **encrypted** envelope per product) and its on/off setting (`importHistorySettings`) | `storage.local` | At most 200 entries and 12 months; erased by "Clear all", turning the history off, or "Delete settings" (the on/off setting is kept) |
+| History key, **sealed** with the passphrase (in the configuration) / **open** (next to the decrypted API key) | `storage.local` / `storage.session` (memory) | Like the API key |
 | Photo URL of an in-progress import | `storage.session` (memory) | Erased with the import (success or abandon); **never the image bytes** |
 | Last location used, per instance (`lastLocationByInstance`): **identifiers only**, never a location name | `storage.local` | Until "Delete settings" (erased with it) or uninstallation |
 | Chosen theme | `storage.local` | Display preference |
 
 No data is placed in `storage.sync`.
+
+## Import history
+
+The extension keeps a short history of the imports you confirmed, **only in this browser**:
+
+- **Stored**, per product: name, store identifier, order number, import and purchase dates, instance
+  address, item identifier, result (complete, partial, failed, in progress) and what is missing (purchase
+  details, invoice, documents, photo), with an error **code** for a failure.
+- **Never stored**: the API key, your delivery address, your payment method, invoice or photo contents,
+  the address of the Amazon page, the photo address, the price, the seller, the description or the
+  location.
+- **Encryption**: each entry is encrypted with AES-GCM 256 under a random 256-bit **history key**, with a
+  fresh random IV at every write and the storage key as associated data. Nothing about an entry (date,
+  status, store) is stored in clear. The history key is sealed with the **same** passphrase-derived key
+  as the API key (PBKDF2-SHA256, 600,000 iterations): a single derivation per unlock. While unlocked, the
+  open history key sits in session memory next to the API key, and leaves with it.
+- **Locked**: the history cannot be read; the extension says "History locked". Deleting an entry,
+  "Clear all" and turning the history off still work (they delete encrypted data without reading it).
+- **Forgotten passphrase**: the history cannot be recovered, like the API key. Setting up the extension
+  again with a new passphrase while it is **locked** erases it; the settings page warns before sending.
+  While **unlocked**, changing the passphrase keeps it.
+- No log, no network request, no new permission. The `history/*` messages are refused unless they come
+  from an extension page.
+- Pruning (200 entries, 12 months) needs the key, since the dates are encrypted: it runs when the
+  history is opened and at each new import, while the extension is unlocked. Unlocking alone does not
+  prune. The list is pruned before it is shown, so an entry beyond the limits is never displayed.
 
 ## Manifest permissions
 
@@ -98,7 +126,12 @@ your payment method.
 - **Weak passphrase**: the minimum is 10 characters; a short or guessable passphrase weakens the
   encryption. Prefer a long passphrase.
 - **Local HTTP**: on a network where other machines are hostile, the key can be intercepted. Use HTTPS.
-- **Lost passphrase**: no recovery is possible, by design.
+- **Lost passphrase**: no recovery is possible, by design (for the API key and the import history).
+- **Import history**: the number of entries is visible on disk; entries beyond the limits (older than
+  12 months, or past the 200th) stay encrypted on disk until the history is opened or an import is made
+  with the extension unlocked, which prunes them. In the "unavailable" state (history key unreadable, or
+  key migrated without a passphrase), nothing is pruned until the extension is set up again with a
+  passphrase, which erases them; "Clear all" works at any time.
 - **Dedicated key**: create in HomeBox a key reserved for the extension, with an expiration date, to limit
   the impact of a leak.
 

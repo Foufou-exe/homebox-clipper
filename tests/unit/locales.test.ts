@@ -185,3 +185,129 @@ describe('list of the stores (006, US3, FR-012, FR-016)', () => {
     }
   });
 });
+
+describe('import history keys (012, contracts/ui.md, Q-U24)', () => {
+  const US1 = [
+    'history.openAria',
+    'history.openTitle',
+    'history.title',
+    'history.back',
+    'history.intro',
+    'history.empty',
+    'history.disabledNotice',
+    'history.loadError',
+    'history.orderGroup',
+    'history.manualStore',
+    'history.importedOn',
+    'history.purchasedOn',
+    'history.otherInstance',
+    'history.status.running',
+    'history.status.complete',
+    'history.status.partial',
+    'history.status.failed',
+    'history.openItemAria',
+    'history.locked',
+    'history.lockedHint',
+    'history.unlock',
+    'history.lockedOptionsHint',
+    'history.unavailable',
+  ];
+
+  it('the 23 keys of US1 exist in en.yml and fr.yml with the same $n', () => {
+    expect(US1).toHaveLength(23);
+    for (const key of US1) {
+      expect(en, key).toHaveProperty([key]);
+      expect(catalog, key).toHaveProperty([key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('exact texts of contracts/ui.md (sample, substitutions)', () => {
+    expect([en['history.orderGroup'], catalog['history.orderGroup']]).toEqual(['Order $1 · $2', 'Commande $1 · $2']);
+    expect([en['history.openItemAria'], catalog['history.openItemAria']]).toEqual([
+      'Open $1 in HomeBox (new tab)',
+      'Ouvrir $1 dans HomeBox (nouvel onglet)',
+    ]);
+    expect([en['history.locked'], catalog['history.locked']]).toEqual(['History locked', 'Historique verrouillé']);
+    expect([en['history.status.failed'], catalog['history.status.failed']]).toEqual(['Failed', 'Échoué']);
+    expect([en['history.importedOn'], catalog['history.importedOn']]).toEqual(['Imported on $1', 'Importé le $1']);
+    expect([en['history.otherInstance'], catalog['history.otherInstance']]).toEqual([
+      'Imported to another HomeBox instance ($1): no link.',
+      'Importé vers une autre instance HomeBox ($1) : pas de lien.',
+    ]);
+  });
+});
+
+describe('import history keys, incomplete imports (012, US2)', () => {
+  const US2 = [
+    'history.missingPrefix',
+    'history.missing.details',
+    'history.missing.invoice',
+    'history.missing.documents',
+    'history.missing.photo',
+    'history.listSeparator',
+    'history.reason',
+    'history.resumable',
+  ];
+
+  it('the 8 keys exist in en.yml and fr.yml with the same $n', () => {
+    for (const key of US2) {
+      expect(en, key).toHaveProperty([key]);
+      expect(catalog, key).toHaveProperty([key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('exact texts of contracts/ui.md', () => {
+    expect([en['history.missingPrefix'], catalog['history.missingPrefix']]).toEqual(['Missing: $1', 'Manquant : $1']);
+    expect([en['history.missing.invoice'], catalog['history.missing.invoice']]).toEqual(['invoice not sent', 'facture non envoyée']);
+    expect([en['history.listSeparator'], catalog['history.listSeparator']]).toEqual([', ', ', ']);
+    expect([en['history.reason'], catalog['history.reason']]).toEqual(['Reason: $1', 'Raison : $1']);
+    expect(IDENTICAL_OK).toContain('history.listSeparator');
+  });
+});
+
+describe('import history keys, controlling the data (012, US3)', () => {
+  const US3 = [
+    'history.delete',
+    'history.deleteAria',
+    'history.deleted',
+    'history.clearAll',
+    'history.clearConfirm',
+    'history.clearConfirmYes',
+    'history.cancel',
+    'history.cleared',
+    'options.historyTitle',
+    'options.historyEnable',
+    'options.historyHelp',
+    'options.historyResetNotice',
+    'options.historyDisableConfirm',
+    'options.historyDisableYes',
+    'options.historyKeep',
+    'options.historyDisabled',
+  ];
+
+  it('the 16 keys exist in en.yml and fr.yml with the same $n', () => {
+    expect(US3).toHaveLength(16);
+    for (const key of US3) {
+      expect(en, key).toHaveProperty([key]);
+      expect(catalog, key).toHaveProperty([key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('the 2 modified keys mention the import history', () => {
+    expect(en['options.passphraseHelpNew']).toMatch(/delete the settings and start over \(the import history will be erased too\)\.$/);
+    expect(catalog['options.passphraseHelpNew']).toMatch(/supprimez la configuration et recommencez \(l’historique des imports sera aussi effacé\)\.$/);
+    expect(en['options.confirmDelete']).toBe("Delete this extension's HomeBox settings (address and API key) and the import history?");
+    expect(catalog['options.confirmDelete']).toBe(
+      'Supprimer la configuration HomeBox (adresse et clé API) de cette extension et l’historique des imports ?',
+    );
+  });
+
+  it('47 history keys added in total (23 + 8 + 16)', () => {
+    const added = Object.keys(en).filter((k) => k.startsWith('history.') || /^options\.history/.test(k));
+    expect(added).toHaveLength(47);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('history.') || /^options\.history/.test(k))).toHaveLength(47);
+  });
+});

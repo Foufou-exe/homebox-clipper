@@ -29,6 +29,10 @@ import LocationPicker from '@/ui/components/LocationPicker.vue';
 import { IDENTICAL_OK, loadCatalog, setTestLanguage } from './i18n-harness';
 import { ERROR_CODES } from '@/shared/errors';
 import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
+import HistoryList from '@/ui/components/HistoryList.vue';
+import HistoryCard from '@/ui/options/HistoryCard.vue';
+import type { HistoryEntryView, HistoryListView } from '@/shared/types';
+import { formatDate, formatDateTime } from '@/ui/i18n';
 
 // The `@/platform/i18n` mock (setup-i18n.ts) serves the real fr.yml catalog: the rendering must therefore
 // only display catalog values, apart from data (props, fields) neutralized by DATA.
@@ -1294,5 +1298,195 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
     await flushPromises();
     expectEnglish(options, [DATA, 'hb_…abcd']);
     expect(options.text()).toContain('Help and project');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// 012: import history, rendered in fr then en; every text comes from the catalog (Q-U24).
+// ---------------------------------------------------------------------------------------------
+describe('import history: texts from the catalog, in fr and en (012)', () => {
+  const ISO = '2026-11-12T10:00:00.000Z';
+  const entry = (over: Partial<HistoryEntryView> = {}): HistoryEntryView => ({
+    v: 1,
+    id: 'h1',
+    importedAt: ISO,
+    name: DATA,
+    merchantId: 'amazon.fr',
+    orderNumber: DATA,
+    purchaseDate: '2026-10-22',
+    instance: 'https://homebox.example.com',
+    entityId: 'e1',
+    status: 'complete',
+    missing: [],
+    reason: null,
+    resumable: false,
+    ...over,
+  });
+  const views: Array<[string, HistoryListView]> = [
+    ['ready', { state: 'ready', enabled: true, entries: [entry(), entry({ id: 'h2' }), entry({ id: 'h3', orderNumber: null, merchantId: null, status: 'running' })] }],
+    ['other instance', { state: 'ready', enabled: true, entries: [entry({ instance: 'https://autre.example.com', status: 'partial', missing: [], reason: null, interrupted: true })] }],
+    ['empty', { state: 'ready', enabled: true, entries: [] }],
+    ['disabled', { state: 'ready', enabled: false, entries: [] }],
+    ['locked', { state: 'locked', enabled: true, entries: [] }],
+    ['unavailable', { state: 'unavailable', enabled: true, entries: [] }],
+  ];
+  const data = () => [DATA, 'Amazon.fr', formatDateTime(ISO), formatDate('2026-10-22'), 'https://autre.example.com'];
+
+  async function render(view: HistoryListView, variant: 'popup' | 'options') {
+    vi.mocked(send).mockResolvedValue(ok(view) as never);
+    const wrapper = mount(HistoryList, { props: { baseUrl: 'https://homebox.example.com', variant } });
+    await flushPromises();
+    return wrapper;
+  }
+
+  const en = loadCatalog('en');
+  const toPattern = (v: string) => new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's');
+  const enPatterns = Object.values(en)
+    .filter((v) => v.replace(/\$\d/g, '').trim().length >= 1)
+    .map(toPattern);
+
+  it.each(views.flatMap(([n, v]) => [[n, 'popup', v], [n, 'options', v]] as const))('%s (%s): fr', async (_n, variant, view) => {
+    const wrapper = await render(view, variant);
+    expect(wrapper.text().length).toBeGreaterThan(0);
+    expectCatalogTexts(wrapper, data());
+  });
+
+  it.each(views.flatMap(([n, v]) => [[n, 'popup', v], [n, 'options', v]] as const))('%s (%s): en', async (_n, variant, view) => {
+    setTestLanguage('en');
+    const wrapper = await render(view, variant);
+    const unknown = visibleTexts(wrapper, data()).filter(
+      (s) => !TECHNICAL_EXAMPLES.has(s) && LETTER.test(s.split(DATA).join('')) && !enPatterns.some((p) => p.test(s)),
+    );
+    expect(unknown, 'texts missing from en.yml').toEqual([]);
+    expect(wrapper.text()).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+  });
+});
+
+describe('import history, incomplete imports: texts from the catalog, in fr and en (012, US2)', () => {
+  const ISO = '2026-11-12T10:00:00.000Z';
+  const entry = (over: Partial<HistoryEntryView>): HistoryEntryView => ({
+    v: 1,
+    id: 'h1',
+    importedAt: ISO,
+    name: DATA,
+    merchantId: null,
+    orderNumber: null,
+    purchaseDate: null,
+    instance: 'https://homebox.example.com',
+    entityId: 'e1',
+    status: 'partial',
+    missing: ['details', 'invoice', 'documents', 'photo'],
+    reason: 'ATTACHMENT_FAILED',
+    resumable: true,
+    ...over,
+  });
+  const view: HistoryListView = {
+    state: 'ready',
+    enabled: true,
+    entries: [entry({}), entry({ id: 'h2', status: 'failed', entityId: null, missing: [], reason: 'CREATE_FAILED' }), entry({ id: 'h3', interrupted: true, reason: null })],
+  };
+  const en = loadCatalog('en');
+  const toPattern = (v: string) => new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's');
+  const enPatterns = Object.values(en).filter((v) => v.replace(/\$\d/g, '').trim().length >= 1).map(toPattern);
+
+  async function render() {
+    vi.mocked(send).mockResolvedValue(ok(view) as never);
+    const wrapper = mount(HistoryList, { props: { baseUrl: 'https://homebox.example.com' } });
+    await flushPromises();
+    return wrapper;
+  }
+
+  it('fr', async () => {
+    const wrapper = await render();
+    expect(wrapper.text()).toContain('Manquant : ');
+    expectCatalogTexts(wrapper, [DATA, formatDateTime(ISO)]);
+  });
+
+  it('en', async () => {
+    setTestLanguage('en');
+    const wrapper = await render();
+    expect(wrapper.text()).toContain('Missing: purchase details not saved, invoice not sent, documents not sent, photo not sent');
+    const unknown = visibleTexts(wrapper, [DATA, formatDateTime(ISO)]).filter(
+      (s) => !TECHNICAL_EXAMPLES.has(s) && LETTER.test(s.split(DATA).join('')) && !enPatterns.some((p) => p.test(s)),
+    );
+    expect(unknown).toEqual([]);
+    expect(wrapper.text()).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+  });
+});
+
+describe('import history, delete / clear / options: texts from the catalog, in fr and en (012, US3)', () => {
+  const ISO = '2026-11-12T10:00:00.000Z';
+  const view: HistoryListView = {
+    state: 'ready',
+    enabled: true,
+    entries: [
+      {
+        v: 1,
+        id: 'h1',
+        importedAt: ISO,
+        name: DATA,
+        merchantId: null,
+        orderNumber: null,
+        purchaseDate: null,
+        instance: 'https://homebox.example.com',
+        entityId: 'e1',
+        status: 'complete',
+        missing: [],
+        reason: null,
+        resumable: false,
+      },
+    ],
+  };
+  const en = loadCatalog('en');
+  const toPattern = (v: string) => new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's');
+  const enPatterns = Object.values(en).filter((v) => v.replace(/\$\d/g, '').trim().length >= 1).map(toPattern);
+  const english = (wrapper: VueWrapper) => {
+    const unknown = visibleTexts(wrapper, [DATA, formatDateTime(ISO)]).filter(
+      (s) => !TECHNICAL_EXAMPLES.has(s) && LETTER.test(s.split(DATA).join('')) && !enPatterns.some((p) => p.test(s)),
+    );
+    expect(unknown).toEqual([]);
+    expect(wrapper.text()).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+  };
+
+  async function card() {
+    vi.mocked(send).mockResolvedValue(ok(view) as never);
+    const wrapper = mount(HistoryCard, { props: { baseUrl: 'https://homebox.example.com' }, attachTo: document.body });
+    await flushPromises();
+    // Every confirmation block revealed: clear all, then turning off.
+    await wrapper.find('button.clear-all').trigger('click');
+    await wrapper.find('input[type="checkbox"]').setValue(false);
+    await flushPromises();
+    return wrapper;
+  }
+
+  it('fr', async () => {
+    const wrapper = await card();
+    expect(wrapper.findAll('[role="group"]').length).toBeGreaterThanOrEqual(1);
+    expectCatalogTexts(wrapper, [DATA, formatDateTime(ISO)]);
+    wrapper.unmount();
+  });
+
+  it('en', async () => {
+    setTestLanguage('en');
+    const wrapper = await card();
+    expect(wrapper.text()).toContain('Keep a local history of my imports');
+    english(wrapper);
+    wrapper.unmount();
+  });
+
+  it('options App, locked with a new key typed: reset warning in both languages', async () => {
+    vi.mocked(send).mockImplementation((msg) =>
+      (msg.type === 'history/list' ? Promise.resolve(ok({ state: 'locked', enabled: true, entries: [] })) : Promise.resolve(config({ locked: true, needsPassphrase: false }))) as never,
+    );
+    const fr = mount(OptionsApp);
+    await flushPromises();
+    await fr.find('#apiKey').setValue('hb_xxxxxxxx');
+    expect(fr.text()).toContain('L’extension est verrouillée');
+    expectCatalogTexts(fr, [DATA]);
+    setTestLanguage('en');
+    const enApp = mount(OptionsApp);
+    await flushPromises();
+    await enApp.find('#apiKey').setValue('hb_xxxxxxxx');
+    expect(enApp.text()).toContain('The extension is locked: setting a new passphrase now erases');
   });
 });

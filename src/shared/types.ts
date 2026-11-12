@@ -156,3 +156,48 @@ export interface DuplicateMatch {
   name: string;
   url: string;
 }
+
+/** Result of an import as recorded in the local history (spec 012). `success` of `PendingImport` becomes `complete`. */
+export type HistoryStatus = 'running' | 'complete' | 'partial' | 'failed';
+
+/** What is missing from an object created in HomeBox, in this order (research.md R3.1). */
+export type HistoryMissing = 'details' | 'invoice' | 'documents' | 'photo';
+
+/**
+ * Entry of the local import history (data-model.md). Only exists in clear in the service worker memory and in
+ * the `history/list` response when unlocked: stored encrypted (`importHistory:<id>`, FR-014). Built field by
+ * field by `toEntry`: never the API key, address, payment, invoice, photo, page URL, price or location.
+ */
+export interface ImportHistoryEntry {
+  v: 1;
+  /** Identifier of the `PendingImport` (random UUID). Never changed. */
+  id: string;
+  /** ISO 8601 UTC, set at `start`, never changed. */
+  importedAt: string;
+  /** Trimmed, 1 to 255 characters. */
+  name: string;
+  /** Store identifier (never a URL); `null`: manual entry or unknown store. */
+  merchantId: MerchantId | null;
+  /** Trimmed, 1 to 64 characters, otherwise `null`. Used to group the products of an order. */
+  orderNumber: string | null;
+  /** YYYY-MM-DD, otherwise `null`. */
+  purchaseDate: string | null;
+  /** Normalized address of the instance at the time of the import. */
+  instance: string;
+  entityId: string | null;
+  status: HistoryStatus;
+  /** No duplicate, in the order details, invoice, documents, photo. */
+  missing: HistoryMissing[];
+  /** Error code, never a text. */
+  reason: ErrorCode | null;
+  /** Present only when the import was interrupted and reconciled. */
+  interrupted?: true;
+}
+
+/** Entry exposed to the UI: `resumable` is computed by `history/list`, never stored. */
+export type HistoryEntryView = ImportHistoryEntry & { resumable: boolean };
+
+/** Response of `history/list`: never an entry outside `ready` (FR-014). */
+export type HistoryListView =
+  | { state: 'ready'; enabled: boolean; entries: HistoryEntryView[] }
+  | { state: 'locked' | 'unavailable'; enabled: boolean; entries: [] };

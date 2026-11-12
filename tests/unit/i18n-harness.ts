@@ -57,5 +57,6 @@ export const IDENTICAL_OK = [
   'fields.description', // same word in both languages
   'links.support', // same word in both languages
   'links.github', // nom propre
+  'history.listSeparator', // punctuation, identical in both languages (012)
 ];
 

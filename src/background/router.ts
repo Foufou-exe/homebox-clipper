@@ -8,7 +8,7 @@ type Handler<T extends MessageType> = (msg: MessageOf<T>) => Promise<ResponseOf<
 const handlers = new Map<MessageType, Handler<MessageType>>();
 
 /** Messages reserved for extension pages (popup, options), never for injected scripts. */
-const UI_ONLY_PREFIXES = ['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/'];
+const UI_ONLY_PREFIXES = ['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/'];
 
 /**
  * True if the sender is an extension page (popup, options).

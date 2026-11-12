@@ -2,7 +2,7 @@
 
 # Politique de confidentialité
 
-**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **11 novembre 2026**
+**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **12 novembre 2026**
 
 En bref : l'extension n'a **aucun serveur, aucun compte, aucune statistique et aucune télémétrie**. Les
 données qu'elle traite vont de votre navigateur vers **votre propre** instance HomeBox, uniquement au
@@ -28,6 +28,7 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Phrase de passe | Vous la choisissez | Chiffrer et déverrouiller la clé API | **Jamais enregistrée** |
 | Liste des emplacements HomeBox et dernier emplacement utilisé (identifiants uniquement) | Votre instance HomeBox | Vous laisser choisir où ranger l'objet | Lue depuis votre instance ; identifiants conservés localement |
 | Préférence de thème | Vous | Affichage | Stockée localement |
+| Historique des imports : nom du produit, boutique, numéro de commande, dates d'import et d'achat, adresse de l'instance HomeBox, identifiant de l'objet, résultat (complet, partiel, échoué) et ce qui manque (facture, photo, documents, détails d'achat) | Chaque import que vous confirmez | Retrouver un objet importé, l'ouvrir dans HomeBox et repérer un import incomplet | Stocké localement, **chiffré avec votre phrase de passe** ; jamais envoyé ailleurs (activé par défaut, désactivable) |
 
 L'extension ne lit **pas** votre adresse de livraison, votre moyen de paiement, votre historique de
 navigation, ni aucune page autre que la page de commande Amazon sur laquelle vous l'ouvrez. La
@@ -38,7 +39,9 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
 
 - **Dans votre navigateur** (`storage.local`) : adresse de l'instance, clé API chiffrée, clé masquée
   (par exemple `hb_••••abcd`), résultat du dernier test de connexion, dernier emplacement utilisé par
-  instance, thème.
+  instance, thème, et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
+  d'historique aléatoire, elle-même scellée par votre phrase de passe comme la clé API) avec son réglage
+  d'activation.
 - **En mémoire du navigateur** (`storage.session`, effacée à la fermeture du navigateur ou au
   verrouillage, au rechargement, à la mise à jour ou à la désactivation de l'extension) : la clé API
   déchiffrée tant que l'extension est déverrouillée, et les données d'un import en cours pour pouvoir le
@@ -70,8 +73,19 @@ un nom de produit, un prix, un numéro de commande ni la clé API.
 
 ## Conservation et suppression
 
+- **Historique des imports** : au plus **200 entrées** et **12 mois** sont affichés ; les plus anciennes
+  sont supprimées à l'ouverture de l'historique ou lors d'un import, extension déverrouillée (d'ici là,
+  elles restent chiffrées et illisibles). Il est **chiffré avec votre phrase de passe**, comme la clé API : il est
+  **illisible tant que l’extension est verrouillée** et **irrécupérable** si vous oubliez la phrase de
+  passe. Il ne contient jamais la clé API, votre adresse de livraison, votre moyen de paiement, les
+  factures ni les photos, ni l'adresse de la page Amazon. Vous pouvez l'effacer à tout moment, même
+  verrouillée : **Supprimer** sur une entrée, **Tout effacer**, ou le désactiver dans la configuration (ce
+  qui l'efface). **Supprimer la configuration** l'efface aussi. Reconfigurer l'extension verrouillée avec
+  une nouvelle phrase de passe l'efface (un avertissement s'affiche avant). Désinstaller l'extension le
+  supprime.
 - Les données locales restent jusqu'à ce que vous les supprimiez. **Paramètres → Supprimer la
-  configuration** efface l'adresse, la clé chiffrée, les imports en cours, les derniers emplacements, et
+  configuration** efface l'adresse, la clé chiffrée, les imports en cours, les derniers emplacements,
+  l'historique des imports, et
   retire l'autorisation d'accès accordée à votre instance. Désinstaller l'extension supprime tout son
   stockage dans le navigateur.
 - Vous pouvez aussi révoquer la clé API dans HomeBox à tout moment.

@@ -3,6 +3,7 @@ import type { EntityOut } from '@/background/homebox/types';
 import { storeForPageUrl } from '@/content/merchants/catalog';
 import { getMessage } from '@/platform/i18n';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
+import { logError } from '@/shared/logger';
 import { findDuplicatesByName } from './duplicates';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
 import { flattenTree } from '@/shared/locations';
@@ -33,6 +34,14 @@ export interface OrchestratorDeps {
    * write error never interrupts the import.
    */
   rememberLocation?(locationId: string): Promise<void>;
+  /**
+   * Local import history (spec 012), bound to the history key and to the instance by the caller. Optional:
+   * without it, the import behaves exactly as before. A write error never interrupts the import.
+   */
+  history?: {
+    start(p: PendingImport): Promise<void>;
+    update(p: PendingImport): Promise<void>;
+  };
   notify(p: PendingImport): void;
   newId(): string;
 }
@@ -79,8 +88,19 @@ function attachmentError(error: ErrorCode): ErrorCode {
 export function createOrchestrator(deps: OrchestratorDeps) {
   const { client, store, notify } = deps;
 
+  /** History write: secondary to the import, logged by a constant code only (no data, FR-010). */
+  async function record(kind: 'start' | 'update', p: PendingImport): Promise<void> {
+    if (!deps.history) return;
+    try {
+      await deps.history[kind](p);
+    } catch {
+      logError('history write failed', { endpoint: kind === 'start' ? 'history/start' : 'history/update' });
+    }
+  }
+
   async function persist(p: PendingImport): Promise<void> {
     await store.save(p);
+    await record('update', p);
     notify(p);
   }
 
@@ -316,6 +336,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     }
     p.status = 'success';
     notify(p);
+    // The history entry becomes `complete` before the purge: the state of `p` is lost afterwards.
+    await record('update', p);
     // FR-025: purchase data is erased as soon as the import has succeeded.
     await store.purge(p);
     return p;
@@ -370,6 +392,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         photoAttempted: false,
       }));
       for (const pending of pendings) await store.save(pending);
+      for (const pending of pendings) await record('start', pending);
 
       const results: PendingImport[] = [];
       for (const pending of pendings) results.push(await run(pending, files, photos));

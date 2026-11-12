@@ -4,6 +4,7 @@ import type {
   ConfigView,
   DetectedPurchase,
   DuplicateMatch,
+  HistoryListView,
   ImportDraft,
   LocationChoice,
   LocationOption,
@@ -43,6 +44,11 @@ export type Message =
     }
   | { type: 'import/abandon'; pendingId: string }
   | { type: 'import/pending'; tabId: number }
+  // Local import history (012): never the history key, the address or the API key.
+  | { type: 'history/list' }
+  | { type: 'history/delete'; id: string }
+  | { type: 'history/clear' }
+  | { type: 'history/set-enabled'; enabled: boolean }
   // service worker → injected script
   | { type: 'amazon/extract' }
   | { type: 'amazon/download'; url: string }
@@ -77,6 +83,10 @@ export interface ResponseMap {
   'import/retry': Result<PendingImport>;
   'import/abandon': Result<void>;
   'import/pending': PendingImport[];
+  'history/list': Result<HistoryListView>;
+  'history/delete': Result<void>;
+  'history/clear': Result<void>;
+  'history/set-enabled': Result<void>;
   'amazon/extract': Result<DetectedPurchase>;
   'amazon/download': Result<DownloadedDocument>;
   'import/progress': undefined;
@@ -120,6 +130,10 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
     isStr(m.pendingId) && (m.manualFiles === undefined || isArr(m.manualFiles)) && isOptionalLocation(m.location),
   'import/abandon': (m) => isStr(m.pendingId),
   'import/pending': (m) => isInt(m.tabId),
+  'history/list': () => true,
+  'history/delete': (m) => isStr(m.id),
+  'history/clear': () => true,
+  'history/set-enabled': (m) => typeof m.enabled === 'boolean',
   'amazon/extract': () => true,
   'amazon/download': (m) => isStr(m.url),
   'import/progress': (m) => isObj(m.pending),

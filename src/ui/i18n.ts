@@ -35,3 +35,15 @@ export function formatDate(iso: string): string {
     uiLanguage() === 'fr' ? { timeZone: 'UTC' } : { timeZone: 'UTC', dateStyle: 'long' };
   return new Intl.DateTimeFormat(uiLanguage() === 'fr' ? 'fr-FR' : 'en-GB', options).format(date);
 }
+
+/**
+ * ISO date and time (`2026-11-12T10:05:00Z`) according to the interface language: `12 nov. 2026, 11:05` in
+ * French, `12 Nov 2026, 11:05` in English, in the local time zone (`timeZone` injectable for tests).
+ * An invalid value is rendered as is.
+ */
+export function formatDateTime(iso: string, timeZone?: string): string {
+  const date = new Date(iso);
+  if (iso === '' || Number.isNaN(date.getTime())) return iso;
+  const options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short', ...(timeZone ? { timeZone } : {}) };
+  return new Intl.DateTimeFormat(uiLanguage() === 'fr' ? 'fr-FR' : 'en-GB', options).format(date);
+}
