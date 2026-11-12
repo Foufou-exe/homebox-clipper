@@ -8,6 +8,7 @@ import { send } from '@/shared/messages';
 import type { ConfigView } from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
+import HistoryCard from './HistoryCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
@@ -23,6 +24,7 @@ const busy = ref(false);
 const error = ref<ErrorCode | null>(null);
 const mismatch = ref(false);
 const success = ref<string | null>(null);
+const historyCard = ref<InstanceType<typeof HistoryCard> | null>(null);
 
 /**
  * New key (or key migrated from the old format): a passphrase is chosen, with confirmation.
@@ -30,6 +32,19 @@ const success = ref<string | null>(null);
  */
 const choosingPassphrase = computed(
   () => !view.value.configured || apiKey.value.trim() !== '' || view.value.needsPassphrase === true,
+);
+
+/**
+ * Locked + new API key (so a new passphrase): the encrypted history cannot be re-sealed and will be erased by
+ * the save (R5.5). Said before sending, never silently.
+ */
+const historyResetWarning = computed(
+  () =>
+    view.value.configured === true &&
+    view.value.locked === true &&
+    !view.value.needsPassphrase &&
+    choosingPassphrase.value &&
+    apiKey.value.trim() !== '',
 );
 
 async function refresh() {
@@ -125,6 +140,8 @@ async function remove() {
   success.value = null;
   error.value = null;
   await refresh();
+  // The history was erased with the configuration (FR-009).
+  await historyCard.value?.reload();
 }
 </script>
 
@@ -213,6 +230,7 @@ async function remove() {
           <template v-else>{{ t('options.passphraseHelpCurrent') }}</template>
         </p>
 
+        <p v-if="historyResetWarning" class="notice" role="alert">{{ t('options.historyResetNotice') }}</p>
         <p v-if="mismatch" class="error" role="alert">{{ t('options.mismatch') }}</p>
         <ErrorBanner v-if="error" :code="error" />
         <p v-if="success" class="success" role="status">{{ success }}</p>
@@ -227,6 +245,8 @@ async function remove() {
         </div>
       </form>
     </section>
+
+    <HistoryCard ref="historyCard" :base-url="view.baseUrl ?? ''" />
 
     <section class="card">
       <h2>{{ t('options.appearance') }}</h2>

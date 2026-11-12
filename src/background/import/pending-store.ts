@@ -26,6 +26,17 @@ export const pendingStore = {
       .map(([, v]) => v as PendingImport);
   },
 
+  /** Identifiers of the imports still in the session (retryable). */
+  async ids(): Promise<Set<string>> {
+    const all = await browser.storage.session.get(null);
+    return new Set(
+      Object.keys(all)
+        .filter((k) => k.startsWith(PENDING_PREFIX))
+        .map((k) => k.slice(PENDING_PREFIX.length))
+        .map((rest) => rest.slice(rest.indexOf(':') + 1)),
+    );
+  },
+
   async purge(pending: Pick<PendingImport, 'tabId' | 'id'>): Promise<void> {
     await browser.storage.session.remove(keyOf(pending));
   },

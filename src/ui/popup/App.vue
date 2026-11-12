@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { browser } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { isMessage, send } from '@/shared/messages';
@@ -13,6 +13,7 @@ import { t } from '@/ui/i18n';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ResultView from './ResultView.vue';
 import SummaryView from './SummaryView.vue';
+import HistoryView from './HistoryView.vue';
 import UnlockView from './UnlockView.vue';
 
 type Screen = 'loading' | 'setup' | 'locked' | 'summary' | 'result';
@@ -23,6 +24,9 @@ const tabId = ref<number | null>(null);
 const pendings = ref<PendingImport[]>([]);
 const running = ref(false);
 const error = ref<ErrorCode | null>(null);
+/** History view (012): shown next to the current screen, which stays mounted (`v-show`) and keeps its drafts. */
+const showHistory = ref(false);
+const historyButton = ref<HTMLButtonElement | null>(null);
 
 function upsert(p: PendingImport) {
   const i = pendings.value.findIndex((x) => x.id === p.id);
@@ -111,6 +115,22 @@ function onAbandoned(id: string) {
   if (pendings.value.length === 0) screen.value = 'summary';
 }
 
+function openHistory() {
+  showHistory.value = true;
+}
+
+async function closeHistory() {
+  showHistory.value = false;
+  await nextTick();
+  historyButton.value?.focus();
+}
+
+/** "Unlock" from the locked history: back to the existing unlock screen. */
+function unlockFromHistory() {
+  showHistory.value = false;
+  screen.value = 'locked';
+}
+
 function openOptions() {
   void browser.runtime.openOptionsPage();
 }
@@ -120,6 +140,18 @@ function openOptions() {
   <div class="popup">
     <AppHeader>
       <ThemeToggle />
+      <button
+        v-if="view.configured"
+        ref="historyButton"
+        class="header-icon"
+        type="button"
+        :aria-label="t('history.openAria')"
+        :title="t('history.openTitle')"
+        :aria-pressed="showHistory"
+        @click="openHistory"
+      >
+        <Icon name="history" />
+      </button>
       <button
         v-if="view.configured && !view.locked && !view.needsPassphrase"
         class="header-icon"
@@ -142,40 +174,48 @@ function openOptions() {
     </AppHeader>
 
     <main class="content">
-      <!-- Outside the v-if chain below: the notice must never hide the summary. -->
-      <p v-if="view.needsPassphrase && !view.locked && screen !== 'setup'" class="notice" role="alert">
-        {{ t('popup.unprotectedPrefix') }}
-        <button class="link" type="button" @click="openOptions">{{ t('popup.unprotectedLink') }}</button>.
-      </p>
-
-      <p v-if="screen === 'loading'" class="muted" role="status">{{ t('popup.loading') }}</p>
-
-      <section v-else-if="screen === 'setup'" class="card">
-        <p v-if="view.needsPassphrase">
-          {{ t('popup.setupPassphrase') }}
+      <HistoryView
+        v-if="showHistory"
+        :base-url="view.baseUrl ?? ''"
+        @close="closeHistory"
+        @unlock="unlockFromHistory"
+      />
+      <div v-show="!showHistory">
+        <!-- Outside the v-if chain below: the notice must never hide the summary. -->
+        <p v-if="view.needsPassphrase && !view.locked && screen !== 'setup'" class="notice" role="alert">
+          {{ t('popup.unprotectedPrefix') }}
+          <button class="link" type="button" @click="openOptions">{{ t('popup.unprotectedLink') }}</button>.
         </p>
-        <p v-else>{{ t('popup.setupConfigure') }}</p>
-        <button class="primary" type="button" @click="openOptions">{{ t('popup.configureButton') }}</button>
-      </section>
 
-      <UnlockView v-else-if="screen === 'locked'" :config="view" @unlocked="onUnlocked" />
+        <p v-if="screen === 'loading'" class="muted" role="status">{{ t('popup.loading') }}</p>
 
-      <SummaryView v-else-if="screen === 'summary' && tabId !== null" :tab-id="tabId" :config="view" @submit="onSubmit" />
+        <section v-else-if="screen === 'setup'" class="card">
+          <p v-if="view.needsPassphrase">
+            {{ t('popup.setupPassphrase') }}
+          </p>
+          <p v-else>{{ t('popup.setupConfigure') }}</p>
+          <button class="primary" type="button" @click="openOptions">{{ t('popup.configureButton') }}</button>
+        </section>
 
-      <template v-else-if="screen === 'result'">
-        <InstanceBadge :config="view" />
-        <ErrorBanner v-if="error" :code="error">
-          <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">{{ t('popup.checkConfiguration') }}</button>
-          <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">{{ t('unlock.submit') }}</button>
-        </ErrorBanner>
-        <ResultView
-          :pendings="pendings"
-          :base-url="view.baseUrl ?? ''"
-          :running="running"
-          @updated="upsert"
-          @abandoned="onAbandoned"
-        />
-      </template>
+        <UnlockView v-else-if="screen === 'locked'" :config="view" @unlocked="onUnlocked" />
+
+        <SummaryView v-else-if="screen === 'summary' && tabId !== null" :tab-id="tabId" :config="view" @submit="onSubmit" />
+
+        <template v-else-if="screen === 'result'">
+          <InstanceBadge :config="view" />
+          <ErrorBanner v-if="error" :code="error">
+            <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">{{ t('popup.checkConfiguration') }}</button>
+            <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">{{ t('unlock.submit') }}</button>
+          </ErrorBanner>
+          <ResultView
+            :pendings="pendings"
+            :base-url="view.baseUrl ?? ''"
+            :running="running"
+            @updated="upsert"
+            @abandoned="onAbandoned"
+          />
+        </template>
+      </div>
     </main>
     <footer class="project-footer">
       <ProjectLinks variant="footer" />

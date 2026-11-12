@@ -1,6 +1,7 @@
 import { configStore } from '@/background/config/config-store';
 import { registerConfigHandlers } from '@/background/config/handlers';
 import { registerDetectHandlers } from '@/background/detect';
+import { registerHistoryHandlers } from '@/background/history/handlers';
 import { registerImportHandlers } from '@/background/import/handlers';
 import { registerLocationHandlers } from '@/background/location/handlers';
 import { startRouter } from '@/background/router';
@@ -13,6 +14,7 @@ export default defineBackground(() => {
   registerDetectHandlers();
   registerImportHandlers();
   registerLocationHandlers();
+  registerHistoryHandlers();
   startRouter();
 
   browser.runtime.onInstalled.addListener(({ reason }) => {

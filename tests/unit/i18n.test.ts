@@ -2,6 +2,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { getMessage, getUILanguage } from '@/platform/i18n';
 import { ERROR_CODES } from '@/shared/errors';
 import { errorMessage, formatDate, t, uiLanguage } from '@/ui/i18n';
+import { formatDateTime } from '@/ui/i18n';
 
 vi.mock('@/platform/i18n');
 
@@ -57,5 +58,31 @@ describe('src/platform/i18n.ts (browser.i18n wrapper)', () => {
     };
     expect(real('popup.summary.addButton', ['x'])).toBe('Ajouter');
     expect(spy).toHaveBeenCalledWith('popup_summary_addButton', ['x']);
+  });
+});
+
+describe('formatDateTime (012, Q-U25, FR-011)', () => {
+  it('French: medium date and short time, time zone injected', () => {
+    vi.mocked(getUILanguage).mockReturnValue('fr');
+    expect(formatDateTime('2026-11-12T10:05:00.000Z', 'UTC')).toBe('12 nov. 2026, 10:05');
+    expect(formatDateTime('2026-11-12T10:05:00.000Z', 'Europe/Paris')).toBe('12 nov. 2026, 11:05');
+  });
+
+  it('English (en-GB) for any other language', () => {
+    for (const lang of ['en', 'en-US', 'de']) {
+      vi.mocked(getUILanguage).mockReturnValue(lang);
+      expect(formatDateTime('2026-11-12T10:05:00.000Z', 'UTC'), lang).toBe('12 Nov 2026, 10:05');
+    }
+  });
+
+  it('an invalid ISO string is rendered as is, without an exception', () => {
+    vi.mocked(getUILanguage).mockReturnValue('fr');
+    expect(formatDateTime('pas une date')).toBe('pas une date');
+    expect(formatDateTime('')).toBe('');
+  });
+
+  it('formatDate (purchase date, UTC) is unchanged', () => {
+    vi.mocked(getUILanguage).mockReturnValue('fr');
+    expect(formatDate('2026-10-22')).toBe('22/10/2026');
   });
 });

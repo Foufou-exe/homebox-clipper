@@ -1,3 +1,7 @@
+import { configStore } from '@/background/config/config-store';
+import { registerHistoryHandlers } from '@/background/history/handlers';
+import { importHistoryKey, open } from '@/background/history/history-crypto';
+import { historyStore } from '@/background/history/history-store';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { activeImports, registerImportHandlers } from '@/background/import/handlers';
 import { pendingStore } from '@/background/import/pending-store';
@@ -70,5 +74,56 @@ describe('orphaned imports after the service worker stops (R8)', () => {
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list[0]).toMatchObject({ id: 'g', status: 'failed', orphaned: true });
     expect(list[0]?.createUncertain).toBeFalsy();
+  });
+});
+
+describe('orphaned imports: history reconciliation (012, Q-U13, Q-U36)', () => {
+  const HB = 'https://homebox.example.com';
+  const PASS = 'une phrase de passe solide';
+
+  async function withHistory(p: PendingImport) {
+    await configStore.save({ baseUrl: HB, apiKey: 'hb_xxxxxxxx', passphrase: PASS }, 1_000);
+    const key = await importHistoryKey((await configStore.getHistoryKey())!);
+    await historyStore.start(key, p, HB);
+    await pendingStore.save(p);
+    return key;
+  }
+  const entryOf = async (key: CryptoKey, id: string) => open((await fakeBrowser.storage.local.get(null))[`importHistory:${id}`], key, id);
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    activeImports.clear();
+    registerImportHandlers();
+    registerHistoryHandlers();
+  });
+
+  it('running absent from active imports: recoverOrphan reconciles the entry (partial with entityId, failed without)', async () => {
+    const key = await withHistory(running('h1', 'e1'));
+    await historyStore.start(key, running('h2', null), HB);
+    await pendingStore.save(running('h2', null));
+    await call({ type: 'import/pending', tabId: 5 });
+    expect(await entryOf(key, 'h1')).toMatchObject({ status: 'partial', interrupted: true, reason: null });
+    expect(await entryOf(key, 'h2')).toMatchObject({ status: 'failed', interrupted: true, reason: null, missing: [] });
+  });
+
+  it('best effort: without the history key (locked) recoverOrphan does not throw; reconciliation at history/list after unlock', async () => {
+    const key = await withHistory(running('h1', 'e1'));
+    await configStore.lock();
+    const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
+    expect(list[0]).toMatchObject({ status: 'partial' });
+    expect(await entryOf(key, 'h1')).toMatchObject({ status: 'running' });
+    await configStore.unlock(PASS);
+    const res = (await call({ type: 'history/list' })) as { value: { entries: { status: string; interrupted?: boolean }[] } };
+    expect(res.value.entries[0]).toMatchObject({ status: 'partial', interrupted: true });
+  });
+
+  it('Q-U36: service worker stopped (writer dropped, activeImports emptied): reconciled at the next list', async () => {
+    const key = await withHistory(running('h1', null));
+    activeImports.add('h1');
+    activeImports.clear();
+    const res = (await call({ type: 'history/list' })) as { value: { entries: { status: string; interrupted?: boolean }[] } };
+    expect(res.value.entries[0]).toMatchObject({ status: 'failed', interrupted: true });
+    expect(await entryOf(key, 'h1')).toMatchObject({ status: 'failed', interrupted: true });
   });
 });

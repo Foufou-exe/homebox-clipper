@@ -65,6 +65,7 @@ PRIVACY AND SECURITY
 - No server, no account, no analytics, no telemetry. Your data goes only to your own HomeBox instance.
 - Nothing is imported without your confirmation.
 - Your API key is stored encrypted with your passphrase (AES-GCM, PBKDF2 with 600,000 iterations), is never sent to Amazon or to any intermediary server, and is never written to logs.
+- A short import history (200 entries, 12 months) is kept only in your browser, encrypted with the same passphrase. You can clear it or turn it off at any time.
 - No broad permission: the extension has no permanent access to any website. It reads the Amazon tab only when you open it, and asks access to the exact address of your HomeBox instance only.
 - HTTPS is required, except for local network addresses (with a warning).
 - Open source (MIT license): https://github.com/Foufou-exe/homebox-clipper
@@ -100,6 +101,7 @@ CONFIDENTIALITÉ ET SÉCURITÉ
 - Aucun serveur, aucun compte, aucune statistique, aucune télémétrie. Vos données vont uniquement vers votre propre instance HomeBox.
 - Rien n'est importé sans votre confirmation.
 - Votre clé API est stockée chiffrée avec votre phrase de passe (AES-GCM, PBKDF2 avec 600 000 itérations), n'est jamais envoyée à Amazon ni à un serveur intermédiaire, et n'est jamais écrite dans les journaux.
+- Un court historique des imports (200 entrées, 12 mois) est conservé uniquement dans votre navigateur, chiffré avec la même phrase de passe. Vous pouvez l'effacer ou le désactiver à tout moment.
 - Aucune permission large : l'extension n'a aucun accès permanent à un site. Elle lit l'onglet Amazon uniquement quand vous l'ouvrez, et ne demande l'accès qu'à l'adresse exacte de votre instance HomeBox.
 - HTTPS obligatoire, sauf pour les adresses du réseau local (avec un avertissement).
 - Open source (licence MIT) : https://github.com/Foufou-exe/homebox-clipper
@@ -136,13 +138,13 @@ The manifest declares `storage`, `activeTab`, `scripting` and the optional host 
 EN:
 
 ```
-Stores the user's HomeBox instance address, the API key encrypted with the user's passphrase, the theme, the last location used, and (in session memory only) the data of an import in progress so it can be resumed after an error. Nothing is synced or sent anywhere.
+Stores the user's HomeBox instance address, the API key encrypted with the user's passphrase, the theme, the last location used, a short local import history (product name, store, order number, dates, result and item link; at most 200 entries and 12 months, encrypted with the user's passphrase, can be cleared or turned off), and (in session memory only) the data of an import in progress so it can be resumed after an error. Nothing is synced or sent anywhere.
 ```
 
 FR :
 
 ```
-Conserve l'adresse de l'instance HomeBox de l'utilisateur, la clé API chiffrée avec sa phrase de passe, le thème, le dernier emplacement utilisé et (en mémoire de session uniquement) les données d'un import en cours pour le reprendre après une erreur. Rien n'est synchronisé ni envoyé ailleurs.
+Conserve l'adresse de l'instance HomeBox de l'utilisateur, la clé API chiffrée avec sa phrase de passe, le thème, le dernier emplacement utilisé, un court historique des imports local (nom du produit, boutique, numéro de commande, dates, résultat et lien vers l'objet ; au plus 200 entrées et 12 mois, chiffré avec la phrase de passe de l'utilisateur, effaçable et désactivable) et (en mémoire de session uniquement) les données d'un import en cours pour le reprendre après une erreur. Rien n'est synchronisé ni envoyé ailleurs.
 ```
 
 **activeTab**
@@ -220,13 +222,13 @@ ticked.
 |----------|-------|---------------|
 | Personally identifiable information | Yes | The invoice PDF, sent as is to the user's own HomeBox instance, may contain the name or address printed by Amazon. The extension does not read the delivery address from the page. |
 | Health information | No | Not handled. |
-| Financial and payment information | Yes | Purchase price, order number and invoice (purchase records) are read and sent to the user's own HomeBox instance. No payment method or card data is read. |
+| Financial and payment information | Yes | Purchase price, order number and invoice (purchase records) are read and sent to the user's own HomeBox instance, and the order number is kept locally, encrypted, in a short import history. No payment method or card data is read. |
 | Authentication information | Yes | The user's HomeBox API key is stored encrypted locally and sent only to the user's HomeBox instance. |
 | Personal communications | No | Not handled. |
 | Location | No | No geographic location. The HomeBox "locations" are storage places in the user's inventory (identifiers only). |
 | Web history | No | Only the Amazon order tab opened by the user is read, at the user's click. No browsing history is collected. |
 | User activity | No | No clicks, keystrokes or usage tracking. |
-| Website content | Yes | Text and image address of the Amazon order page (product, price, date, seller, photo) are read at the user's click and sent to the user's own HomeBox instance after confirmation. |
+| Website content | Yes | Text and image address of the Amazon order page (product, price, date, seller, photo) are read at the user's click and sent to the user's own HomeBox instance after confirmation; the product name is kept locally, encrypted, in a short import history. |
 
 Certifications (tick all three):
 

@@ -59,7 +59,13 @@ test instance on another machine of the local network will have an address like
   knowing the passphrase (see [Security-and-privacy](Security-and-privacy.md)).
 - **Change the passphrase**: enter the API key again with the new passphrase.
 - **Delete settings**: erases the address, the encrypted key, the in-progress imports kept for recovery,
-  and **removes the access permission** granted to the instance.
+  the import history (its on/off setting is kept), and **removes the access permission** granted to the
+  instance.
+- **Import history**: the **Import history** card turns the local history on or off (turning it off
+  erases it, after a confirmation). See [Usage](Usage.md#import-history).
+- **New passphrase while locked**: if the extension is locked and you enter a new key and a new
+  passphrase, the encrypted import history can no longer be read and is erased; a warning says so before
+  sending. Unlock first (from the popup) to keep it.
 - **Forgotten passphrase**: it cannot be recovered. Delete the settings, then set the extension up again
   with your API key (or a new key).
 

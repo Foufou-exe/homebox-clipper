@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { dispatch, register, startRouter } from '@/background/router';
 
@@ -180,5 +182,54 @@ describe('router — runtime.onMessage listener (contracts/runtime-messages.md)'
     const r = await call({ type: 'config/get' }, { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` });
     expect(r.response).toEqual({ configured: false });
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('router — history/* reserved to extension pages (012, T013)', () => {
+  const MESSAGES = [
+    { type: 'history/list' },
+    { type: 'history/delete', id: 'a' },
+    { type: 'history/clear' },
+    { type: 'history/set-enabled', enabled: false },
+  ] as const;
+  const handler = vi.fn(async () => ({ ok: true, value: undefined }));
+  const id = () => fakeBrowser.runtime.id;
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    handler.mockClear();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
+    for (const m of MESSAGES) register(m.type, handler as never);
+  });
+
+  it.each(MESSAGES)('$type forged by the script injected on amazon.fr: BAD_MESSAGE, handler not called', async (msg) => {
+    const sender = { id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } };
+    expect(await dispatch(msg, sender)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it.each(MESSAGES)('$type accepted from the popup and from the options page', async (msg) => {
+    expect(await dispatch(msg, { id: id(), url: `${BASE}popup.html` })).toEqual({ ok: true, value: undefined });
+    expect(await dispatch(msg, { id: id(), url: `${BASE}options.html`, tab: { id: 3 } })).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("source: 'history/' is in UI_ONLY_PREFIXES", () => {
+    const source = readFileSync(resolve(__dirname, '../../src/background/router.ts'), 'utf8');
+    const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='));
+    expect(line).toContain("'history/'");
+  });
+
+  it.each([
+    [{ type: 'history/delete' }],
+    [{ type: 'history/delete', id: 3 }],
+    [{ type: 'history/set-enabled' }],
+    [{ type: 'history/set-enabled', enabled: 'false' }],
+  ])('validators: %j is refused', async (msg) => {
+    expect(await dispatch(msg, { id: id(), url: `${BASE}popup.html` })).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
   });
 });

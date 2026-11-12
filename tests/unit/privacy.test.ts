@@ -1,3 +1,9 @@
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { importHistoryKey } from '@/background/history/history-crypto';
+import { registerHistoryHandlers } from '@/background/history/handlers';
+import { historyStore } from '@/background/history/history-store';
+import { bytesToBase64 } from '@/shared/pdf';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { createHomeBoxClient } from '@/background/homebox/client';
 import { createOrchestrator } from '@/background/import/orchestrator';
@@ -206,5 +212,104 @@ describe('location privacy (scenario 24, SC-008)', () => {
     expect(output.length).toBeGreaterThan(2);
     expect(output).toContain('GET /entities/tree');
     for (const name of [...NAMES, KEY]) expect(output).not.toContain(name);
+  });
+});
+
+describe('import history privacy (012, Q-U4, Q-U18, Q-U28, FR-003, FR-010, FR-014)', () => {
+  const PRIVATE_ADDRESS = '12 rue Exemple, 75000 Paris';
+  const PAGE_URL = 'https://www.amazon.fr/your-orders/order-details';
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+
+  async function historyRun(...homebox: Parameters<typeof mockFetch>) {
+    const m = mockFetch(...homebox);
+    const key = await importHistoryKey((await configStore.getHistoryKey())!);
+    const writer = historyStore.forKey(key);
+    let n = 0;
+    return createOrchestrator({
+      client: createHomeBoxClient({ baseUrl: 'https://homebox.example.com', apiKey: KEY, fetchImpl: m.fetch }),
+      store: pendingStore,
+      downloadDetected: async () => ok({ base64: PDF_B64 }),
+      fetchPhoto: async () => ok({ bytes: new Uint8Array([0xff, 0xd8, 0xff]), mimeType: 'image/jpeg', filename: 'p.jpg' }),
+      notify: () => undefined,
+      newId: () => `hist-${Date.now()}-${++n}`,
+      history: { start: (p) => writer.start(p, 'https://homebox.example.com'), update: (p) => writer.update(p) },
+    });
+  }
+
+  const sensitiveDraft = () => {
+    const d = draft({ pageUrl: PAGE_URL, photo: draftPhoto({ url: PHOTO_URL }) });
+    (d as unknown as Record<string, unknown>).deliveryAddress = PRIVATE_ADDRESS;
+    return d;
+  };
+
+  it('storage.local holds no key, address, page URL, photo URL, price, nor any entry value in clear', async () => {
+    fakeBrowser.reset();
+    await configStore.save({ baseUrl: 'https://homebox.example.com', apiKey: KEY, passphrase: 'une phrase de passe solide' }, 1_000);
+    const hek = bytesToBase64((await configStore.getHistoryKey())!);
+    const o = await historyRun(json(201, { id: 'entity-77', name: 'x' }), json(200, {}), json(201, {}), json(201, {}));
+    const r = await o.startImport(1, [sensitiveDraft()], []);
+    expect(r.ok && r.value[0]?.status).toBe('success');
+
+    const all = await fakeBrowser.storage.local.get(null);
+    const raw = JSON.stringify(all);
+    for (const v of [KEY, PRIVATE_ADDRESS, PAGE_URL, PHOTO_URL, '99.99', hek]) expect(raw).not.toContain(v);
+    const entries = Object.entries(all).filter(([k]) => k.startsWith('importHistory:'));
+    expect(entries).toHaveLength(1);
+    const entryValues = JSON.stringify(entries.map(([, v]) => v));
+    for (const v of ['Clavier sans fil Exemple Pro', '999-0000000-0000001', 'amazon.fr', 'entity-77', 'homebox.example.com']) {
+      expect(entryValues).not.toContain(v);
+    }
+    for (const [, v] of entries) expect(Object.keys(v as object).sort()).toEqual(['ct', 'iv', 'v']);
+    // The encrypted API key is in the configuration, never in an entry.
+    const encryptedKey = (all.homeboxConfig as { encryptedKey: { ct: string } }).encryptedKey.ct;
+    expect(entryValues).not.toContain(encryptedKey);
+  });
+
+  it('console output of a complete, partial and failed import with history, then history/*: no name, order, key, address', async () => {
+    fakeBrowser.reset();
+    const spies = spyConsole();
+    await configStore.save({ baseUrl: 'https://homebox.example.com', apiKey: KEY, passphrase: 'une phrase de passe solide' }, 1_000);
+    const hek = bytesToBase64((await configStore.getHistoryKey())!);
+    await (await historyRun(json(201, { id: 'e1', name: 'x' }), json(200, {}), json(201, {}), json(201, {}))).startImport(1, [sensitiveDraft()], []);
+    await (await historyRun(json(201, { id: 'e2', name: 'x' }), json(200, {}), json(500, {}), json(500, {}))).startImport(1, [sensitiveDraft()], []);
+    await (await historyRun(json(500, { error: 'Clavier sans fil Exemple Pro' }), json(500, {}))).startImport(1, [sensitiveDraft()], []);
+
+    const ext = 'chrome-extension://abcdefghijklmnop/';
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => ext + p.replace(/^\//, ''));
+    registerHistoryHandlers();
+    const sender = { id: fakeBrowser.runtime.id, url: `${ext}popup.html` };
+    const listed = (await dispatch({ type: 'history/list' }, sender)) as { ok: boolean; value: { entries: { id: string }[] } };
+    expect(listed.value.entries).toHaveLength(3);
+    await dispatch({ type: 'history/delete', id: listed.value.entries[0]!.id }, sender);
+    await dispatch({ type: 'history/clear' }, sender);
+
+    const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+    for (const v of [KEY, hek, PRIVATE_ADDRESS, 'Clavier sans fil Exemple Pro', '999-0000000-0000001', 'homebox.example.com']) {
+      expect(output).not.toContain(v);
+    }
+  });
+
+  const sources = (dir: string): string[] =>
+    readdirSync(dir).flatMap((f) => {
+      const p = join(dir, f);
+      return statSync(p).isDirectory() ? sources(p) : [p];
+    });
+
+  it('source sweep: no console. in src/background/history/, src/background/config/ nor src/ui/ (FR-010)', () => {
+    const files = [
+      ...sources(resolve(__dirname, '../../src/background/history')),
+      ...sources(resolve(__dirname, '../../src/background/config')),
+      ...sources(resolve(__dirname, '../../src/ui')),
+    ];
+    expect(files.length).toBeGreaterThan(4);
+    for (const f of files) expect(readFileSync(f, 'utf8'), f).not.toMatch(/console\./);
+  });
+
+  it('source sweep: no network nor sync storage in src/background/history/ (FR-002, SC-003)', () => {
+    for (const f of sources(resolve(__dirname, '../../src/background/history'))) {
+      const src = readFileSync(f, 'utf8');
+      for (const banned of ['fetch(', 'XMLHttpRequest', 'sendBeacon', 'storage.sync']) expect(src, `${f}: ${banned}`).not.toContain(banned);
+    }
   });
 });

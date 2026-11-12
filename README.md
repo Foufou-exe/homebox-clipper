@@ -39,6 +39,7 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **Editable summary** before anything is sent, with undetected fields flagged.
 - **3-step import** (item, invoice PDF, photo); multi-item orders, manual PDF attachment and **duplicate detection**.
 - **Error recovery**: if the invoice could not be sent, retry without creating a duplicate.
+- **Import history**: your latest imports with their result and a link to the item, kept only in your browser and encrypted with your passphrase (200 entries, 12 months; can be cleared or turned off).
 - **Product photo** attached to the item as its main image (can be unticked per product).
 - **Location choice** among your HomeBox locations, with search; the last one used is suggested.
 - **HomeBox-colored interface**, in light, dark or automatic theme, in **English or French** depending on your browser language.

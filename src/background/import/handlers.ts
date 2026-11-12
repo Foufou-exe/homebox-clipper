@@ -2,21 +2,34 @@ import { configStore } from '@/background/config/config-store';
 import { lastLocation } from '@/background/location/last-location';
 import { injectExtractor } from '@/background/detect';
 import { createHomeBoxClient } from '@/background/homebox/client';
+import { importHistoryKey } from '@/background/history/history-crypto';
+import { historyStore } from '@/background/history/history-store';
 import { register } from '@/background/router';
 import { browser } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
+import { logError } from '@/shared/logger';
 import type { PendingImport } from '@/shared/types';
 import { sendToTab } from '@/shared/messages';
 import { findDuplicates } from './duplicates';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { fetchPhoto } from './photo-fetch';
 import { pendingStore } from './pending-store';
+import { activeImports } from './active-imports';
+
+export { activeImports };
 
 /**
- * Imports in progress in THIS service worker. In memory, so empty after a restart: a persisted
- * `running` import missing from the set has no process behind it anymore (R8).
+ * History entry of an orphaned import → partial/failed + interrupted (R1.3). Best effort: without the history
+ * key in the session (locked), reconciliation is deferred to `history/list`; no error goes up.
  */
-export const activeImports = new Set<string>();
+async function reconcileHistory(p: PendingImport): Promise<void> {
+  try {
+    const raw = await configStore.getHistoryKey();
+    if (raw) await historyStore.reconcile(await importHistoryKey(raw), p);
+  } catch {
+    logError('history write failed', { endpoint: 'history/update' });
+  }
+}
 
 /** Makes an orphaned `running` import retryable, and persists it. */
 async function recoverOrphan(p: PendingImport): Promise<PendingImport> {
@@ -25,6 +38,7 @@ async function recoverOrphan(p: PendingImport): Promise<PendingImport> {
   // Only an import whose creation POST has started is uncertain; the following ones in a batch are not.
   if (!p.entityId && p.createAttempted) recovered.createUncertain = true;
   await pendingStore.save(recovered);
+  await reconcileHistory(recovered);
   return recovered;
 }
 
@@ -32,6 +46,10 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
   const creds = await configStore.getCredentials();
   if (!creds.ok) return creds;
   const config = creds.value;
+  // History key captured in the closure, like the API key (R10.5): the import keeps writing its entry even if
+  // the extension is locked meanwhile. No key (migrated key without passphrase): import without history.
+  const rawHistoryKey = await configStore.getHistoryKey();
+  const writer = rawHistoryKey ? historyStore.forKey(await importHistoryKey(rawHistoryKey)) : null;
   return ok(createOrchestrator({
     client: createHomeBoxClient({ baseUrl: config.baseUrl, apiKey: config.apiKey }),
     store: pendingStore,
@@ -48,6 +66,9 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
     fetchPhoto,
     // Last location used, specific to this instance (R10): identifier only.
     rememberLocation: (id) => lastLocation.set(config.baseUrl, id),
+    ...(writer
+      ? { history: { start: (p: PendingImport) => writer.start(p, config.baseUrl), update: (p: PendingImport) => writer.update(p) } }
+      : {}),
     notify(pending) {
       browser.runtime.sendMessage({ type: 'import/progress', pending }).catch(() => {
         // popup closed: the state remains readable via import/pending

@@ -100,6 +100,27 @@ the check fails ("The duplicate check could not be performed."), the import rema
 If no document is attached, the extension asks "No invoice will be attached. Create the item anyway?"
 before creating the item.
 
+## Import history
+
+Every import you confirm is recorded in a short local history, **encrypted with your passphrase** and
+kept only in this browser. Open it with the **clock** button of the popup header, or in the
+**Import history** card of the settings page.
+
+- Imports are listed from the most recent: product name, store, import date, purchase date and result:
+  **Complete**, **Partial** (what is missing is named, for example "invoice not sent"), **Failed** (with
+  the reason) or **In progress**. Products of the same order are grouped under the order number.
+- **Open in HomeBox** opens the item in a new tab; it is offered only for the instance currently
+  configured.
+- A **Partial** or **Failed** entry says "Can be resumed" while the recovery is still possible: open the
+  order page, then the extension (see [Recovery after an error](#recovery-after-an-error)). A successful
+  recovery updates the same entry.
+- **Delete** removes one entry; **Clear all** erases everything after a confirmation. In the settings, the
+  **Keep a local history of my imports** box turns it off (after a confirmation, it erases everything).
+- **Locked** extension: the history shows "History locked" and nothing else; unlock to read it. Clearing
+  and turning it off still work.
+- At most 200 entries and 12 months are kept. Setting up the extension again with a **new passphrase
+  while it is locked** erases the history (a warning is shown before sending).
+
 ## Recovery after an error
 
 An import is made of several calls (see [Architecture](Architecture.md)). If the item is created but the
