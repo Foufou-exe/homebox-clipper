@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Ask a question (Discussions Q&A)
+    url: https://github.com/Foufou-exe/homebox-clipper/discussions/new?category=q-a
+    about: Need help using or setting up the extension? Ask the community here
+  - name: Share an idea (Discussions Ideas)
+    url: https://github.com/Foufou-exe/homebox-clipper/discussions/new?category=ideas
+    about: Suggest an improvement and talk it over before it becomes a feature request
   - name: Security policy
     url: https://github.com/Foufou-exe/homebox-clipper/security/policy
     about: Report a vulnerability privately (do not open a public issue)

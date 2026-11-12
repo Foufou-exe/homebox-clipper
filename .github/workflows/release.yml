@@ -62,6 +62,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      discussions: write # announcement discussion (step below), nothing else
     env:
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag_name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,8 +136,47 @@ jobs:
             gh release create "$TAG" "$ZIP_FILE" "${ZIP_FILE}.sha256" \
               --title "$TAG" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
-              --verify-tag
+              --verify-tag \
+              --discussion-category "Announcements"
           fi
+
+      # Release Please publishes the release itself, and `gh release edit --discussion-category` only
+      # acts when publishing a draft: so the announcement is created explicitly. Idempotent (nothing
+      # happens if the release already has a discussion) and never blocking (warning only).
+      - name: Announce the release in Discussions
+        run: |
+          set +e
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.discussion_url // empty')"
+          if [ $? -ne 0 ]; then
+            echo "::warning::Could not read release $TAG; announcement skipped."
+            exit 0
+          fi
+          if [ -n "$existing" ]; then
+            echo "Release $TAG already has a discussion: $existing"
+            exit 0
+          fi
+          ids="$(gh api graphql \
+            -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id discussionCategories(first: 25) { nodes { id slug } } } }' \
+            -f owner="${GITHUB_REPOSITORY%%/*}" -f name="${GITHUB_REPOSITORY#*/}" \
+            --jq '.data.repository | .id + " " + ((.discussionCategories.nodes[] | select(.slug == "announcements") | .id) // "")')"
+          repo_id="${ids%% *}"
+          category_id="${ids#* }"
+          if [ -z "$repo_id" ] || [ -z "$category_id" ] || [ "$category_id" = "$ids" ]; then
+            echo "::warning::Discussions category 'announcements' not found (or Discussions disabled); announcement skipped."
+            exit 0
+          fi
+          {
+            printf 'Release: https://github.com/%s/releases/tag/%s\n\n' "$GITHUB_REPOSITORY" "$TAG"
+            head -c 3000 "$RUNNER_TEMP/notes.md"
+            printf '\n\nQuestions or feedback? Reply below, or open the Q&A category.\n'
+          } > "$RUNNER_TEMP/announcement.md"
+          gh api graphql \
+            -f query='mutation($repo: ID!, $cat: ID!, $title: String!, $body: String!) { createDiscussion(input: {repositoryId: $repo, categoryId: $cat, title: $title, body: $body}) { discussion { url } } }' \
+            -f repo="$repo_id" -f cat="$category_id" \
+            -f title="homebox-clipper $TAG released" -F body=@"$RUNNER_TEMP/announcement.md" \
+            --jq '.data.createDiscussion.discussion.url' \
+            || echo "::warning::Could not create the announcement discussion for $TAG."
+          exit 0
 
   chrome-web-store:
     needs: [release-please, publish]

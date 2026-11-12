@@ -1,0 +1,12 @@
+- name: bug
+  color: "d73a4a"
+  description: Comportement incorrect
+- name: enhancement
+  color: "a2eeef"
+  description: Amélioration
+- name: "merchant: detection"
+  color: "fbca04"
+  description: Champ mal détecté
+- name: "merchant: request"
+  color: "0e8a16"
+  description: Nouveau marchand

@@ -1,0 +1,24 @@
+# Discussion category form for "General". Syntax:
+# https://docs.github.com/en/discussions/managing-discussions-for-your-community/syntax-for-discussion-category-forms
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hello! This is the place for anything about homebox-clipper that does not fit elsewhere.
+
+        Need help? Use **Q&A**. Have a suggestion? Use **Ideas**. Please read the [Code of Conduct](https://github.com/Foufou-exe/homebox-clipper/blob/main/CODE_OF_CONDUCT.md): be kind, we are all here to learn.
+
+        Never attach raw store pages, API keys, real instance addresses (public or local) or personal data.
+  - type: textarea
+    id: topic
+    attributes:
+      label: What is on your mind?
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed any personal data, API key and real instance address from this post.
+          required: true

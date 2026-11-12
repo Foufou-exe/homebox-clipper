@@ -1,0 +1,78 @@
+# Discussion category form for "Q&A". Syntax:
+# https://docs.github.com/en/discussions/managing-discussions-for-your-community/syntax-for-discussion-category-forms
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Welcome, and thanks for asking! Questions are always fine here.
+
+        Please look at the [Troubleshooting and FAQ](https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ) and the existing discussions first. For questions about HomeBox itself, the [HomeBox documentation](https://homebox.software) is the best place.
+
+        Never attach raw store pages, API keys, real instance addresses (public or local) or personal data.
+
+        Found a reproducible bug? Please use the [bug report form](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=bug.yml) instead.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Steps you took and what happened, without any personal data.
+    validations:
+      required: false
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      description: Visible in `chrome://extensions`.
+      placeholder: "0.2.0"
+    validations:
+      required: false
+  - type: input
+    id: homebox-version
+    attributes:
+      label: HomeBox version
+      description: Shown in the HomeBox footer or its status page.
+      placeholder: "v0.27.0"
+    validations:
+      required: false
+  - type: dropdown
+    id: amazon-store
+    attributes:
+      label: Amazon store
+      description: Which store were you on, if the question is about an import?
+      options:
+        - Not applicable
+        - Amazon.fr
+        - Amazon.de
+        - Amazon.es
+        - Amazon.it
+        - Amazon.com.be
+        - Amazon.nl
+        - Amazon.co.uk
+        - Amazon.com
+        - Other
+    validations:
+      required: false
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      description: Name and version (see `chrome://version`).
+      placeholder: "Chrome 140, Brave 1.80, Edge 140…"
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing discussions and the FAQ.
+          required: true
+        - label: I removed any personal data, API key and real instance address from this post.
+          required: true

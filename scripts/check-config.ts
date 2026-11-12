@@ -34,9 +34,15 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
     'extension-version',
     'privacy',
   ],
-  'merchant-request.yml': ['merchant-name', 'domains', 'country', 'site-language', 'invoices', 'checks'],
+  'merchant-request.yml': [
+    'merchant-name',
+    'domains',
+    'country',
+    'site-language',
+    'invoices',
+    'checks',
+  ],
   'feature.yml': ['need', 'proposal', 'checks'],
-  'question.yml': ['question', 'checks'],
 };
 
 /** Privacy warning that every issue template must contain, word for word. */
@@ -98,7 +104,9 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
 // 1. Syntax of the settings files
 const jsonFiles = [
   ...listFiles('.vscode', /\.json$/),
-  ...(existsSync(abs('.devcontainer/devcontainer.json')) ? ['.devcontainer/devcontainer.json'] : []),
+  ...(existsSync(abs('.devcontainer/devcontainer.json'))
+    ? ['.devcontainer/devcontainer.json']
+    : []),
   ...(existsSync(abs('tsconfig.json')) ? ['tsconfig.json'] : []),
 ];
 for (const f of jsonFiles) parseJsonc(f);
@@ -131,9 +139,12 @@ if (yaml.get(enFile) !== undefined && yaml.get(frFile) !== undefined) {
   const fr = new Map<string, string>();
   flatten(yaml.get(enFile), '', en, enFile);
   flatten(yaml.get(frFile), '', fr, frFile);
-  const subs = (v: string): string => [...new Set(v.match(/\$[1-9]/g) ?? [])].sort(byCodeUnit).join(' ');
-  for (const key of fr.keys()) if (!en.has(key)) fail(enFile, `key "${key}" missing (present in ${frFile})`);
-  for (const key of en.keys()) if (!fr.has(key)) fail(frFile, `key "${key}" missing (present in ${enFile})`);
+  const subs = (v: string): string =>
+    [...new Set(v.match(/\$[1-9]/g) ?? [])].sort(byCodeUnit).join(' ');
+  for (const key of fr.keys())
+    if (!en.has(key)) fail(enFile, `key "${key}" missing (present in ${frFile})`);
+  for (const key of en.keys())
+    if (!fr.has(key)) fail(frFile, `key "${key}" missing (present in ${enFile})`);
   for (const [key, value] of en) {
     const other = fr.get(key);
     if (other !== undefined && subs(value) !== subs(other)) {
@@ -195,6 +206,38 @@ if (labels !== undefined) {
   }
 }
 
+/**
+ * Checks the labels, the body schema (valid types, unique ids, boolean `validations.required`) and
+ * the privacy warning of an issue form or a discussion category form. Returns the body.
+ */
+function checkForm(f: string, doc: Obj): unknown[] {
+  const tplLabels = Array.isArray(doc.labels) ? doc.labels : [];
+  for (const l of tplLabels) {
+    if (!labelNames.has(String(l))) fail(f, `label "${String(l)}" missing from ${labelsFile}`);
+  }
+  // Issue form schema: valid types, unique ids, boolean `validations.required`.
+  const body: unknown[] = Array.isArray(doc.body) ? doc.body : [];
+  const seen = new Set<string>();
+  for (const [i, b] of body.entries()) {
+    if (!isObj(b) || typeof b.type !== 'string' || !FORM_TYPES.has(b.type)) {
+      fail(f, `body[${i}]: invalid type (expected: ${[...FORM_TYPES].join(', ')})`);
+      continue;
+    }
+    if (b.type !== 'markdown') {
+      if (typeof b.id !== 'string' || b.id === '') fail(f, `body[${i}]: \`id\` missing`);
+      else if (seen.has(b.id)) fail(f, `duplicate field id: "${b.id}"`);
+      else seen.add(b.id);
+    }
+    if (b.validations !== undefined) {
+      if (!isObj(b.validations) || typeof b.validations.required !== 'boolean') {
+        fail(f, `body[${i}]: \`validations.required\` must be a boolean`);
+      }
+    }
+  }
+  if (!JSON.stringify(body).includes(PRIVACY_WARNING)) fail(f, 'privacy warning missing');
+  return body;
+}
+
 // 4. Issue templates
 const tplDir = '.github/ISSUE_TEMPLATE';
 if (existsSync(abs(tplDir))) {
@@ -209,37 +252,17 @@ if (existsSync(abs(tplDir))) {
       if (doc.blank_issues_enabled !== false) fail(f, '`blank_issues_enabled` must be false');
       continue;
     }
-    const tplLabels = Array.isArray(doc.labels) ? doc.labels : [];
-    for (const l of tplLabels) {
-      if (!labelNames.has(String(l))) fail(f, `label "${String(l)}" missing from ${labelsFile}`);
-    }
-    // Issue form schema: valid types, unique ids, boolean `validations.required`.
-    const body: unknown[] = Array.isArray(doc.body) ? doc.body : [];
-    const seen = new Set<string>();
-    for (const [i, b] of body.entries()) {
-      if (!isObj(b) || typeof b.type !== 'string' || !FORM_TYPES.has(b.type)) {
-        fail(f, `body[${i}]: invalid type (expected: ${[...FORM_TYPES].join(', ')})`);
-        continue;
-      }
-      if (b.type !== 'markdown') {
-        if (typeof b.id !== 'string' || b.id === '') fail(f, `body[${i}]: \`id\` missing`);
-        else if (seen.has(b.id)) fail(f, `duplicate field id: "${b.id}"`);
-        else seen.add(b.id);
-      }
-      if (b.validations !== undefined) {
-        if (!isObj(b.validations) || typeof b.validations.required !== 'boolean') {
-          fail(f, `body[${i}]: \`validations.required\` must be a boolean`);
-        }
-      }
-    }
-    if (!JSON.stringify(body).includes(PRIVACY_WARNING)) fail(f, 'privacy warning missing');
+    const body = checkForm(f, doc);
     const expected = REQUIRED_FIELDS[name];
     if (expected) {
       for (const id of expected) {
         const item = body.find((b) => isObj(b) && b.id === id);
         if (!isObj(item)) fail(f, `field "${id}" missing`);
         else if (item.type === 'checkboxes') {
-          const opts = isObj(item.attributes) && Array.isArray(item.attributes.options) ? item.attributes.options : [];
+          const opts =
+            isObj(item.attributes) && Array.isArray(item.attributes.options)
+              ? item.attributes.options
+              : [];
           if (!opts.some((o) => isObj(o) && o.required === true)) {
             fail(f, `field "${id}" must have a checkbox with required: true`);
           }
@@ -251,6 +274,34 @@ if (existsSync(abs(tplDir))) {
   }
   for (const name of Object.keys(REQUIRED_FIELDS)) {
     if (!existsSync(abs(`${tplDir}/${name}`))) fail(`${tplDir}/${name}`, 'issue template missing');
+  }
+}
+
+// 5. Discussion category forms: the file name is the category slug (Discussions default categories).
+// Same body schema as the issue forms, plus at least one non-markdown field.
+const discDir = '.github/DISCUSSION_TEMPLATE';
+const DISCUSSION_SLUGS = new Set([
+  'announcements',
+  'general',
+  'ideas',
+  'polls',
+  'q-a',
+  'show-and-tell',
+]);
+if (existsSync(abs(discDir))) {
+  for (const f of listFiles(discDir, /\.ya?ml$/)) {
+    const slug = (f.split('/').pop() ?? f).replace(/\.ya?ml$/, '');
+    const doc = yaml.get(f);
+    if (!isObj(doc)) {
+      if (doc !== undefined) fail(f, 'YAML document of type object expected');
+      continue;
+    }
+    if (!DISCUSSION_SLUGS.has(slug))
+      fail(f, `file name must be a discussion category slug (${[...DISCUSSION_SLUGS].join(', ')})`);
+    if (slug === 'polls') fail(f, 'discussion category forms are not supported for polls');
+    const body = checkForm(f, doc);
+    if (!body.some((b) => isObj(b) && b.type !== 'markdown'))
+      fail(f, 'body needs at least one non-markdown field');
   }
 }
 

@@ -191,6 +191,12 @@ together. The checklist is in the wiki:
 `bun run check:config` catches some of the omissions. Issue templates and `labels.yml` do not
 trigger GitHub CI: running `bun run ci` locally is their only guard.
 
+## Questions and ideas
+
+Questions and early ideas go to [GitHub Discussions](https://github.com/Foufou-exe/homebox-clipper/discussions)
+(Q&A, Ideas), not to issues: see [SUPPORT.md](SUPPORT.md). An idea that gets a clear plan can become an
+issue. Everyone is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Reporting a problem
 
 Use the issue templates: bug, feature idea, **misdetected merchant page** or **new merchant

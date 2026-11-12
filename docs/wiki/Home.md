@@ -25,6 +25,7 @@ talks only to
 | Run or write tests | [Testing-and-fixtures](Testing-and-fixtures.md) |
 | Set up a test HomeBox instance | [Local-HomeBox-instance](Local-HomeBox-instance.md) |
 | Publish a release | [Releasing](Releasing.md) |
+| Moderate the Discussions | [Moderating-Discussions](Moderating-Discussions.md) |
 | Change or add an interface text | [Translations](Translations.md) |
 | Maintain the development environment | [Maintaining-the-dev-environment](Maintaining-the-dev-environment.md) |
 
