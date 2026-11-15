@@ -10,6 +10,7 @@ import PopupApp from '@/ui/popup/App.vue';
 import HistoryView from '@/ui/popup/HistoryView.vue';
 import SummaryView from '@/ui/popup/SummaryView.vue';
 import { formatDate, formatDateTime } from '@/ui/i18n';
+import { setTestLanguage } from './i18n-harness';
 
 vi.mock('@/shared/messages', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/messages')>()),
@@ -408,7 +409,7 @@ describe('HistoryList: incomplete imports (012, US2, Q-U21)', () => {
     const wrapper = await list(ready([historyEntry({ status: 'partial', missing: ['invoice'], reason: 'ATTACHMENT_FAILED' })]));
     expect(wrapper.find('.badge').text()).toBe('Partiel');
     expect(wrapper.find('.missing').text()).toBe('Manquant : facture non envoyée');
-    expect(wrapper.text()).toContain('Raison : L\'objet a été créé mais l\'envoi de la facture a échoué.');
+    expect(wrapper.text()).toContain('Raison : L\'objet a été créé mais l\'envoi d\'un document a échoué.');
     expect(wrapper.find('a').exists()).toBe(true);
   });
 
@@ -644,5 +645,27 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
     await w.findAll('button').find((b) => b.text() === 'Supprimer la configuration')!.trigger('click');
     await flushPromises();
     expect(vi.mocked(send).mock.calls.filter(([m]) => m.type === 'history/list').length).toBe(before + 1);
+  });
+});
+
+describe('HistoryList: documents missing by kind (007, Q-U17)', () => {
+  beforeEach(() => {
+    vi.mocked(send).mockReset();
+  });
+
+  it.each([
+    [['manual'], 'Manquant : manuel non envoyé'],
+    [['warranty'], 'Manquant : garantie non envoyée'],
+    [['deliveryNote'], 'Manquant : bon de livraison non envoyé'],
+    [['manual', 'warranty', 'deliveryNote'], 'Manquant : manuel non envoyé, garantie non envoyée, bon de livraison non envoyé'],
+  ] as const)('partial with missing %j → "%s"', async (missing, text) => {
+    const wrapper = await list(ready([historyEntry({ status: 'partial', missing: [...missing], reason: 'ATTACHMENT_FAILED' })]));
+    expect(wrapper.find('.missing').text()).toBe(text);
+  });
+
+  it('in English: "Missing: manual not sent"', async () => {
+    setTestLanguage('en');
+    const wrapper = await list(ready([historyEntry({ status: 'partial', missing: ['manual'], reason: 'ATTACHMENT_FAILED' })]));
+    expect(wrapper.find('.missing').text()).toBe('Missing: manual not sent');
   });
 });

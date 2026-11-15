@@ -305,9 +305,101 @@ describe('import history keys, controlling the data (012, US3)', () => {
     );
   });
 
-  it('47 history keys added in total (23 + 8 + 16)', () => {
+  // ADAPTED (007): +3 `history.missing.*` keys (manual, warranty, deliveryNote) required by the spec: 47 → 50.
+  it('50 history keys added in total (23 + 8 + 16 + 3 of spec 007)', () => {
     const added = Object.keys(en).filter((k) => k.startsWith('history.') || /^options\.history/.test(k));
-    expect(added).toHaveLength(47);
-    expect(Object.keys(catalog).filter((k) => k.startsWith('history.') || /^options\.history/.test(k))).toHaveLength(47);
+    expect(added).toHaveLength(50);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('history.') || /^options\.history/.test(k))).toHaveLength(50);
+  });
+});
+
+describe('generic error texts (007, FR-009, FR-012, R3)', () => {
+  const keys = ['error.ATTACHMENT_FAILED', 'error.DOWNLOAD_REFUSED', 'error.INVOICE_UNAVAILABLE'];
+
+  it('no mention of the invoice in the three texts', () => {
+    for (const k of keys) {
+      expect(catalog[k], k).not.toMatch(/facture/i);
+      expect(en[k], k).not.toMatch(/invoice/i);
+    }
+  });
+
+  it('exact texts', () => {
+    expect(catalog['error.ATTACHMENT_FAILED']).toBe("L'objet a été créé mais l'envoi d'un document a échoué.");
+    expect(catalog['error.DOWNLOAD_REFUSED']).toBe('Le téléchargement du document a été refusé (session Amazon expirée ?).');
+    expect(catalog['error.INVOICE_UNAVAILABLE']).toBe("Le document n'est pas encore disponible pour cette commande.");
+    expect(en['error.ATTACHMENT_FAILED']).toBe('The item was created but sending a document failed.');
+    expect(en['error.DOWNLOAD_REFUSED']).toBe('The document download was refused (Amazon session expired?).');
+    expect(en['error.INVOICE_UNAVAILABLE']).toBe('The document is not available yet for this order.');
+  });
+
+  it('NOT_A_PDF and FILE_TOO_LARGE are unchanged and do not mention the invoice', () => {
+    for (const k of ['error.NOT_A_PDF', 'error.FILE_TOO_LARGE']) {
+      expect(catalog[k], k).not.toMatch(/facture/i);
+      expect(en[k], k).not.toMatch(/invoice/i);
+    }
+  });
+});
+
+describe('document types keys (007, Q-U18, FR-012)', () => {
+  const ADDED = [
+    'documents.manual',
+    'documents.warranty',
+    'documents.deliveryNote',
+    'documents.kindFor',
+    'documents.deliveryNotePrefix',
+    'documents.storedAsAttachment',
+    'documents.sendFailed.invoice',
+    'documents.sendFailed.manual',
+    'documents.sendFailed.warranty',
+    'documents.sendFailed.deliveryNote',
+    'documents.sendFailed.orderDocument',
+    'result.withDocument.invoice',
+    'result.withDocument.manual',
+    'result.withDocument.warranty',
+    'result.withDocument.deliveryNote',
+    'result.withDocument.orderDocument',
+    'history.missing.manual',
+    'history.missing.warranty',
+    'history.missing.deliveryNote',
+  ];
+
+  it('the 19 added keys exist in en and fr with the same substitutions, no accent in en', () => {
+    expect(ADDED).toHaveLength(19);
+    for (const key of ADDED) {
+      expect(catalog, key).toHaveProperty([key]);
+      expect(en, key).toHaveProperty([key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+      expect(en[key], key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+  });
+
+  it('exact texts of the main keys', () => {
+    expect(catalog['documents.manual']).toBe('Manuel');
+    expect(catalog['documents.warranty']).toBe('Garantie');
+    expect(catalog['documents.deliveryNote']).toBe('Bon de livraison');
+    expect(en['documents.deliveryNote']).toBe('Delivery note');
+    expect(catalog['documents.deliveryNotePrefix']).toBe('bon-de-livraison-');
+    expect(en['documents.deliveryNotePrefix']).toBe('delivery-note-');
+    expect(catalog['documents.sendFailed.manual']).toBe("Le manuel n'a pas pu être envoyé.");
+    expect(en['documents.sendFailed.manual']).toBe('The manual could not be sent.');
+    expect(catalog['documents.storedAsAttachment']).toBe(
+      "« $1 » : votre instance HomeBox n'a pas pris en charge le type « $2 », le document a été joint comme pièce jointe simple.",
+    );
+    expect(catalog['history.missing.manual']).toBe('manuel non envoyé');
+    expect(en['history.missing.deliveryNote']).toBe('delivery note not sent');
+  });
+
+  it('modified keys', () => {
+    expect(catalog['recovery.retryInvoice']).toBe("Réessayer l'envoi des documents");
+    expect(en['recovery.retryInvoice']).toBe('Retry the document upload');
+    expect(catalog['result.stepDocument']).toBe('$1 ($2) : $3');
+    expect(en['result.stepDocument']).toBe('$1 ($2): $3');
+  });
+
+  it('result.withInvoice is removed; documents.orderDocument is unchanged (clarification 1)', () => {
+    expect(catalog).not.toHaveProperty(['result.withInvoice']);
+    expect(en).not.toHaveProperty(['result.withInvoice']);
+    expect(catalog['documents.orderDocument']).toBe('Bon de commande');
+    expect(en['documents.orderDocument']).toBe('Order document');
   });
 });

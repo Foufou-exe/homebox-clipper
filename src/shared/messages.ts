@@ -1,5 +1,6 @@
 import { browser } from '@/platform';
 import type { ErrorCode, Result } from './errors';
+import { isDocumentKind } from './document-kinds';
 import type {
   ConfigView,
   DetectedPurchase,
@@ -108,8 +109,19 @@ const isDraftPhoto = (x: unknown): boolean =>
 const isLocationChoice = (x: unknown): boolean =>
   isObj(x) && isStr(x.id) && isArr(x.path) && x.path.every(isStr);
 const isOptionalLocation = (x: unknown): boolean => x === undefined || x === null || isLocationChoice(x);
+/** `DocumentRef` as sent by the popup: closed `kind` and `origin`, textual `id` and `label` (spec 007, V1). */
+const isDocumentRef = (x: unknown): boolean =>
+  isObj(x) && isStr(x.id) && isStr(x.label) && (x.origin === 'detected' || x.origin === 'manual') && isDocumentKind(x.kind);
 const areDrafts = (x: unknown): boolean =>
-  isArr(x) && x.every((d) => isObj(d) && isDraftPhoto(d.photo) && isOptionalLocation(d.location));
+  isArr(x) &&
+  x.every(
+    (d) =>
+      isObj(d) &&
+      isDraftPhoto(d.photo) &&
+      isOptionalLocation(d.location) &&
+      isArr(d.documents) &&
+      d.documents.every(isDocumentRef),
+  );
 
 const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean } = {
   'config/get': () => true,

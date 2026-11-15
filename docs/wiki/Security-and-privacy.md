@@ -50,7 +50,7 @@ The extension keeps a short history of the imports you confirmed, **only in this
 
 - **Stored**, per product: name, store identifier, order number, import and purchase dates, instance
   address, item identifier, result (complete, partial, failed, in progress) and what is missing (purchase
-  details, invoice, documents, photo), with an error **code** for a failure.
+  details, invoice, manual, warranty, delivery note, documents, photo), with an error **code** for a failure.
 - **Never stored**: the API key, your delivery address, your payment method, invoice or photo contents,
   the address of the Amazon page, the photo address, the price, the seller, the description or the
   location.

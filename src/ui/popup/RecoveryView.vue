@@ -2,10 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
-import type { LocationChoice, LocationOption, ManualFile, PendingImport } from '@/shared/types';
+import type { DocumentRef, LocationChoice, LocationOption, ManualFile, PendingImport } from '@/shared/types';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
+import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 
@@ -66,6 +67,17 @@ const retryLabel = computed(() => {
   return t('recovery.retry');
 });
 
+const STEP_LABELS = { pending: 'result.stepPending', done: 'result.stepDone', failed: 'result.stepFailed' } as const;
+const kindKeys = (d: DocumentRef) => DOCUMENT_KIND_KEYS[d.kind] ?? DOCUMENT_KIND_KEYS.order_document;
+const stepOf = (d: DocumentRef) => props.pending.steps.attachments[d.id] ?? 'pending';
+/** Documents attached as a plain attachment after a 422 (the user is always told, never silent). */
+const fallbackNotes = computed(() =>
+  (props.pending.attachmentFallbacks ?? []).flatMap((id) => {
+    const d = props.pending.draft.documents.find((x) => x.id === id);
+    return d ? [t('documents.storedAsAttachment', [d.label, t(kindKeys(d).label)])] : [];
+  }),
+);
+
 function onPicked({ doc, file }: PickedDocument) {
   files.value.set(doc.id, file);
 }
@@ -111,6 +123,14 @@ async function abandon() {
     <ErrorBanner v-if="photoError" :code="photoError" />
     <ErrorBanner v-if="error" :code="error" />
     <p v-if="duplicateBlocked" class="muted">{{ t('recovery.duplicateHint') }}</p>
+
+    <ul v-if="pending.draft.documents.length" class="docs" role="status" aria-live="polite">
+      <li v-for="d in pending.draft.documents" :key="d.id">
+        {{ t('result.stepDocument', [d.label, t(kindKeys(d).label), t(STEP_LABELS[stepOf(d)])]) }}
+        <span v-if="stepOf(d) === 'failed'" class="doc-failed">{{ t(kindKeys(d).sendFailed) }}</span>
+      </li>
+    </ul>
+    <p v-for="note in fallbackNotes" :key="note" class="muted">{{ note }}</p>
 
     <div v-for="d in manualToReselect" :key="d.id" class="reselect">
       <p class="muted">{{ t('recovery.reselect', [d.label]) }}</p>
@@ -158,5 +178,16 @@ async function abandon() {
 .actions {
   display: flex;
   gap: 8px;
+}
+.docs {
+  margin: 0 0 6px;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.doc-failed {
+  display: block;
+  color: var(--danger-fg);
+  font-weight: 600;
 }
 </style>

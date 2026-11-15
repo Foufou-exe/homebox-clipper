@@ -42,7 +42,9 @@ The HomeBox API (v0.27) does not accept the price, date or seller at creation; h
 2. `PUT /api/v1/entities/{id}`: purchase information (price, date, seller) and notes; the item is read back
    before the update so as not to overwrite its other fields;
 3. `POST /api/v1/entities/{id}/attachments`: one request per document (`multipart/form-data`), of type
-   `receipt` for an invoice, `attachment` otherwise;
+   `receipt` for an invoice, `manual` for a manual, `warranty` for a warranty, `attachment` otherwise (delivery
+   note, order document). If the instance answers 422 to `manual` or `warranty`, the same file is sent once more
+   as `attachment` and the popup says so;
 4. `POST /api/v1/entities/{id}/attachments` for the photo (`type=photo`, `primary=true`), last: its failure
    delays neither the item nor the invoice.
 

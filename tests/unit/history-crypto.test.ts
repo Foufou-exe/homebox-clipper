@@ -169,3 +169,17 @@ describe('history-crypto (FR-014, Q-U28 to Q-U30)', () => {
     await expect(open(v2, k, ID)).resolves.toBe('future');
   });
 });
+
+describe('history crypto: missing values of 007', () => {
+  it.each(['manual', 'warranty', 'deliveryNote'] as const)('open accepts an entry whose missing contains %s', async (value) => {
+    const k = await key();
+    const e = entry({ status: 'partial', missing: [value], reason: null });
+    expect(await open(await seal(e, k, ID), k, ID)).toEqual(e);
+  });
+
+  it.each(['delivery_note', 'foo'])('open still refuses the unknown value %s', async (value) => {
+    const k = await key();
+    const raw = await rawSeal(new TextEncoder().encode(JSON.stringify({ ...entry(), status: 'partial', missing: [value] })), k);
+    expect(await open(raw, k, ID)).toBeNull();
+  });
+});

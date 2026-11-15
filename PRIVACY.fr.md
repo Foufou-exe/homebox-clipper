@@ -28,7 +28,7 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Phrase de passe | Vous la choisissez | Chiffrer et déverrouiller la clé API | **Jamais enregistrée** |
 | Liste des emplacements HomeBox et dernier emplacement utilisé (identifiants uniquement) | Votre instance HomeBox | Vous laisser choisir où ranger l'objet | Lue depuis votre instance ; identifiants conservés localement |
 | Préférence de thème | Vous | Affichage | Stockée localement |
-| Historique des imports : nom du produit, boutique, numéro de commande, dates d'import et d'achat, adresse de l'instance HomeBox, identifiant de l'objet, résultat (complet, partiel, échoué) et ce qui manque (facture, photo, documents, détails d'achat) | Chaque import que vous confirmez | Retrouver un objet importé, l'ouvrir dans HomeBox et repérer un import incomplet | Stocké localement, **chiffré avec votre phrase de passe** ; jamais envoyé ailleurs (activé par défaut, désactivable) |
+| Historique des imports : nom du produit, boutique, numéro de commande, dates d'import et d'achat, adresse de l'instance HomeBox, identifiant de l'objet, résultat (complet, partiel, échoué) et ce qui manque (facture, manuel, garantie, bon de livraison, documents, photo, détails d'achat) | Chaque import que vous confirmez | Retrouver un objet importé, l'ouvrir dans HomeBox et repérer un import incomplet | Stocké localement, **chiffré avec votre phrase de passe** ; jamais envoyé ailleurs (activé par défaut, désactivable) |
 
 L'extension ne lit **pas** votre adresse de livraison, votre moyen de paiement, votre historique de
 navigation, ni aucune page autre que la page de commande Amazon sur laquelle vous l'ouvrez. La

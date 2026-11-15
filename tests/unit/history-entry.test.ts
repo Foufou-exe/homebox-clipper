@@ -7,6 +7,7 @@ import {
   toEntry,
 } from '@/background/history/entry';
 import type { ImportDraft, ImportHistoryEntry, PendingImport } from '@/shared/types';
+import type { DocumentRef } from '@/shared/types';
 import { draft, invoice } from '../contract/orchestrator-harness';
 
 const CTX = { importedAt: '2026-11-12T10:00:00.000Z', instance: 'https://homebox.example.com' };
@@ -420,5 +421,49 @@ describe('groupByOrder (R4.3)', () => {
       merchantId: 'amazon.fr',
     });
     expect(groups[1]).toMatchObject({ orderNumber: null });
+  });
+});
+
+describe('history entry: missing documents by kind (007, Q-U17)', () => {
+  const doc = (id: string, kind: DocumentRef['kind']): DocumentRef => ({ id, origin: 'detected', kind, label: `${id}.pdf`, url: 'https://www.amazon.fr/d.pdf' });
+  const withDocs = (docs: DocumentRef[], states: Record<string, 'done' | 'failed' | 'pending'>) =>
+    pending({ steps: { create: 'done', update: 'done', attachments: states, photo: 'not_requested' } }, { documents: docs });
+
+  it.each([
+    ['manual', ['manual']],
+    ['warranty', ['warranty']],
+    ['delivery_note', ['deliveryNote']],
+    ['order_document', ['documents']],
+    ['invoice', ['invoice']],
+  ] as const)('a %s not sent → %j', (kind, expected) => {
+    expect(missingOf(withDocs([doc('x', kind)], { x: 'failed' }))).toEqual(expected);
+  });
+
+  it('display order: details, invoice, manual, warranty, deliveryNote, documents, photo', () => {
+    const p = pending(
+      { steps: { create: 'done', update: 'failed', attachments: { a: 'failed', b: 'failed', c: 'failed', d: 'failed', e: 'failed' }, photo: 'failed' } },
+      { documents: [doc('e', 'order_document'), doc('d', 'delivery_note'), doc('c', 'warranty'), doc('b', 'manual'), doc('a', 'invoice')] },
+    );
+    expect(missingOf(p)).toEqual(['details', 'invoice', 'manual', 'warranty', 'deliveryNote', 'documents', 'photo']);
+  });
+
+  it('no duplicate: two manuals not sent → one "manual"', () => {
+    expect(missingOf(withDocs([doc('a', 'manual'), doc('b', 'manual')], { a: 'failed', b: 'pending' }))).toEqual(['manual']);
+  });
+
+  it('without entityId: nothing; a document done (also by fallback) is absent', () => {
+    expect(missingOf({ ...withDocs([doc('a', 'manual')], { a: 'failed' }), entityId: null })).toEqual([]);
+    const p = { ...withDocs([doc('a', 'manual')], { a: 'done' }), attachmentFallbacks: ['a'] };
+    expect(missingOf(p)).toEqual([]);
+  });
+
+  it('whitelist unchanged; no file name, label, document id or fallback in the serialisation', () => {
+    const p = withDocs([{ ...doc('ID_MARQUEUR', 'manual'), label: 'LABEL_MARQUEUR.pdf' }], { ID_MARQUEUR: 'failed' });
+    const e = toEntry({ ...p, status: 'partial', error: 'ATTACHMENT_FAILED', attachmentFallbacks: ['ID_MARQUEUR'] }, CTX);
+    expect(Object.keys(e).sort()).toEqual(BASE_KEYS);
+    expect(e.missing).toEqual(['manual']);
+    const s = JSON.stringify(e);
+    expect(s).not.toContain('MARQUEUR');
+    expect(s).not.toContain('attachmentFallbacks');
   });
 });

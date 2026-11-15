@@ -54,7 +54,7 @@ describe('router — message origin', () => {
       type: 'import/start',
       tabId: 1,
       manualFiles: [],
-      drafts: [{ name: 'x', photo }],
+      drafts: [{ name: 'x', documents: [], photo }],
     });
 
     beforeEach(() => register('import/start', async () => ({ ok: true, value: [] })));
@@ -117,7 +117,7 @@ describe('router — message origin', () => {
     });
 
     it('import/start rejects a malformed drafts[].location and accepts a well-formed choice or null', async () => {
-      const withLoc = (location: unknown) => start({ drafts: [{ name: 'x', location }] });
+      const withLoc = (location: unknown) => start({ drafts: [{ name: 'x', documents: [], location }] });
       expect(await dispatch(withLoc(good), sender())).toEqual({ ok: true, value: [] });
       expect(await dispatch(withLoc(null), sender())).toEqual({ ok: true, value: [] });
       for (const bad of ['l1', { id: 3, path: [] }, { id: 'l1' }, { id: 'l1', path: 'Maison' }, { id: 'l1', path: [1] }]) {

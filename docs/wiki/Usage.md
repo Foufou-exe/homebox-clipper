@@ -12,7 +12,9 @@ unlocked for the current session.
    tab (`activeTab` permission) and display the purchase summary.
 3. Check and fix the fields: product name (required), description, purchase price, quantity, purchase
    date, order number, seller. Fields that were not detected are marked "not detected".
-4. Review the documents to attach (detected invoice or local file).
+4. Review the documents to attach (detected invoice or local file). Each document has a type
+   (*Invoice*, *Manual*, *Warranty*, *Delivery note* or *Order document*) that you can change on its row
+   before confirming.
 5. For each product, the detected photo is shown (64 px) with the **Upload this photo with the item**
    checkbox, checked by default: uncheck it to send nothing. Without a photo, the summary says so.
 6. Click **Add to HomeBox**. A message confirms the addition, with the **Open in HomeBox** link.
@@ -32,6 +34,9 @@ Nothing is written to HomeBox before this click. The popup always shows the targ
 | Seller (default: the store, for example "Amazon.de") | Purchased from |
 | Order number and order page link | Notes ("<store> order: <number>", for example "Amazon.de order: ...", then the page address; "Order: <number>" in manual entry) |
 | PDF invoice | Attachment of type **Receipt** |
+| Manual added by hand | Attachment of type **Manual** |
+| Warranty added by hand | Attachment of type **Warranty** |
+| Delivery note | Attachment of type **Attachment**, with a name starting with `delivery-note-` (`bon-de-livraison-` in French) unless it already says so |
 | Order document added by hand | Attachment of type **Attachment** |
 | Product photo (box checked) | Attachment of type **Photo**, the item's primary image |
 
@@ -78,10 +83,17 @@ On a page that is not an Amazon order (product page, another site), the extensio
 detected on this page.", the list of the supported Amazon stores (with "(testing)" after the stores still
 in testing) and an invitation to report a badly detected page with the Support link, then offers an empty
 form. Fill it in and, if needed, attach a PDF from your
-computer with **Choose a PDF...** (type: *Invoice* or *Order document*).
+computer with **Choose a PDF...** (type: *Invoice*, *Manual*, *Warranty*, *Delivery note* or *Order document*).
+The type of each document can still be changed on its row before you confirm.
+
+If your HomeBox instance refuses the *Manual* or *Warranty* type, the document is sent once more as a plain
+attachment and the popup tells you ("... was attached as a plain attachment: your HomeBox instance did not
+accept the ... type."). The extension only detects a delivery note by itself on pages that offer one as a PDF
+(no Amazon page does today); otherwise, add it by hand.
 
 Manual entry is also useful when detection gets it wrong: you can fix each field, or **replace the
-detected invoice** with a local file instead of adding to it.
+detected invoice** with a local file instead of adding to it. This choice is only offered for an *Invoice* or an
+*Order document*: adding a manual, a warranty or a delivery note keeps the detected invoice checked.
 
 ## Accepted files
 
@@ -107,7 +119,7 @@ kept only in this browser. Open it with the **clock** button of the popup header
 **Import history** card of the settings page.
 
 - Imports are listed from the most recent: product name, store, import date, purchase date and result:
-  **Complete**, **Partial** (what is missing is named, for example "invoice not sent"), **Failed** (with
+  **Complete**, **Partial** (what is missing is named, for example "invoice not sent", "manual not sent", "warranty not sent" or "delivery note not sent"), **Failed** (with
   the reason) or **In progress**. Products of the same order are grouped under the order number.
 - **Open in HomeBox** opens the item in a new tab; it is offered only for the instance currently
   configured.
@@ -124,7 +136,8 @@ kept only in this browser. Open it with the **clock** button of the popup header
 ## Recovery after an error
 
 An import is made of several calls (see [Architecture](Architecture.md)). If the item is created but the
-rest fails (purchase details or invoice), the popup says so and offers **Retry the invoice upload**,
+rest fails (purchase details or documents), the popup says so, lists each document with its type and state
+("The manual could not be sent.") and offers **Retry the document upload**,
 **Retry the photo upload** or **Retry the import**, **without recreating the item**. If you close the
 popup, the recovery is offered again the next time you open it on the same tab. For a file added by hand,
 you must select it again (file bytes are never kept). **Abandon** clears the in-progress import without

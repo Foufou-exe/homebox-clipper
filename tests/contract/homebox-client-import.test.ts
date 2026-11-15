@@ -245,3 +245,17 @@ describe('client HomeBox — emplacements (US2)', () => {
     expect(String(m.calls[0]?.body)).toBe('{"name":"Clavier","description":"d","quantity":1}');
   });
 });
+
+describe('addAttachment: manual and warranty types (007, Q-U4)', () => {
+  it.each(['manual', 'warranty'] as const)('type=%s goes in the multipart, application/pdf, no primary', async (type) => {
+    const m = mockFetch(json(201, { id: 'e1' }));
+    const bytes = new TextEncoder().encode('%PDF-1.4 x');
+    const r = await client(m.fetch).addAttachment('e1', { bytes, filename: 'guide.pdf', type, mimeType: 'application/pdf' });
+    expect(r.ok).toBe(true);
+    const form = m.calls[0]?.body as FormData;
+    expect(form.get('type')).toBe(type);
+    expect(form.get('name')).toBe('guide.pdf');
+    expect((form.get('file') as File).type).toBe('application/pdf');
+    expect(form.has('primary')).toBe(false);
+  });
+});

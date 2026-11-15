@@ -1,5 +1,6 @@
 import type { MerchantId } from './merchant-ids';
 import type { ErrorCode } from './errors';
+import type { DocumentKind } from './document-kinds';
 
 /** Value extracted from a page, or an explicit absence (principle III). */
 export type Field<T> =
@@ -24,7 +25,7 @@ export interface DetectedProduct {
 export interface DocumentRef {
   id: string;
   origin: 'detected' | 'manual';
-  kind: 'invoice' | 'order_document';
+  kind: DocumentKind;
   label: string;
   /** For `detected`: URL on the same origin as the store page. */
   url?: string;
@@ -107,6 +108,11 @@ export interface PendingImport {
     /** Read with `?? 'not_requested'` as a precaution (state persisted by a previous version). */
     photo: PhotoStep;
   };
+  /**
+   * Identifiers (`DocumentRef.id`) of `manual`/`warranty` documents attached as a plain `attachment` after the
+   * instance refused their type (HTTP 422, spec 007). Absent until a fallback happens: never initialised elsewhere.
+   */
+  attachmentFallbacks?: string[];
   status: 'running' | 'success' | 'partial' | 'failed';
   error: ErrorCode | null;
   /** Photo-specific error, displayed separately from `error`. */
@@ -161,7 +167,7 @@ export interface DuplicateMatch {
 export type HistoryStatus = 'running' | 'complete' | 'partial' | 'failed';
 
 /** What is missing from an object created in HomeBox, in this order (research.md R3.1). */
-export type HistoryMissing = 'details' | 'invoice' | 'documents' | 'photo';
+export type HistoryMissing = 'details' | 'invoice' | 'manual' | 'warranty' | 'deliveryNote' | 'documents' | 'photo';
 
 /**
  * Entry of the local import history (data-model.md). Only exists in clear in the service worker memory and in
