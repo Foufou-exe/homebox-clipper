@@ -8,6 +8,7 @@ import { logError } from '@/shared/logger';
 import { findDuplicatesByName } from './duplicates';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
 import { flattenTree } from '@/shared/locations';
+import { warrantyPatch } from '@/shared/warranty';
 import type {
   DocumentRef,
   DraftPhoto,
@@ -280,6 +281,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
             notes: buildNotes(p.draft),
             // A PUT without `parentId` would lose the location (V3): it is always sent.
             parentId: current.value.parent?.id ?? p.draft.location?.id,
+            // Never overwrites a warranty already filled on the object (FR-008).
+            ...warrantyPatch(p.draft.warranty, current.value),
           }),
         )
       : current;

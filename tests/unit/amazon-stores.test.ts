@@ -103,6 +103,13 @@ describe('AMAZON_STORES: initial values (data-model.md, section 1)', () => {
       expect(s.displayName).toMatch(/^[\x21-\x7e]+$/);
     }
   });
+
+  it('ownSellers (011): non-empty, with Amazon, the display name and the two legal entities', () => {
+    for (const s of AMAZON_STORES) {
+      expect(Array.isArray(s.ownSellers), s.id).toBe(true);
+      expect(s.ownSellers, s.id).toEqual(expect.arrayContaining(['Amazon', s.displayName, 'Amazon EU S.à r.l.', 'Amazon EU SARL']));
+    }
+  });
 });
 
 /**

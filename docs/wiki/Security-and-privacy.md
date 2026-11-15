@@ -41,6 +41,8 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 | Photo URL of an in-progress import | `storage.session` (memory) | Erased with the import (success or abandon); **never the image bytes** |
 | Last location used, per instance (`lastLocationByInstance`): **identifiers only**, never a location name | `storage.local` | Until "Delete settings" (erased with it) or uninstallation |
 | Chosen theme | `storage.local` | Display preference |
+| Default-warranty setting (`warrantySettings`: on/off and a duration in years, in clear: a preference, no personal data) | `storage.local` | Until uninstallation (kept when you delete the settings) |
+| Warranty of an in-progress import (expiry date, details) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs |
 
 No data is placed in `storage.sync`.
 

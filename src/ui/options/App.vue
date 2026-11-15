@@ -9,6 +9,7 @@ import type { ConfigView } from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import HistoryCard from './HistoryCard.vue';
+import WarrantyCard from './WarrantyCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
@@ -247,6 +248,8 @@ async function remove() {
     </section>
 
     <HistoryCard ref="historyCard" :base-url="view.baseUrl ?? ''" />
+
+    <WarrantyCard />
 
     <section class="card">
       <h2>{{ t('options.appearance') }}</h2>

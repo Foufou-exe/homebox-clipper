@@ -2,7 +2,7 @@
 
 # Privacy policy
 
-**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **12 November 2026**
+**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **15 November 2026**
 
 In short: the extension has **no server, no account, no analytics and no telemetry**. The data it
 handles goes from your browser to **your own** HomeBox instance, only when you click "Add to HomeBox",
@@ -26,6 +26,7 @@ control**; you are the controller of that data. Project page:
 | HomeBox API key | You enter it in the settings | Authenticate requests to your instance | Stored **encrypted** locally (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations); sent only to your instance |
 | Passphrase | You choose it | Encrypt and unlock the API key | **Never stored** |
 | HomeBox location list and last location used (identifiers only) | Your HomeBox instance | Let you choose where the item is filed | Read from your instance; identifiers kept locally |
+| Warranty proposed with each item (expiry date, lifetime flag, details), calculated from the purchase date, and the default-warranty setting (on/off, duration) | The extension and you | Fill the warranty fields of the HomeBox item | The warranty is sent to your HomeBox instance after you confirm and is never kept by the extension once the import is done; the setting is stored locally (no personal data) |
 | Theme preference | You | Display | Stored locally |
 | Import history: product name, store, order number, import and purchase dates, HomeBox instance address, item identifier, result (complete, partial, failed) and what is missing (invoice, manual, warranty, delivery note, documents, photo, purchase details) | Each import you confirm | Let you find an imported item, open it in HomeBox and spot an incomplete import | Stored locally, **encrypted with your passphrase**; never sent anywhere (on by default, can be turned off) |
 
@@ -37,7 +38,7 @@ your HomeBox instance.
 ## Where the data is processed and stored
 
 - **In your browser** (`storage.local`): instance address, encrypted API key, masked key (for example
-  `hb_••••abcd`), result of the last connection test, last location used per instance, theme, and the
+  `hb_••••abcd`), result of the last connection test, last location used per instance, theme, the default-warranty setting, and the
   import history (each entry encrypted with AES-GCM 256 under a random history key, itself sealed with
   your passphrase like the API key) with its on/off setting.
 - **In browser memory** (`storage.session`, cleared when the browser closes or the extension is

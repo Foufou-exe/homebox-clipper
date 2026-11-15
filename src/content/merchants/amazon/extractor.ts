@@ -65,6 +65,11 @@ function sellerOf(rows: Element[], ctx: PageContext): Field<string> {
   return missing();
 }
 
+/** Seller of one product row (spec 011): same selectors and parsing as `sellerOf`, but for this row only. */
+function sellerOfRow(row: Element, ctx: PageContext): Field<string> {
+  return firstField(row, SELECTORS.seller, (el) => parseSeller(text(el), ctx.lang));
+}
+
 function productRows(doc: Document): Element[] {
   for (const selector of SELECTORS.productRow) {
     try {
@@ -120,6 +125,7 @@ function extractProduct(row: Element, index: number, rows: Element[], ctx: PageC
     currency: price.value ? { value: price.value.currency, selector: price.selector } : missing(price.reason),
     quantity: quantity.value ? quantity : { value: 1, selector: 'default' },
     imageUrl: photoField(scope, ctx),
+    seller: sellerOfRow(row, ctx),
   };
 }
 

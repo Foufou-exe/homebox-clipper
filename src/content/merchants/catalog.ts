@@ -14,16 +14,22 @@ export interface CatalogEntry {
   readonly status: 'supported' | 'testing';
   /** Currency proposed when the price is not detected (never converted). */
   readonly defaultCurrency: 'EUR' | 'GBP' | 'USD';
+  /** ISO 3166-1 alpha-2 country of the store (presentation data: selects the legal warranty, spec 011). */
+  readonly country: string;
+  /** Names of the seller "the store itself", or `'any'` (no marketplace). */
+  readonly ownSellers: readonly string[] | 'any';
 }
 
 /** Same order as AMAZON_STORES. */
 export const MERCHANT_CATALOG: readonly CatalogEntry[] = AMAZON_STORES.map(
-  ({ id, displayName, origin, status, defaultCurrency }) => ({
+  ({ id, displayName, origin, status, defaultCurrency, country, ownSellers }) => ({
     id,
     displayName,
     origin,
     status,
     defaultCurrency,
+    country,
+    ownSellers,
   }),
 );
 

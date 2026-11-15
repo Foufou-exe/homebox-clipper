@@ -62,6 +62,17 @@ justify it in the pull request.
 `src/content/merchants/registry.ts` exports `MERCHANTS`, the list of extractors. Add yours: the service
 worker keeps the first extractor whose `matchesUrl` is true for the active tab.
 
+### Warranty (optional)
+
+The warranty proposed in the summary needs two entries in the catalog (`CatalogEntry`): `country` (ISO code of
+the store) and `ownSellers` (the names under which the store itself sells, or `'any'` for a merchant without
+marketplace). The default legal warranty is proposed only for a country of the table in
+`src/shared/warranty.ts` (France, Germany, Italy, Belgium, Spain) and only when the seller read on the product
+row equals one of `ownSellers`; a new country needs a sourced line (official text read) first. Reading a
+warranty from the order page is opt-in: declare your own `warranty…` selectors in your `selectors.ts` (with
+fallbacks) and set `DetectedProduct.pageWarranty` with `parseWarrantyText` from
+`src/content/merchants/warranty-text.ts`; without it, the property stays absent.
+
 ## 5. Fixtures and tests
 
 - Capture a real order page in `tests/fixtures/<merchant>/raw/` (ignored by git), anonymize it and copy it

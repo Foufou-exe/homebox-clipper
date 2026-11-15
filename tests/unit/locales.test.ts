@@ -403,3 +403,89 @@ describe('document types keys (007, Q-U18, FR-012)', () => {
     expect(en['documents.orderDocument']).toBe('Order document');
   });
 });
+
+describe('warranty keys (011, Q-U19, FR-009)', () => {
+  const KEYS = [
+    'title',
+    'origin.legal',
+    'origin.page',
+    'origin.user',
+    'edited',
+    'expires',
+    'expiresFor',
+    'lifetime',
+    'lifetimeFor',
+    'lifetimeDetails',
+    'details',
+    'detailsFor',
+    'noPurchaseDate',
+    'expired',
+    'help',
+    'none',
+    'reason.seller',
+    'reason.country',
+    'reason.disabled',
+    'add',
+    'addFor',
+    'remove',
+    'removeFor',
+    'added',
+    'removed',
+    'duration.one',
+    'duration.other',
+    'detail.legal',
+    'detail.fallback',
+    'detail.withPage',
+    'errors.dateInvalid',
+    'errors.detailsTooLong',
+    'settings.title',
+    'settings.intro',
+    'settings.enable',
+    'settings.years',
+    'settings.help',
+    'settings.saved',
+    'settings.yearsInvalid',
+    'settings.saveFailed',
+  ].map((k) => `warranty.${k}`);
+
+  it('the 40 keys exist in en and fr with the same substitutions, no accent in en', () => {
+    expect(KEYS).toHaveLength(40);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('warranty.'))).toHaveLength(40);
+    for (const key of KEYS) {
+      expect(catalog, key).toHaveProperty([key]);
+      expect(en, key).toHaveProperty([key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+      expect(en[key], key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+  });
+
+  it('no warranty key is declared identical in both languages', () => {
+    expect(IDENTICAL_OK.filter((k) => k.startsWith('warranty.'))).toEqual([]);
+    for (const key of KEYS) expect(en[key], key).not.toBe(catalog[key]);
+  });
+
+  it('exact texts of the main keys', () => {
+    const render = (cat: Record<string, string>, key: string, s: string[]) => makeGetMessage(cat)(key, s);
+    expect(catalog['warranty.detail.legal']).toBe('Garantie légale de conformité ($1)');
+    expect(en['warranty.detail.legal']).toBe('Legal guarantee of conformity ($1)');
+    expect(render(catalog, 'warranty.detail.legal', [render(catalog, 'warranty.duration.other', ['2'])])).toBe(
+      'Garantie légale de conformité (2 ans)',
+    );
+    expect(catalog['warranty.none']).toBe('Aucune garantie ne sera enregistrée.');
+    expect(catalog['warranty.add']).toBe('Ajouter une garantie');
+    expect(catalog['warranty.remove']).toBe('Retirer la garantie');
+    expect(catalog['warranty.reason.seller']).toBe('Aucune garantie légale proposée : le vendeur n’est pas la boutique elle-même (place de marché).');
+    expect(catalog['warranty.reason.country']).toBe('Aucune garantie légale proposée : la durée légale du pays de cette boutique n’est pas vérifiée dans l’extension.');
+    expect(catalog['warranty.reason.disabled']).toBe('Aucune garantie par défaut : elle est désactivée dans la configuration.');
+    expect(en['warranty.reason.disabled']).toBe('No default warranty: it is turned off in the settings.');
+  });
+
+  it('the help texts say "indicative" and "without legal force"', () => {
+    for (const key of ['warranty.help', 'warranty.settings.help']) {
+      expect(catalog[key], key).toMatch(/indicati/);
+      expect(catalog[key], key).toContain('sans valeur juridique');
+      expect(en[key], key).toMatch(/ndicative/);
+      expect(en[key], key).toContain('no legal force');
+    }
+  });
+});

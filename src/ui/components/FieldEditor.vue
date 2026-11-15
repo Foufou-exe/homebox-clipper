@@ -2,14 +2,14 @@
 import { computed, useId } from 'vue';
 import type { ImportDraft } from '@/shared/types';
 import { t } from '@/ui/i18n';
-import { draftErrors } from '@/ui/popup/drafts';
+import { fieldErrors } from '@/ui/popup/drafts';
 
 const draft = defineModel<ImportDraft>({ required: true });
 const props = defineProps<{ missing?: string[] }>();
 
 const id = useId();
 const today = new Date().toISOString().slice(0, 10);
-const errors = computed(() => draftErrors(draft.value, today));
+const errors = computed(() => fieldErrors(draft.value, today));
 const isMissing = (field: string) => props.missing?.includes(field) ?? false;
 
 const price = computed({

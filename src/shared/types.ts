@@ -20,6 +20,37 @@ export interface DetectedProduct {
    * rewritten to the desired resolution.
    */
   imageUrl: Field<string>;
+  /** Opt-in per merchant: an absent property means this merchant reads no warranty from the page (spec 011). */
+  pageWarranty?: Field<PageWarranty>;
+  /** Name of the seller read on the product row (spec 011); absent or not read means unknown. */
+  seller?: Field<string>;
+}
+
+/** Warranty shown on the order page of a merchant that chose to read it (spec 011). */
+export interface PageWarranty {
+  /** Total duration in months (integer, 1 to 120); `null` for a lifetime warranty. */
+  months: number | null;
+  /** `true` implies `months === null`. */
+  lifetime: boolean;
+  /** Text read on the page, cleaned, 1 to 200 characters. */
+  label: string;
+}
+
+/** Where a proposed warranty comes from: the legal default, the order page, or the user. */
+export type WarrantyOrigin = 'legal' | 'page' | 'user';
+
+/** Warranty of an object as shown on the confirmation screen and sent to HomeBox (spec 011). */
+export interface WarrantyDraft {
+  origin: WarrantyOrigin;
+  /** YYYY-MM-DD; `null`: no date (purchase date absent, or lifetime warranty). */
+  expires: string | null;
+  lifetime: boolean;
+  /** Text sent as `warrantyDetails`; may be empty. */
+  details: string;
+  /** Base duration in months, used to recompute; `null`: unknown. */
+  durationMonths: number | null;
+  /** `true` as soon as the user acts in the section: no more recomputation. */
+  edited: boolean;
 }
 
 export interface DocumentRef {
@@ -89,6 +120,8 @@ export interface ImportDraft {
   photo: DraftPhoto | null;
   /** `null`: no location, no `parentId` is sent (FR-012). Absent from a state persisted by a previous version. */
   location: LocationChoice | null;
+  /** `null` or absent: no warranty to send. Absent from a state persisted by a previous version. */
+  warranty?: WarrantyDraft | null;
 }
 
 export type PhotoStep = 'not_requested' | 'unavailable' | 'pending' | 'sending' | 'done' | 'failed';

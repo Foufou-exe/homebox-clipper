@@ -2,7 +2,7 @@
 
 # Politique de confidentialité
 
-**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **12 novembre 2026**
+**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **15 novembre 2026**
 
 En bref : l'extension n'a **aucun serveur, aucun compte, aucune statistique et aucune télémétrie**. Les
 données qu'elle traite vont de votre navigateur vers **votre propre** instance HomeBox, uniquement au
@@ -27,6 +27,7 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Clé API HomeBox | Vous la saisissez dans les paramètres | Authentifier les requêtes vers votre instance | Stockée **chiffrée** localement (AES-GCM 256, clé dérivée de votre phrase de passe avec PBKDF2-SHA256, 600 000 itérations) ; envoyée uniquement à votre instance |
 | Phrase de passe | Vous la choisissez | Chiffrer et déverrouiller la clé API | **Jamais enregistrée** |
 | Liste des emplacements HomeBox et dernier emplacement utilisé (identifiants uniquement) | Votre instance HomeBox | Vous laisser choisir où ranger l'objet | Lue depuis votre instance ; identifiants conservés localement |
+| Garantie proposée avec chaque objet (date d'expiration, garantie à vie, détails), calculée depuis la date d'achat, et réglage de la garantie par défaut (activée ou non, durée) | L'extension et vous | Remplir les champs garantie de l'objet HomeBox | La garantie est envoyée à votre instance HomeBox après votre confirmation et n'est pas conservée par l'extension une fois l'import terminé ; le réglage est stocké localement (aucune donnée personnelle) |
 | Préférence de thème | Vous | Affichage | Stockée localement |
 | Historique des imports : nom du produit, boutique, numéro de commande, dates d'import et d'achat, adresse de l'instance HomeBox, identifiant de l'objet, résultat (complet, partiel, échoué) et ce qui manque (facture, manuel, garantie, bon de livraison, documents, photo, détails d'achat) | Chaque import que vous confirmez | Retrouver un objet importé, l'ouvrir dans HomeBox et repérer un import incomplet | Stocké localement, **chiffré avec votre phrase de passe** ; jamais envoyé ailleurs (activé par défaut, désactivable) |
 
@@ -39,7 +40,7 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
 
 - **Dans votre navigateur** (`storage.local`) : adresse de l'instance, clé API chiffrée, clé masquée
   (par exemple `hb_••••abcd`), résultat du dernier test de connexion, dernier emplacement utilisé par
-  instance, thème, et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
+  instance, thème, réglage de la garantie par défaut, et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
   d'historique aléatoire, elle-même scellée par votre phrase de passe comme la clé API) avec son réglage
   d'activation.
 - **En mémoire du navigateur** (`storage.session`, effacée à la fermeture du navigateur ou au

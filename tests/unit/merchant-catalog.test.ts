@@ -10,10 +10,24 @@ describe('MERCHANT_CATALOG (reduced view of AMAZON_STORES)', () => {
     );
   });
 
-  it('entries only carry id, displayName, origin, status and defaultCurrency (no extraction data)', () => {
+  it('entries only carry id, displayName, origin, status, defaultCurrency, country and ownSellers (no extraction data)', () => {
     for (const e of MERCHANT_CATALOG) {
-      expect(Object.keys(e).sort()).toEqual(['defaultCurrency', 'displayName', 'id', 'origin', 'status']);
+      expect(Object.keys(e).sort()).toEqual([
+        'country',
+        'defaultCurrency',
+        'displayName',
+        'id',
+        'origin',
+        'ownSellers',
+        'status',
+      ]);
     }
+  });
+
+  it('country and ownSellers are the same as in the table, store by store (011)', () => {
+    expect(MERCHANT_CATALOG.map((e) => [e.country, e.ownSellers])).toEqual(
+      AMAZON_STORES.map((s) => [s.country, s.ownSellers]),
+    );
   });
 });
 

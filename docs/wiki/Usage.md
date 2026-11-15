@@ -15,9 +15,10 @@ unlocked for the current session.
 4. Review the documents to attach (detected invoice or local file). Each document has a type
    (*Invoice*, *Manual*, *Warranty*, *Delivery note* or *Order document*) that you can change on its row
    before confirming.
-5. For each product, the detected photo is shown (64 px) with the **Upload this photo with the item**
+5. Each product has a **Warranty** section (see [Warranty](#warranty)): check it, change it or remove it.
+6. For each product, the detected photo is shown (64 px) with the **Upload this photo with the item**
    checkbox, checked by default: uncheck it to send nothing. Without a photo, the summary says so.
-6. Click **Add to HomeBox**. A message confirms the addition, with the **Open in HomeBox** link.
+7. Click **Add to HomeBox**. A message confirms the addition, with the **Open in HomeBox** link.
 
 Nothing is written to HomeBox before this click. The popup always shows the targeted instance
 ("HomeBox: <address>"), with the "Unencrypted HTTP" label if it uses HTTP.
@@ -32,6 +33,9 @@ Nothing is written to HomeBox before this click. The popup always shows the targ
 | Unit price | Purchase price |
 | Purchase date | Purchase date |
 | Seller (default: the store, for example "Amazon.de") | Purchased from |
+| Warranty expiry date | Warranty expires |
+| **Lifetime warranty** box | Lifetime warranty |
+| Warranty details | Warranty details |
 | Order number and order page link | Notes ("<store> order: <number>", for example "Amazon.de order: ...", then the page address; "Order: <number>" in manual entry) |
 | PDF invoice | Attachment of type **Receipt** |
 | Manual added by hand | Attachment of type **Manual** |
@@ -42,6 +46,33 @@ Nothing is written to HomeBox before this click. The popup always shows the targ
 
 The item is created with HomeBox's default type, without a label. The location is the one you chose (see
 [Choose the location](#choose-the-location)); without a choice, the item is created without a location.
+
+## Warranty
+
+**Indicative value, not legal advice.** The warranty proposed by the extension is an aid, calculated from the
+**purchase date** (the law starts the legal guarantee at delivery, so the proposed date is a little shorter).
+It does not guarantee any right: check it for the product (new or second-hand), the seller and the country.
+
+Each product of the summary has a **Warranty** section, shown before you confirm and sent with the item:
+
+- **Expires on** (a date), the **Lifetime warranty** box (it disables the date) and **Details**. Anything you type
+  is kept as is: the date is recalculated when you change the purchase date only as long as you have not edited
+  the warranty. **Remove the warranty** sends nothing; **Add a warranty** starts a new one.
+- **Where it comes from** is always shown: *the legal guarantee of the store's country*, *the warranty shown on
+  the order page*, or *entered by you*.
+- **Legal guarantee, only when the item is sold by the store itself** and its country is one of **France,
+  Germany, Italy, Belgium (2 years) and Spain (3 years)**. The durations come from the official texts of
+  each country, listed in the project repository.
+- **No default warranty** for Amazon.nl, Amazon.co.uk, Amazon.com, for an item sold by a third party (marketplace
+  seller), for a store whose duration is not verified, or in manual entry: the section is empty, says why, and
+  **Add a warranty** lets you enter one (it proposes the duration of your setting, or 2 years).
+- **Warranty shown on the order page**: when a merchant displays one (a duration, a lifetime warranty or an
+  extension), it is proposed instead of the legal one, unless it is shorter: the longest one wins and the
+  details mention both. No Amazon page shows a warranty today.
+- **Settings**: the **Warranty** card of the settings page turns the default warranty off and can set another
+  duration (1 to 10 years). A duration replaces the legal one in the countries above and is used by **Add a
+  warranty**; it never creates a default warranty elsewhere. A warranty shown on the order page is always proposed.
+- The extension only changes items it created and never overwrites a warranty already filled in HomeBox.
 
 ## The product photo
 
