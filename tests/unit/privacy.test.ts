@@ -398,3 +398,77 @@ describe('document types privacy (007, Q-U19, principle I, FR-011)', () => {
     }
   });
 });
+
+describe('warranty privacy (011, Q-U20, principles I and II, GDPR)', () => {
+  const MARKERS = ['2028-11-03', 'Détail secret de garantie', 'Boutique Exemple SARL'];
+  const warranty = {
+    origin: 'legal' as const,
+    expires: '2028-11-03',
+    lifetime: false,
+    details: 'Détail secret de garantie',
+    durationMonths: 24,
+    edited: false,
+  };
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+
+  it('an import with a warranty: no date, detail or seller in the console, nothing in storage.local, requests only to the instance', async () => {
+    fakeBrowser.reset();
+    const spies = spyConsole();
+    const m = mockFetch(json(201, { id: 'e1', name: 'x' }), json(500, { error: 'Détail secret de garantie 2028-11-03' }), json(500, {}));
+    const orchestrator = createOrchestrator({
+      client: createHomeBoxClient({ baseUrl: 'https://homebox.example.com', apiKey: KEY, fetchImpl: m.fetch }),
+      store: pendingStore,
+      downloadDetected: async () => ok({ base64: PDF_B64 }),
+      fetchPhoto: async () => ok({ bytes: new Uint8Array(), mimeType: 'image/jpeg', filename: 'p.jpg' }),
+      notify: () => undefined,
+      newId: () => 'p1',
+    });
+    const r = await orchestrator.startImport(1, [draft({ warranty, purchaseFrom: 'Boutique Exemple SARL' })], []);
+    expect(r.ok && r.value[0]?.status).toBe('partial');
+
+    const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+    expect(output.length).toBeGreaterThan(2);
+    for (const value of [...MARKERS, KEY]) expect(output).not.toContain(value);
+    for (const call of m.calls) expect(call.url.startsWith('https://homebox.example.com/')).toBe(true);
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).not.toContain('2028-11-03');
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).not.toContain('Détail secret');
+  });
+
+  it('source sweep: no console outside the logger, no network in the warranty module, no warranty field in the history', () => {
+    const src = resolve(__dirname, '../../src');
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.(ts|vue)$/.test(name)) files.push(path);
+      }
+    };
+    walk(src);
+    for (const file of files) {
+      if (file.endsWith('shared/logger.ts')) continue;
+      expect(readFileSync(file, 'utf8'), file).not.toMatch(/\bconsole\./);
+    }
+    expect(readFileSync(join(src, 'shared/warranty.ts'), 'utf8')).not.toMatch(/\b(fetch\(|XMLHttpRequest|sendBeacon)/);
+    for (const file of files.filter((f) => f.includes('/background/history/'))) {
+      expect(readFileSync(file, 'utf8'), file).not.toMatch(/warrantyDetails|warrantyExpires|lifetimeWarranty|draft\.warranty|WarrantyDraft/);
+    }
+  });
+});
+
+describe('warranty setting privacy (011, Q-U20, R8)', () => {
+  it('storage.local only gains warrantySettings { v, enabled, years }: no date, detail or purchase data', async () => {
+    fakeBrowser.reset();
+    const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+    const { saveWarrantySettings } = await import('@/ui/warranty-settings');
+    await saveWarrantySettings({ v: 1, enabled: false, years: 3 });
+    const local = await fakeBrowser.storage.local.get(null);
+    expect(Object.keys(local)).toEqual(['warrantySettings']);
+    expect(local.warrantySettings).toEqual({ v: 1, enabled: false, years: 3 });
+    expect(JSON.stringify(local)).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(spies.flatMap((s) => s.mock.calls)).toEqual([]);
+    // The history never receives the setting.
+    expect(Object.keys(local).some((k) => k.startsWith('importHistory'))).toBe(false);
+  });
+});

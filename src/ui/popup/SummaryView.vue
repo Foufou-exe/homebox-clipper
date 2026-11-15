@@ -18,11 +18,14 @@ import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
+import WarrantyField from '@/ui/components/WarrantyField.vue';
 import OrderLocationField from './OrderLocationField.vue';
 import { DOCUMENT_KIND_KEYS, DOCUMENT_KIND_OPTIONS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
-import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields } from './drafts';
+import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields, proposalFor } from './drafts';
+import { loadWarrantySettings } from '@/ui/warranty-settings';
+import { DEFAULT_WARRANTY_SETTINGS, manualWarrantyMonths, type NoDefaultReason, type WarrantySettings } from '@/shared/warranty';
 import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
 
 /** Stores where the import works, in the order of the table; "(testing)" after a testing store (FR-012, FR-016). */
@@ -42,6 +45,8 @@ interface Line {
   draft: ImportDraft;
   /** `inherit` follows the order choice; `null` removes the location for this product (FR-014). */
   location: 'inherit' | LocationChoice | null;
+  /** Why the warranty section is empty (spec 011): lives next to the draft, never sent nor persisted. */
+  warrantyReason: NoDefaultReason | null;
 }
 
 const loading = ref(true);
@@ -49,6 +54,8 @@ const detectError = ref<ErrorCode | null>(null);
 const warnings = ref<ErrorCode[]>([]);
 const purchase = ref<DetectedPurchase | null>(null);
 const lines = ref<Line[]>([]);
+/** Warranty setting, read when the popup opens (spec 011). */
+const warrantySettings = ref<WarrantySettings>(DEFAULT_WARRANTY_SETTINGS);
 const uid = useId();
 const documents = ref<{ doc: DocumentRef; selected: boolean }[]>([]);
 const manualFiles = reactive(new Map<string, ManualFile>());
@@ -122,25 +129,42 @@ const duplicateCheckFailed = ref(false);
 
 onMounted(async () => {
   void loadLocations();
-  const res = await send({ type: 'detect/run', tabId: props.tabId });
+  // Read at each opening (never cached); an unreadable storage gives the defaults, never a blocked popup.
+  const [res, settings] = await Promise.all([send({ type: 'detect/run', tabId: props.tabId }), loadWarrantySettings()]);
+  warrantySettings.value = settings;
   loading.value = false;
   if (!res.ok) {
     detectError.value = res.error;
-    lines.value = [{ key: 'manual', product: null, selected: true, draft: emptyDraft(), location: 'inherit' }];
+    lines.value = [
+      { key: 'manual', product: null, selected: true, draft: emptyDraft(), location: 'inherit', warrantyReason: null },
+    ];
     return;
   }
   purchase.value = res.value.purchase;
   warnings.value = res.value.warnings;
   const products = res.value.purchase.products.filter((p) => p.name.value !== null);
-  lines.value = products.length
-    ? products.map((p) => ({ key: p.key, product: p, selected: true, draft: draftFrom(res.value.purchase, p), location: 'inherit' as const }))
-    : [{ key: 'manual', product: null, selected: true, draft: draftFrom(res.value.purchase, null), location: 'inherit' as const }];
+  const lineFor = (key: string, p: DetectedProduct | null): Line => {
+    const ctx = { settings: warrantySettings.value };
+    return {
+      key,
+      product: p,
+      selected: true,
+      draft: draftFrom(res.value.purchase, p, ctx),
+      location: 'inherit',
+      warrantyReason: proposalFor(res.value.purchase, p, ctx).reason,
+    };
+  };
+  lines.value = products.length ? products.map((p) => lineFor(p.key, p)) : [lineFor('manual', null)];
   documents.value = res.value.purchase.documents.map((doc) => ({ doc, selected: true }));
 });
 
 /** A single product: a single "Location" field. Several: an order field, then one mention per product. */
 const multi = computed(() => lines.value.length > 1);
 const productName = (line: Line) => line.draft.name || t('summary.unnamedProduct');
+/** Duration proposed by "Add a warranty": the setting, else the legal duration of the store's country. */
+const manualMonths = computed(() =>
+  manualWarrantyMonths(warrantySettings.value, MERCHANT_CATALOG.find((e) => e.id === purchase.value?.source)?.country ?? null),
+);
 
 const selectedLines = computed(() => lines.value.filter((l) => l.selected));
 const selectedDocs = computed(() => documents.value.filter((d) => d.selected).map((d) => d.doc));
@@ -211,6 +235,9 @@ function submit() {
       // Preview failed: the photo is "unavailable" (FR-009), not "not requested".
       photo: l.draft.photo && !photoErrors.has(l.key) ? { ...l.draft.photo } : null,
       location: copyOf(effectiveLocation(l)),
+      // Deep copy: the reactive object of the screen is never shared with the message.
+      // A lifetime warranty carries no date (the remembered one only serves to uncheck the box).
+      warranty: l.draft.warranty ? { ...l.draft.warranty, expires: l.draft.warranty.lifetime ? null : l.draft.warranty.expires } : null,
     })),
     manualFiles: docs.flatMap((d) => {
       const f = manualFiles.get(d.id);
@@ -257,6 +284,15 @@ function submit() {
         </div>
         <p v-else-if="line.selected && line.product" class="photo muted">{{ t('summary.photoNone') }}</p>
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
+        <WarrantyField
+          v-if="line.selected"
+          v-model="line.draft.warranty"
+          :reason="line.warrantyReason"
+          :purchase-date="line.draft.purchaseDate"
+          :multi="multi"
+          :product-name="productName(line)"
+          :manual-months="manualMonths"
+        />
         <div v-if="multi && line.selected && locState === 'ready' && locations.length > 0" class="product-location">
           <template v-if="line.location === 'inherit'">
             <span class="muted">{{ effectiveLocation(line) ? t('location.inherited', [effectiveLocation(line)!.path.at(-1) ?? '']) : t('location.none') }}</span>

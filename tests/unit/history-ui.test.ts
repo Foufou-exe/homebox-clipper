@@ -390,7 +390,9 @@ describe('options: history card (US1)', () => {
     const titles = cards.map((c) => c.find('h1, h2').text());
     const i = titles.indexOf('Historique des imports');
     expect(i).toBe(1);
-    expect(titles[2]).toBe('Apparence');
+    // 011: the warranty card sits between the history card and the appearance card.
+    expect(titles[2]).toBe('Garantie');
+    expect(titles[3]).toBe('Apparence');
     expect(
       cards[1]!.findComponent(HistoryCard).exists() ||
         cards[1]!.findComponent(HistoryList).exists(),

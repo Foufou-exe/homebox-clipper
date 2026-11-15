@@ -44,6 +44,11 @@ on real pages, not promises. See [Sources](#sources).
 
 **Partial support:** _None yet._
 
+**Warranty:** reading a warranty from the order page is opt-in per merchant (no Amazon page shows one today).
+Adding a store requires its `country` and `ownSellers` (the names under which the store itself sells) in the
+catalog and, for a country that is not yet in the legal-warranty table (France, Germany, Italy, Belgium, Spain),
+a sourced line (official text read) before any default duration is proposed.
+
 ## France
 
 | Site | Domain | Status | Priority | Notes |

@@ -29,6 +29,12 @@ Le classement est indicatif : il combine l'audience, la fréquence d'achat de bi
 site et la facilité attendue d'extraction des données. Les notes du type « facture PDF à vérifier »
 sont des hypothèses à confirmer sur de vraies pages, pas des promesses. Voir [Sources](#sources).
 
+> **Garantie :** la lecture de la garantie sur la page de commande est optionnelle par marchand (aucune page
+> Amazon n'en affiche aujourd'hui). Ajouter une boutique exige son `country` et ses `ownSellers` (les noms sous
+> lesquels la boutique vend elle-même) dans le catalogue et, pour un pays absent de la table des garanties
+> légales (France, Allemagne, Italie, Belgique, Espagne), une ligne sourcée (texte officiel lu) avant de
+> proposer une durée par défaut.
+
 ## Supported (supportés)
 
 | Site | Domaine | Statut | Priorité | Notes |

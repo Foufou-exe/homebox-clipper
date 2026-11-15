@@ -1,6 +1,7 @@
 import { browser } from '@/platform';
 import type { ErrorCode, Result } from './errors';
 import { isDocumentKind } from './document-kinds';
+import { isValidIsoDate } from './warranty';
 import type {
   ConfigView,
   DetectedPurchase,
@@ -112,6 +113,19 @@ const isOptionalLocation = (x: unknown): boolean => x === undefined || x === nul
 /** `DocumentRef` as sent by the popup: closed `kind` and `origin`, textual `id` and `label` (spec 007, V1). */
 const isDocumentRef = (x: unknown): boolean =>
   isObj(x) && isStr(x.id) && isStr(x.label) && (x.origin === 'detected' || x.origin === 'manual') && isDocumentKind(x.kind);
+/** `ImportDraft.warranty` (spec 011): absent, `null` or conforming to the validation rules of data-model.md. */
+const isWarrantyDraft = (x: unknown): boolean =>
+  x === undefined ||
+  x === null ||
+  (isObj(x) &&
+    (x.origin === 'legal' || x.origin === 'page' || x.origin === 'user') &&
+    (x.expires === null || isValidIsoDate(x.expires)) &&
+    typeof x.lifetime === 'boolean' &&
+    !(x.lifetime === true && x.expires !== null) &&
+    isStr(x.details) &&
+    x.details.length <= 1000 &&
+    (x.durationMonths === null || (isInt(x.durationMonths) && (x.durationMonths as number) >= 1 && (x.durationMonths as number) <= 1200)) &&
+    typeof x.edited === 'boolean');
 const areDrafts = (x: unknown): boolean =>
   isArr(x) &&
   x.every(
@@ -119,6 +133,7 @@ const areDrafts = (x: unknown): boolean =>
       isObj(d) &&
       isDraftPhoto(d.photo) &&
       isOptionalLocation(d.location) &&
+      isWarrantyDraft(d.warranty) &&
       isArr(d.documents) &&
       d.documents.every(isDocumentRef),
   );

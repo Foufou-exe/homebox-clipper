@@ -526,3 +526,65 @@ describe('orchestrator: resume keeps the document type (007, Q-U7, FR-010)', () 
     expect(client.addAttachment.mock.calls.map(([, f]) => f.type)).toEqual(['warranty', 'warranty']);
   });
 });
+
+describe('orchestrator: the warranty survives a failed PUT and a resume (011, Q-U14, principle IV)', () => {
+  const warranty = {
+    origin: 'legal' as const,
+    expires: '2028-11-03',
+    lifetime: false,
+    details: 'Garantie légale de conformité (2 ans)',
+    durationMonths: 24,
+    edited: false,
+  };
+
+  it('PUT in 500: update failed, partial; the resume replays the full PUT with the persisted warranty', async () => {
+    const { client, orchestrator } = setup({ update: [err('UPDATE_FAILED', 500)] });
+    const first = await orchestrator.startImport(5, [draft({ warranty })], []);
+    const p = first.ok ? first.value[0] : undefined;
+    expect(p).toMatchObject({ status: 'partial', error: 'UPDATE_FAILED' });
+    expect(p?.steps.update).toBe('failed');
+    expect(p?.draft.warranty).toEqual(warranty);
+
+    const retry = await orchestrator.retryImport(p!.id);
+    expect(retry.ok && retry.value.status).toBe('success');
+    expect(client.createEntity).toHaveBeenCalledTimes(1);
+    expect(client.updateEntity.mock.calls[1]?.[1]).toMatchObject({
+      warrantyExpires: '2028-11-03',
+      warrantyDetails: 'Garantie légale de conformité (2 ans)',
+    });
+    expect(await sessionKeys()).toEqual([]);
+  });
+
+  it('a PendingImport written without warranty (before the feature) resumes without error or warranty key', async () => {
+    const ctx = setup({ get: [ok({ id: 'e1', name: 'x' })] });
+    await pendingStore.save({
+      ...pendingBase(),
+      entityId: 'e1',
+      steps: { create: 'done', update: 'pending', attachments: { 'detected-0': 'done' }, photo: 'unavailable' },
+    });
+    const retry = await ctx.orchestrator.retryImport('o1');
+    expect(retry.ok && retry.value.status).toBe('success');
+    const put = ctx.client.updateEntity.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(Object.keys(put).some((k) => /warrant/i.test(k))).toBe(false);
+  });
+
+  it('a warranty added in HomeBox between two attempts is kept', async () => {
+    const ctx = setup({
+      update: [err('UPDATE_FAILED', 500)],
+      get: [ok({ id: 'e1', name: 'x', warrantyExpires: '2031-05-05', warrantyDetails: 'Ajoutée dans HomeBox' })],
+    });
+    const first = await ctx.orchestrator.startImport(5, [draft({ warranty })], []);
+    const retry = await ctx.orchestrator.retryImport(first.ok ? first.value[0]!.id : '');
+    expect(retry.ok && retry.value.status).toBe('success');
+    expect(ctx.client.updateEntity.mock.calls[1]?.[1]).toMatchObject({
+      warrantyExpires: '2031-05-05',
+      warrantyDetails: 'Ajoutée dans HomeBox',
+    });
+  });
+
+  it('on success the draft, and so the warranty, is purged', async () => {
+    const { orchestrator } = setup();
+    await orchestrator.startImport(5, [draft({ warranty })], []);
+    expect(await sessionKeys()).toEqual([]);
+  });
+});

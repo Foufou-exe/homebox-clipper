@@ -17,6 +17,7 @@ import AppHeader from '@/ui/components/AppHeader.vue';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
+import WarrantyField from '@/ui/components/WarrantyField.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
 import OptionsApp from '@/ui/options/App.vue';
@@ -1611,5 +1612,72 @@ describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-0
       expect(labelled, 'accessible name').toBeTruthy();
     }
     expectCatalogTexts(wrapper, [DATA]);
+  });
+});
+
+describe('warranty section texts (011, Q-U19, FR-009)', () => {
+  const warranty = {
+    origin: 'legal' as const,
+    expires: '2028-11-03',
+    lifetime: false,
+    details: DATA,
+    durationMonths: 24,
+    edited: false,
+  };
+  const mountField = (props: Record<string, unknown>) =>
+    mount(WarrantyField, { props: { purchaseDate: '2026-10-22', multi: false, productName: DATA, manualMonths: 24, reason: null, ...props } });
+
+  it('french: a proposed warranty, an edited one and the three empty sections only show catalog texts', () => {
+    expectCatalogTexts(mountField({ modelValue: warranty }), [DATA]);
+    expectCatalogTexts(mountField({ modelValue: { ...warranty, edited: true, expires: '2020-01-01' } }), [DATA]);
+    expectCatalogTexts(mountField({ modelValue: { ...warranty, expires: null }, purchaseDate: null }), [DATA]);
+    expectCatalogTexts(mountField({ modelValue: { ...warranty, expires: '2026-02-30', details: 'x'.repeat(1001) } }), [DATA]);
+    for (const reason of ['seller', 'country', 'disabled'] as const) {
+      expectCatalogTexts(mountField({ modelValue: null, reason }), [DATA]);
+    }
+    expectCatalogTexts(mountField({ modelValue: warranty, multi: true }), [DATA]);
+  });
+
+  it.each(['fr', 'en'] as const)('%s: the default details follow the interface language', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    vi.mocked(send).mockImplementation((msg) =>
+      Promise.resolve(
+        msg.type === 'detect/run'
+          ? ok({
+              purchase: purchase([{ ...product('a'), seller: found('Amazon') }]),
+              warnings: [],
+            })
+          : ok({ locations: [], lastUsedId: null }),
+      ) as never,
+    );
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    const years = c['warranty.duration.other']!.replace('$1', '2');
+    const expected = c['warranty.detail.legal']!.replace('$1', years);
+    const textarea = wrapper.findAll('textarea').find((t) => (t.element as HTMLTextAreaElement).value === expected);
+    expect(textarea, expected).toBeTruthy();
+    expect(wrapper.text()).toContain(c['warranty.title']!);
+    expect(wrapper.text()).toContain(c['warranty.origin.legal']!);
+  });
+});
+
+describe('warranty options card (011, Q-U19, FR-009)', () => {
+  it('french: only catalog texts', async () => {
+    const { default: WarrantyCard } = await import('@/ui/options/WarrantyCard.vue');
+    const wrapper = mount(WarrantyCard);
+    await flushPromises();
+    expectCatalogTexts(wrapper, []);
+  });
+
+  it('the card sits between the history and the appearance cards of the options page', async () => {
+    vi.mocked(send).mockResolvedValue(ok({ configured: false }) as never);
+    const wrapper = mount(OptionsApp);
+    await flushPromises();
+    const titles = wrapper.findAll('section.card').map((c) => c.find('h1, h2').text());
+    const index = titles.indexOf(catalog['warranty.settings.title']!);
+    expect(index).toBeGreaterThan(0);
+    expect(titles[index + 1]).toBe(catalog['options.appearance']);
+    expect(wrapper.findAll('section.card')[index - 1]!.text()).toContain(catalog['options.historyTitle'] ?? '');
   });
 });
