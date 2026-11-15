@@ -180,3 +180,18 @@ describe('SummaryView: detected delivery note (007, Q-U15)', () => {
     expect(submitted(w).drafts[0]!.documents.map((d) => d.kind)).toEqual(['invoice', 'manual']);
   });
 });
+
+describe('SummaryView: visible "Type" label of each document row', () => {
+  it('each row has a visible label tied to its select, accessible name kept', async () => {
+    const w = await mountSummary();
+    await addLocal(w, 'manual', 'guide.pdf');
+    for (const li of rows(w)) {
+      const label = li.find('label.kind-label');
+      expect(label.text()).toBe(fr['documents.kindShort']);
+      expect(label.attributes('for')).toBe(li.find('select').attributes('id'));
+      expect(li.find('select').attributes('aria-label')).toContain('.pdf');
+    }
+    expect(new Set(rows(w).map((li) => li.find('select').attributes('id'))).size).toBe(2);
+    expect(w.find('.picker h3').text()).toBe(fr['documents.addTitle']);
+  });
+});

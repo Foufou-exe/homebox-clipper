@@ -76,6 +76,9 @@ fields:
 
 documents:
   kindLabel: "Type de document"
+  kindShort: "Type :"
+  addTitle: "Ajouter un PDF depuis l'ordinateur"
+  addHint: "Choisissez le type, puis le fichier."
   invoice: "Facture"
   manual: "Manuel"
   warranty: "Garantie"
