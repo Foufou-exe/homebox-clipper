@@ -37,12 +37,18 @@ async function onChange(event: Event) {
 </script>
 
 <template>
-  <div class="picker">
+  <div class="picker" :class="{ separated: !fixedDocId }">
+    <template v-if="!fixedDocId">
+      <h3 :id="`${id}-title`" class="title">{{ t('documents.addTitle') }}</h3>
+      <p :id="`${id}-hint`" class="hint">{{ t('documents.addHint') }}</p>
+    </template>
     <div class="row">
-      <label :for="`${id}-kind`" class="sr-only">{{ t('documents.kindLabel') }}</label>
-      <select v-if="!fixedDocId" :id="`${id}-kind`" v-model="kind">
-        <option v-for="k in DOCUMENT_KIND_OPTIONS" :key="k" :value="k">{{ t(DOCUMENT_KIND_KEYS[k].label) }}</option>
-      </select>
+      <template v-if="!fixedDocId">
+        <label :for="`${id}-kind`" class="kind-label">{{ t('documents.kindShort') }}</label>
+        <select :id="`${id}-kind`" v-model="kind" :aria-describedby="`${id}-hint`">
+          <option v-for="k in DOCUMENT_KIND_OPTIONS" :key="k" :value="k">{{ t(DOCUMENT_KIND_KEYS[k].label) }}</option>
+        </select>
+      </template>
       <label class="file">
         <input ref="input" type="file" accept="application/pdf,.pdf" @change="onChange" />
         <span>{{ t('documents.choose') }}</span>
@@ -57,8 +63,29 @@ async function onChange(event: Event) {
 </template>
 
 <style scoped>
+.separated {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.hint {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.kind-label {
+  font-size: 12px;
+  color: var(--muted);
+}
 .row {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
 }
@@ -94,12 +121,5 @@ select {
 }
 .inline input {
   width: auto;
-}
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
 }
 </style>

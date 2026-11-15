@@ -117,3 +117,26 @@ describe('DocumentPicker: five kinds (007, Q-U13, FR-001, SC-002)', () => {
     expect(wrapper.text()).toContain(NOT_A_PDF);
   });
 });
+
+describe('DocumentPicker: clear labelling of the local-add block', () => {
+  it.each(['fr', 'en'] as const)('%s: visible title, hint and associated "Type" label', (lang) => {
+    setTestLanguage(lang);
+    const cat = loadCatalog(lang);
+    const wrapper = mount(DocumentPicker);
+    expect(wrapper.find('h3').text()).toBe(cat['documents.addTitle']);
+    expect(wrapper.find('.hint').text()).toBe(cat['documents.addHint']);
+    const label = wrapper.find('label.kind-label');
+    expect(label.text()).toBe(cat['documents.kindShort']);
+    expect(label.classes()).not.toContain('sr-only');
+    expect(label.attributes('for')).toBe(wrapper.find('select').attributes('id'));
+    expect(wrapper.find('select').attributes('aria-describedby')).toBe(wrapper.find('.hint').attributes('id'));
+    setTestLanguage('fr');
+  });
+
+  it('with fixedDocId (resume): no title, hint or label', () => {
+    const wrapper = mount(DocumentPicker, { props: { fixedDocId: 'doc-1' } });
+    expect(wrapper.find('h3').exists()).toBe(false);
+    expect(wrapper.find('.hint').exists()).toBe(false);
+    expect(wrapper.find('label.kind-label').exists()).toBe(false);
+  });
+});

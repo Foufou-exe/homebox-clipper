@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, useId } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type {
@@ -49,6 +49,7 @@ const detectError = ref<ErrorCode | null>(null);
 const warnings = ref<ErrorCode[]>([]);
 const purchase = ref<DetectedPurchase | null>(null);
 const lines = ref<Line[]>([]);
+const uid = useId();
 const documents = ref<{ doc: DocumentRef; selected: boolean }[]>([]);
 const manualFiles = reactive(new Map<string, ManualFile>());
 /** Rows whose image could not be displayed: the photo is then not sent. */
@@ -315,12 +316,20 @@ function submit() {
                 </small>
               </span>
             </label>
-            <select v-model="d.doc.kind" class="kind" :aria-label="t('documents.kindFor', [d.doc.label])">
-              <option v-for="k in DOCUMENT_KIND_OPTIONS" :key="k" :value="k">{{ t(DOCUMENT_KIND_KEYS[k].label) }}</option>
-            </select>
             <button v-if="d.doc.origin === 'manual'" class="link" type="button" @click="removeManual(d.doc.id)">
               {{ t('summary.remove') }}
             </button>
+            <div class="kind-row">
+              <label :for="`${uid}-kind-${d.doc.id}`" class="kind-label">{{ t('documents.kindShort') }}</label>
+              <select
+                :id="`${uid}-kind-${d.doc.id}`"
+                v-model="d.doc.kind"
+                class="kind"
+                :aria-label="t('documents.kindFor', [d.doc.label])"
+              >
+                <option v-for="k in DOCUMENT_KIND_OPTIONS" :key="k" :value="k">{{ t(DOCUMENT_KIND_KEYS[k].label) }}</option>
+              </select>
+            </div>
           </li>
           <li v-if="documents.length === 0" class="muted">{{ t('summary.noDocuments') }}</li>
         </ul>
@@ -413,6 +422,17 @@ function submit() {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 8px;
+}
+.kind-row {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 22px;
+}
+.kind-label {
+  font-size: 12px;
+  color: var(--muted);
 }
 .kind {
   font: inherit;
