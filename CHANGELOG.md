@@ -7,6 +7,22 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.4.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.3.0...v0.4.0) (2026-11-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add information about HTTPS to troubleshooting guide. ([#78](https://github.com/Foufou-exe/homebox-clipper/issues/78))
+
+### Features
+
+* auto-lock delay, update notice and version display ([dd83bd2](https://github.com/Foufou-exe/homebox-clipper/commit/dd83bd2494ecde96d4fdff4e972f81d88eb9f065))
+
+
+### Documentation
+
+* Add information about HTTPS to troubleshooting guide. ([#78](https://github.com/Foufou-exe/homebox-clipper/issues/78)) ([931c003](https://github.com/Foufou-exe/homebox-clipper/commit/931c003b75218ad2d5991ae53057355cb4cf9c93))
+
 ## [0.3.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.2.3...v0.3.0) (2026-11-18)
 
 
