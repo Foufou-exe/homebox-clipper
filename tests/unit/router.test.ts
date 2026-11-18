@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { dispatch, register, startRouter } from '@/background/router';
+import { isExtensionPage, setUiActivityHook } from '@/background/router';
 
 const BASE = 'chrome-extension://abcdefghijklmnop/';
 
@@ -231,5 +232,103 @@ describe('router — history/* reserved to extension pages (012, T013)', () => {
   ])('validators: %j is refused', async (msg) => {
     expect(await dispatch(msg, { id: id(), url: `${BASE}popup.html` })).toEqual({ ok: false, error: 'BAD_MESSAGE' });
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe('router — session/* and update/* reserved to extension pages, activity hook (013, T009)', () => {
+  const MESSAGES = [
+    { type: 'session/open' },
+    { type: 'session/get-policy' },
+    { type: 'session/set-policy', policy: 'idle-1h' },
+    { type: 'update/state' },
+    { type: 'update/dismiss', version: '0.4.0' },
+    { type: 'update/apply' },
+  ] as const;
+  const order: string[] = [];
+  const handler = vi.fn(async () => {
+    order.push('handler');
+    return { ok: true, value: undefined };
+  });
+  const hook = vi.fn(async () => {
+    order.push('hook');
+  });
+  const id = () => fakeBrowser.runtime.id;
+  const web = () => ({ id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } });
+  const page = () => ({ id: id(), url: `${BASE}popup.html` });
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    order.length = 0;
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
+    handler.mockImplementation(async () => {
+      order.push('handler');
+      return { ok: true, value: undefined };
+    });
+    hook.mockImplementation(async () => {
+      order.push('hook');
+    });
+    for (const m of MESSAGES) register(m.type, handler as never);
+    register('config/get', handler as never);
+    setUiActivityHook(hook);
+  });
+
+  afterEach(() => setUiActivityHook(null));
+
+  it.each(MESSAGES)('$type forged by the script injected on amazon.fr: BAD_MESSAGE, neither handler nor hook (M-1)', async (msg) => {
+    expect(await dispatch(msg, web())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/'", () => {
+    const source = readFileSync(resolve(__dirname, '../../src/background/router.ts'), 'utf8');
+    const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='))!;
+    const list = [...line.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/']);
+  });
+
+  it.each(MESSAGES)('$type from an extension page: the hook runs before the handler', async (msg) => {
+    expect(await dispatch(msg, page())).toEqual({ ok: true, value: undefined });
+    expect(order).toEqual(['hook', 'handler']);
+  });
+
+  it('a message accepted from the injected script (no reserved prefix) reaches its handler without calling the hook', async () => {
+    register('amazon/download', handler as never);
+    expect(await dispatch({ type: 'amazon/download', url: 'https://www.amazon.fr/x.pdf' }, web())).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it('a message from a content script (merchant tab) does not call the hook', async () => {
+    register('amazon/extract', handler as never);
+    await dispatch({ type: 'amazon/extract' }, web());
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it('a malformed message from a page does not call the hook', async () => {
+    expect(await dispatch({ type: 'session/set-policy', policy: 'never' }, page())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it('a hook that throws is logged by code, without data, and the handler still runs', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    hook.mockImplementation(async () => {
+      throw new Error('secret hb_xxxxxxxx');
+    });
+    expect(await dispatch({ type: 'config/get' }, page())).toEqual({ ok: true, value: undefined });
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('hb_xxxxxxxx');
+    const meta = warn.mock.calls[0]![1] as Record<string, unknown>;
+    expect(Object.keys(meta)).toEqual(['endpoint']);
+  });
+
+  it('isExtensionPage is exported', () => {
+    expect(isExtensionPage({ url: `${BASE}popup.html` })).toBe(true);
+    expect(isExtensionPage({ url: 'https://www.amazon.fr/x' })).toBe(false);
+    expect(isExtensionPage({})).toBe(false);
   });
 });

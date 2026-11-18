@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { dispatch, register } from '@/background/router';
 import { isMessage } from '@/shared/messages';
@@ -142,5 +144,61 @@ describe('messages: warranty validation on import/start (011, Q-U11)', () => {
     expect(createEntity).not.toHaveBeenCalled();
     expect(updateEntity).not.toHaveBeenCalled();
     expect(await dispatch(startWith(goodWarranty), sender)).toEqual({ ok: true, value: [] });
+  });
+});
+
+/** Spec 013 (M-2, M-3, M-4): six messages from the UI, validated on reception. */
+describe('messages: session/* and update/* (013, M-2, M-3)', () => {
+  const POLICIES = ['browser-close', 'idle-15m', 'idle-1h', 'idle-4h', 'every-open'];
+
+  it.each(POLICIES)('session/set-policy accepts %s', (policy) => {
+    expect(isMessage({ type: 'session/set-policy', policy })).toBe(true);
+  });
+
+  it.each(['never', 'idle-30m', 42, undefined, null, ''])('session/set-policy refuses policy = %j (M-2)', (policy) => {
+    expect(isMessage({ type: 'session/set-policy', policy })).toBe(false);
+  });
+
+  it('session/set-policy without policy is refused', () => {
+    expect(isMessage({ type: 'session/set-policy' })).toBe(false);
+  });
+
+  it.each(['1.0.0/../x', '', '1.2.3.4.5', 'v0.4.0', 42, undefined])('update/dismiss refuses version = %j (M-3)', (version) => {
+    expect(isMessage({ type: 'update/dismiss', version })).toBe(false);
+  });
+
+  it('update/dismiss accepts a version', () => {
+    expect(isMessage({ type: 'update/dismiss', version: '0.4.0' })).toBe(true);
+  });
+
+  it.each(['session/open', 'session/get-policy', 'update/state', 'update/apply'])('%s is accepted without parameter', (type) => {
+    expect(isMessage({ type })).toBe(true);
+  });
+
+  it('the six types exist; the new response types declare no secret, address or activity timestamp (M-4)', () => {
+    const source = readFileSync(resolve(__dirname, '../../src/shared/messages.ts'), 'utf8');
+    const responses = {
+      'session/open': 'ConfigView',
+      'session/get-policy': 'LockSettings',
+      'session/set-policy': 'Result<LockSettings>',
+      'update/state': 'UpdateStateView',
+      'update/dismiss': 'Result<void>',
+      'update/apply': 'UpdateApplyResult',
+    };
+    for (const [type, response] of Object.entries(responses)) {
+      expect(source, type).toContain(`'${type}': ${response};`);
+    }
+    const types = readFileSync(resolve(__dirname, '../../src/shared/types.ts'), 'utf8');
+    const policy = readFileSync(resolve(__dirname, '../../src/shared/lock-policy.ts'), 'utf8');
+    const block = (text: string, start: string) => text.slice(text.indexOf(start), text.indexOf('}', text.indexOf(start)) + 1);
+    const declared = [
+      block(types, 'interface UpdateStateView'),
+      block(policy, 'interface LockSettings'),
+      source.slice(source.indexOf('type UpdateApplyResult'), source.indexOf(';', source.indexOf('type UpdateApplyResult'))),
+    ];
+    for (const decl of declared) {
+      expect(decl.length).toBeGreaterThan(10);
+      expect(decl).not.toMatch(/\b(baseUrl|apiKey|historyKey|passphrase|at)\??:/);
+    }
   });
 });

@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { MIN_PASSPHRASE_LENGTH } from '@/background/config/key-vault';
 import { normalizeBaseUrl } from '@/background/config/url-policy';
-import { requestOrigin } from '@/platform';
+import { browser, requestOrigin } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type { ConfigView } from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import HistoryCard from './HistoryCard.vue';
+import LockCard from './LockCard.vue';
 import WarrantyCard from './WarrantyCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
+import UpdateBanner from '@/ui/components/UpdateBanner.vue';
 import { t } from '@/ui/i18n';
 import { THEME_VALUES, saveTheme, themeLabel, themePreference as theme } from '@/ui/theme';
 
@@ -53,7 +55,28 @@ async function refresh() {
   baseUrl.value = view.value.baseUrl ?? '';
 }
 
-onMounted(refresh);
+/** 013: the first load is an opening (R3, "every open" lock); the following refreshes stay config/get. */
+onMounted(async () => {
+  view.value = await send({ type: 'session/open' });
+  baseUrl.value = view.value.baseUrl ?? '';
+  try {
+    browser.runtime.connect({ name: 'ui-presence' });
+  } catch {
+    // not available: the lock at the next opening stays the guarantee
+  }
+  document.addEventListener('visibilitychange', onVisibility);
+});
+
+onUnmounted(() => document.removeEventListener('visibilitychange', onVisibility));
+
+/**
+ * Back to a hidden tab: the displayed state follows an automatic lock that happened meanwhile. Only the view is
+ * reloaded, so that an address being typed is not overwritten.
+ */
+async function onVisibility() {
+  if (document.visibilityState !== 'visible') return;
+  view.value = await send({ type: 'config/get' });
+}
 
 async function onTheme() {
   await saveTheme(theme.value);
@@ -151,6 +174,7 @@ async function remove() {
     <ThemeToggle />
   </AppHeader>
   <main class="options">
+    <UpdateBanner />
     <section class="card">
       <h1>{{ t('options.title') }}</h1>
       <p class="intro">
@@ -246,6 +270,8 @@ async function remove() {
         </div>
       </form>
     </section>
+
+    <LockCard />
 
     <HistoryCard ref="historyCard" :base-url="view.baseUrl ?? ''" />
 

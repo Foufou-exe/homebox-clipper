@@ -46,8 +46,13 @@ test instance on another machine of the local network will have an address like
 
 ## Locking and unlocking
 
-- After a **browser restart**, the popup asks for your passphrase: this is the session unlock. The
-  decrypted key lives only in memory.
+- The decrypted key lives only in memory. When it is asked again depends on **Settings → Automatic
+  lock**: **when the browser closes** (default), **after 15 minutes**, **1 hour** or **4 hours** of
+  inactivity (not using the popup, the settings or an import), or **every time the extension is opened**.
+  Changing the setting does not ask for the passphrase. An import in progress is never interrupted: the
+  lock applies once it ends.
+- There is no "never" option: the decrypted key would then be readable by anyone or any software with
+  access to the browser profile. Whatever the choice, the key is forgotten when the browser closes.
 - The 🔒 button in the popup (or **Lock** in the settings) clears the key from memory. Imports are then
   impossible until the next unlock.
 - A wrong passphrase shows "Incorrect passphrase." without changing anything.

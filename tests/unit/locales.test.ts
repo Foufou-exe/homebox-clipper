@@ -489,3 +489,105 @@ describe('warranty keys (011, Q-U19, FR-009)', () => {
     }
   });
 });
+
+describe('automatic lock keys (013, contracts/ui.md, FR-020, T021)', () => {
+  const LOCK: Record<string, [string, string]> = {
+    'lock.settings.title': ['Automatic lock', 'Verrouillage automatique'],
+    'lock.settings.intro': [
+      'Choose when the extension asks for your passphrase again.',
+      'Choisissez quand l’extension vous redemande votre phrase de passe.',
+    ],
+    'lock.settings.legend': ['Lock the extension', 'Verrouiller l’extension'],
+    'lock.policy.browserClose': ['When the browser closes (default)', 'À la fermeture du navigateur (par défaut)'],
+    'lock.policy.idle15m': ['After 15 minutes of inactivity', 'Après 15 minutes d’inactivité'],
+    'lock.policy.idle1h': ['After 1 hour of inactivity', 'Après 1 heure d’inactivité'],
+    'lock.policy.idle4h': ['After 4 hours of inactivity', 'Après 4 heures d’inactivité'],
+    'lock.policy.everyOpen': ['Every time the extension is opened', 'À chaque ouverture de l’extension'],
+    'lock.settings.whyNoNever': [
+      'There is no “never” option: the decrypted key would then be readable by anyone or any software with access to your browser profile. Whatever you choose, the key is forgotten when the browser closes, and you can lock the extension at any time with the lock button.',
+      'Il n’y a pas d’option « jamais » : la clé déchiffrée serait alors lisible par toute personne ou tout logiciel ayant accès à votre profil de navigateur. Quel que soit votre choix, la clé est oubliée à la fermeture du navigateur, et vous pouvez verrouiller l’extension à tout moment avec le bouton cadenas.',
+    ],
+    'lock.settings.inactivityHelp': [
+      'Inactivity means not using the extension (popup, settings, import). An import in progress is never interrupted: the lock applies once it ends.',
+      'L’inactivité correspond à l’absence d’utilisation de l’extension (popup, configuration, import). Un import en cours n’est jamais interrompu : le verrouillage s’applique à sa fin.',
+    ],
+    'lock.settings.saved': ['Lock setting saved.', 'Réglage de verrouillage enregistré.'],
+    'lock.settings.saveFailed': ['The lock setting could not be saved.', 'Le réglage de verrouillage n’a pas pu être enregistré.'],
+  };
+
+  it('the 12 lock.* keys have the exact texts of contracts/ui.md', () => {
+    expect(Object.keys(LOCK)).toHaveLength(12);
+    for (const [key, [enText, frText]] of Object.entries(LOCK)) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+    }
+  });
+
+  it('exactly 12 lock.* keys in each catalog', () => {
+    expect(Object.keys(en).filter((k) => k.startsWith('lock.'))).toHaveLength(12);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('lock.'))).toHaveLength(12);
+  });
+
+  it('options.unlockedHint no longer says "for this browser session"', () => {
+    expect(en['options.unlockedHint']).toBe('until it locks (see “Automatic lock”).');
+    expect(catalog['options.unlockedHint']).toBe('jusqu’au prochain verrouillage (voir « Verrouillage automatique »).');
+  });
+
+  it('options.passphraseHelpNew says the passphrase is requested at each lock, not once per session', () => {
+    expect(en['options.passphraseHelpNew']).toContain(
+      'requested again each time the extension locks (when the browser closes, by default)',
+    );
+    expect(catalog['options.passphraseHelpNew']).toContain(
+      'vous sera redemandée à chaque verrouillage (à la fermeture du navigateur, par défaut)',
+    );
+    expect(en['options.passphraseHelpNew']).not.toContain('once per browser session');
+    expect(catalog['options.passphraseHelpNew']).not.toContain('une fois par session du navigateur');
+  });
+});
+
+describe('update keys (013, contracts/ui.md, FR-020, T040)', () => {
+  const UPDATE: Record<string, [string, string]> = {
+    'update.notice': ['Updated to v$1.', 'Mise à jour vers v$1.'],
+    'update.notesLink': ['See what’s new', 'Voir les nouveautés'],
+    'update.notesAria': ['See what’s new in v$1 on GitHub (new tab)', 'Voir les nouveautés de la v$1 sur GitHub (nouvel onglet)'],
+    'update.dismissAria': ['Close the update notice', 'Fermer l’annonce de mise à jour'],
+    'update.ready': ['Version $1 is ready to install.', 'La version $1 est prête à être installée.'],
+    'update.applyButton': ['Update now', 'Mettre à jour maintenant'],
+    'update.applyHelp': [
+      'The extension restarts, then asks for your passphrase again.',
+      'L’extension redémarre, puis vous redemande votre phrase de passe.',
+    ],
+    'update.blocked': [
+      'Available once the current import is finished, resumed or abandoned.',
+      'Disponible une fois l’import en cours terminé, repris ou abandonné.',
+    ],
+  };
+
+  it('the 8 update.* keys have the exact texts of contracts/ui.md and the same substitutions', () => {
+    expect(Object.keys(UPDATE)).toHaveLength(8);
+    for (const [key, [enText, frText]] of Object.entries(UPDATE)) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('exactly 8 update.* keys in each catalog', () => {
+    expect(Object.keys(en).filter((k) => k.startsWith('update.'))).toHaveLength(8);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('update.'))).toHaveLength(8);
+  });
+});
+
+describe('version label and final count (013, contracts/ui.md, FR-020, T055)', () => {
+  it('links.version = "Version $1" in en and fr', () => {
+    expect(en['links.version']).toBe('Version $1');
+    expect(catalog['links.version']).toBe('Version $1');
+  });
+
+  it('21 keys added by the feature (12 lock + 8 update + 1 version), parity of the whole catalog', () => {
+    const added = Object.keys(en).filter((k) => k.startsWith('lock.') || k.startsWith('update.') || k === 'links.version');
+    expect(added).toHaveLength(21);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('lock.') || k.startsWith('update.') || k === 'links.version')).toHaveLength(21);
+    expect(Object.keys(en).sort()).toEqual(Object.keys(catalog).sort());
+  });
+});

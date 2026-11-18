@@ -67,3 +67,56 @@ describe('import history status badges (012, Q-U26, WCAG AA 4.5:1)', () => {
     expect(src).toMatch(/a:focus-visible\s*{[^}]*outline:\s*2px solid var\(--accent\)/);
   });
 });
+
+describe('automatic lock card (013, T022)', () => {
+  const src = readFileSync(resolve(__dirname, '../../src/ui/options/LockCard.vue'), 'utf8');
+  const style = src.slice(src.indexOf('<style'));
+
+  it('only theme variables for colors (no literal color)', () => {
+    expect(style).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(/);
+    for (const m of style.matchAll(/(?:^|[\s;{])(?:color|background(?:-color)?|border(?:-color)?|outline):\s*([^;]+);/g)) {
+      const value = m[1]!;
+      if (/none|transparent|inherit|^0$/.test(value.trim())) continue;
+      expect(value, m[0]).toMatch(/var\(--/);
+    }
+  });
+
+  it('a visible focus on the radios', () => {
+    expect(style).toMatch(/focus-visible\s*{[^}]*outline:\s*2px solid var\(--accent\)/);
+  });
+
+  it.each(Object.entries(blocks))('theme %s: the help text (--muted on --bg-card or --bg) is readable', (_name, vars) => {
+    const bg = vars['--bg-card'] ?? vars['--card'] ?? vars['--bg'];
+    expect(ratio(vars['--muted']!, bg!)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(vars['--fg']!, bg!)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('update banner (013, T040)', () => {
+  const src = readFileSync(resolve(__dirname, '../../src/ui/components/UpdateBanner.vue'), 'utf8');
+  const style = src.slice(src.indexOf('<style'));
+
+  it('only theme variables for colors (no literal color)', () => {
+    expect(style).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(/);
+  });
+
+  it('the notice uses --chip-fg on --chip-bg, the link --accent-text or --chip-fg', () => {
+    expect(style).toMatch(/\.update-banner\s*{[^}]*background:\s*var\(--chip-bg\)[^}]*color:\s*var\(--chip-fg\)/);
+  });
+
+  it.each(Object.entries(blocks))('theme %s: --chip-fg on --chip-bg is readable (AA)', (_name, vars) => {
+    expect(ratio(vars['--chip-fg']!, vars['--chip-bg']!)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('version number (013, T055)', () => {
+  const links = readFileSync(resolve(__dirname, '../../src/ui/components/ProjectLinks.vue'), 'utf8');
+
+  it('.project-version uses --muted or --fg', () => {
+    expect(links).toMatch(/\.project-version\s*{[^}]*color:\s*var\(--(muted|fg)\)/);
+  });
+
+  it.each(Object.entries(blocks))('theme %s: --muted on --bg is readable (AA)', (_name, vars) => {
+    expect(ratio(vars['--muted']!, vars['--bg']!)).toBeGreaterThanOrEqual(4.5);
+  });
+});

@@ -41,6 +41,8 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **Error recovery**: if a document could not be sent, retry without creating a duplicate.
 - **Document types**: attached PDFs can be typed as manual, warranty, delivery note, invoice or order document, and are filed in the matching section of HomeBox.
 - **Warranty**: the item's warranty (expiry date, lifetime, details) is proposed in the summary and sent to HomeBox: the legal guarantee where the duration is verified and the item is sold by the store itself, or the warranty shown on the order page. Indicative value, no legal force.
+- **Automatic lock**: choose when the passphrase is asked again (browser close by default, after 15 minutes, 1 hour or 4 hours of inactivity, or at every opening; no "never" option).
+- **Update notice and version**: a short notice after each update, an "Update now" button when Chrome has one ready, and the installed version shown next to the GitHub link; no request is made to check for updates.
 - **Import history**: your latest imports with their result and a link to the item, kept only in your browser and encrypted with your passphrase (200 entries, 12 months; can be cleared or turned off).
 - **Product photo** attached to the item as its main image (can be unticked per product).
 - **Location choice** among your HomeBox locations, with search; the last one used is suggested.

@@ -43,6 +43,8 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
 - **Reprise sur erreur** : si un document n'a pas pu être envoyé, réessayez sans créer de doublon.
 - **Types de documents** : les PDF joints peuvent être typés manuel, garantie, bon de livraison, facture ou bon de commande, et rangés dans la bonne rubrique de HomeBox.
 - **Garantie** : la garantie de l'objet (date d'expiration, à vie, détails) est proposée au récapitulatif et envoyée à HomeBox : la garantie légale quand sa durée est vérifiée et que l'objet est vendu par la boutique elle-même, ou la garantie indiquée sur la page de commande. Valeur indicative, sans valeur juridique.
+- **Verrouillage automatique** : choisissez quand la phrase de passe est redemandée (à la fermeture du navigateur par défaut, après 15 minutes, 1 heure ou 4 heures d'inactivité, ou à chaque ouverture ; pas d'option « jamais »).
+- **Annonce de mise à jour et version** : une courte annonce après chaque mise à jour, un bouton « Mettre à jour maintenant » quand Chrome en a une prête, et le numéro de version affiché à côté du lien GitHub ; aucune requête n'est faite pour vérifier les mises à jour.
 - **Historique des imports** : vos derniers imports avec leur résultat et un lien vers l'objet, conservés uniquement dans votre navigateur et chiffrés avec votre phrase de passe (200 entrées, 12 mois ; effaçable ou désactivable).
 - **Photo du produit** jointe à l'objet comme image principale (décochable par produit).
 - **Choix de l'emplacement** parmi vos emplacements HomeBox, avec recherche ; le dernier utilisé est proposé.

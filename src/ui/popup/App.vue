@@ -9,6 +9,7 @@ import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import Icon from '@/ui/components/Icon.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
+import UpdateBanner from '@/ui/components/UpdateBanner.vue';
 import { t } from '@/ui/i18n';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ResultView from './ResultView.vue';
@@ -42,9 +43,20 @@ const onProgress = (raw: unknown) => {
 
 onMounted(async () => {
   browser.runtime.onMessage.addListener(onProgress);
-  view.value = await send({ type: 'config/get' });
+  // 013: an opening (R3, "every open" lock), then the same view as config/get.
+  view.value = await send({ type: 'session/open' });
+  openPresencePort();
   await route();
 });
+
+/** Presence port (013, R3.2): lets the service worker see this page close. Best effort, carries nothing. */
+function openPresencePort() {
+  try {
+    browser.runtime.connect({ name: 'ui-presence' });
+  } catch {
+    // not available: the lock at the next opening stays the guarantee
+  }
+}
 
 async function route() {
   // Migrated key lost or to be encrypted: the configuration must be completed in the options.
@@ -174,6 +186,7 @@ function openOptions() {
     </AppHeader>
 
     <main class="content">
+      <UpdateBanner />
       <HistoryView
         v-if="showHistory"
         :base-url="view.baseUrl ?? ''"

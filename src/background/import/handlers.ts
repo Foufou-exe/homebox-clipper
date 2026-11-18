@@ -1,3 +1,4 @@
+import * as autoLock from '@/background/config/auto-lock';
 import { configStore } from '@/background/config/config-store';
 import { lastLocation } from '@/background/location/last-location';
 import { injectExtractor } from '@/background/detect';
@@ -84,6 +85,15 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
   }));
 }
 
+/** Automatic lock due during the import (013, FR-007): applied now; never alters the import result. */
+async function lockAfterImport(): Promise<void> {
+  try {
+    await autoLock.afterImport();
+  } catch {
+    // already logged by expireIfDue (constant endpoint); the import result stays as is
+  }
+}
+
 export function registerImportHandlers(): void {
   register('import/start', async ({ tabId, drafts, manualFiles, orderLocationId }) => {
     const started: string[] = [];
@@ -92,6 +102,7 @@ export function registerImportHandlers(): void {
       return o.ok ? await o.value.startImport(tabId, drafts, manualFiles, orderLocationId ?? null) : o;
     } finally {
       for (const id of started) activeImports.delete(id);
+      await lockAfterImport();
     }
   });
 
@@ -102,12 +113,17 @@ export function registerImportHandlers(): void {
       const current = await pendingStore.get(pendingId);
       return current ? ok(current) : fail('BAD_MESSAGE');
     }
+    // Credentials checked BEFORE the import is declared active (review T070): an expired session is locked here,
+    // even if the router's activity hook failed; no HomeBox call is made.
+    const creds = await configStore.getCredentials();
+    if (!creds.ok) return creds;
     activeImports.add(pendingId);
     try {
       const o = await orchestrator();
       return o.ok ? await o.value.retryImport(pendingId, manualFiles, location) : o;
     } finally {
       activeImports.delete(pendingId);
+      await lockAfterImport();
     }
   });
 

@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { send } from '@/shared/messages';
 import { PROJECT_LINKS } from '@/shared/project-links';
+import { releaseNotesUrl } from '@/shared/project-links';
 import type { ConfigView } from '@/shared/types';
 import OptionsApp from '@/ui/options/App.vue';
 import PopupApp from '@/ui/popup/App.vue';
@@ -155,5 +156,85 @@ describe('accessibility and language (US3, FR-009, FR-010, SC-005)', () => {
     expect(wrapper.find('footer a').attributes('aria-label')).toBe(
       'Support : ouvrir les issues du projet sur GitHub (nouvel onglet)',
     );
+  });
+});
+
+describe('releaseNotesUrl (013, Q-U6, FR-013)', () => {
+  it('a release tag address for a valid version', () => {
+    expect(releaseNotesUrl('0.4.0')).toBe('https://github.com/Foufou-exe/homebox-clipper/releases/tag/v0.4.0');
+  });
+
+  it.each(['x', '', '1.0.0/../x', 'v0.4.0', '1.2.3.4.5'])('null for %j (nothing else can enter the address)', (v) => {
+    expect(releaseNotesUrl(v)).toBeNull();
+  });
+
+  it('github.com/ still only appears in src/shared/project-links.ts (UpdateBanner.vue included)', () => {
+    expect(read('src/ui/components/UpdateBanner.vue')).not.toContain('github.com/');
+  });
+});
+
+describe('version number next to the project links (013, Q-U9, FR-017)', () => {
+  const manifest = (version: string) =>
+    vi.spyOn(fakeBrowser.runtime, 'getManifest').mockReturnValue({ version } as never);
+
+  it('popup footer: "Version x" after the two links, from getManifest()', async () => {
+    manifest('0.4.0');
+    vi.mocked(send).mockResolvedValue({ configured: false } as never);
+    const wrapper = mount(PopupApp);
+    await flushPromises();
+    const footer = wrapper.find('footer');
+    expectLinks(footer);
+    const version = footer.get('.project-version');
+    expect(version.element.tagName).toBe('SPAN');
+    expect(version.text()).toBe('Version 0.4.0');
+    const children = [...footer.get('.project-links').element.children];
+    expect(children.indexOf(version.element)).toBe(children.length - 1);
+    expect(children.filter((c) => c.tagName === 'A')).toHaveLength(2);
+  });
+
+  it('options "Help and project": the same version, two links still', async () => {
+    manifest('0.4.0');
+    vi.mocked(send).mockResolvedValue({ configured: false } as never);
+    const wrapper = mount(OptionsApp);
+    await flushPromises();
+    const section = wrapper.findAll('section').find((x) => x.find('h2').exists() && x.find('h2').text() === 'Aide et projet')!;
+    expectLinks(section);
+    expect(section.get('.buttons .project-version').text()).toBe('Version 0.4.0');
+  });
+
+  it.each([
+    ['throws', () => vi.spyOn(fakeBrowser.runtime, 'getManifest').mockImplementation(() => { throw new Error('x'); })],
+    ['unreadable version', () => manifest('<b>x</b>')],
+    ['no version', () => vi.spyOn(fakeBrowser.runtime, 'getManifest').mockReturnValue({} as never)],
+  ])('getManifest %s: the two links, no version, no exception', async (_label, setup) => {
+    setup();
+    vi.mocked(send).mockResolvedValue({ configured: false } as never);
+    const wrapper = mount(PopupApp);
+    await flushPromises();
+    expectLinks(wrapper.find('footer'));
+    expect(wrapper.find('.project-version').exists()).toBe(false);
+  });
+
+  it('the version follows the manifest (US3-3: after an update, the new value)', async () => {
+    vi.mocked(send).mockResolvedValue({ configured: false } as never);
+    manifest('0.4.0');
+    const before = mount(PopupApp);
+    await flushPromises();
+    expect(before.get('.project-version').text()).toBe('Version 0.4.0');
+    manifest('0.5.0');
+    const after = mount(PopupApp);
+    await flushPromises();
+    expect(after.get('.project-version').text()).toBe('Version 0.5.0');
+  });
+
+  it('the component reads the version without request, message, log or navigation', () => {
+    const source = read('src/ui/components/ProjectLinks.vue');
+    expect(source).toContain('getManifest');
+    for (const forbidden of ['fetch', 'sendMessage', 'console.', 'tabs.create', 'window.open']) {
+      expect(source, forbidden).not.toContain(forbidden);
+    }
+    expect(source).not.toMatch(/@click/);
+    // The links are never conditional; only the version may be absent.
+    for (const line of source.split('\n').filter((l) => l.includes('<a '))) expect(line).not.toMatch(/v-if|v-show/);
   });
 });

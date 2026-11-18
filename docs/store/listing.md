@@ -66,6 +66,7 @@ PRIVACY AND SECURITY
 - Nothing is imported without your confirmation.
 - Your API key is stored encrypted with your passphrase (AES-GCM, PBKDF2 with 600,000 iterations), is never sent to Amazon or to any intermediary server, and is never written to logs.
 - A short import history (200 entries, 12 months) is kept only in your browser, encrypted with the same passphrase. You can clear it or turn it off at any time.
+- You choose when the extension locks again: when the browser closes (default), after 15 minutes, 1 hour or 4 hours of inactivity, or every time it is opened. There is no "never" option, so that the decrypted key is never left readable. No network request is made to check for updates.
 - No broad permission: the extension has no permanent access to any website. It reads the Amazon tab only when you open it, and asks access to the exact address of your HomeBox instance only.
 - HTTPS is required, except for local network addresses (with a warning).
 - Open source (MIT license): https://github.com/Foufou-exe/homebox-clipper
@@ -102,6 +103,7 @@ CONFIDENTIALITÉ ET SÉCURITÉ
 - Rien n'est importé sans votre confirmation.
 - Votre clé API est stockée chiffrée avec votre phrase de passe (AES-GCM, PBKDF2 avec 600 000 itérations), n'est jamais envoyée à Amazon ni à un serveur intermédiaire, et n'est jamais écrite dans les journaux.
 - Un court historique des imports (200 entrées, 12 mois) est conservé uniquement dans votre navigateur, chiffré avec la même phrase de passe. Vous pouvez l'effacer ou le désactiver à tout moment.
+- Vous choisissez quand l'extension se verrouille : à la fermeture du navigateur (par défaut), après 15 minutes, 1 heure ou 4 heures d'inactivité, ou à chaque ouverture. Il n'y a pas d'option « jamais », pour que la clé déchiffrée ne reste jamais lisible. Aucun appel réseau n'est fait pour vérifier les mises à jour.
 - Aucune permission large : l'extension n'a aucun accès permanent à un site. Elle lit l'onglet Amazon uniquement quand vous l'ouvrez, et ne demande l'accès qu'à l'adresse exacte de votre instance HomeBox.
 - HTTPS obligatoire, sauf pour les adresses du réseau local (avec un avertissement).
 - Open source (licence MIT) : https://github.com/Foufou-exe/homebox-clipper
@@ -138,13 +140,13 @@ The manifest declares `storage`, `activeTab`, `scripting` and the optional host 
 EN:
 
 ```
-Stores the user's HomeBox instance address, the API key encrypted with the user's passphrase, the theme, the last location used, a short local import history (product name, store, order number, dates, result and item link; at most 200 entries and 12 months, encrypted with the user's passphrase, can be cleared or turned off), and (in session memory only) the data of an import in progress so it can be resumed after an error. Nothing is synced or sent anywhere.
+Stores the user's HomeBox instance address, the API key encrypted with the user's passphrase, the theme, the last location used, a short local import history (product name, store, order number, dates, result and item link; at most 200 entries and 12 months, encrypted with the user's passphrase, can be cleared or turned off), the automatic lock setting (a choice, no secret), the version number of the last update notice, and (in session memory only) the data of an import in progress so it can be resumed after an error, the time of the last use of the extension and the version ready to install. Updates are detected from the browser's own signal: no network request is made for them. Nothing is synced or sent anywhere.
 ```
 
 FR :
 
 ```
-Conserve l'adresse de l'instance HomeBox de l'utilisateur, la clé API chiffrée avec sa phrase de passe, le thème, le dernier emplacement utilisé, un court historique des imports local (nom du produit, boutique, numéro de commande, dates, résultat et lien vers l'objet ; au plus 200 entrées et 12 mois, chiffré avec la phrase de passe de l'utilisateur, effaçable et désactivable) et (en mémoire de session uniquement) les données d'un import en cours pour le reprendre après une erreur. Rien n'est synchronisé ni envoyé ailleurs.
+Conserve l'adresse de l'instance HomeBox de l'utilisateur, la clé API chiffrée avec sa phrase de passe, le thème, le dernier emplacement utilisé, un court historique des imports local (nom du produit, boutique, numéro de commande, dates, résultat et lien vers l'objet ; au plus 200 entrées et 12 mois, chiffré avec la phrase de passe de l'utilisateur, effaçable et désactivable) le réglage de verrouillage automatique (un choix, sans secret), le numéro de version de la dernière annonce de mise à jour, et (en mémoire de session uniquement) les données d'un import en cours pour le reprendre après une erreur, l'heure de la dernière utilisation de l'extension et la version prête à être installée. Les mises à jour sont détectées par le signal du navigateur lui-même : aucun appel réseau n'est fait pour elles. Rien n'est synchronisé ni envoyé ailleurs.
 ```
 
 **activeTab**

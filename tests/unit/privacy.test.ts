@@ -472,3 +472,69 @@ describe('warranty setting privacy (011, Q-U20, R8)', () => {
     expect(Object.keys(local).some((k) => k.startsWith('importHistory'))).toBe(false);
   });
 });
+
+describe('automatic lock privacy (013, Q-U12, FR-016, FR-018, FR-019)', () => {
+  const root = resolve(__dirname, '../..');
+  const read = (p: string) => readFileSync(resolve(root, p), 'utf8');
+  const FILES = [
+    'src/background/config/auto-lock.ts',
+    'src/background/config/config-store.ts',
+    'src/shared/lock-policy.ts',
+    'src/ui/options/LockCard.vue',
+  ];
+
+  it.each(FILES)('%s: no console, request or programmatic navigation', (file) => {
+    const source = read(file);
+    for (const forbidden of ['console.', 'fetch(', 'XMLHttpRequest', 'tabs.create', 'window.open']) {
+      expect(source, forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it('wxt.config.ts requests neither alarms, nor idle, nor tabs', () => {
+    const config = read('wxt.config.ts');
+    const permissions = config.slice(config.indexOf('permissions:'), config.indexOf(']', config.indexOf('permissions:')) + 1);
+    expect(permissions).toContain("'storage'");
+    for (const p of ['alarms', 'idle', "'tabs'"]) expect(permissions, p).not.toContain(p);
+  });
+
+  it('the activity timestamp is never used by the UI or the message contract', () => {
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.(ts|vue)$/.test(name) && readFileSync(path, 'utf8').includes('homeboxActivity')) offenders.push(path);
+      }
+    };
+    walk(resolve(root, 'src/ui'));
+    expect(offenders).toEqual([]);
+    expect(read('src/shared/messages.ts')).not.toContain('homeboxActivity');
+  });
+});
+
+describe('update privacy (013, U-9, Q-U12, FR-013, FR-016)', () => {
+  const root = resolve(__dirname, '../..');
+  const read = (p: string) => readFileSync(resolve(root, p), 'utf8');
+  const files = () => {
+    const out = ['src/shared/version.ts', 'src/ui/components/UpdateBanner.vue'];
+    for (const name of readdirSync(resolve(root, 'src/background/update'))) out.push(`src/background/update/${name}`);
+    return out;
+  };
+
+  it('src/background/update/ exists with its store and handlers', () => {
+    expect(files()).toEqual(expect.arrayContaining(['src/background/update/update-store.ts', 'src/background/update/handlers.ts']));
+  });
+
+  it('no request, update check, programmatic navigation or console in the added sources', () => {
+    for (const file of files()) {
+      const source = read(file);
+      for (const forbidden of ['fetch(', 'XMLHttpRequest', 'requestUpdateCheck', 'tabs.create', 'window.open', 'console.']) {
+        expect(source, `${file}: ${forbidden}`).not.toContain(forbidden);
+      }
+    }
+  });
+
+  it('the background entry point never asks the browser to check for updates', () => {
+    expect(read('src/entrypoints/background.ts')).not.toContain('requestUpdateCheck');
+  });
+});

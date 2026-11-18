@@ -2,7 +2,7 @@
 
 # Privacy policy
 
-**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **15 November 2026**
+**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **18 November 2026**
 
 In short: the extension has **no server, no account, no analytics and no telemetry**. The data it
 handles goes from your browser to **your own** HomeBox instance, only when you click "Add to HomeBox",
@@ -28,6 +28,9 @@ control**; you are the controller of that data. Project page:
 | HomeBox location list and last location used (identifiers only) | Your HomeBox instance | Let you choose where the item is filed | Read from your instance; identifiers kept locally |
 | Warranty proposed with each item (expiry date, lifetime flag, details), calculated from the purchase date, and the default-warranty setting (on/off, duration) | The extension and you | Fill the warranty fields of the HomeBox item | The warranty is sent to your HomeBox instance after you confirm and is never kept by the extension once the import is done; the setting is stored locally (no personal data) |
 | Theme preference | You | Display | Stored locally |
+| Automatic lock setting (`lockSettings`: when the browser closes, after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened) | You | Decide when the passphrase is asked again | Stored locally; a choice only, no secret |
+| Last time the extension was used while unlocked (`homeboxActivity`, a technical timestamp) | The extension | Apply the inactivity lock | Browser memory only (`storage.session`), never on disk; erased when the extension locks or the browser closes; never shown or logged |
+| Version numbers: the version announced after an update (`updateNotice`) and the version Chrome has ready to install (`updateReady`) | The extension and the browser | Show "Updated to vX" and the "Update now" button | `updateNotice` stored locally; `updateReady` in browser memory only (`storage.session`) |
 | Import history: product name, store, order number, import and purchase dates, HomeBox instance address, item identifier, result (complete, partial, failed) and what is missing (invoice, manual, warranty, delivery note, documents, photo, purchase details) | Each import you confirm | Let you find an imported item, open it in HomeBox and spot an incomplete import | Stored locally, **encrypted with your passphrase**; never sent anywhere (on by default, can be turned off) |
 
 The extension does **not** read your delivery address, your payment method, your browsing history or
@@ -40,10 +43,13 @@ your HomeBox instance.
 - **In your browser** (`storage.local`): instance address, encrypted API key, masked key (for example
   `hb_••••abcd`), result of the last connection test, last location used per instance, theme, the default-warranty setting, and the
   import history (each entry encrypted with AES-GCM 256 under a random history key, itself sealed with
-  your passphrase like the API key) with its on/off setting.
+  your passphrase like the API key) with its on/off setting, the automatic lock setting
+  (`lockSettings`) and the version of the last update notice (`updateNotice`).
 - **In browser memory** (`storage.session`, cleared when the browser closes or the extension is
   locked, reloaded, updated or disabled): the decrypted API key while the extension is unlocked, and
-  the data of an import in progress so that it can be resumed after an error (without file contents).
+  the data of an import in progress so that it can be resumed after an error (without file contents),
+  the time of the last use of the extension (`homeboxActivity`) and the version Chrome has ready to install
+  (`updateReady`).
 - **On your HomeBox instance**: the items, invoices and photos you choose to import. Its retention and
   security are your responsibility.
 - Nothing is placed in `storage.sync`. Nothing is stored on a server operated by the extension's
@@ -62,6 +68,26 @@ your HomeBox instance.
 - There is no advertising, no analytics, no telemetry, no tracking and no sale of data.
 - The extension loads no remote code.
 - Nothing is imported automatically: every import requires your explicit confirmation.
+
+## Automatic lock
+
+You choose when the extension forgets the decrypted API key and asks for your passphrase again
+(Settings → **Automatic lock**): **when the browser closes** (default), **after 15 minutes**, **after 1 hour**
+or **after 4 hours** of inactivity, or **every time the extension is opened**. Inactivity means not using the
+extension (popup, settings, import); an import in progress is never interrupted, the lock applies once it
+ends. There is **no “never” option**: the decrypted key would then be readable by anyone or any software with
+access to your browser profile. Whatever you choose, the key is **forgotten when the browser closes**, and
+you can lock the extension at any time with the lock button. Without an extra permission, the browser does
+not wake the extension at a fixed time: the lock is applied at the latest the next time the extension is
+used after the deadline, before the key can be used. The setting itself contains no secret.
+
+## Updates
+
+The extension makes **no network request** to check for updates: it only uses the signal the browser
+gives by itself when an update has been installed or is ready. After an update, a short notice
+("Updated to vX") links to the release notes on GitHub; that page is opened by the browser **only if you
+click** the link. When Chrome has an update ready, an **Update now** button restarts the extension (the
+passphrase is then asked again); it is disabled while an import is running or can still be resumed.
 
 ## Logs
 
@@ -82,7 +108,7 @@ or the API key.
   Uninstalling the extension removes it.
 - Local data stays until you delete it. **Settings → Delete settings** erases the address, the
   encrypted key, the in-progress imports, the last locations, the import history, and removes the access permission granted
-  to your instance. Uninstalling the extension removes all its browser storage.
+  to your instance. The automatic lock setting and the last update notice (no personal data) are kept. Uninstalling the extension removes all its browser storage.
 - You can also revoke the API key in HomeBox at any time.
 - Items already imported belong to your HomeBox instance: delete them there.
 - The author holds no copy of your data, so there is nothing to erase on their side.
