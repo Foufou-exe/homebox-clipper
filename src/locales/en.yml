@@ -75,7 +75,6 @@ fields:
     quantityInvalid: "The quantity must be an integer of 1 or more."
 
 documents:
-  kindLabel: "Document type"
   kindShort: "Type:"
   addTitle: "Add a PDF from your computer"
   addHint: "Pick the type, then the file."
