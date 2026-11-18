@@ -75,7 +75,6 @@ fields:
     quantityInvalid: "La quantité doit être un entier ≥ 1."
 
 documents:
-  kindLabel: "Type de document"
   kindShort: "Type :"
   addTitle: "Ajouter un PDF depuis l'ordinateur"
   addHint: "Choisissez le type, puis le fichier."
