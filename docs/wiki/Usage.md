@@ -103,6 +103,28 @@ HomeBox item has only one location.
 - **Location gone**: if it was deleted in HomeBox between the choice and the submission, no item is
   created for that product. Choose another location and retry, or **Import without a location**.
 
+## Tags
+
+Each product of the summary has a **Tags** section, after the warranty. The extension suggests, already
+checked: the store brand (for example "Amazon", the same for every Amazon store) and the tags of your own
+rules whose text appears in the detected product name (rules and the store-name option are set in the
+**Automatic tags** card of the settings, see [Configuration](Configuration.md#automatic-tags)).
+Rules are evaluated once, when the summary opens: editing the product name does not change the suggestions.
+
+- **Uncheck** a tag to leave it out; only the checked tags are sent, and only when you confirm. Closing the
+  popup sends nothing and creates no tag.
+- **Add a tag**: type in the field (case and accents are ignored: "ecran" finds "Écran"), then pick an
+  existing HomeBox tag with the mouse or keyboard (arrows, Enter, Escape), or choose *Add "…" (new)*.
+  Adding a tag already in the list checks it again instead of duplicating it.
+- **new**: the tag does not exist in HomeBox yet; it is created once at confirmation, then attached.
+- **not verified**: the HomeBox tag list could not be read (a warning is shown once); you can still import,
+  the tags are matched or created when you confirm.
+- Tags already on an item are never removed. A name is at most 255 bytes, and a product has at most 50 tags.
+
+If a tag cannot be created or attached, the item and its data are kept: the result shows
+*Tags not added: …* and **Retry** applies only the missing tags, without recreating the item or the tags
+already created. The chosen tags are never stored in the import history.
+
 ## Multi-item orders
 
 The popup lists the "Detected products": check the ones to import. Each becomes a HomeBox item, with the

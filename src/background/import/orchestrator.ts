@@ -1,5 +1,5 @@
 import { entityOutToUpdate, type HomeBoxClient } from '@/background/homebox/client';
-import type { EntityOut } from '@/background/homebox/types';
+import type { EntityOut, TagSummary } from '@/background/homebox/types';
 import { storeForPageUrl } from '@/content/merchants/catalog';
 import { getMessage } from '@/platform/i18n';
 import { homeboxTypeOf, isOptionalHomeboxType } from '@/shared/document-kinds';
@@ -9,6 +9,7 @@ import { findDuplicatesByName } from './duplicates';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
 import { flattenTree } from '@/shared/locations';
 import { warrantyPatch } from '@/shared/warranty';
+import { findExisting, normalizeTagName, tagKey, unionIds } from '@/shared/tags';
 import type {
   DocumentRef,
   DraftPhoto,
@@ -51,6 +52,24 @@ export interface OrchestratorDeps {
 type FileMap = Map<string, Result<Uint8Array>>;
 /** Photos fetched during a call, by URL: an order with several products downloads the image only once. */
 type PhotoMap = Map<string, Result<FetchedPhoto>>;
+
+/**
+ * HomeBox tags read and created during a call (spec 014), shared by the products of the call like `PhotoMap`:
+ * the list is read once per call (always again on a retry, invariant 4).
+ */
+interface TagCache {
+  list?: Result<TagSummary[]>;
+  created: Map<string, Result<TagSummary>>;
+}
+const newTagCache = (): TagCache => ({ created: new Map() });
+
+/** Tags of a product resolved to HomeBox identifiers; `failed`: names that cannot be applied. */
+interface ResolvedTags {
+  /** Identifier and name of each resolved choice, in the order of the draft. */
+  resolved: { id: string; name: string }[];
+  failed: string[];
+  error: ErrorCode | null;
+}
 
 function initialPhotoStep(photo: DraftPhoto | null): PhotoStep {
   if (!photo) return 'unavailable';
@@ -267,29 +286,131 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return created ? { entityId: created.id, created } : null;
   }
 
-  /** PUT of the purchase data. Returns the error to report, if any. */
-  async function updateStep(p: PendingImport, entityId: string, created: EntityOut | null): Promise<ErrorCode | null> {
-    if (p.steps.update === 'done') return null;
+  /**
+   * Tags of the product (spec 014), only after the object exists and if some are still to apply. Each choice is
+   * matched against the list read once per call (`findExisting`); a choice without a match is created at most once
+   * per call and per key (invariant 3), then found by the next products in the cached list. A failed creation
+   * fails this tag only, never the object. Never logged.
+   */
+  async function resolveTags(p: PendingImport, cache: TagCache): Promise<ResolvedTags | null> {
+    const choices = p.draft.tags;
+    if (!choices?.length || p.steps.tags === 'done') return null;
+    cache.list ??= await client.listTags();
+    const list = cache.list;
+    if (!list.ok) return { resolved: [], failed: choices.map((c) => c.name), error: 'TAGS_UNAVAILABLE' };
+    const resolved: { id: string; name: string }[] = [];
+    const failed: string[] = [];
+    for (const choice of choices) {
+      let found = findExisting(choice, list.value);
+      if (!found) {
+        const key = tagKey(choice.name);
+        let created = cache.created.get(key);
+        if (!created) {
+          created = await client.createTag(normalizeTagName(choice.name));
+          cache.created.set(key, created);
+          if (created.ok) list.value.push(created.value);
+        }
+        found = created.ok ? created.value : null;
+      }
+      if (found) resolved.push({ id: found.id, name: choice.name });
+      else failed.push(choice.name);
+    }
+    return { resolved, failed, error: failed.length ? 'TAG_FAILED' : null };
+  }
+
+  /**
+   * Outcome of the tags after the PUT: `done` only if a successful PUT carried every chosen tag (invariant 7),
+   * otherwise `failed` with the names not applied. Returns the error to report, if any.
+   */
+  function settleTags(p: PendingImport, tags: ResolvedTags, applied: boolean): ErrorCode | null {
+    const failed = applied ? tags.failed : [...tags.resolved.map((r) => r.name), ...tags.failed];
+    const ordered = (p.draft.tags ?? []).map((c) => c.name).filter((n) => failed.includes(n));
+    if (ordered.length === 0) {
+      p.steps.tags = 'done';
+      delete p.failedTags;
+      return null;
+    }
+    p.steps.tags = 'failed';
+    p.failedTags = ordered;
+    return tags.error ?? 'TAG_FAILED';
+  }
+
+  /** `tagIds` of a PUT: the current tags of the object first, never removed (FR-007, invariant 5). */
+  const tagIdsFor = (current: EntityOut, tags: ResolvedTags) =>
+    unionIds(
+      (current.tags ?? []).map((t) => t.id),
+      tags.resolved.map((r) => r.id),
+    );
+
+  /**
+   * PUT of the purchase data (and of the tags, when there are some to apply). Returns the error to report and the
+   * tag error, if any. Without tags to apply, the patch has no `tagIds` key: the sequence is unchanged (invariant 1).
+   */
+  async function updateStep(
+    p: PendingImport,
+    entityId: string,
+    created: EntityOut | null,
+    tags: ResolvedTags | null,
+  ): Promise<{ updateError: ErrorCode | null; tagsError: ErrorCode | null }> {
+    const withTags = tags !== null && tags.resolved.length > 0;
+    /**
+     * The current tags of the object must be known before sending `tagIds` (which replaces them all). `null` is
+     * a Go nil slice, always empty: known, no tag. An absent field (or another type) gets no `tagIds`: the chosen
+     * tags are reported as failed and can be retried.
+     */
+    const knowsTags = (o: EntityOut) => Array.isArray(o.tags) || o.tags === null;
+    if (p.steps.update === 'done') {
+      if (!tags) return { updateError: null, tagsError: null };
+      if (!withTags) {
+        const tagsError = settleTags(p, tags, false);
+        await persist(p);
+        return { updateError: null, tagsError };
+      }
+      // PUT reserved to the tags: the object is read again so that nothing else is overwritten.
+      const current = await client.getEntity(entityId);
+      if (current.ok && !knowsTags(current.value)) {
+        const tagsError = settleTags(p, tags, false);
+        await persist(p);
+        return { updateError: null, tagsError };
+      }
+      const res = current.ok
+        ? await client.updateEntity(entityId, entityOutToUpdate(current.value, { tagIds: tagIdsFor(current.value, tags) }))
+        : current;
+      const tagsError = settleTags(p, tags, res.ok);
+      await persist(p);
+      return { updateError: null, tagsError };
+    }
     const current = created ? ok(created) : await client.getEntity(entityId);
-    const res = current.ok
-      ? await client.updateEntity(
-          entityId,
-          entityOutToUpdate(current.value, {
-            purchasePrice: p.draft.purchasePrice ?? undefined,
-            purchaseDate: p.draft.purchaseDate ?? undefined,
-            purchaseFrom: p.draft.purchaseFrom || undefined,
-            notes: buildNotes(p.draft),
-            // A PUT without `parentId` would lose the location (V3): it is always sent.
-            parentId: current.value.parent?.id ?? p.draft.location?.id,
-            // Never overwrites a warranty already filled on the object (FR-008).
-            ...warrantyPatch(p.draft.warranty, current.value),
-          }),
-        )
-      : current;
+    let res: Result<EntityOut> = current;
+    let applied = false;
+    if (current.ok) {
+      const purchase = {
+        purchasePrice: p.draft.purchasePrice ?? undefined,
+        purchaseDate: p.draft.purchaseDate ?? undefined,
+        purchaseFrom: p.draft.purchaseFrom || undefined,
+        notes: buildNotes(p.draft),
+        // A PUT without `parentId` would lose the location (V3): it is always sent.
+        parentId: current.value.parent?.id ?? p.draft.location?.id,
+        // Never overwrites a warranty already filled on the object (FR-008).
+        ...warrantyPatch(p.draft.warranty, current.value),
+      };
+      if (withTags && knowsTags(current.value)) {
+        res = await client.updateEntity(entityId, entityOutToUpdate(current.value, { ...purchase, tagIds: tagIdsFor(current.value, tags) }));
+        applied = res.ok;
+        // A definite refusal may come from the tags (FR-012): the same PUT is sent again without the added tags.
+        if (!res.ok && res.httpStatus !== undefined && res.error !== 'UNAUTHORIZED') {
+          res = await client.updateEntity(entityId, entityOutToUpdate(current.value, purchase));
+        }
+      } else {
+        res = await client.updateEntity(entityId, entityOutToUpdate(current.value, purchase));
+      }
+    }
     p.steps.update = res.ok ? 'done' : 'failed';
+    // Tags unknown on the object: not applied, reported as a tag failure (never assumed empty).
+    const tagsError = tags ? settleTags(p, tags, applied) : null;
     await persist(p);
-    if (res.ok) return null;
-    return res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED';
+    if (res.ok) return { updateError: null, tagsError };
+    return { updateError: res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED', tagsError };
   }
 
   /** Sends one document; returns the error to report, if any. */
@@ -364,15 +485,17 @@ export function createOrchestrator(deps: OrchestratorDeps) {
    * Runs the remaining steps of an import. Invariant (FR-021): once `entityId`
    * is set, the object is never created again.
    */
-  async function run(p: PendingImport, files: FileMap, photos: PhotoMap): Promise<PendingImport> {
+  async function run(p: PendingImport, files: FileMap, photos: PhotoMap, tagCache: TagCache): Promise<PendingImport> {
     await begin(p);
     const entity = await ensureEntity(p);
     if (!entity) return p;
+    // Tags (spec 014): only once the object exists; `null` without tags to apply (nothing else runs).
+    const tags = await resolveTags(p, tagCache);
     // Each step runs even if a previous one failed; the first error is the one reported.
-    const updateError = await updateStep(p, entity.entityId, entity.created);
+    const { updateError, tagsError } = await updateStep(p, entity.entityId, entity.created, tags);
     const attachmentsError = await attachmentsStep(p, entity.entityId, files);
     const photoError = await photoStep(p, entity.entityId, photos);
-    return finish(p, updateError ?? attachmentsError ?? photoError);
+    return finish(p, updateError ?? attachmentsError ?? photoError ?? tagsError);
   }
 
   return {
@@ -402,6 +525,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
           update: 'pending',
           attachments: Object.fromEntries(draft.documents.map((d) => [d.id, 'pending'])),
           photo: initialPhotoStep(draft.photo),
+          // Only with tags: without them, the persisted state is unchanged (invariant 1).
+          ...(draft.tags?.length ? { tags: 'pending' as const } : {}),
         },
         status: 'running',
         error: null,
@@ -411,8 +536,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       for (const pending of pendings) await store.save(pending);
       for (const pending of pendings) await record('start', pending);
 
+      const tagCache = newTagCache();
       const results: PendingImport[] = [];
-      for (const pending of pendings) results.push(await run(pending, files, photos));
+      for (const pending of pendings) results.push(await run(pending, files, photos, tagCache));
       await remember(orderLocationId, results);
       return ok(results);
     },
@@ -443,7 +569,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         (d) => d.origin === 'manual' && pending.steps.attachments[d.id] !== 'done' && !files.has(d.id),
       );
       if (needsManual) return fail('MANUAL_FILE_REQUIRED');
-      return ok(await run(pending, files, new Map()));
+      // A new cache: the retry always reads the tag list again before any creation (invariant 4).
+      return ok(await run(pending, files, new Map(), newTagCache()));
     },
 
     async abandonImport(pendingId: string): Promise<Result<void>> {

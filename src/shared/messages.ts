@@ -4,6 +4,7 @@ import { isDocumentKind } from './document-kinds';
 import { isValidIsoDate } from './warranty';
 import { isLockPolicy, type LockPolicy, type LockSettings } from './lock-policy';
 import { isVersion } from './version';
+import { MAX_TAGS_PER_PRODUCT, normalizeTagName, tagKey, tagNameError } from './tags';
 import type {
   ConfigView,
   DetectedPurchase,
@@ -14,6 +15,7 @@ import type {
   LocationOption,
   ManualFile,
   PendingImport,
+  TagOption,
   UpdateStateView,
 } from './types';
 
@@ -40,6 +42,8 @@ export type Message =
   | { type: 'detect/run'; tabId: number }
   | { type: 'duplicate/check'; orderNumber: string; name: string }
   | { type: 'location/list' }
+  // Automatic tags (014): read-only, extension pages only; never the address or the key.
+  | { type: 'tag/list' }
   | {
       type: 'import/start';
       tabId: number;
@@ -101,6 +105,7 @@ export interface ResponseMap {
   'detect/run': Result<DetectResult>;
   'duplicate/check': Result<{ matches: DuplicateMatch[] }>;
   'location/list': Result<{ locations: LocationOption[]; lastUsedId: string | null }>;
+  'tag/list': Result<{ tags: TagOption[] }>;
   'import/start': Result<PendingImport[]>;
   'import/retry': Result<PendingImport>;
   'import/abandon': Result<void>;
@@ -146,6 +151,23 @@ const isWarrantyDraft = (x: unknown): boolean =>
     x.details.length <= 1000 &&
     (x.durationMonths === null || (isInt(x.durationMonths) && (x.durationMonths as number) >= 1 && (x.durationMonths as number) <= 1200)) &&
     typeof x.edited === 'boolean');
+/**
+ * `ImportDraft.tags` (spec 014): absent, or at most 50 objects with a normalised, valid `name` and an `id` absent or
+ * non-empty text; two entries of the same key are refused.
+ */
+const isTagChoices = (x: unknown): boolean =>
+  x === undefined ||
+  (isArr(x) &&
+    x.length <= MAX_TAGS_PER_PRODUCT &&
+    x.every(
+      (c) =>
+        isObj(c) &&
+        isStr(c.name) &&
+        c.name === normalizeTagName(c.name) &&
+        tagNameError(c.name) === null &&
+        (c.id === undefined || (isStr(c.id) && c.id !== '')),
+    ) &&
+    new Set(x.map((c) => tagKey((c as { name: string }).name))).size === x.length);
 const areDrafts = (x: unknown): boolean =>
   isArr(x) &&
   x.every(
@@ -154,6 +176,7 @@ const areDrafts = (x: unknown): boolean =>
       isDraftPhoto(d.photo) &&
       isOptionalLocation(d.location) &&
       isWarrantyDraft(d.warranty) &&
+      isTagChoices(d.tags) &&
       isArr(d.documents) &&
       d.documents.every(isDocumentRef),
   );
@@ -174,6 +197,7 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'detect/run': (m) => isInt(m.tabId),
   'duplicate/check': (m) => isStr(m.orderNumber) && isStr(m.name),
   'location/list': () => true,
+  'tag/list': () => true,
   'import/start': (m) =>
     isInt(m.tabId) &&
     areDrafts(m.drafts) &&

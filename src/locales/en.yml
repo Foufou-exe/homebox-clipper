@@ -26,6 +26,8 @@ error:
   PHOTO_UPLOAD_FAILED: "The item was created but uploading the photo failed."
   LOCATIONS_UNAVAILABLE: "The list of locations could not be retrieved."
   LOCATION_NOT_FOUND: "This location no longer exists in HomeBox. Choose another one or import without a location."
+  TAGS_UNAVAILABLE: "The list of HomeBox tags could not be retrieved."
+  TAG_FAILED: "The item was created but some tags could not be added."
   MANUAL_FILE_REQUIRED: "Select the file to attach again to retry."
   NOT_CONFIGURED: "Set up your HomeBox instance first."
   LOCKED: "Extension locked: enter your passphrase."
@@ -180,6 +182,7 @@ result:
   photoUnavailable: "No photo available."
   photoFailed: "Photo upload failed."
   locationAt: "Location: $1"
+  tagsFailed: "Tags not added: $1"
 
 recovery:
   objectPrefix: "The item"
@@ -371,3 +374,45 @@ update:
   applyButton: "Update now"
   applyHelp: "The extension restarts, then asks for your passphrase again."
   blocked: "Available once the current import is finished, resumed or abandoned."
+
+tags:
+  title: "Tags"
+  help: "Checked tags are added to the item in HomeBox when you confirm."
+  none: "No suggested tag."
+  badge:
+    new: "new"
+    newHelp: "This tag does not exist in HomeBox yet: it will be created when you confirm."
+    unverified: "not verified"
+    unverifiedHelp: "The HomeBox tags could not be read: this tag will be checked when you confirm."
+  unavailableHelp: "You can still import: tags will be checked when you confirm."
+  add:
+    label: "Add a tag"
+    labelFor: "Add a tag to “$1”"
+    placeholder: "Search or type a tag"
+    create: "Add “$1” (new)"
+  errors:
+    empty: "The tag name is empty."
+    tooLong: "The tag name is too long."
+    tooMany: "Too many tags for this product (50 at most)."
+  settings:
+    title: "Automatic tags"
+    intro: "The extension suggests tags for each product; you can change them before confirming."
+    merchant: "Suggest the store name as a tag"
+    merchantHelp: "For example “Amazon”."
+    rulesTitle: "Rules"
+    rulesHelp: "If the product name contains the text (case and accents ignored), the tag is suggested. Plain text only, no regular expressions."
+    contains: "Product name contains"
+    tag: "Tag"
+    containsFor: "Text of rule $1"
+    tagFor: "Tag of rule $1"
+    add: "Add the rule"
+    delete: "Delete"
+    deleteFor: "Delete rule $1"
+    empty: "No rule."
+    saved: "Setting saved."
+    saveFailed: "The setting could not be saved."
+    errors:
+      containsEmpty: "Enter the text to look for."
+      containsTooLong: "The text is too long (100 characters at most)."
+      tagEmpty: "Enter the tag name."
+      tagTooLong: "The tag name is too long."

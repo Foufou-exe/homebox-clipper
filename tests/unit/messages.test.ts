@@ -202,3 +202,42 @@ describe('messages: session/* and update/* (013, M-2, M-3)', () => {
     }
   });
 });
+
+describe('messages: tag/list and drafts[].tags on import/start (014, Q-U6)', () => {
+  const withTags = (tags: unknown) => ({ ...start([invoice]), drafts: [{ ...draft(), documents: [invoice], tags }] });
+  const withoutTags = () => start([invoice]);
+
+  it('tag/list is accepted without parameters', () => {
+    expect(isMessage({ type: 'tag/list' })).toBe(true);
+  });
+
+  it('import/start accepts tags absent, [], a name, a name with an id', () => {
+    expect(isMessage(withoutTags())).toBe(true);
+    expect(isMessage(withTags(undefined))).toBe(true);
+    expect(isMessage(withTags([]))).toBe(true);
+    expect(isMessage(withTags([{ name: 'Amazon' }]))).toBe(true);
+    expect(isMessage(withTags([{ name: 'Amazon', id: 't1' }]))).toBe(true);
+    expect(isMessage(withTags([{ name: 'Amazon', id: 't1' }, { name: 'Informatique' }]))).toBe(true);
+  });
+
+  it.each([
+    ['an empty name', [{ name: '' }]],
+    ['a non-normalised name', [{ name: ' Amazon' }]],
+    ['a name with doubled inner spaces', [{ name: 'Disque  dur' }]],
+    ['a name of 256 bytes', [{ name: 'é'.repeat(128) }]],
+    ['51 tags', Array.from({ length: 51 }, (_, i) => ({ name: `Tag ${i}` }))],
+    ['two names with the same key', [{ name: 'Ecran' }, { name: 'écran' }]],
+    ['an empty id', [{ name: 'Amazon', id: '' }]],
+    ['a numeric id', [{ name: 'Amazon', id: 3 }]],
+    ['a non-string name', [{ name: 3 }]],
+    ['a non-object entry', ['Amazon']],
+    ['tags not an array', 'Amazon'],
+    ['tags null', null],
+  ])('import/start refuses %s', (_label, tags) => {
+    expect(isMessage(withTags(tags))).toBe(false);
+  });
+
+  it('50 tags are accepted', () => {
+    expect(isMessage(withTags(Array.from({ length: 50 }, (_, i) => ({ name: `Tag ${i}` }))))).toBe(true);
+  });
+});

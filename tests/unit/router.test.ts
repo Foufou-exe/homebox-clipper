@@ -280,11 +280,12 @@ describe('router — session/* and update/* reserved to extension pages, activit
     expect(hook).not.toHaveBeenCalled();
   });
 
-  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/'", () => {
+  // ADAPTED (spec 014, T009 a): 'tag/' added last; only expectation of this file that changes.
+  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/' and 'tag/'", () => {
     const source = readFileSync(resolve(__dirname, '../../src/background/router.ts'), 'utf8');
     const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='))!;
     const list = [...line.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/']);
+    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/']);
   });
 
   it.each(MESSAGES)('$type from an extension page: the hook runs before the handler', async (msg) => {
@@ -330,5 +331,28 @@ describe('router — session/* and update/* reserved to extension pages, activit
     expect(isExtensionPage({ url: `${BASE}popup.html` })).toBe(true);
     expect(isExtensionPage({ url: 'https://www.amazon.fr/x' })).toBe(false);
     expect(isExtensionPage({})).toBe(false);
+  });
+});
+
+describe('router — tag/list is reserved to extension pages (014, T009 b)', () => {
+  const handler = vi.fn(async () => ({ ok: true, value: { tags: [] } }));
+  const id = () => fakeBrowser.runtime.id;
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    handler.mockClear();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
+    register('tag/list', handler as never);
+  });
+
+  it('from the script injected on amazon.fr: BAD_MESSAGE and the handler is not called', async () => {
+    const web = { id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } };
+    expect(await dispatch({ type: 'tag/list' }, web)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('from an extension page: reaches the handler', async () => {
+    expect(await dispatch({ type: 'tag/list' }, { id: id(), url: `${BASE}popup.html` })).toEqual({ ok: true, value: { tags: [] } });
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });

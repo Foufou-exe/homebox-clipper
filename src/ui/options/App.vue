@@ -11,6 +11,7 @@ import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import HistoryCard from './HistoryCard.vue';
 import LockCard from './LockCard.vue';
 import WarrantyCard from './WarrantyCard.vue';
+import TagsCard from './TagsCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
@@ -276,6 +277,8 @@ async function remove() {
     <HistoryCard ref="historyCard" :base-url="view.baseUrl ?? ''" />
 
     <WarrantyCard />
+
+    <TagsCard />
 
     <section class="card">
       <h2>{{ t('options.appearance') }}</h2>

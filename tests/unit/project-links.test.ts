@@ -238,3 +238,17 @@ describe('version number next to the project links (013, Q-U9, FR-017)', () => {
     for (const line of source.split('\n').filter((l) => l.includes('<a '))) expect(line).not.toMatch(/v-if|v-show/);
   });
 });
+
+describe('options: « Automatic tags » card order (014, T046)', () => {
+  it('after « Garantie », before « Apparence » and « Aide et projet »', async () => {
+    vi.mocked(send).mockResolvedValue({ configured: false } as never);
+    const wrapper = mount(OptionsApp);
+    await flushPromises();
+    const titles = wrapper.findAll('h2').map((h) => h.text());
+    const tags = titles.indexOf('Tags automatiques');
+    expect(tags).toBeGreaterThan(-1);
+    expect(titles[tags - 1]).toBe('Garantie');
+    expect(titles[tags + 1]).toBe('Apparence');
+    expect(titles[tags + 2]).toBe('Aide et projet');
+  });
+});

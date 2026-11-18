@@ -591,3 +591,114 @@ describe('version label and final count (013, contracts/ui.md, FR-020, T055)', (
     expect(Object.keys(en).sort()).toEqual(Object.keys(catalog).sort());
   });
 });
+
+describe('014 automatic tags: error codes (T011, FR-019)', () => {
+  it('error.TAGS_UNAVAILABLE and error.TAG_FAILED have the exact texts of contracts/ui.md', () => {
+    expect(en['error.TAGS_UNAVAILABLE']).toBe('The list of HomeBox tags could not be retrieved.');
+    expect(catalog['error.TAGS_UNAVAILABLE']).toBe("La liste des tags HomeBox n'a pas pu être obtenue.");
+    expect(en['error.TAG_FAILED']).toBe('The item was created but some tags could not be added.');
+    expect(catalog['error.TAG_FAILED']).toBe("L'objet a été créé mais certains tags n'ont pas pu être ajoutés.");
+  });
+
+  it('both codes are in ERROR_CODES', () => {
+    expect(ERROR_CODES).toContain('TAGS_UNAVAILABLE');
+    expect(ERROR_CODES).toContain('TAG_FAILED');
+  });
+});
+
+describe('014 automatic tags: the 16 keys of US1 (T029 a, FR-019)', () => {
+  // Exact texts of contracts/ui.md (fixed values).
+  const US1: Record<string, [string, string]> = {
+    'tags.title': ['Tags', 'Tags'],
+    'tags.help': ['Checked tags are added to the item in HomeBox when you confirm.', 'Les tags cochés sont ajoutés à l’objet dans HomeBox à la confirmation.'],
+    'tags.none': ['No suggested tag.', 'Aucun tag proposé.'],
+    'tags.badge.new': ['new', 'nouveau'],
+    'tags.badge.newHelp': [
+      'This tag does not exist in HomeBox yet: it will be created when you confirm.',
+      'Ce tag n’existe pas encore dans HomeBox : il sera créé à la confirmation.',
+    ],
+    'tags.badge.unverified': ['not verified', 'non vérifié'],
+    'tags.badge.unverifiedHelp': [
+      'The HomeBox tags could not be read: this tag will be checked when you confirm.',
+      'Les tags HomeBox n’ont pas pu être lus : ce tag sera vérifié à la confirmation.',
+    ],
+    'tags.unavailableHelp': [
+      'You can still import: tags will be checked when you confirm.',
+      'Vous pouvez quand même importer : les tags seront vérifiés à la confirmation.',
+    ],
+    'tags.add.label': ['Add a tag', 'Ajouter un tag'],
+    'tags.add.labelFor': ['Add a tag to “$1”', 'Ajouter un tag à « $1 »'],
+    'tags.add.placeholder': ['Search or type a tag', 'Rechercher ou saisir un tag'],
+    'tags.add.create': ['Add “$1” (new)', 'Ajouter « $1 » (nouveau)'],
+    'tags.errors.empty': ['The tag name is empty.', 'Le nom du tag est vide.'],
+    'tags.errors.tooLong': ['The tag name is too long.', 'Le nom du tag est trop long.'],
+    'tags.errors.tooMany': ['Too many tags for this product (50 at most).', 'Trop de tags pour ce produit (50 au maximum).'],
+    'result.tagsFailed': ['Tags not added: $1', 'Tags non ajoutés : $1'],
+  };
+
+  it('16 keys, exact texts in en and fr, same $n', () => {
+    expect(Object.keys(US1)).toHaveLength(16);
+    for (const [key, [enText, frText]] of Object.entries(US1)) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('tags.title is identical in both languages and listed in IDENTICAL_OK', () => {
+    expect(IDENTICAL_OK).toContain('tags.title');
+  });
+});
+
+describe('014 automatic tags: the 20 settings keys of US2 and the totals (T047, FR-019)', () => {
+  const US2: Record<string, [string, string]> = {
+    'tags.settings.title': ['Automatic tags', 'Tags automatiques'],
+    'tags.settings.intro': [
+      'The extension suggests tags for each product; you can change them before confirming.',
+      'L’extension propose des tags pour chaque produit ; vous pouvez les modifier avant la confirmation.',
+    ],
+    'tags.settings.merchant': ['Suggest the store name as a tag', 'Proposer le nom de la boutique comme tag'],
+    'tags.settings.merchantHelp': ['For example “Amazon”.', 'Par exemple « Amazon ».'],
+    'tags.settings.rulesTitle': ['Rules', 'Règles'],
+    'tags.settings.rulesHelp': [
+      'If the product name contains the text (case and accents ignored), the tag is suggested. Plain text only, no regular expressions.',
+      'Si le nom du produit contient le texte (sans tenir compte des majuscules ni des accents), le tag est proposé. Texte simple uniquement, sans expression régulière.',
+    ],
+    'tags.settings.contains': ['Product name contains', 'Le nom du produit contient'],
+    'tags.settings.tag': ['Tag', 'Tag'],
+    'tags.settings.containsFor': ['Text of rule $1', 'Texte de la règle $1'],
+    'tags.settings.tagFor': ['Tag of rule $1', 'Tag de la règle $1'],
+    'tags.settings.add': ['Add the rule', 'Ajouter la règle'],
+    'tags.settings.delete': ['Delete', 'Supprimer'],
+    'tags.settings.deleteFor': ['Delete rule $1', 'Supprimer la règle $1'],
+    'tags.settings.empty': ['No rule.', 'Aucune règle.'],
+    'tags.settings.saved': ['Setting saved.', 'Réglage enregistré.'],
+    'tags.settings.saveFailed': ['The setting could not be saved.', 'Le réglage n’a pas pu être enregistré.'],
+    'tags.settings.errors.containsEmpty': ['Enter the text to look for.', 'Saisissez le texte à rechercher.'],
+    'tags.settings.errors.containsTooLong': ['The text is too long (100 characters at most).', 'Le texte est trop long (100 caractères au maximum).'],
+    'tags.settings.errors.tagEmpty': ['Enter the tag name.', 'Saisissez le nom du tag.'],
+    'tags.settings.errors.tagTooLong': ['The tag name is too long.', 'Le nom du tag est trop long.'],
+  };
+
+  it('20 keys, exact texts in en and fr, same $n', () => {
+    expect(Object.keys(US2)).toHaveLength(20);
+    for (const [key, [enText, frText]] of Object.entries(US2)) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('total: 35 tags.* keys in both catalogs, 1 result.tagsFailed, 2 error codes (38 keys added)', () => {
+    for (const c of [en, catalog]) {
+      expect(Object.keys(c).filter((k) => /^tags\./.test(k))).toHaveLength(35);
+      expect(c).toHaveProperty(['result.tagsFailed']);
+      expect(c).toHaveProperty(['error.TAGS_UNAVAILABLE']);
+      expect(c).toHaveProperty(['error.TAG_FAILED']);
+    }
+  });
+
+  it('tags.settings.tag is identical in both languages and listed in IDENTICAL_OK', () => {
+    expect(IDENTICAL_OK).toContain('tags.settings.tag');
+  });
+});

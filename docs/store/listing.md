@@ -59,11 +59,13 @@ FEATURES
 - Recovery after an error without creating a duplicate.
 - Product photo attached as the item's main image (can be unticked).
 - Location picker with search.
+- Suggested HomeBox tags (the store brand and your own local rules such as "the name contains SSD → Computers"), editable in the summary before you confirm.
 - Light, dark or automatic theme; English and French interface.
 
 PRIVACY AND SECURITY
 - No server, no account, no analytics, no telemetry. Your data goes only to your own HomeBox instance.
 - Nothing is imported without your confirmation.
+- Tags are created and applied in your HomeBox instance only after your confirmation: no new recipient, the tag rules stay in your browser.
 - Your API key is stored encrypted with your passphrase (AES-GCM, PBKDF2 with 600,000 iterations), is never sent to Amazon or to any intermediary server, and is never written to logs.
 - A short import history (200 entries, 12 months) is kept only in your browser, encrypted with the same passphrase. You can clear it or turn it off at any time.
 - You choose when the extension locks again: when the browser closes (default), after 15 minutes, 1 hour or 4 hours of inactivity, or every time it is opened. There is no "never" option, so that the decrypted key is never left readable. No network request is made to check for updates.
@@ -96,11 +98,13 @@ FONCTIONNALITÉS
 - Reprise après une erreur sans créer de doublon.
 - Photo du produit jointe comme image principale de l'objet (décochable).
 - Choix de l'emplacement avec recherche.
+- Tags HomeBox proposés (l'enseigne de la boutique et vos propres règles locales, par exemple « le nom contient SSD → Informatique »), modifiables dans le récapitulatif avant la confirmation.
 - Thème clair, sombre ou automatique ; interface en français et en anglais.
 
 CONFIDENTIALITÉ ET SÉCURITÉ
 - Aucun serveur, aucun compte, aucune statistique, aucune télémétrie. Vos données vont uniquement vers votre propre instance HomeBox.
 - Rien n'est importé sans votre confirmation.
+- Les tags sont créés et appliqués dans votre instance HomeBox uniquement après votre confirmation : aucun nouveau destinataire, les règles de tags restent dans votre navigateur.
 - Votre clé API est stockée chiffrée avec votre phrase de passe (AES-GCM, PBKDF2 avec 600 000 itérations), n'est jamais envoyée à Amazon ni à un serveur intermédiaire, et n'est jamais écrite dans les journaux.
 - Un court historique des imports (200 entrées, 12 mois) est conservé uniquement dans votre navigateur, chiffré avec la même phrase de passe. Vous pouvez l'effacer ou le désactiver à tout moment.
 - Vous choisissez quand l'extension se verrouille : à la fermeture du navigateur (par défaut), après 15 minutes, 1 heure ou 4 heures d'inactivité, ou à chaque ouverture. Il n'y a pas d'option « jamais », pour que la clé déchiffrée ne reste jamais lisible. Aucun appel réseau n'est fait pour vérifier les mises à jour.
@@ -140,13 +144,13 @@ The manifest declares `storage`, `activeTab`, `scripting` and the optional host 
 EN:
 
 ```
-Stores the user's HomeBox instance address, the API key encrypted with the user's passphrase, the theme, the last location used, a short local import history (product name, store, order number, dates, result and item link; at most 200 entries and 12 months, encrypted with the user's passphrase, can be cleared or turned off), the automatic lock setting (a choice, no secret), the version number of the last update notice, and (in session memory only) the data of an import in progress so it can be resumed after an error, the time of the last use of the extension and the version ready to install. Updates are detected from the browser's own signal: no network request is made for them. Nothing is synced or sent anywhere.
+Stores the user's HomeBox instance address, the API key encrypted with the user's passphrase, the theme, the last location used, a short local import history (product name, store, order number, dates, result and item link; at most 200 entries and 12 months, encrypted with the user's passphrase, can be cleared or turned off), the automatic lock setting (a choice, no secret), the automatic-tag setting (store-name option and the user's tag rules, plain text, no secret), the version number of the last update notice, and (in session memory only) the data of an import in progress so it can be resumed after an error, the time of the last use of the extension and the version ready to install. Updates are detected from the browser's own signal: no network request is made for them. Nothing is synced or sent anywhere.
 ```
 
 FR :
 
 ```
-Conserve l'adresse de l'instance HomeBox de l'utilisateur, la clé API chiffrée avec sa phrase de passe, le thème, le dernier emplacement utilisé, un court historique des imports local (nom du produit, boutique, numéro de commande, dates, résultat et lien vers l'objet ; au plus 200 entrées et 12 mois, chiffré avec la phrase de passe de l'utilisateur, effaçable et désactivable) le réglage de verrouillage automatique (un choix, sans secret), le numéro de version de la dernière annonce de mise à jour, et (en mémoire de session uniquement) les données d'un import en cours pour le reprendre après une erreur, l'heure de la dernière utilisation de l'extension et la version prête à être installée. Les mises à jour sont détectées par le signal du navigateur lui-même : aucun appel réseau n'est fait pour elles. Rien n'est synchronisé ni envoyé ailleurs.
+Conserve l'adresse de l'instance HomeBox de l'utilisateur, la clé API chiffrée avec sa phrase de passe, le thème, le dernier emplacement utilisé, un court historique des imports local (nom du produit, boutique, numéro de commande, dates, résultat et lien vers l'objet ; au plus 200 entrées et 12 mois, chiffré avec la phrase de passe de l'utilisateur, effaçable et désactivable) le réglage de verrouillage automatique (un choix, sans secret), le réglage des tags automatiques (option du nom de la boutique et règles de tags de l'utilisateur, texte simple, sans secret), le numéro de version de la dernière annonce de mise à jour, et (en mémoire de session uniquement) les données d'un import en cours pour le reprendre après une erreur, l'heure de la dernière utilisation de l'extension et la version prête à être installée. Les mises à jour sont détectées par le signal du navigateur lui-même : aucun appel réseau n'est fait pour elles. Rien n'est synchronisé ni envoyé ailleurs.
 ```
 
 **activeTab**

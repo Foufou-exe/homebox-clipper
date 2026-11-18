@@ -120,3 +120,41 @@ describe('version number (013, T055)', () => {
     expect(ratio(vars['--muted']!, vars['--bg']!)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+describe('tag mentions « new » / « not verified » (014, T029 c, FR-021)', () => {
+  const src = readFileSync(resolve(__dirname, '../../src/ui/components/TagPicker.vue'), 'utf8');
+  const style = src.slice(src.indexOf('<style'));
+
+  it('only theme variables for colors (no literal color)', () => {
+    expect(style).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(/);
+  });
+
+  it('« new » uses --chip-fg on --chip-bg, « not verified » --warn-fg on --warn-bg', () => {
+    expect(style).toMatch(/\.badge-new\s*{[^}]*background:\s*var\(--chip-bg\)[^}]*color:\s*var\(--chip-fg\)/);
+    expect(style).toMatch(/\.badge-unverified\s*{[^}]*background:\s*var\(--warn-bg\)[^}]*color:\s*var\(--warn-fg\)/);
+  });
+
+  it.each(Object.entries(blocks))('theme %s: both mentions are readable (AA)', (_name, vars) => {
+    expect(ratio(vars['--chip-fg']!, vars['--chip-bg']!)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(vars['--warn-fg']!, vars['--warn-bg']!)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('automatic tags card (014, T046)', () => {
+  const src = readFileSync(resolve(__dirname, '../../src/ui/options/TagsCard.vue'), 'utf8');
+  const style = src.slice(src.indexOf('<style'));
+
+  it('only theme variables for colors (no literal color)', () => {
+    expect(style).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(/);
+    for (const m of style.matchAll(/(?:^|[\s;{])(?:color|background(?:-color)?|border(?:-color)?|outline):\s*([^;]+);/g)) {
+      const value = m[1]!;
+      if (/none|transparent|inherit|^0$/.test(value.trim())) continue;
+      expect(value, m[0]).toMatch(/var\(--/);
+    }
+  });
+
+  it.each(Object.entries(blocks))('theme %s: help (--muted) and errors (--danger-fg) readable on --bg', (_name, vars) => {
+    expect(ratio(vars['--muted']!, vars['--bg']!)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(vars['--danger-fg']!, vars['--bg']!)).toBeGreaterThanOrEqual(4.5);
+  });
+});

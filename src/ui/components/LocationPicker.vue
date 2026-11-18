@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue';
+import { fold } from '@/shared/fold';
 import type { LocationChoice, LocationOption } from '@/shared/types';
 import { t } from '@/ui/i18n';
 
@@ -27,15 +28,6 @@ const open = ref(false);
 const editing = ref(false);
 const query = ref('');
 const active = ref(-1);
-
-/** Lowercase and accent-free: "etagere" finds "Étagère". */
-const LIGATURES: Record<string, string> = { 'œ': 'oe', 'æ': 'ae', 'ĳ': 'ij' };
-const fold = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[œæĳ]/g, (c) => LIGATURES[c] ?? c)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
 
 const separator = computed(() => t('location.pathSeparator'));
 const pathText = (path: string[]) => path.join(separator.value);

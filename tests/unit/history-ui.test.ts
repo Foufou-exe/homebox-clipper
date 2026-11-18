@@ -397,7 +397,10 @@ describe('options: history card (US1)', () => {
     expect(i).toBe(2);
     // 011: the warranty card sits between the history card and the appearance card.
     expect(titles[3]).toBe('Garantie');
-    expect(titles[4]).toBe('Apparence');
+    // ADAPTED (014, contracts/ui.md): the « Automatic tags » card sits between the warranty card and the
+    // appearance card: « Apparence » moves from index 4 to 5.
+    expect(titles[4]).toBe('Tags automatiques');
+    expect(titles[5]).toBe('Apparence');
     expect(
       cards[2]!.findComponent(HistoryCard).exists() ||
         cards[2]!.findComponent(HistoryList).exists(),

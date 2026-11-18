@@ -10,6 +10,7 @@ import {
   type WarrantySettings,
   type WarrantyTexts,
 } from '@/shared/warranty';
+import { proposeTags, tagKey, type TagLine, type TagSettings } from '@/shared/tags';
 
 export function formatSize(bytes: number | undefined): string {
   if (bytes === undefined) return '';
@@ -152,4 +153,18 @@ export function warrantyErrors(w: WarrantyDraft | null | undefined): string[] {
 
 export function draftErrors(d: ImportDraft, today = new Date().toISOString().slice(0, 10)): string[] {
   return [...fieldErrors(d, today), ...warrantyErrors(d.warranty)];
+}
+
+/**
+ * Tags proposed for a product (spec 014), all checked: the store brand (if enabled and known), then the user rules
+ * evaluated on the detected name, at opening only (E3). Manual entry: no store, no name, so nothing proposed.
+ */
+export function tagLinesFor(merchantTagName: string | null, productName: string | null, settings: TagSettings): TagLine[] {
+  return proposeTags({ merchantTagName, productName, settings }).map(({ name, origin }) => ({
+    key: tagKey(name),
+    name,
+    id: null,
+    origin,
+    checked: true,
+  }));
 }

@@ -18,11 +18,13 @@ export interface CatalogEntry {
   readonly country: string;
   /** Names of the seller "the store itself", or `'any'` (no marketplace). */
   readonly ownSellers: readonly string[] | 'any';
+  /** Brand proposed as a HomeBox tag (spec 014): presentation data, no selector. */
+  readonly tagName: string;
 }
 
 /** Same order as AMAZON_STORES. */
 export const MERCHANT_CATALOG: readonly CatalogEntry[] = AMAZON_STORES.map(
-  ({ id, displayName, origin, status, defaultCurrency, country, ownSellers }) => ({
+  ({ id, displayName, origin, status, defaultCurrency, country, ownSellers, tagName }) => ({
     id,
     displayName,
     origin,
@@ -30,6 +32,7 @@ export const MERCHANT_CATALOG: readonly CatalogEntry[] = AMAZON_STORES.map(
     defaultCurrency,
     country,
     ownSellers,
+    tagName,
   }),
 );
 

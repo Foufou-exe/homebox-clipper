@@ -2,7 +2,7 @@
 
 # Politique de confidentialité
 
-**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **18 novembre 2026**
+**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **19 novembre 2026**
 
 En bref : l'extension n'a **aucun serveur, aucun compte, aucune statistique et aucune télémétrie**. Les
 données qu'elle traite vont de votre navigateur vers **votre propre** instance HomeBox, uniquement au
@@ -28,6 +28,8 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Phrase de passe | Vous la choisissez | Chiffrer et déverrouiller la clé API | **Jamais enregistrée** |
 | Liste des emplacements HomeBox et dernier emplacement utilisé (identifiants uniquement) | Votre instance HomeBox | Vous laisser choisir où ranger l'objet | Lue depuis votre instance ; identifiants conservés localement |
 | Garantie proposée avec chaque objet (date d'expiration, garantie à vie, détails), calculée depuis la date d'achat, et réglage de la garantie par défaut (activée ou non, durée) | L'extension et vous | Remplir les champs garantie de l'objet HomeBox | La garantie est envoyée à votre instance HomeBox après votre confirmation et n'est pas conservée par l'extension une fois l'import terminé ; le réglage est stocké localement (aucune donnée personnelle) |
+| Tags HomeBox proposés (l'enseigne de la boutique, par exemple « Amazon », et les tags de vos propres règles) et tags que vous cochez dans le récapitulatif | L'extension, vos règles et vous | Classer l'objet dans HomeBox avec des tags | Lus sur **votre instance HomeBox** et, pour un tag qui n'existe pas encore, créés sur celle-ci (`GET`/`POST /api/v1/tags`) ; les tags sont créés et appliqués uniquement après votre confirmation, et seulement ceux cochés. Conservés seulement avec l'import en cours (`storage.session`), jamais dans l'historique des imports |
+| Réglage des tags automatiques (`tagSettings` : proposer ou non le nom de la boutique, et vos règles « le nom du produit contient … → tag … ») | Vous | Proposer des tags dans le récapitulatif | Stocké localement dans `storage.local`, en clair (aucun secret, aucune donnée d'achat), jamais dans `storage.sync` |
 | Préférence de thème | Vous | Affichage | Stockée localement |
 | Réglage du verrouillage automatique (`lockSettings` : à la fermeture du navigateur, après 15 minutes, 1 heure ou 4 heures d’inactivité, ou à chaque ouverture de l’extension) | Vous | Décider quand la phrase de passe est redemandée | Stocké localement ; un simple choix, sans secret |
 | Heure de la dernière utilisation de l'extension déverrouillée (`homeboxActivity`, horodatage technique) | L'extension | Appliquer le verrouillage après inactivité | En mémoire du navigateur uniquement (`storage.session`), jamais sur le disque ; effacée au verrouillage ou à la fermeture du navigateur ; jamais affichée ni journalisée |
@@ -43,7 +45,7 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
 
 - **Dans votre navigateur** (`storage.local`) : adresse de l'instance, clé API chiffrée, clé masquée
   (par exemple `hb_••••abcd`), résultat du dernier test de connexion, dernier emplacement utilisé par
-  instance, thème, réglage de la garantie par défaut, et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
+  instance, thème, réglage de la garantie par défaut, réglage des tags automatiques (`tagSettings` : option du nom de la boutique et règles de tags), et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
   d'historique aléatoire, elle-même scellée par votre phrase de passe comme la clé API) avec son réglage
   d'activation, le réglage du verrouillage automatique (`lockSettings`) et la version de la dernière
   annonce de mise à jour (`updateNotice`).
@@ -63,6 +65,9 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
   origine exacte, par exemple `https://www.amazon.de`), pour télécharger votre facture, et le serveur
   d'images d'Amazon (`m.media-amazon.com`) pour la photo du produit, au moment de l'import ; (2) **votre**
   instance HomeBox. Elle ne contacte jamais une autre boutique Amazon que celle de la commande.
+- Les tags proposés n'ajoutent **aucun nouveau destinataire** : la liste des tags est lue sur votre instance
+  HomeBox (`GET /api/v1/tags`) et les tags absents y sont créés (`POST /api/v1/tags`) uniquement après votre
+  confirmation. Aucune requête n'est faite à la boutique pour les tags : l'enseigne vient de l'extension elle-même.
 - Les prix restent dans la devise de la commande : aucun service de taux de change ni autre tiers n'est
   contacté (aucune conversion de devise).
 - Vos données et votre clé API ne sont **jamais** envoyées à l'auteur, à un serveur intermédiaire, à
@@ -98,7 +103,7 @@ alors redemandée) ; il est désactivé tant qu'un import est en cours ou peut e
 
 L'extension n'écrit aucune donnée personnelle dans la console du navigateur : seulement des codes
 d'erreur, des statuts HTTP, des durées et des modèles génériques de points d'accès, jamais une adresse,
-un nom de produit, un prix, un numéro de commande ni la clé API.
+un nom de produit, un prix, un numéro de commande, un nom de tag, le texte d'une règle de tags ni la clé API.
 
 ## Conservation et suppression
 
@@ -115,8 +120,8 @@ un nom de produit, un prix, un numéro de commande ni la clé API.
 - Les données locales restent jusqu'à ce que vous les supprimiez. **Paramètres → Supprimer la
   configuration** efface l'adresse, la clé chiffrée, les imports en cours, les derniers emplacements,
   l'historique des imports, et
-  retire l'autorisation d'accès accordée à votre instance. Le réglage du verrouillage automatique et la
-  dernière annonce de mise à jour (aucune donnée personnelle) sont conservés. Désinstaller l'extension
+  retire l'autorisation d'accès accordée à votre instance. Le réglage du verrouillage automatique, la
+  dernière annonce de mise à jour et le réglage des tags automatiques (`tagSettings`, aucune donnée personnelle) sont conservés. Désinstaller l'extension
   supprime tout son stockage dans le navigateur.
 - Vous pouvez aussi révoquer la clé API dans HomeBox à tout moment.
 - Les objets déjà importés appartiennent à votre instance HomeBox : supprimez-les depuis celle-ci.

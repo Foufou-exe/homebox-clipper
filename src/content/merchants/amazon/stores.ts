@@ -27,6 +27,8 @@ export interface AmazonStore {
    * by exact equality (spec 011). `'any'`: no marketplace. Any other seller is a third party.
    */
   readonly ownSellers: readonly string[] | 'any';
+  /** Brand proposed as a HomeBox tag (spec 014, E1): the same for every Amazon store. Presentation data only. */
+  readonly tagName: string;
   /** Recognized page languages; the first one is the main language. */
   readonly pageLanguages: readonly PageLanguage[];
   readonly defaultCurrency: 'EUR' | 'GBP' | 'USD';
@@ -56,6 +58,7 @@ const AMAZON_FR: AmazonStore = {
   displayName: 'Amazon.fr',
   country: 'FR',
   ownSellers: OWN_SELLERS('Amazon.fr'),
+  tagName: 'Amazon',
   pageLanguages: ['fr'],
   defaultCurrency: 'EUR',
   numericDateOrder: 'DMY',
@@ -72,6 +75,7 @@ export const AMAZON_STORES: readonly AmazonStore[] = [
     displayName: 'Amazon.de',
     country: 'DE',
     ownSellers: OWN_SELLERS('Amazon.de'),
+    tagName: 'Amazon',
     pageLanguages: ['de', 'en'],
     defaultCurrency: 'EUR',
     numericDateOrder: 'DMY',
@@ -85,6 +89,7 @@ export const AMAZON_STORES: readonly AmazonStore[] = [
     displayName: 'Amazon.es',
     country: 'ES',
     ownSellers: OWN_SELLERS('Amazon.es'),
+    tagName: 'Amazon',
     pageLanguages: ['es', 'en'],
     defaultCurrency: 'EUR',
     numericDateOrder: 'DMY',
@@ -98,6 +103,7 @@ export const AMAZON_STORES: readonly AmazonStore[] = [
     displayName: 'Amazon.it',
     country: 'IT',
     ownSellers: OWN_SELLERS('Amazon.it'),
+    tagName: 'Amazon',
     pageLanguages: ['it', 'en'],
     defaultCurrency: 'EUR',
     numericDateOrder: 'DMY',
@@ -111,6 +117,7 @@ export const AMAZON_STORES: readonly AmazonStore[] = [
     displayName: 'Amazon.com.be',
     country: 'BE',
     ownSellers: OWN_SELLERS('Amazon.com.be'),
+    tagName: 'Amazon',
     pageLanguages: ['fr', 'nl', 'en'],
     defaultCurrency: 'EUR',
     numericDateOrder: 'DMY',
@@ -124,6 +131,7 @@ export const AMAZON_STORES: readonly AmazonStore[] = [
     displayName: 'Amazon.nl',
     country: 'NL',
     ownSellers: OWN_SELLERS('Amazon.nl'),
+    tagName: 'Amazon',
     pageLanguages: ['nl', 'en'],
     defaultCurrency: 'EUR',
     numericDateOrder: 'DMY',
@@ -137,6 +145,7 @@ export const AMAZON_STORES: readonly AmazonStore[] = [
     displayName: 'Amazon.co.uk',
     country: 'GB',
     ownSellers: OWN_SELLERS('Amazon.co.uk'),
+    tagName: 'Amazon',
     pageLanguages: ['en'],
     defaultCurrency: 'GBP',
     numericDateOrder: 'DMY',
@@ -150,6 +159,7 @@ export const AMAZON_STORES: readonly AmazonStore[] = [
     displayName: 'Amazon.com',
     country: 'US',
     ownSellers: OWN_SELLERS('Amazon.com'),
+    tagName: 'Amazon',
     pageLanguages: ['en'],
     defaultCurrency: 'USD',
     numericDateOrder: 'MDY',

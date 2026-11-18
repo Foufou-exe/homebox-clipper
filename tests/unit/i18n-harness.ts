@@ -59,5 +59,7 @@ export const IDENTICAL_OK = [
   'links.github', // nom propre
   'history.listSeparator', // punctuation, identical in both languages (012)
   'links.version', // "Version $1": same word in both languages (013)
+  'tags.title', // same word in both languages (014)
+  'tags.settings.tag', // same word in both languages (014)
 ];
 

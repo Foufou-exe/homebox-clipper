@@ -12,19 +12,23 @@ import type {
   LocationChoice,
   LocationOption,
   ManualFile,
+  TagOption,
 } from '@/shared/types';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
+import TagPicker from '@/ui/components/TagPicker.vue';
 import WarrantyField from '@/ui/components/WarrantyField.vue';
 import OrderLocationField from './OrderLocationField.vue';
 import { DOCUMENT_KIND_KEYS, DOCUMENT_KIND_OPTIONS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
-import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields, proposalFor } from './drafts';
+import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields, proposalFor, tagLinesFor } from './drafts';
 import { loadWarrantySettings } from '@/ui/warranty-settings';
+import { loadTagSettings } from '@/ui/tag-settings';
+import { DEFAULT_TAG_SETTINGS, findExisting, normalizeTagName, tagKey, tagNameError, type TagLine, type TagSettings } from '@/shared/tags';
 import { DEFAULT_WARRANTY_SETTINGS, manualWarrantyMonths, type NoDefaultReason, type WarrantySettings } from '@/shared/warranty';
 import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
 
@@ -47,6 +51,8 @@ interface Line {
   location: 'inherit' | LocationChoice | null;
   /** Why the warranty section is empty (spec 011): lives next to the draft, never sent nor persisted. */
   warrantyReason: NoDefaultReason | null;
+  /** Tags of the product (spec 014): in memory only; only the checked ones are sent at confirmation. */
+  tags: TagLine[];
 }
 
 const loading = ref(true);
@@ -76,6 +82,45 @@ const orderModel = computed({
     orderLocation.value = v;
   },
 });
+/** HomeBox tags: loaded in parallel with detection, never blocking the summary (spec 014, FR-011). */
+const tagState = ref<'loading' | 'ready' | 'unavailable'>('loading');
+const tagOptions = ref<TagOption[]>([]);
+
+/** Existing tags take the HomeBox name and identifier (FR-004, US1-5); also when the list arrives late. */
+function reconcileTags(target: Line[]) {
+  if (tagState.value !== 'ready') return;
+  for (const line of target) {
+    for (const tag of line.tags) {
+      const found = findExisting(tag.id ? { name: tag.name, id: tag.id } : { name: tag.name }, tagOptions.value);
+      if (found) {
+        // The HomeBox spelling, normalised (spaces, NFC) so that the import message stays valid; an invalid
+        // HomeBox name keeps ours. The identifier is enough to match the tag.
+        const name = normalizeTagName(found.name);
+        if (tagNameError(name) === null) {
+          tag.name = name;
+          tag.key = tagKey(name);
+        }
+        tag.id = found.id;
+      }
+    }
+  }
+}
+
+async function loadTags() {
+  try {
+    const res = await send({ type: 'tag/list' });
+    if (!res.ok || !Array.isArray(res.value?.tags)) {
+      tagState.value = 'unavailable';
+      return;
+    }
+    tagOptions.value = res.value.tags;
+    tagState.value = 'ready';
+    reconcileTags(lines.value);
+  } catch {
+    tagState.value = 'unavailable';
+  }
+}
+
 /** Rows whose location picker is open. */
 const editingLines = reactive(new Set<string>());
 
@@ -129,17 +174,24 @@ const duplicateCheckFailed = ref(false);
 
 onMounted(async () => {
   void loadLocations();
+  void loadTags();
   // Read at each opening (never cached); an unreadable storage gives the defaults, never a blocked popup.
-  const [res, settings] = await Promise.all([send({ type: 'detect/run', tabId: props.tabId }), loadWarrantySettings()]);
+  const [res, settings, tagSettings] = await Promise.all([
+    send({ type: 'detect/run', tabId: props.tabId }),
+    loadWarrantySettings(),
+    loadTagSettings().catch((): TagSettings => ({ ...DEFAULT_TAG_SETTINGS, rules: [] })),
+  ]);
   warrantySettings.value = settings;
   loading.value = false;
   if (!res.ok) {
     detectError.value = res.error;
+    // Manual entry: no store and no detected name, so no tag is proposed (E3).
     lines.value = [
-      { key: 'manual', product: null, selected: true, draft: emptyDraft(), location: 'inherit', warrantyReason: null },
+      { key: 'manual', product: null, selected: true, draft: emptyDraft(), location: 'inherit', warrantyReason: null, tags: [] },
     ];
     return;
   }
+  const store = MERCHANT_CATALOG.find((e) => e.id === res.value.purchase.source);
   purchase.value = res.value.purchase;
   warnings.value = res.value.warnings;
   const products = res.value.purchase.products.filter((p) => p.name.value !== null);
@@ -152,9 +204,13 @@ onMounted(async () => {
       draft: draftFrom(res.value.purchase, p, ctx),
       location: 'inherit',
       warrantyReason: proposalFor(res.value.purchase, p, ctx).reason,
+      // Evaluated once, on the detected name (E3): editing the name does not recompute them.
+      tags: tagLinesFor(store?.tagName ?? null, p?.name.value ?? null, tagSettings),
     };
   };
-  lines.value = products.length ? products.map((p) => lineFor(p.key, p)) : [lineFor('manual', null)];
+  const built = products.length ? products.map((p) => lineFor(p.key, p)) : [lineFor('manual', null)];
+  reconcileTags(built);
+  lines.value = built;
   documents.value = res.value.purchase.documents.map((doc) => ({ doc, selected: true }));
 });
 
@@ -225,6 +281,11 @@ async function checkDuplicates() {
 
 const copyOf = (loc: LocationChoice | null): LocationChoice | null => (loc ? { id: loc.id, path: [...loc.path] } : null);
 
+function checkedTags(line: Line): { tags?: { name: string; id?: string }[] } {
+  const tags = line.tags.filter((t) => t.checked).map((t) => (t.id ? { name: t.name, id: t.id } : { name: t.name }));
+  return tags.length ? { tags } : {};
+}
+
 function submit() {
   dialog.value = { kind: 'none' };
   const docs = selectedDocs.value;
@@ -238,6 +299,8 @@ function submit() {
       // Deep copy: the reactive object of the screen is never shared with the message.
       // A lifetime warranty carries no date (the remembered one only serves to uncheck the box).
       warranty: l.draft.warranty ? { ...l.draft.warranty, expires: l.draft.warranty.lifetime ? null : l.draft.warranty.expires } : null,
+      // Only the checked tags, as plain copies; no key at all without a checked tag (sequence unchanged).
+      ...checkedTags(l),
     })),
     manualFiles: docs.flatMap((d) => {
       const f = manualFiles.get(d.id);
@@ -258,6 +321,10 @@ function submit() {
     <template v-else>
       <ErrorBanner v-if="detectError" :code="detectError" tone="warning" />
       <ErrorBanner v-for="w in warnings" :key="w" :code="w" tone="warning" />
+      <template v-if="tagState === 'unavailable'">
+        <ErrorBanner code="TAGS_UNAVAILABLE" tone="warning" />
+        <p class="muted">{{ t('tags.unavailableHelp') }}</p>
+      </template>
       <template v-if="detectError === 'NOT_AN_ORDER_PAGE'">
         <p class="muted">{{ t('summary.supportedStores', [supportedStores]) }}</p>
         <p class="muted">{{ t('summary.reportHint') }}</p>
@@ -292,6 +359,13 @@ function submit() {
           :multi="multi"
           :product-name="productName(line)"
           :manual-months="manualMonths"
+        />
+        <TagPicker
+          v-if="line.selected"
+          v-model:lines="line.tags"
+          :options="tagOptions"
+          :state="tagState"
+          :product-name="productName(line)"
         />
         <div v-if="multi && line.selected && locState === 'ready' && locations.length > 0" class="product-location">
           <template v-if="line.location === 'inherit'">

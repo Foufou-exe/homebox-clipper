@@ -538,3 +538,44 @@ describe('update privacy (013, U-9, Q-U12, FR-013, FR-016)', () => {
     expect(read('src/entrypoints/background.ts')).not.toContain('requestUpdateCheck');
   });
 });
+
+describe('automatic tags privacy documentation (014, Q-U12, FR-020)', () => {
+  const doc = (path: string) =>
+    readFileSync(resolve(__dirname, '../..', path), 'utf8').replace(/\s+/g, ' ');
+  const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const FR_MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+  it('PRIVACY.md: suggested tags, local rules (tagSettings, storage.local, never sync), creation only after confirmation, no new recipient', () => {
+    const en = doc('PRIVACY.md');
+    expect(en).toMatch(/suggested tags/i);
+    expect(en).toContain('tagSettings');
+    expect(en).toMatch(/rules/i);
+    expect(en).toContain('`storage.local`');
+    expect(en).toContain('/api/v1/tags');
+    expect(en).toMatch(/tags? (are|is) created[^.]*only after your confirmation/i);
+    expect(en).toMatch(/no new recipient/i);
+    expect(en).toMatch(/never[^.]*import history|import history[^.]*never/i);
+  });
+
+  it('PRIVACY.fr.md: the same elements in French', () => {
+    const fr = doc('PRIVACY.fr.md');
+    expect(fr).toMatch(/tags proposés/i);
+    expect(fr).toContain('tagSettings');
+    expect(fr).toMatch(/règles/i);
+    expect(fr).toContain('`storage.local`');
+    expect(fr).toContain('/api/v1/tags');
+    expect(fr).toMatch(/créés?[^.]*uniquement après votre confirmation/i);
+    expect(fr).toMatch(/aucun nouveau destinataire/i);
+  });
+
+  it('both effective dates are identical and not earlier than 18 November 2026 (fixed floor)', () => {
+    const en = doc('PRIVACY.md').match(/Effective date: \*\*(\d{1,2}) ([A-Z][a-z]+) (\d{4})\*\*/);
+    const fr = doc('PRIVACY.fr.md').match(/Date d'effet : \*\*(\d{1,2}) ([a-zéû]+) (\d{4})\*\*/);
+    expect(en).not.toBeNull();
+    expect(fr).not.toBeNull();
+    const enDate = Date.UTC(Number(en![3]), EN_MONTHS.indexOf(en![2]!), Number(en![1]));
+    const frDate = Date.UTC(Number(fr![3]), FR_MONTHS.indexOf(fr![2]!), Number(fr![1]));
+    expect(enDate).toBe(frDate);
+    expect(enDate).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 18));
+  });
+});

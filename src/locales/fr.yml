@@ -26,6 +26,8 @@ error:
   PHOTO_UPLOAD_FAILED: "L'objet a été créé mais l'envoi de la photo a échoué."
   LOCATIONS_UNAVAILABLE: "La liste des emplacements n'a pas pu être obtenue."
   LOCATION_NOT_FOUND: "Cet emplacement n'existe plus dans HomeBox. Choisissez-en un autre ou importez sans emplacement."
+  TAGS_UNAVAILABLE: "La liste des tags HomeBox n'a pas pu être obtenue."
+  TAG_FAILED: "L'objet a été créé mais certains tags n'ont pas pu être ajoutés."
   MANUAL_FILE_REQUIRED: "Sélectionnez à nouveau le fichier à joindre pour réessayer."
   NOT_CONFIGURED: "Configurez d'abord votre instance HomeBox."
   LOCKED: "Extension verrouillée : saisissez votre phrase de passe."
@@ -180,6 +182,7 @@ result:
   photoUnavailable: "Aucune photo disponible."
   photoFailed: "Échec de l'envoi de la photo."
   locationAt: "Emplacement : $1"
+  tagsFailed: "Tags non ajoutés : $1"
 
 recovery:
   objectPrefix: "L'objet"
@@ -371,3 +374,45 @@ update:
   applyButton: "Mettre à jour maintenant"
   applyHelp: "L’extension redémarre, puis vous redemande votre phrase de passe."
   blocked: "Disponible une fois l’import en cours terminé, repris ou abandonné."
+
+tags:
+  title: "Tags"
+  help: "Les tags cochés sont ajoutés à l’objet dans HomeBox à la confirmation."
+  none: "Aucun tag proposé."
+  badge:
+    new: "nouveau"
+    newHelp: "Ce tag n’existe pas encore dans HomeBox : il sera créé à la confirmation."
+    unverified: "non vérifié"
+    unverifiedHelp: "Les tags HomeBox n’ont pas pu être lus : ce tag sera vérifié à la confirmation."
+  unavailableHelp: "Vous pouvez quand même importer : les tags seront vérifiés à la confirmation."
+  add:
+    label: "Ajouter un tag"
+    labelFor: "Ajouter un tag à « $1 »"
+    placeholder: "Rechercher ou saisir un tag"
+    create: "Ajouter « $1 » (nouveau)"
+  errors:
+    empty: "Le nom du tag est vide."
+    tooLong: "Le nom du tag est trop long."
+    tooMany: "Trop de tags pour ce produit (50 au maximum)."
+  settings:
+    title: "Tags automatiques"
+    intro: "L’extension propose des tags pour chaque produit ; vous pouvez les modifier avant la confirmation."
+    merchant: "Proposer le nom de la boutique comme tag"
+    merchantHelp: "Par exemple « Amazon »."
+    rulesTitle: "Règles"
+    rulesHelp: "Si le nom du produit contient le texte (sans tenir compte des majuscules ni des accents), le tag est proposé. Texte simple uniquement, sans expression régulière."
+    contains: "Le nom du produit contient"
+    tag: "Tag"
+    containsFor: "Texte de la règle $1"
+    tagFor: "Tag de la règle $1"
+    add: "Ajouter la règle"
+    delete: "Supprimer"
+    deleteFor: "Supprimer la règle $1"
+    empty: "Aucune règle."
+    saved: "Réglage enregistré."
+    saveFailed: "Le réglage n’a pas pu être enregistré."
+    errors:
+      containsEmpty: "Saisissez le texte à rechercher."
+      containsTooLong: "Le texte est trop long (100 caractères au maximum)."
+      tagEmpty: "Saisissez le nom du tag."
+      tagTooLong: "Le nom du tag est trop long."

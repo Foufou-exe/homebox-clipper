@@ -104,6 +104,20 @@ export interface LocationOption {
   path: string[];
 }
 
+/** HomeBox tag offered to the interface: subset of `repo.TagSummary` (spec 014). */
+export interface TagOption {
+  id: string;
+  name: string;
+}
+
+/** Tag chosen on the confirmation screen (spec 014). Only checked tags are ever sent. */
+export interface TagChoice {
+  /** Normalised, valid name; the HomeBox spelling if the tag existed in the summary. */
+  name: string;
+  /** HomeBox identifier known in the summary; absent for a "new" or "not verified" tag. */
+  id?: string;
+}
+
 export interface ImportDraft {
   name: string;
   description: string;
@@ -122,6 +136,11 @@ export interface ImportDraft {
   location: LocationChoice | null;
   /** `null` or absent: no warranty to send. Absent from a state persisted by a previous version. */
   warranty?: WarrantyDraft | null;
+  /**
+   * Tags checked at confirmation (spec 014). Absent or empty: no tag, the import sequence is unchanged
+   * (no tag request, no `tagIds` key in the PUT). Absent from a state persisted by a previous version.
+   */
+  tags?: TagChoice[];
 }
 
 export type PhotoStep = 'not_requested' | 'unavailable' | 'pending' | 'sending' | 'done' | 'failed';
@@ -140,7 +159,11 @@ export interface PendingImport {
     attachments: Record<string, StepState>;
     /** Read with `?? 'not_requested'` as a precaution (state persisted by a previous version). */
     photo: PhotoStep;
+    /** Present only if `draft.tags` is non-empty (spec 014): without tags, nothing changes. */
+    tags?: StepState;
   };
+  /** Names (`draft.tags[].name`) not applied during the last run (spec 014). Absent until a tag failure happens. */
+  failedTags?: string[];
   /**
    * Identifiers (`DocumentRef.id`) of `manual`/`warranty` documents attached as a plain `attachment` after the
    * instance refused their type (HTTP 422, spec 007). Absent until a fallback happens: never initialised elsewhere.

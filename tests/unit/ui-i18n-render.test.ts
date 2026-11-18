@@ -56,7 +56,9 @@ const patterns = Object.values(catalog)
   .map((v) => new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\$\d/g, '.*')}$`, 's'));
 
 /** Exceptions: non-translatable technical examples (address format and HomeBox key prefix). */
-const TECHNICAL_EXAMPLES = new Set(['https://homebox.example.com', 'hb_…']);
+// ADAPTED (014): the store brand proposed as a tag (« Amazon », CatalogEntry.tagName) is data shown by TagPicker,
+// a proper noun like DATA, not a catalog text.
+const TECHNICAL_EXAMPLES = new Set(['https://homebox.example.com', 'hb_…', ...MERCHANT_CATALOG.map((e) => e.tagName)]);
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
 /** File size (formatSize, common.size* values) attached to the label in the same text node. */
@@ -462,7 +464,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       await flushPromises();
       expect(wrapper.emitted('submit')).toBeUndefined();
       // Only the summary reads are sent (detection, location list): no import/start.
-      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list']);
+      // ADAPTED (014): the tag list is also read at opening (contracts/ui.md), still no import/start.
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'tag/list']);
       expect(fetchSpy).not.toHaveBeenCalled();
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
@@ -708,6 +711,8 @@ describe('location choice (US2, US3)', () => {
     vi.mocked(send).mockImplementation((msg) => {
       if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase(products), warnings: [] })) as never;
       if (msg.type === 'location/list') return Promise.resolve(opts.list ?? listOk()) as never;
+      // ADAPTED (014): the summary reads the tag list at opening; a readable empty list, like a real instance.
+      if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: [] })) as never;
       if (msg.type === 'duplicate/check') {
         const matches = opts.duplicates === 'found' ? [{ id: 'x', name: DATA, url: DATA }] : [];
         return Promise.resolve(ok({ matches })) as never;
@@ -738,7 +743,8 @@ describe('location choice (US2, US3)', () => {
       wire({ list: new Promise<never>(() => undefined) });
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
       // Both calls are sent before either is resolved.
-      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list']);
+      // ADAPTED (014): the tag list is read in parallel too (contracts/ui.md).
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'tag/list']);
       await flushPromises();
       expect(wrapper.text()).toContain('Chargement des emplacements…');
       expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined();
@@ -1678,7 +1684,10 @@ describe('warranty options card (011, Q-U19, FR-009)', () => {
     const titles = wrapper.findAll('section.card').map((c) => c.find('h1, h2').text());
     const index = titles.indexOf(catalog['warranty.settings.title']!);
     expect(index).toBeGreaterThan(0);
-    expect(titles[index + 1]).toBe(catalog['options.appearance']);
+    // ADAPTED (014, contracts/ui.md): the « Automatic tags » card is inserted right after the warranty card,
+    // then comes « Appearance » as before.
+    expect(titles[index + 1]).toBe(catalog['tags.settings.title']);
+    expect(titles[index + 2]).toBe(catalog['options.appearance']);
     expect(wrapper.findAll('section.card')[index - 1]!.text()).toContain(catalog['options.historyTitle'] ?? '');
   });
 });
@@ -1737,5 +1746,58 @@ describe('version number: rendered in fr and en (013, T055)', () => {
     const popup = mount(PopupApp);
     await flushPromises();
     expect(popup.get('footer .project-version').text()).toBe(c['links.version']!.replace('$1', '0.4.0'));
+  });
+});
+
+describe('014 automatic tags: texts from the catalog, in fr and en (T029 b)', () => {
+  const tagLine = (over: Record<string, unknown> = {}) => ({ key: 'data', name: DATA, id: null, origin: 'merchant' as const, checked: true, ...over });
+
+  it.each(['fr', 'en'] as const)('%s: TagPicker (new, not verified, empty, add, errors)', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    const { default: TagPicker } = await import('@/ui/components/TagPicker.vue');
+    const states = ['loading', 'ready', 'unavailable'] as const;
+    for (const state of states) {
+      const wrapper = mount(TagPicker, { props: { lines: [tagLine()], options: [], state, productName: DATA } });
+      const box = wrapper.get('input[role="combobox"]');
+      await box.setValue(DATA);
+      expect(wrapper.text()).toContain(c['tags.title']!);
+      if (lang === 'fr') expectCatalogTexts(wrapper, [DATA]);
+      else expect(wrapper.text().split(DATA).join('')).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+    const empty = mount(TagPicker, { props: { lines: [], options: [], state: 'ready', productName: DATA } });
+    expect(empty.text()).toContain(c['tags.none']!);
+    await empty.get('input[role="combobox"]').trigger('keydown', { key: 'Enter' });
+    expect(empty.get('[role="alert"]').text()).toBe(c['tags.errors.empty']!);
+    if (lang === 'fr') expectCatalogTexts(empty, [DATA]);
+  });
+
+  it.each(['fr', 'en'] as const)('%s: ResultView, « tags not added » line', (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    const p = pending({ error: 'TAG_FAILED', failedTags: [DATA], steps: { create: 'done', update: 'done', attachments: { d1: 'done', m1: 'done' }, photo: 'unavailable', tags: 'failed' } });
+    const wrapper = mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } });
+    expect(wrapper.text()).toContain(c['result.tagsFailed']!.replace('$1', DATA));
+    expect(wrapper.text()).toContain(c['error.TAG_FAILED']!);
+    if (lang === 'fr') expectCatalogTexts(wrapper, [DATA]);
+  });
+});
+
+describe('014 automatic tags card: texts from the catalog, in fr and en (T046)', () => {
+  it.each(['fr', 'en'] as const)('%s: TagsCard with rules, errors and confirmation', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    await fakeBrowser.storage.local.set({ tagSettings: { v: 1, merchantTag: true, rules: [{ id: 'r1', contains: DATA, tag: DATA }] } });
+    const { default: TagsCard } = await import('@/ui/options/TagsCard.vue');
+    const wrapper = mount(TagsCard);
+    await flushPromises();
+    expect(wrapper.text()).toContain(c['tags.settings.title']!);
+    expect(wrapper.text()).toContain(c['tags.settings.rulesHelp']!);
+    await wrapper.get('form.add').trigger('submit');
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe(c['tags.settings.errors.containsEmpty']!);
+    if (lang === 'fr') expectCatalogTexts(wrapper, [DATA]);
+    else expect(wrapper.text().split(DATA).join('')).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    await fakeBrowser.storage.local.clear();
   });
 });
