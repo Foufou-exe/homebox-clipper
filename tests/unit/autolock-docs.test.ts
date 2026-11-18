@@ -49,14 +49,15 @@ describe('automatic lock and updates documentation (013, FR-021)', () => {
     for (const key of ['lockSettings', 'updateNotice', 'updateReady', 'homeboxActivity']) expect(doc, key).toContain(key);
   });
 
-  it('PRIVACY.md and PRIVACY.fr.md: effective date later than the one on main, and the same in both', () => {
+  it('PRIVACY.md and PRIVACY.fr.md: effective date not earlier than the 013 release (18 November 2026), and the same in both', () => {
     const enLabel = /Effective date: \*\*(\d{1,2}) ([A-Z][a-z]+) (\d{4})\*\*/;
     const frLabel = /Date d'effet : \*\*(\d{1,2}) ([a-zéû]+) (\d{4})\*\*/;
     const en = effectiveDate(read('PRIVACY.md'), EN_MONTHS, enLabel);
     const fr = effectiveDate(read('PRIVACY.fr.md'), FR_MONTHS, frLabel);
     expect(en).toBe(fr);
-    const before = fromMain('PRIVACY.md');
-    if (before !== null) expect(en).toBeGreaterThan(effectiveDate(before, EN_MONTHS, enLabel));
+    // Fixed floor rather than a comparison with `main`: that comparison only held on the feature branch and
+    // failed as soon as the change was merged (both dates are then equal).
+    expect(en).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 18));
   });
 
   it('store listing: the storage justification mentions the lock setting and no network call for updates (EN and FR)', () => {
