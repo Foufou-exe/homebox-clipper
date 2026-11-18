@@ -19,10 +19,12 @@ same. Messages are grouped by when they appear.
 
 | Message shown | Code | Probable cause | Fix |
 |---------------|------|----------------|-----|
-| HomeBox is unreachable. Check the address and your connection. | `HOMEBOX_UNREACHABLE` | Instance stopped, wrong port, VPN or firewall, or the 15-second timeout was exceeded. | Check that the instance is running and that the address opens in the browser. |
+| HomeBox is unreachable. Check the address and your connection. | `HOMEBOX_UNREACHABLE` | Instance stopped, wrong port, VPN or firewall, the 15-second timeout was exceeded, or HTTPS not set up correctly. | Check that the instance is running and that the address opens in the browser and is showing secure. |
 | Invalid or expired API key. | `UNAUTHORIZED` | Key revoked, expired, badly copied, or invalidated because the server secret (pepper) changed. | Create a new key in HomeBox and save it again. |
 | Extension locked: enter your passphrase. | `LOCKED` | The browser restarted or you clicked 🔒. | Enter the passphrase in the popup. |
 | Incorrect passphrase. | `WRONG_PASSPHRASE` | Wrong passphrase (capital letters?). | Enter it again. If forgotten: "Delete settings" then set up again. |
+
+If you are using HTTPS to connect to homebox, the certificate needs to be set up correctly. Adding an exception when visiting your homebox instance does not carry over to the service workers used by the extension.
 
 ## Detection on the page
 
