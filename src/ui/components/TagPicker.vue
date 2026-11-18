@@ -57,7 +57,8 @@ const BADGES = {
 function statusOf(line: TagLine): Exclude<TagStatus, 'existing'> | null {
   if (props.state === 'loading') return null;
   if (props.state === 'unavailable') return 'unverified';
-  return findExisting(line.id ? { name: line.name, id: line.id } : { name: line.name }, props.options) ? null : 'new';
+  const choice = line.id ? { name: line.name, id: line.id } : { name: line.name };
+  return findExisting(choice, props.options) ? null : 'new';
 }
 const describedBy = (line: TagLine, i: number) => (statusOf(line) ? `${badgeId(i)} ${badgeHelpId(i)}` : undefined);
 

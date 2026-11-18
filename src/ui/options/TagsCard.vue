@@ -181,7 +181,8 @@ async function onAdd() {
       <button type="submit">{{ t('tags.settings.add') }}</button>
     </form>
     <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
-    <p class="success" role="status">{{ announce }}</p>
+    <!-- Native status element; the explicit role keeps the same selector for assistive tech and tests. -->
+    <output class="success" role="status">{{ announce }}</output>
   </section>
 </template>
 
@@ -255,6 +256,7 @@ h3 {
   font-size: 13px;
 }
 .success {
+  display: block;
   color: var(--success-fg, var(--fg));
   font-size: 13px;
   margin: 6px 0 0;

@@ -175,7 +175,9 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       const json = await readJson<unknown>(res, 'TAG_FAILED');
       if (!json.ok) return json;
       const tag = toTagSummary(json.value);
-      return tag ? ok(tag) : fail('TAG_FAILED', res.ok ? res.value.status : undefined);
+      if (tag) return ok(tag);
+      const status = res.ok ? res.value.status : undefined;
+      return fail('TAG_FAILED', status);
     },
 
     async getEntity(id: string): Promise<Result<EntityOut>> {
