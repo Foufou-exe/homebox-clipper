@@ -7,6 +7,8 @@ import type {
   EntitySummary,
   EntityUpdate,
   StatusOut,
+  TagCreate,
+  TagSummary,
   TreeItem,
 } from './types';
 
@@ -41,6 +43,13 @@ async function readJson<T>(res: Result<Response>, onInvalid: ErrorCode): Promise
   } catch {
     return fail(onInvalid, res.value.status);
   }
+}
+
+/** Entry of a tag list or created tag with a textual `id` and `name`, reduced to these two fields; otherwise `null`. */
+function toTagSummary(x: unknown): TagSummary | null {
+  if (typeof x !== 'object' || x === null) return null;
+  const { id, name } = x as Record<string, unknown>;
+  return typeof id === 'string' && typeof name === 'string' ? { id, name } : null;
 }
 
 export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClientOptions) {
@@ -136,6 +145,39 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       const json = await readJson<unknown>(res, 'LOCATIONS_UNAVAILABLE');
       if (!json.ok) return json;
       return Array.isArray(json.value) ? ok(json.value as TreeItem[]) : fail('LOCATIONS_UNAVAILABLE');
+    },
+
+    /** GET /tags (spec 014): malformed entries are ignored; a non-array answer is `TAGS_UNAVAILABLE`. No name is logged. */
+    async listTags(): Promise<Result<TagSummary[]>> {
+      const res = await request('GET', '/tags', {
+        auth: true,
+        endpoint: 'GET /tags',
+        onHttpError: 'TAGS_UNAVAILABLE',
+      });
+      const json = await readJson<unknown>(res, 'TAGS_UNAVAILABLE');
+      if (!json.ok) return json;
+      if (!Array.isArray(json.value)) return fail('TAGS_UNAVAILABLE');
+      return ok(json.value.flatMap((x) => toTagSummary(x) ?? []));
+    },
+
+    /**
+     * POST /tags (spec 014): the body is exactly `{ name }` (no color, icon, description or parent). An answer
+     * without textual `id` and `name` is `TAG_FAILED`. No name is logged.
+     */
+    async createTag(name: string): Promise<Result<TagSummary>> {
+      const body: TagCreate = { name };
+      const res = await request('POST', '/tags', {
+        auth: true,
+        endpoint: 'POST /tags',
+        onHttpError: 'TAG_FAILED',
+        json: body,
+      });
+      const json = await readJson<unknown>(res, 'TAG_FAILED');
+      if (!json.ok) return json;
+      const tag = toTagSummary(json.value);
+      if (tag) return ok(tag);
+      const status = res.ok ? res.value.status : undefined;
+      return fail('TAG_FAILED', status);
     },
 
     async getEntity(id: string): Promise<Result<EntityOut>> {

@@ -2,7 +2,7 @@
 
 # Privacy policy
 
-**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **18 November 2026**
+**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **19 November 2026**
 
 In short: the extension has **no server, no account, no analytics and no telemetry**. The data it
 handles goes from your browser to **your own** HomeBox instance, only when you click "Add to HomeBox",
@@ -27,6 +27,8 @@ control**; you are the controller of that data. Project page:
 | Passphrase | You choose it | Encrypt and unlock the API key | **Never stored** |
 | HomeBox location list and last location used (identifiers only) | Your HomeBox instance | Let you choose where the item is filed | Read from your instance; identifiers kept locally |
 | Warranty proposed with each item (expiry date, lifetime flag, details), calculated from the purchase date, and the default-warranty setting (on/off, duration) | The extension and you | Fill the warranty fields of the HomeBox item | The warranty is sent to your HomeBox instance after you confirm and is never kept by the extension once the import is done; the setting is stored locally (no personal data) |
+| Suggested HomeBox tags (the store brand, for example "Amazon", and the tags of your own rules) and the tags you check in the summary | The extension, your rules and you | Tag the item in HomeBox | Read from and, for a tag that does not exist yet, created on **your HomeBox instance** (`GET`/`POST /api/v1/tags`); tags are created and applied only after your confirmation, and only the checked ones. Kept only with the import in progress (`storage.session`), never in the import history |
+| Automatic-tag setting (`tagSettings`: whether to suggest the store name, and your rules "the product name contains … → tag …") | You | Suggest tags in the summary | Stored locally in `storage.local`, in clear (no secret, no purchase data), never in `storage.sync` |
 | Theme preference | You | Display | Stored locally |
 | Automatic lock setting (`lockSettings`: when the browser closes, after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened) | You | Decide when the passphrase is asked again | Stored locally; a choice only, no secret |
 | Last time the extension was used while unlocked (`homeboxActivity`, a technical timestamp) | The extension | Apply the inactivity lock | Browser memory only (`storage.session`), never on disk; erased when the extension locks or the browser closes; never shown or logged |
@@ -41,7 +43,7 @@ your HomeBox instance.
 ## Where the data is processed and stored
 
 - **In your browser** (`storage.local`): instance address, encrypted API key, masked key (for example
-  `hb_••••abcd`), result of the last connection test, last location used per instance, theme, the default-warranty setting, and the
+  `hb_••••abcd`), result of the last connection test, last location used per instance, theme, the default-warranty setting, the automatic-tag setting (`tagSettings`: store-name option and tag rules), and the
   import history (each entry encrypted with AES-GCM 256 under a random history key, itself sealed with
   your passphrase like the API key) with its on/off setting, the automatic lock setting
   (`lockSettings`) and the version of the last update notice (`updateNotice`).
@@ -61,6 +63,9 @@ your HomeBox instance.
   example `https://www.amazon.de`), to download your invoice, and Amazon's image server
   (`m.media-amazon.com`) for the product photo, at the moment of import; (2) **your** HomeBox
   instance. It never contacts another Amazon store than the one of the order.
+- Suggested tags add **no new recipient**: the tag list is read from your HomeBox instance
+  (`GET /api/v1/tags`) and missing tags are created there (`POST /api/v1/tags`) only after your
+  confirmation. No request is made to the store for tags: the store brand comes from the extension itself.
 - Prices are kept in the currency of the order: no exchange-rate service or other third party is
   contacted (no currency conversion).
 - Your data and your API key are **never** sent to the author, to an intermediary server, to Amazon
@@ -92,8 +97,8 @@ passphrase is then asked again); it is disabled while an import is running or ca
 ## Logs
 
 The extension writes no personal data to the browser console: only error codes, HTTP statuses,
-durations and generic endpoint templates, never an address, a product name, a price, an order number
-or the API key.
+durations and generic endpoint templates, never an address, a product name, a price, an order number,
+a tag name, the text of a tag rule or the API key.
 
 ## Retention and deletion
 
@@ -108,7 +113,7 @@ or the API key.
   Uninstalling the extension removes it.
 - Local data stays until you delete it. **Settings → Delete settings** erases the address, the
   encrypted key, the in-progress imports, the last locations, the import history, and removes the access permission granted
-  to your instance. The automatic lock setting and the last update notice (no personal data) are kept. Uninstalling the extension removes all its browser storage.
+  to your instance. The automatic lock setting, the last update notice and the automatic-tag setting (`tagSettings`, no personal data) are kept. Uninstalling the extension removes all its browser storage.
 - You can also revoke the API key in HomeBox at any time.
 - Items already imported belong to your HomeBox instance: delete them there.
 - The author holds no copy of your data, so there is nothing to erase on their side.

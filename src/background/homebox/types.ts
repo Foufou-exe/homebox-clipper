@@ -43,7 +43,8 @@ export interface EntityOut {
   location?: { id: string } | null;
   parent?: { id: string } | null;
   entityType?: { id: string } | null;
-  tags?: { id: string }[];
+  /** `null` (Go nil slice) means no tag. */
+  tags?: { id: string }[] | null;
   attachments?: { id: string; type?: string; primary?: boolean }[];
 }
 
@@ -70,6 +71,17 @@ export interface EntityUpdate {
   parentId?: string;
   entityTypeId?: string;
   tagIds?: string[];
+}
+
+/** Subset of `repo.TagSummary` (Swagger v0.27.1) used by the extension (spec 014). */
+export interface TagSummary {
+  id: string;
+  name: string;
+}
+
+/** Subset of `repo.TagCreate`: only the name is ever sent (no color, icon, description or parent). */
+export interface TagCreate {
+  name: string;
 }
 
 export interface EntitySummary {

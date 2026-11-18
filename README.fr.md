@@ -48,6 +48,7 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
 - **Historique des imports** : vos derniers imports avec leur résultat et un lien vers l'objet, conservés uniquement dans votre navigateur et chiffrés avec votre phrase de passe (200 entrées, 12 mois ; effaçable ou désactivable).
 - **Photo du produit** jointe à l'objet comme image principale (décochable par produit).
 - **Choix de l'emplacement** parmi vos emplacements HomeBox, avec recherche ; le dernier utilisé est proposé.
+- **Tags proposés** : l'enseigne de la boutique et les tags de vos propres règles locales sont proposés pour chaque produit, modifiables au récapitulatif ; les tags absents sont créés dans HomeBox uniquement après votre confirmation, et les tags existants ne sont jamais retirés.
 - **Interface aux couleurs de HomeBox**, en thème clair, sombre ou automatique, en **anglais ou en français** selon la langue du navigateur.
 - **Confidentialité** : aucun serveur intermédiaire ; la clé API est toujours chiffrée par votre
   phrase de passe (obligatoire) et n'est utilisée que par le service worker. HTTP n'est accepté que

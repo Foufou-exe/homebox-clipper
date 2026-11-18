@@ -98,8 +98,8 @@ reception (`isMessage`). The router (`src/background/router.ts`):
 
 - answers `BAD_MESSAGE` to any invalid message or one coming from another extension, without running a
   handler;
-- reserves the `config/`, `session/`, `detect/`, `duplicate/`, `import/`, `location/`, `history/` and
-  `update/` prefixes for the extension's pages (popup, options), never for injected scripts;
+- reserves the `config/`, `session/`, `detect/`, `duplicate/`, `import/`, `location/`, `history/`,
+  `update/` and `tag/` prefixes for the extension's pages (popup, options), never for injected scripts;
 - calls the activity hook of the automatic lock (`src/background/config/auto-lock.ts`) for each accepted
   message from an extension page, before the handler;
 - converts any handler exception into a visible error, without detail.
@@ -107,7 +107,7 @@ reception (`isMessage`). The router (`src/background/router.ts`):
 Message families: configuration (`config/get|save|test|delete`), session
 (`session/unlock|lock|open|get-policy|set-policy`), updates (`update/state|dismiss|apply`, handled in
 `src/background/update/`),
-detection (`detect/run`), locations (`location/list`), duplicates (`duplicate/check`), import
+detection (`detect/run`), locations (`location/list`), HomeBox tags (`tag/list`, read-only, `src/background/tags/`), duplicates (`duplicate/check`), import
 (`import/start|retry|abandon|pending`), extraction in the tab (`amazon/extract`, `amazon/download`) and
 progress (`import/progress`). Responses are `Result` values: either a value or an error code from the
 catalog (`src/shared/errors.ts`).
@@ -116,7 +116,7 @@ catalog (`src/shared/errors.ts`).
 
 | Where | What |
 |-------|------|
-| `storage.local` | Settings (`homeboxConfig`: address, **encrypted** key, masked key, last test), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`: identifiers only, erased with the settings). Import history: one **encrypted** envelope `{ v, iv, ct }` per product (`importHistory:<id>`) and its setting (`importHistorySettings`); the history key is sealed in `homeboxConfig`. Automatic lock setting (`lockSettings`) and last update notice (`updateNotice`). |
+| `storage.local` | Settings (`homeboxConfig`: address, **encrypted** key, masked key, last test), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`: identifiers only, erased with the settings). Import history: one **encrypted** envelope `{ v, iv, ct }` per product (`importHistory:<id>`) and its setting (`importHistorySettings`); the history key is sealed in `homeboxConfig`. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). |
 | `storage.session` | Decrypted key and open history key (`homeboxUnlocked`), last activity (`homeboxActivity`, for the inactivity lock), version ready to install (`updateReady`) and in-progress imports (`pendingImport:<tab>:<id>`). Memory, cleared when the browser closes. |
 
 Security details: [Security-and-privacy](Security-and-privacy.md).

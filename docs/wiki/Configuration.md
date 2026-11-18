@@ -74,6 +74,20 @@ test instance on another machine of the local network will have an address like
 - **Forgotten passphrase**: it cannot be recovered. Delete the settings, then set the extension up again
   with your API key (or a new key).
 
+## Automatic tags
+
+The **Automatic tags** card of the settings chooses the tags suggested in the summary
+(see [Usage](Usage.md#tags)):
+
+- **Suggest the store name as a tag** (on by default): suggests the store brand, for example "Amazon".
+- **Rules**: "Product name contains" a text → "Tag" a name. The text is plain: case and accents are
+  ignored, there is no regular expression (`.*` is looked for as is). Every matching rule applies. Type the
+  text and the tag, then press Enter or **Add the rule**; edit a rule in place, or **Delete** it. An empty
+  text or tag is refused with a message; a text is at most 100 characters, a tag name at most 255 bytes.
+
+The setting is stored in the browser (`tagSettings`, `storage.local`), works whether the extension is
+configured or locked, and is kept when you delete the settings. A change applies to the next summaries.
+
 ## Appearance
 
 The theme (**Automatic (system)**, **Light** or **Dark**) is chosen in the *Appearance* section of the

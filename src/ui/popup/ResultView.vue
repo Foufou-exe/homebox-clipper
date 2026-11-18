@@ -54,6 +54,9 @@ const fallbackNotes = (p: PendingImport) =>
     const d = p.draft.documents.find((x) => x.id === id);
     return d ? [t('documents.storedAsAttachment', [d.label, t(kindKeys(d).label)])] : [];
   });
+/** Tags not applied (spec 014, FR-012): their names are shown, the import can be retried. */
+const tagsFailed = (p: PendingImport) =>
+  p.entityId && p.failedTags?.length ? t('result.tagsFailed', [p.failedTags.join(', ')]) : null;
 const itemLink = (p: PendingImport) => (p.entityId ? `${props.baseUrl}/item/${p.entityId}` : null);
 const allDone = computed(() => !props.running && props.pendings.every((p) => p.status === 'success'));
 </script>
@@ -98,6 +101,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         />
         <p v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</p>
         <p v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</p>
+        <p v-if="tagsFailed(p)" class="photo-result">{{ tagsFailed(p) }}</p>
       </template>
     </article>
   </section>

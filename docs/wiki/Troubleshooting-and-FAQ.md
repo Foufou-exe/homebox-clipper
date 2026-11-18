@@ -101,6 +101,17 @@ The location is never blocking, unless it has disappeared from HomeBox.
 If the list is empty, first create a location in HomeBox: the extension does not create any. The last
 remembered location, if it no longer exists, is simply ignored.
 
+## Tags
+
+Tags are never blocking: the item is always created first.
+
+| Message shown | Code | Probable cause | Fix |
+|---------------|------|----------------|-----|
+| The list of HomeBox tags could not be retrieved. | `TAGS_UNAVAILABLE` | HomeBox unreachable or unexpected response when reading the tags. In the summary, the tags are marked *not verified*; at import, the tags were not added. | Import anyway: the tags are matched when you confirm. If the result shows *Tags not added*, check the connection, then **Retry**. |
+| The item was created but some tags could not be added. | `TAG_FAILED` | HomeBox refused to create or attach a tag (for example a tag deleted in the meantime). The item and its purchase details are kept. | **Retry**: only the missing tags are applied; tags already created are found again, never duplicated. |
+
+Tags already on an item are always kept: the extension only adds tags, it never removes one.
+
 ## Internal
 
 | Message shown | Code | Probable cause | Fix |

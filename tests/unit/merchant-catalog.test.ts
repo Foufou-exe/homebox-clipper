@@ -10,7 +10,8 @@ describe('MERCHANT_CATALOG (reduced view of AMAZON_STORES)', () => {
     );
   });
 
-  it('entries only carry id, displayName, origin, status, defaultCurrency, country and ownSellers (no extraction data)', () => {
+  // ADAPTED (spec 014, T010 a): 'tagName' added; only expectation of this file that changes.
+  it('entries only carry id, displayName, origin, status, defaultCurrency, country, ownSellers and tagName (no extraction data)', () => {
     for (const e of MERCHANT_CATALOG) {
       expect(Object.keys(e).sort()).toEqual([
         'country',
@@ -20,6 +21,7 @@ describe('MERCHANT_CATALOG (reduced view of AMAZON_STORES)', () => {
         'origin',
         'ownSellers',
         'status',
+        'tagName',
       ]);
     }
   });
@@ -77,5 +79,21 @@ describe('catalog.ts and stores.ts: pure data (source test)', () => {
     for (const file of ['src/shared/types.ts', 'src/shared/merchant-ids.ts']) {
       expect(readFileSync(resolve(__dirname, '../..', file), 'utf8')).not.toMatch(/@\/content\//);
     }
+  });
+});
+
+describe('tagName: store brand proposed as a tag (014, Q-U9, E1)', () => {
+  const AMAZON_X8 = ['Amazon', 'Amazon', 'Amazon', 'Amazon', 'Amazon', 'Amazon', 'Amazon', 'Amazon'];
+
+  it('the eight catalog entries carry the brand « Amazon »', () => {
+    expect(MERCHANT_CATALOG.map((e) => e.tagName)).toEqual(AMAZON_X8);
+  });
+
+  it('the eight stores of the table carry the brand « Amazon »', () => {
+    expect(AMAZON_STORES.map((s) => s.tagName)).toEqual(AMAZON_X8);
+  });
+
+  it('tagName is plain data, never a selector', () => {
+    for (const e of MERCHANT_CATALOG) expect(e.tagName).toMatch(/^[A-Za-z]+$/);
   });
 });

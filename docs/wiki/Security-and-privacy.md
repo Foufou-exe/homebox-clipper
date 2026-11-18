@@ -24,6 +24,7 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 | The key is sent to the wrong host | The `Authorization: Bearer` header is added only to requests whose address starts with the configured address. |
 | Eavesdropping on the local network over HTTP | HTTP is accepted only for the local network, with the "Unencrypted HTTP" warning; HTTPS is required for any public address. |
 | Creation of unwanted items | No write to HomeBox without a click on "Add to HomeBox"; all fields can be edited before sending. |
+| A page script reads or creates HomeBox tags | `tag/list` is reserved to extension pages (`tag/` prefix refused from a web page). Tags are created and attached only after the confirmation, and only the checked ones; a PUT always keeps the tags already on the item. No new recipient: tags are read from and created on your instance only. |
 | Booby-trapped image URL (modified merchant page) | The URL is checked twice (at extraction, then in the service worker): `https`, host **strictly equal** to the merchant's (`m.media-amazon.com`), no port or credentials. Redirects refused. |
 | Booby-trapped file passed off as a photo (HTML, SVG, GIF) | Only JPEG, PNG and WebP (byte signature checked) of 5 MB at most are sent; the type sent comes from the signature, not from the response header. |
 | The decrypted key stays in memory while the computer is left unattended | **Automatic lock** (settings): after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened; no "never" option. Without the `alarms` permission, the browser cannot wake the extension at a fixed time: the expiry is **lazy**. The key is erased at the first use of the extension after the deadline (opening the popup or the settings, any message, or a restart of its service worker), **before** it can be read: no path reads the key without checking the deadline first. Until that moment the key stays in browser memory only, never on disk. No duration survives a browser restart. |
@@ -48,6 +49,8 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 | Version ready to install, as signalled by Chrome (`updateReady`) | `storage.session` (memory) | Until the browser closes or the extension restarts |
 | Default-warranty setting (`warrantySettings`: on/off and a duration in years, in clear: a preference, no personal data) | `storage.local` | Until uninstallation (kept when you delete the settings) |
 | Warranty of an in-progress import (expiry date, details) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs |
+| Automatic-tag setting (`tagSettings`: store-name option and rules "contains … → tag …", in clear: preferences, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
+| Chosen tags and tags not added of an in-progress import (`draft.tags`, `failedTags`) | `storage.session` (memory), inside the in-progress import | Erased with the import; tags are never stored in the import history |
 
 No data is placed in `storage.sync`.
 
@@ -118,7 +121,8 @@ production build.
 
 The only access point to the console is `src/shared/logger.ts`. Its signature is closed: it accepts only
 error codes, HTTP statuses, durations and an endpoint **template** (for example
-`POST /entities/{id}/attachments`), never a real address, a product name, a price or an order number.
+`POST /entities/{id}/attachments`, `GET /tags`), never a real address, a product name, a price or an order number.
+No tag name and no text of a tag rule is ever logged.
 Debug logs are emitted only in development mode; in production only a generic warning ("handler threw"
 and the message type) is emitted. An ESLint rule forbids `console.*` elsewhere.
 

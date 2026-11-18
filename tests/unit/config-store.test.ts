@@ -132,3 +132,14 @@ describe('config-store (encrypted key)', () => {
     expect(await fakeBrowser.storage.local.get(null)).toEqual({});
   });
 });
+
+describe('configStore.delete keeps the tag rules (014, Q-U7, US2-9)', () => {
+  it('storage.local.tagSettings is intact after the deletion of the configuration', async () => {
+    fakeBrowser.reset();
+    const value = { v: 1, merchantTag: false, rules: [{ id: 'r1', contains: 'SSD', tag: 'Informatique' }] };
+    await fakeBrowser.storage.local.set({ tagSettings: value });
+    await configStore.save({ baseUrl: 'https://homebox.example.com', apiKey: 'hb_xxxxxxxx', passphrase: 'une phrase de passe solide' }, 1_000);
+    await configStore.delete();
+    expect((await fakeBrowser.storage.local.get('tagSettings')).tagSettings).toEqual(value);
+  });
+});

@@ -467,3 +467,26 @@ describe('history entry: missing documents by kind (007, Q-U17)', () => {
     expect(s).not.toContain('attachmentFallbacks');
   });
 });
+
+describe('history entry: never a tag (014, Q-U8, FR-015)', () => {
+  it('toEntry of an import with draft.tags and failedTags: no tag name, no tags/failedTags key', () => {
+    const p = pending(
+      {
+        status: 'partial',
+        error: 'TAG_FAILED',
+        steps: { create: 'done', update: 'done', attachments: { 'detected-0': 'done' }, photo: 'not_requested', tags: 'failed' },
+        failedTags: ['Informatique'],
+      },
+      { tags: [{ name: 'Informatique' }, { name: 'Amazon', id: 't1' }] },
+    );
+    const entry = toEntry(p, CTX);
+    const json = JSON.stringify(entry);
+    expect(json).not.toContain('Informatique');
+    expect(json).not.toContain('Amazon"');
+    expect(json).not.toContain('t1');
+    expect(json).not.toMatch(/"tags"|"failedTags"/);
+    expect(Object.keys(entry).sort()).toEqual(BASE_KEYS);
+    expect(entry.status).toBe('partial');
+    expect(entry.reason).toBe('TAG_FAILED');
+  });
+});
