@@ -181,8 +181,8 @@ async function onAdd() {
       <button type="submit">{{ t('tags.settings.add') }}</button>
     </form>
     <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
-    <!-- Native status element; the explicit role keeps the same selector for assistive tech and tests. -->
-    <output class="success" role="status">{{ announce }}</output>
+    <!-- Native status element: <output> has the implicit "status" role (no redundant explicit role). -->
+    <output class="success">{{ announce }}</output>
   </section>
 </template>
 

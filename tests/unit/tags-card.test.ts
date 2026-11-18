@@ -32,7 +32,8 @@ const addContains = (w: W) => w.get('form.add input[name="contains"]');
 const addTag = (w: W) => w.get('form.add input[name="tag"]');
 const ruleItems = (w: W) => w.findAll('ul.rules > li');
 const alert = (w: W) => w.find('[role="alert"]');
-const status = (w: W) => w.get('[role="status"]');
+// <output> carries the implicit "status" role (SonarCloud S6822: no redundant explicit role).
+const status = (w: W) => w.get('output.success');
 
 beforeEach(() => {
   fakeBrowser.reset();
