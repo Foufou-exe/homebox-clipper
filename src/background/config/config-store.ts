@@ -12,6 +12,16 @@ import {
 } from './key-vault';
 import { originOf } from './url-policy';
 import { enqueueHistoryWrite } from '@/background/history/history-queue';
+import { activeImports } from '@/background/import/active-imports';
+import { logError } from '@/shared/logger';
+import {
+  DEFAULT_LOCK_SETTINGS,
+  idleLimitMs,
+  isIdleExpired,
+  parseLockSettings,
+  type LockPolicy,
+  type LockSettings,
+} from '@/shared/lock-policy';
 
 const KEY = 'homeboxConfig';
 /** Decrypted API key: storage.session only (in memory, cleared when the browser closes). */
@@ -23,6 +33,20 @@ export const LAST_LOCATION_KEY = 'lastLocationByInstance';
 export const HISTORY_PREFIX = 'importHistory:';
 /** History setting `{ v: 1, enabled }`, in clear (not purchase data); kept when the configuration is deleted. */
 export const HISTORY_SETTINGS_KEY = 'importHistorySettings';
+/** Automatic lock setting `{ v: 1, policy }` (013), in storage.local: a choice, no secret; kept on delete (E5). */
+export const LOCK_SETTINGS_KEY = 'lockSettings';
+/**
+ * Last activity `{ at }` (013, R1, R2), in storage.session only: written with the key, removed with it.
+ * Never exposed to the UI or the logs.
+ */
+export const ACTIVITY_KEY = 'homeboxActivity';
+/** Activity is written at most every 15 s (writing more often brings nothing). */
+const TOUCH_INTERVAL_MS = 15_000;
+/**
+ * Lock due (013, review T070): the inactivity deadline passed while an import was running. In storage.session: the
+ * running import keeps the keys it captured, every new read of the key is refused, and the lock applies at its end.
+ */
+export const LOCK_DUE_KEY = 'homeboxLockDue';
 
 /** Configuration persisted in storage.local: the key is only stored encrypted. */
 interface StoredConfig {
@@ -65,7 +89,71 @@ interface UnlockedSession {
   historyKey?: string;
 }
 
+/** Automatic lock setting; never throws: a read error gives the default (FR-010). */
+async function getLockSettings(): Promise<LockSettings> {
+  try {
+    const stored = await browser.storage.local.get(LOCK_SETTINGS_KEY);
+    return parseLockSettings(stored[LOCK_SETTINGS_KEY]);
+  } catch {
+    return { ...DEFAULT_LOCK_SETTINGS };
+  }
+}
+
+/** The only lock function, manual and automatic (FR-006): the key, the open history key and the activity leave. */
+async function lock(): Promise<void> {
+  await browser.storage.session.remove([SESSION_KEY, ACTIVITY_KEY, LOCK_DUE_KEY]);
+}
+
+/**
+ * Expiry check shared by every key access (013, R1). `open`: nothing due. `locked`: the inactivity limit was passed
+ * (duration policy, encrypted configuration: a key migrated without passphrase would be lost) and the session has
+ * just been locked. `due`: the limit was passed while an import runs: the key stays for that import only, any new
+ * read is refused, and the lock applies once the imports end (FR-007).
+ * Reads the session directly (not through `readSession`, which calls it).
+ */
+async function sessionState(now: number): Promise<'open' | 'due' | 'locked'> {
+  const session = await browser.storage.session.get([SESSION_KEY, ACTIVITY_KEY, LOCK_DUE_KEY]);
+  if (!session[SESSION_KEY]) return 'open';
+  if (session[LOCK_DUE_KEY] !== true) {
+    const { policy } = await getLockSettings();
+    if (idleLimitMs(policy) === null) return 'open';
+    const config = await readStored();
+    if (!config?.encryptedKey) return 'open';
+    const activity = session[ACTIVITY_KEY] as { at?: unknown } | undefined;
+    if (!isIdleExpired(policy, activity?.at, now)) return 'open';
+  }
+  if (activeImports.size > 0) {
+    if (session[LOCK_DUE_KEY] !== true) await browser.storage.session.set({ [LOCK_DUE_KEY]: true });
+    return 'due';
+  }
+  try {
+    await lock();
+  } catch (error) {
+    // The key is not handed out: the error goes up to the handler (BAD_MESSAGE).
+    logError('auto-lock failed', { endpoint: 'session/lock' });
+    throw error;
+  }
+  return 'locked';
+}
+
+/** Locks if the inactivity limit is passed and no import runs. True only if it locked now. Idempotent. */
+async function expireIfDue(now: number = Date.now()): Promise<boolean> {
+  return (await sessionState(now)) === 'locked';
+}
+
+/** Writes `{ at: now }` if the session is unlocked (activity present) and, unless forced, the last write is older than 15 s. */
+async function writeActivity(now: number, force: boolean): Promise<void> {
+  const stored = await browser.storage.session.get([ACTIVITY_KEY, LOCK_DUE_KEY]);
+  const activity = stored[ACTIVITY_KEY] as { at?: unknown } | undefined;
+  // A due lock is never postponed: only a new unlock cancels it.
+  if (!activity || stored[LOCK_DUE_KEY] === true) return;
+  if (!force && typeof activity.at === 'number' && now - activity.at <= TOUCH_INTERVAL_MS) return;
+  await browser.storage.session.set({ [ACTIVITY_KEY]: { at: now } });
+}
+
+/** Every access to the key goes through here: an expired session is locked before any read (E1). */
 async function readSession(): Promise<UnlockedSession | null> {
+  if ((await sessionState(Date.now())) === 'due') return null;
   const stored = await browser.storage.session.get(SESSION_KEY);
   return (stored[SESSION_KEY] as UnlockedSession | undefined) ?? null;
 }
@@ -76,7 +164,10 @@ async function readSessionKey(): Promise<string | null> {
 
 async function writeSession(apiKey: string, historyKey: Uint8Array | null): Promise<void> {
   const value: UnlockedSession = historyKey ? { apiKey, historyKey: bytesToBase64(historyKey) } : { apiKey };
-  await browser.storage.session.set({ [SESSION_KEY]: value });
+  // Unlocking is an activity: key and timestamp are written together (invariant 1 of data-model.md).
+  await browser.storage.session.set({ [SESSION_KEY]: value, [ACTIVITY_KEY]: { at: Date.now() } });
+  // A new unlock cancels a lock that was due during an import.
+  await browser.storage.session.remove(LOCK_DUE_KEY);
 }
 
 function sessionHistoryKey(session: UnlockedSession | null): Uint8Array | null {
@@ -223,8 +314,34 @@ export const configStore = {
     return sessionHistoryKey(session) ? 'ready' : 'unavailable';
   },
 
-  async lock(): Promise<void> {
-    await browser.storage.session.remove(SESSION_KEY);
+  lock,
+
+  getLockSettings,
+
+  /** Writes `{ v: 1, policy }` only; restarts the countdown if unlocked. Never locks, never asks for the passphrase (FR-008). */
+  async setLockSettings(policy: LockPolicy, now: number = Date.now()): Promise<LockSettings> {
+    const settings: LockSettings = { v: 1, policy };
+    await browser.storage.local.set({ [LOCK_SETTINGS_KEY]: settings });
+    await writeActivity(now, true);
+    return settings;
+  },
+
+  expireIfDue,
+
+  /** Records an activity (at most every 15 s), only while unlocked. */
+  async touch(now: number = Date.now()): Promise<void> {
+    await writeActivity(now, false);
+  },
+
+  /** "Every time the extension is opened" (R3): locks unless an import is running ('deferred'). */
+  async lockIfEveryOpen(): Promise<'locked' | 'deferred' | 'none'> {
+    const { policy } = await getLockSettings();
+    if (policy !== 'every-open') return 'none';
+    const config = await readStored();
+    if (!config?.encryptedKey) return 'none';
+    if (activeImports.size > 0) return 'deferred';
+    await lock();
+    return 'locked';
   },
 
   /** Old plaintext format: the key leaves the disk and stays in memory until a passphrase is chosen. */
@@ -248,10 +365,13 @@ export const configStore = {
     // Session first (decrypted API key, open history key, imports in progress): an error further on never leaves
     // a key open in memory.
     const session = await browser.storage.session.get(null);
-    const keys = Object.keys(session).filter((k) => k.startsWith(PENDING_PREFIX) || k === SESSION_KEY);
+    const keys = Object.keys(session).filter(
+      (k) => k.startsWith(PENDING_PREFIX) || k === SESSION_KEY || k === ACTIVITY_KEY || k === LOCK_DUE_KEY,
+    );
     if (keys.length) await browser.storage.session.remove(keys);
     const config = await readStored();
-    // The sealed history key leaves with KEY; its entries are erased too (FR-009). The setting is kept.
+    // The sealed history key leaves with KEY; its entries are erased too (FR-009). The history and lock settings
+    // and the update notice are kept (E5).
     await browser.storage.local.remove([KEY, LAST_LOCATION_KEY]);
     await eraseHistoryEntries();
     if (config) {

@@ -265,6 +265,7 @@ describe('popup: history view (Q-U23, SC-002)', () => {
   function popup(view: ConfigView) {
     vi.mocked(send).mockImplementation((msg) => {
       if (msg.type === 'config/get') return Promise.resolve(view) as never;
+      if (msg.type === 'session/open') return Promise.resolve(view) as never;
       if (msg.type === 'import/pending') return Promise.resolve([]) as never;
       if (msg.type === 'detect/run')
         return Promise.resolve(ok({ purchase, warnings: [] })) as never;
@@ -347,6 +348,7 @@ describe('popup: history view (Q-U23, SC-002)', () => {
     popup(config({ locked: true }));
     vi.mocked(send).mockImplementation((msg) => {
       if (msg.type === 'config/get') return Promise.resolve(config({ locked: true })) as never;
+      if (msg.type === 'session/open') return Promise.resolve(config({ locked: true })) as never;
       if (msg.type === 'history/list')
         return Promise.resolve(ok({ state: 'locked', enabled: true, entries: [] })) as never;
       return Promise.resolve(ok(undefined)) as never;
@@ -374,7 +376,7 @@ describe('options: history card (US1)', () => {
 
   it('the card sits between the instance card and the appearance card, and shows the list', async () => {
     vi.mocked(send).mockImplementation((msg) => {
-      if (msg.type === 'config/get')
+      if (msg.type === 'config/get' || msg.type === 'session/open')
         return Promise.resolve({
           configured: true,
           baseUrl: BASE,
@@ -389,16 +391,19 @@ describe('options: history card (US1)', () => {
     const cards = wrapper.findAll('section.card');
     const titles = cards.map((c) => c.find('h1, h2').text());
     const i = titles.indexOf('Historique des imports');
-    expect(i).toBe(1);
+    // ADAPTED (013): the "Automatic lock" card sits between the instance card and the history card
+    // (contracts/ui.md of 013): the history card moves from index 1 to 2, the following ones by one.
+    expect(titles[1]).toBe('Verrouillage automatique');
+    expect(i).toBe(2);
     // 011: the warranty card sits between the history card and the appearance card.
-    expect(titles[2]).toBe('Garantie');
-    expect(titles[3]).toBe('Apparence');
+    expect(titles[3]).toBe('Garantie');
+    expect(titles[4]).toBe('Apparence');
     expect(
-      cards[1]!.findComponent(HistoryCard).exists() ||
-        cards[1]!.findComponent(HistoryList).exists(),
+      cards[2]!.findComponent(HistoryCard).exists() ||
+        cards[2]!.findComponent(HistoryList).exists(),
     ).toBe(true);
-    expect(cards[1]!.text()).toContain('Clavier sans fil Exemple Pro');
-    expect(cards[1]!.find('a').attributes('href')).toBe(`${BASE}/item/entity-1`);
+    expect(cards[2]!.text()).toContain('Clavier sans fil Exemple Pro');
+    expect(cards[2]!.find('a').attributes('href')).toBe(`${BASE}/item/entity-1`);
   });
 });
 
@@ -609,6 +614,7 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
   const optionsWith = (config: ConfigView) => {
     vi.mocked(send).mockImplementation((msg) => {
       if (msg.type === 'config/get') return Promise.resolve(config) as never;
+      if (msg.type === 'session/open') return Promise.resolve(config) as never;
       if (msg.type === 'history/list') return Promise.resolve(ok(ready([historyEntry()]))) as never;
       if (msg.type === 'config/delete') {
         config = { configured: false };

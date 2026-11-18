@@ -2,7 +2,7 @@
 
 # Politique de confidentialité
 
-**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **15 novembre 2026**
+**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **18 novembre 2026**
 
 En bref : l'extension n'a **aucun serveur, aucun compte, aucune statistique et aucune télémétrie**. Les
 données qu'elle traite vont de votre navigateur vers **votre propre** instance HomeBox, uniquement au
@@ -29,6 +29,9 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Liste des emplacements HomeBox et dernier emplacement utilisé (identifiants uniquement) | Votre instance HomeBox | Vous laisser choisir où ranger l'objet | Lue depuis votre instance ; identifiants conservés localement |
 | Garantie proposée avec chaque objet (date d'expiration, garantie à vie, détails), calculée depuis la date d'achat, et réglage de la garantie par défaut (activée ou non, durée) | L'extension et vous | Remplir les champs garantie de l'objet HomeBox | La garantie est envoyée à votre instance HomeBox après votre confirmation et n'est pas conservée par l'extension une fois l'import terminé ; le réglage est stocké localement (aucune donnée personnelle) |
 | Préférence de thème | Vous | Affichage | Stockée localement |
+| Réglage du verrouillage automatique (`lockSettings` : à la fermeture du navigateur, après 15 minutes, 1 heure ou 4 heures d’inactivité, ou à chaque ouverture de l’extension) | Vous | Décider quand la phrase de passe est redemandée | Stocké localement ; un simple choix, sans secret |
+| Heure de la dernière utilisation de l'extension déverrouillée (`homeboxActivity`, horodatage technique) | L'extension | Appliquer le verrouillage après inactivité | En mémoire du navigateur uniquement (`storage.session`), jamais sur le disque ; effacée au verrouillage ou à la fermeture du navigateur ; jamais affichée ni journalisée |
+| Numéros de version : version annoncée après une mise à jour (`updateNotice`) et version prête à être installée par Chrome (`updateReady`) | L'extension et le navigateur | Afficher « Mise à jour vers vX » et le bouton « Mettre à jour maintenant » | `updateNotice` stocké localement ; `updateReady` en mémoire du navigateur uniquement (`storage.session`) |
 | Historique des imports : nom du produit, boutique, numéro de commande, dates d'import et d'achat, adresse de l'instance HomeBox, identifiant de l'objet, résultat (complet, partiel, échoué) et ce qui manque (facture, manuel, garantie, bon de livraison, documents, photo, détails d'achat) | Chaque import que vous confirmez | Retrouver un objet importé, l'ouvrir dans HomeBox et repérer un import incomplet | Stocké localement, **chiffré avec votre phrase de passe** ; jamais envoyé ailleurs (activé par défaut, désactivable) |
 
 L'extension ne lit **pas** votre adresse de livraison, votre moyen de paiement, votre historique de
@@ -42,11 +45,13 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
   (par exemple `hb_••••abcd`), résultat du dernier test de connexion, dernier emplacement utilisé par
   instance, thème, réglage de la garantie par défaut, et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
   d'historique aléatoire, elle-même scellée par votre phrase de passe comme la clé API) avec son réglage
-  d'activation.
+  d'activation, le réglage du verrouillage automatique (`lockSettings`) et la version de la dernière
+  annonce de mise à jour (`updateNotice`).
 - **En mémoire du navigateur** (`storage.session`, effacée à la fermeture du navigateur ou au
   verrouillage, au rechargement, à la mise à jour ou à la désactivation de l'extension) : la clé API
   déchiffrée tant que l'extension est déverrouillée, et les données d'un import en cours pour pouvoir le
-  reprendre après une erreur (sans le contenu des fichiers).
+  reprendre après une erreur (sans le contenu des fichiers), l'heure de la dernière utilisation de
+  l'extension (`homeboxActivity`) et la version prête à être installée par Chrome (`updateReady`).
 - **Sur votre instance HomeBox** : les objets, factures et photos que vous choisissez d'importer. Sa
   conservation et sa sécurité relèvent de votre responsabilité.
 - Rien n'est placé dans `storage.sync`. Rien n'est stocké sur un serveur exploité par l'auteur de
@@ -65,6 +70,29 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
 - Il n'y a ni publicité, ni statistiques, ni télémétrie, ni pistage, ni vente de données.
 - L'extension ne charge aucun code distant.
 - Rien n'est importé automatiquement : chaque import demande votre confirmation explicite.
+
+## Verrouillage automatique
+
+Vous choisissez quand l'extension oublie la clé API déchiffrée et vous redemande votre phrase de passe
+(Configuration → **Verrouillage automatique**) : **à la fermeture du navigateur** (par défaut), **après
+15 minutes**, **après 1 heure** ou **après 4 heures** d’inactivité, ou **à chaque ouverture de l’extension**.
+L'inactivité correspond à l'absence d'utilisation de l'extension (popup, configuration, import) ; un import
+en cours n'est jamais interrompu, le verrouillage s'applique à sa fin. Il n'y a **pas d'option « jamais »** :
+la clé déchiffrée serait alors lisible par toute personne ou tout logiciel ayant accès à votre profil de
+navigateur. Quel que soit votre choix, la clé est **oubliée à la fermeture du navigateur**, et vous pouvez
+verrouiller l'extension à tout moment avec le bouton cadenas. Sans permission supplémentaire, le navigateur
+ne réveille pas l'extension à heure fixe : le verrouillage est appliqué au plus tard à la première
+utilisation de l'extension après l'échéance, avant tout usage de la clé. Le réglage lui-même ne contient
+aucun secret.
+
+## Mises à jour
+
+L'extension ne fait **aucun appel réseau** pour vérifier les mises à jour : elle utilise seulement le
+signal que le navigateur donne de lui-même quand une mise à jour a été installée ou est prête. Après une
+mise à jour, une courte annonce (« Mise à jour vers vX ») propose un lien vers les notes de version sur
+GitHub ; cette page n'est ouverte par le navigateur **que si vous cliquez** sur le lien. Quand Chrome a une
+mise à jour prête, un bouton **Mettre à jour maintenant** redémarre l'extension (la phrase de passe est
+alors redemandée) ; il est désactivé tant qu'un import est en cours ou peut encore être repris.
 
 ## Journaux
 
@@ -87,8 +115,9 @@ un nom de produit, un prix, un numéro de commande ni la clé API.
 - Les données locales restent jusqu'à ce que vous les supprimiez. **Paramètres → Supprimer la
   configuration** efface l'adresse, la clé chiffrée, les imports en cours, les derniers emplacements,
   l'historique des imports, et
-  retire l'autorisation d'accès accordée à votre instance. Désinstaller l'extension supprime tout son
-  stockage dans le navigateur.
+  retire l'autorisation d'accès accordée à votre instance. Le réglage du verrouillage automatique et la
+  dernière annonce de mise à jour (aucune donnée personnelle) sont conservés. Désinstaller l'extension
+  supprime tout son stockage dans le navigateur.
 - Vous pouvez aussi révoquer la clé API dans HomeBox à tout moment.
 - Les objets déjà importés appartiennent à votre instance HomeBox : supprimez-les depuis celle-ci.
 - L'auteur ne détient aucune copie de vos données : il n'y a donc rien à effacer de son côté.

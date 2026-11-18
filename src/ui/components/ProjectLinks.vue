@@ -1,14 +1,31 @@
 <script setup lang="ts">
+import { browser } from '@/platform';
 import { PROJECT_LINKS } from '@/shared/project-links';
+import { isVersion } from '@/shared/version';
 import { t } from '@/ui/i18n';
 
 withDefaults(defineProps<{ variant?: 'footer' | 'buttons' }>(), { variant: 'footer' });
+
+/**
+ * Installed version (013, FR-017), read once from the manifest: the value actually running, the new one after an
+ * update. Zero or one element, so that the template stays without condition; unreadable → nothing is shown.
+ */
+function readVersion(): string[] {
+  try {
+    const version: unknown = browser.runtime.getManifest().version;
+    return isVersion(version) ? [version] : [];
+  } catch {
+    return [];
+  }
+}
+const versions = readVersion();
 </script>
 
 <template>
   <div class="project-links" :class="variant">
     <a class="project-link" :href="PROJECT_LINKS.support" target="_blank" rel="noopener noreferrer" :aria-label="t('links.supportAria')">{{ t('links.support') }}</a>
     <a class="project-link" :href="PROJECT_LINKS.github" target="_blank" rel="noopener noreferrer" :aria-label="t('links.githubAria')">{{ t('links.github') }}</a>
+    <span v-for="version in versions" :key="version" class="project-version">{{ t('links.version', [version]) }}</span>
   </div>
 </template>
 
@@ -16,6 +33,7 @@ withDefaults(defineProps<{ variant?: 'footer' | 'buttons' }>(), { variant: 'foot
 .project-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
 }
 .footer {
@@ -28,10 +46,17 @@ withDefaults(defineProps<{ variant?: 'footer' | 'buttons' }>(), { variant: 'foot
   padding: 4px 8px;
   border-radius: var(--radius);
 }
+.project-version {
+  color: var(--muted);
+  padding: 4px 0;
+}
 .buttons .project-link {
   background: var(--bg);
   border: 1px solid var(--border);
   text-decoration: none;
+  font-size: 14px;
+}
+.buttons .project-version {
   font-size: 14px;
 }
 .buttons .project-link:hover {

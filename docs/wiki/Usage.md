@@ -1,7 +1,7 @@
 # Usage
 
 Prerequisite: the extension is [installed](Installation.md) and [configured](Configuration.md), and
-unlocked for the current session.
+unlocked (it stays unlocked until it locks again, see [Automatic lock](#automatic-lock)).
 
 ## Import an Amazon purchase
 
@@ -186,6 +186,23 @@ positive is possible: the same product bought another time). If this search fail
 both cases, check in HomeBox, then abandon and restart the import from the summary, which asks for
 confirmation in case of a duplicate. This check reduces the risk without eliminating it: a duplicate
 remains possible if the item was renamed or if the search does not see it.
+
+## Automatic lock
+
+In the settings, **Automatic lock** sets when the passphrase is asked again: when the browser closes
+(default), after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened. There
+is no "never" option. The 🔒 button still locks at once. An import in progress is never interrupted.
+
+## Updates and version
+
+- After an update, a notice "Updated to vX" appears once at the top of the popup and of the settings, with
+  a link to the release notes (opened only if you click it). Close it with ✕: it does not come back for
+  that version. Nothing is shown after the first installation.
+- When Chrome has an update ready, an **Update now** button restarts the extension with the new version
+  (the passphrase is then asked again). It is disabled while an import is running or can still be resumed.
+  Without the button, Chrome installs the update by itself. No request is made to check for updates.
+- The installed version number is shown at the bottom of the popup and in "Help and project", next to the
+  GitHub link.
 
 ## Themes
 

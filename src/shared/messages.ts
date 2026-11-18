@@ -2,6 +2,8 @@ import { browser } from '@/platform';
 import type { ErrorCode, Result } from './errors';
 import { isDocumentKind } from './document-kinds';
 import { isValidIsoDate } from './warranty';
+import { isLockPolicy, type LockPolicy, type LockSettings } from './lock-policy';
+import { isVersion } from './version';
 import type {
   ConfigView,
   DetectedPurchase,
@@ -12,6 +14,7 @@ import type {
   LocationOption,
   ManualFile,
   PendingImport,
+  UpdateStateView,
 } from './types';
 
 /**
@@ -26,6 +29,14 @@ export type Message =
   | { type: 'config/delete' }
   | { type: 'session/unlock'; passphrase: string }
   | { type: 'session/lock' }
+  // Automatic lock (013): never the key, the passphrase or the activity timestamp.
+  | { type: 'session/open' }
+  | { type: 'session/get-policy' }
+  | { type: 'session/set-policy'; policy: LockPolicy }
+  // Updates (013): version numbers only, no network.
+  | { type: 'update/state' }
+  | { type: 'update/dismiss'; version: string }
+  | { type: 'update/apply' }
   | { type: 'detect/run'; tabId: number }
   | { type: 'duplicate/check'; orderNumber: string; name: string }
   | { type: 'location/list' }
@@ -71,6 +82,9 @@ export interface DetectResult {
   warnings: ErrorCode[];
 }
 
+/** Response of `update/apply` (013): closed result, no new error code. */
+export type UpdateApplyResult = { applied: true } | { applied: false; reason: 'busy' | 'none' };
+
 export interface ResponseMap {
   'config/get': ConfigView;
   'config/save': Result<ConfigView>;
@@ -78,6 +92,12 @@ export interface ResponseMap {
   'config/delete': Result<void>;
   'session/unlock': Result<ConfigView>;
   'session/lock': ConfigView;
+  'session/open': ConfigView;
+  'session/get-policy': LockSettings;
+  'session/set-policy': Result<LockSettings>;
+  'update/state': UpdateStateView;
+  'update/dismiss': Result<void>;
+  'update/apply': UpdateApplyResult;
   'detect/run': Result<DetectResult>;
   'duplicate/check': Result<{ matches: DuplicateMatch[] }>;
   'location/list': Result<{ locations: LocationOption[]; lastUsedId: string | null }>;
@@ -145,6 +165,12 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'config/delete': () => true,
   'session/unlock': (m) => isStr(m.passphrase),
   'session/lock': () => true,
+  'session/open': () => true,
+  'session/get-policy': () => true,
+  'session/set-policy': (m) => isLockPolicy(m.policy),
+  'update/state': () => true,
+  'update/dismiss': (m) => isVersion(m.version),
+  'update/apply': () => true,
   'detect/run': (m) => isInt(m.tabId),
   'duplicate/check': (m) => isStr(m.orderNumber) && isStr(m.name),
   'location/list': () => true,

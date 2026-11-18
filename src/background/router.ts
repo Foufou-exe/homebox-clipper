@@ -8,14 +8,25 @@ type Handler<T extends MessageType> = (msg: MessageOf<T>) => Promise<ResponseOf<
 const handlers = new Map<MessageType, Handler<MessageType>>();
 
 /** Messages reserved for extension pages (popup, options), never for injected scripts. */
-const UI_ONLY_PREFIXES = ['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/'];
+const UI_ONLY_PREFIXES = ['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/'];
+
+/**
+ * Activity hook (013, R2): called for each accepted message from an extension page, after the origin checks and
+ * before the handler. Injected so that the router does not depend on the configuration store.
+ */
+type ActivityHook = () => Promise<void> | void;
+let uiActivityHook: ActivityHook | null = null;
+
+export function setUiActivityHook(fn: ActivityHook | null): void {
+  uiActivityHook = fn;
+}
 
 /**
  * True if the sender is an extension page (popup, options).
  * `sender.tab` is not enough: the options page opened in a tab also has a `tab`.
  * An injected script, on the other hand, has the URL of the host web page.
  */
-function isExtensionPage(sender: Sender): boolean {
+export function isExtensionPage(sender: Sender): boolean {
   return typeof sender.url === 'string' && sender.url.startsWith(browser.runtime.getURL('/'));
 }
 
@@ -34,6 +45,14 @@ export async function dispatch(raw: unknown, sender: Sender): Promise<unknown> {
   }
   const handler = handlers.get(raw.type);
   if (!handler) return undefined;
+  if (uiActivityHook && isExtensionPage(sender)) {
+    try {
+      await uiActivityHook();
+    } catch {
+      // Never blocks the message: the handler still checks the expiry when it reads the key.
+      logError('activity hook failed', { endpoint: 'session/activity' });
+    }
+  }
   try {
     return await handler(raw);
   } catch {

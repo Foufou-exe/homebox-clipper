@@ -1170,6 +1170,7 @@ describe('location choice (US2, US3)', () => {
     it('passes orderLocationId to import/start', async () => {
       vi.mocked(send).mockImplementation((msg) => {
         if (msg.type === 'config/get') return Promise.resolve(config({ locked: false })) as never;
+        if (msg.type === 'session/open') return Promise.resolve(config({ locked: false })) as never;
         if (msg.type === 'import/pending') return Promise.resolve([]) as never;
         if (msg.type === 'import/start') return Promise.resolve(ok([])) as never;
         return Promise.resolve(fail('NOT_AN_ORDER_PAGE')) as never;
@@ -1679,5 +1680,62 @@ describe('warranty options card (011, Q-U19, FR-009)', () => {
     expect(index).toBeGreaterThan(0);
     expect(titles[index + 1]).toBe(catalog['options.appearance']);
     expect(wrapper.findAll('section.card')[index - 1]!.text()).toContain(catalog['options.historyTitle'] ?? '');
+  });
+});
+
+describe('automatic lock card: texts from the catalog, in fr and en (013, T022)', () => {
+  it.each(['fr', 'en'] as const)('%s: five choices and the "never" explanation in the right language', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    vi.mocked(send).mockResolvedValue({ v: 1, policy: 'browser-close' } as never);
+    const { default: LockCard } = await import('@/ui/options/LockCard.vue');
+    const wrapper = mount(LockCard);
+    await flushPromises();
+    for (const key of ['browserClose', 'idle15m', 'idle1h', 'idle4h', 'everyOpen']) {
+      expect(wrapper.text()).toContain(c[`lock.policy.${key}`]!);
+    }
+    expect(wrapper.text()).toContain(c['lock.settings.whyNoNever']!);
+    if (lang === 'fr') expectCatalogTexts(wrapper, []);
+    else expect(wrapper.text()).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+  });
+
+  it.each(['fr', 'en'] as const)('%s: options.unlockedHint rendered on the options page', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    vi.mocked(send).mockResolvedValue(config({ locked: false, needsPassphrase: false }) as never);
+    const wrapper = mount(OptionsApp);
+    await flushPromises();
+    expect(wrapper.text()).toContain(c['options.unlockedHint']!);
+  });
+});
+
+describe('update banner: texts from the catalog, in fr and en (013, T040)', () => {
+  it.each(['fr', 'en'] as const)('%s: notice, link and "Update now"', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    vi.mocked(send).mockResolvedValue({ installed: '0.4.0', notice: '0.4.0', ready: '0.5.0', blocked: true } as never);
+    const { default: UpdateBanner } = await import('@/ui/components/UpdateBanner.vue');
+    const wrapper = mount(UpdateBanner);
+    await flushPromises();
+    expect(wrapper.text()).toContain(c['update.notice']!.replace('$1', '0.4.0'));
+    expect(wrapper.text()).toContain(c['update.notesLink']!);
+    expect(wrapper.text()).toContain(c['update.ready']!.replace('$1', '0.5.0'));
+    expect(wrapper.text()).toContain(c['update.applyButton']!);
+    expect(wrapper.text()).toContain(c['update.blocked']!);
+    expect(wrapper.find('a').attributes('aria-label')).toBe(c['update.notesAria']!.replace('$1', '0.4.0'));
+    if (lang === 'fr') expectCatalogTexts(wrapper, ['0.4.0', '0.5.0']);
+    else expect(wrapper.text()).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+  });
+});
+
+describe('version number: rendered in fr and en (013, T055)', () => {
+  it.each(['fr', 'en'] as const)('%s: "Version x" in the popup footer', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    vi.spyOn(fakeBrowser.runtime, 'getManifest').mockReturnValue({ version: '0.4.0' } as never);
+    vi.mocked(send).mockResolvedValue({ configured: false } as never);
+    const popup = mount(PopupApp);
+    await flushPromises();
+    expect(popup.get('footer .project-version').text()).toBe(c['links.version']!.replace('$1', '0.4.0'));
   });
 });

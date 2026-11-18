@@ -240,3 +240,17 @@ export type HistoryEntryView = ImportHistoryEntry & { resumable: boolean };
 export type HistoryListView =
   | { state: 'ready'; enabled: boolean; entries: HistoryEntryView[] }
   | { state: 'locked' | 'unavailable'; enabled: boolean; entries: [] };
+
+/**
+ * Response of `update/state` (spec 013): version numbers and a flag only, never personal data.
+ * `blocked`: an import is running or can still be resumed, so "Update now" is disabled (FR-015).
+ */
+export interface UpdateStateView {
+  /** Installed version (`getManifest().version`). */
+  installed: string;
+  /** Version to announce ("updated to vX"), or null. */
+  notice: string | null;
+  /** Version ready to apply (signalled by the browser), or null. */
+  ready: string | null;
+  blocked: boolean;
+}

@@ -26,6 +26,7 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 | Creation of unwanted items | No write to HomeBox without a click on "Add to HomeBox"; all fields can be edited before sending. |
 | Booby-trapped image URL (modified merchant page) | The URL is checked twice (at extraction, then in the service worker): `https`, host **strictly equal** to the merchant's (`m.media-amazon.com`), no port or credentials. Redirects refused. |
 | Booby-trapped file passed off as a photo (HTML, SVG, GIF) | Only JPEG, PNG and WebP (byte signature checked) of 5 MB at most are sent; the type sent comes from the signature, not from the response header. |
+| The decrypted key stays in memory while the computer is left unattended | **Automatic lock** (settings): after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened; no "never" option. Without the `alarms` permission, the browser cannot wake the extension at a fixed time: the expiry is **lazy**. The key is erased at the first use of the extension after the deadline (opening the popup or the settings, any message, or a restart of its service worker), **before** it can be read: no path reads the key without checking the deadline first. Until that moment the key stays in browser memory only, never on disk. No duration survives a browser restart. |
 | Booby-trapped file passed off as an invoice | Only real PDFs (`%PDF-` signature) of 15 MB at most are sent; download limited to the exact origin of the Amazon store of the order (for example `https://www.amazon.de`); a link to another store or site is refused. |
 
 ## Where data is stored
@@ -41,6 +42,10 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 | Photo URL of an in-progress import | `storage.session` (memory) | Erased with the import (success or abandon); **never the image bytes** |
 | Last location used, per instance (`lastLocationByInstance`): **identifiers only**, never a location name | `storage.local` | Until "Delete settings" (erased with it) or uninstallation |
 | Chosen theme | `storage.local` | Display preference |
+| Automatic lock setting (`lockSettings`: `{ v: 1, policy }`, a choice, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
+| Last time the extension was used while unlocked (`homeboxActivity`: `{ at }`, a technical timestamp, never shown or logged) | `storage.session` (memory) | Written with the decrypted key, erased with it (lock, browser close, "Delete settings") |
+| Version of the last update notice (`updateNotice`: version and whether it was closed) | `storage.local` | Replaced at the next update; kept when you delete the settings |
+| Version ready to install, as signalled by Chrome (`updateReady`) | `storage.session` (memory) | Until the browser closes or the extension restarts |
 | Default-warranty setting (`warrantySettings`: on/off and a duration in years, in clear: a preference, no personal data) | `storage.local` | Until uninstallation (kept when you delete the settings) |
 | Warranty of an in-progress import (expiry date, details) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs |
 

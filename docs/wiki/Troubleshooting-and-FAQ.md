@@ -110,8 +110,16 @@ remembered location, if it no longer exists, is simply ignored.
 **Does the extension send my data anywhere?** No: only to your HomeBox instance (and to the merchant to
 read the page). See [Security-and-privacy](Security-and-privacy.md).
 
-**Why does the extension ask for a passphrase?** To encrypt your API key on disk. It is requested once per
-browser session.
+**Why does the extension ask for a passphrase?** To encrypt your API key on disk. It is requested again
+each time the extension locks: when the browser closes by default, or according to **Settings → Automatic
+lock**.
+
+**Why is the passphrase asked again?** The extension locked: the browser was closed, the extension was
+updated or reloaded, you clicked 🔒, or the automatic lock you chose applied (inactivity, or every opening).
+Check **Settings → Automatic lock**.
+
+**Why is there no "never" option?** The decrypted key would then be readable by anyone or any software with
+access to your browser profile. The longest choice keeps it until the browser closes.
 
 **I forgot my passphrase.** It cannot be recovered: delete the settings in the options page, then set up
 the extension again.

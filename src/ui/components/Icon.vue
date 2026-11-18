@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* Line icons inspired by Feather Icons (MIT, https://feathericons.com). */
-defineProps<{ name: 'settings' | 'lock' | 'sun' | 'moon' | 'auto' | 'pin' | 'plus' | 'history'; size?: number }>();
+defineProps<{ name: 'settings' | 'lock' | 'sun' | 'moon' | 'auto' | 'pin' | 'plus' | 'history' | 'close'; size?: number }>();
 </script>
 
 <template>
@@ -46,6 +46,9 @@ defineProps<{ name: 'settings' | 'lock' | 'sun' | 'moon' | 'auto' | 'pin' | 'plu
     <template v-else-if="name === 'history'">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
+    </template>
+    <template v-else-if="name === 'close'">
+      <path d="M18 6 6 18M6 6l12 12" />
     </template>
   </svg>
 </template>

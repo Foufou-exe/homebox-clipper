@@ -3,6 +3,7 @@ import { register } from '@/background/router';
 import { hasOrigin } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
 import type { ConfigView } from '@/shared/types';
+import * as autoLock from './auto-lock';
 import { configStore, isValidApiKey } from './config-store';
 import { MIN_PASSPHRASE_LENGTH } from './key-vault';
 import { normalizeBaseUrl } from './url-policy';
@@ -70,4 +71,15 @@ export function registerConfigHandlers(): void {
     await configStore.lock();
     return configStore.getView();
   });
+
+  // 013: first load of the popup and the options page ("every open" lock, R3), then the same view as config/get.
+  register('session/open', async () => {
+    await autoLock.onOpen();
+    return configStore.getView();
+  });
+
+  register('session/get-policy', () => configStore.getLockSettings());
+
+  // Neither asks for the passphrase nor locks (FR-008); a write failure goes up as BAD_MESSAGE.
+  register('session/set-policy', async ({ policy }) => ok(await configStore.setLockSettings(policy)));
 }

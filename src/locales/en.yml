@@ -214,7 +214,7 @@ options:
   locked: "Locked"
   lockedHint: "The key will be requested when you open the extension."
   unlocked: "Unlocked"
-  unlockedHint: "for this browser session."
+  unlockedHint: "until it locks (see “Automatic lock”)."
   test: "Test connection"
   lock: "Lock"
   baseUrl: "HomeBox instance address"
@@ -224,7 +224,7 @@ options:
   passphraseNew: "Passphrase (new)"
   passphraseCurrent: "Current passphrase"
   passphraseConfirm: "Confirm passphrase"
-  passphraseHelpNew: "At least $1 characters. It encrypts the API key on disk and is requested once per browser session. It cannot be recovered: if you forget it, delete the settings and start over (the import history will be erased too)."
+  passphraseHelpNew: "At least $1 characters. It encrypts the API key on disk and is requested again each time the extension locks (when the browser closes, by default). It cannot be recovered: if you forget it, delete the settings and start over (the import history will be erased too)."
   passphraseHelpCurrent: "Required to decrypt the current key."
   mismatch: "The two passphrases do not match."
   saving: "Testing…"
@@ -250,6 +250,7 @@ links:
   github: "GitHub"
   supportAria: "Support: open the project's issues on GitHub (new tab)"
   githubAria: "GitHub: open the project repository (new tab)"
+  version: "Version $1"
 
 history:
   openAria: "Open the import history"
@@ -344,3 +345,29 @@ warranty:
     saved: "Setting saved."
     yearsInvalid: "The duration must be a whole number of years, from 1 to 10."
     saveFailed: "The setting could not be saved."
+
+lock:
+  settings:
+    title: "Automatic lock"
+    intro: "Choose when the extension asks for your passphrase again."
+    legend: "Lock the extension"
+    whyNoNever: "There is no “never” option: the decrypted key would then be readable by anyone or any software with access to your browser profile. Whatever you choose, the key is forgotten when the browser closes, and you can lock the extension at any time with the lock button."
+    inactivityHelp: "Inactivity means not using the extension (popup, settings, import). An import in progress is never interrupted: the lock applies once it ends."
+    saved: "Lock setting saved."
+    saveFailed: "The lock setting could not be saved."
+  policy:
+    browserClose: "When the browser closes (default)"
+    idle15m: "After 15 minutes of inactivity"
+    idle1h: "After 1 hour of inactivity"
+    idle4h: "After 4 hours of inactivity"
+    everyOpen: "Every time the extension is opened"
+
+update:
+  notice: "Updated to v$1."
+  notesLink: "See what’s new"
+  notesAria: "See what’s new in v$1 on GitHub (new tab)"
+  dismissAria: "Close the update notice"
+  ready: "Version $1 is ready to install."
+  applyButton: "Update now"
+  applyHelp: "The extension restarts, then asks for your passphrase again."
+  blocked: "Available once the current import is finished, resumed or abandoned."
