@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { ErrorCode } from '@/shared/errors';
-import { errorMessage } from '@/ui/i18n';
+import { errorMessage, t } from '@/ui/i18n';
 
-defineProps<{ code: ErrorCode; tone?: 'error' | 'warning' }>();
+/** `instance`: name of the instance concerned (spec 016); the message is then prefixed with it (`common.instanceError`). */
+defineProps<{ code: ErrorCode; tone?: 'error' | 'warning'; instance?: string }>();
 </script>
 
 <template>
   <div class="banner" :class="tone ?? 'error'" role="alert">
-    <p>{{ errorMessage(code) }}</p>
+    <p>{{ instance ? t('common.instanceError', [instance, errorMessage(code)]) : errorMessage(code) }}</p>
     <div v-if="$slots.default" class="actions">
       <slot />
     </div>

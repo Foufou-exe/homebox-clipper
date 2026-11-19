@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 
 import { browser } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { isMessage, send } from '@/shared/messages';
-import type { ConfigView, ImportDraft, ManualFile, PendingImport } from '@/shared/types';
+import type { ConfigView, ImportDraft, InstanceView, ManualFile, PendingImport } from '@/shared/types';
 import AppHeader from '@/ui/components/AppHeader.vue';
 import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
@@ -12,6 +12,7 @@ import ThemeToggle from '@/ui/components/ThemeToggle.vue';
 import UpdateBanner from '@/ui/components/UpdateBanner.vue';
 import { t } from '@/ui/i18n';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
+import { defaultInstance, instanceById } from '@/ui/instances';
 import ResultView from './ResultView.vue';
 import SummaryView from './SummaryView.vue';
 import HistoryView from './HistoryView.vue';
@@ -27,6 +28,14 @@ provide(
   'singleInstanceId',
   computed(() => (view.value.instances?.length === 1 ? (view.value.defaultInstanceId ?? null) : null)),
 );
+const instances = computed<InstanceView[]>(() => view.value.instances ?? []);
+/** Target of the import just confirmed (spec 016): the result screen shows this instance, never another one. */
+const submittedTarget = ref<string | null>(null);
+/** Instance of the result screen: the one of the shown imports, else the one just chosen, else the default one. */
+const resultInstance = computed(() => {
+  const id = pendings.value[0]?.instanceId ?? submittedTarget.value;
+  return id ? instanceById(instances.value, id) : defaultInstance(view.value);
+});
 const tabId = ref<number | null>(null);
 const pendings = ref<PendingImport[]>([]);
 const running = ref(false);
@@ -113,11 +122,13 @@ async function lock() {
 onUnmounted(() => browser.runtime.onMessage.removeListener(onProgress));
 
 async function onSubmit({
+  instanceId,
   drafts,
   manualFiles,
   orderLocationId,
   duplicateCheckFailed: failed,
 }: {
+  instanceId: string;
   drafts: ImportDraft[];
   manualFiles: ManualFile[];
   orderLocationId: string | null;
@@ -128,8 +139,8 @@ async function onSubmit({
   screen.value = 'result';
   running.value = true;
   error.value = null;
+  submittedTarget.value = instanceId;
   try {
-    const instanceId = view.value.defaultInstanceId;
     // No target known: nothing is sent (no fallback to another instance).
     if (!instanceId) {
       error.value = 'NOT_CONFIGURED';
@@ -210,7 +221,7 @@ function openOptions() {
       <UpdateBanner />
       <HistoryView
         v-if="showHistory"
-        :base-url="view.baseUrl ?? ''"
+        :instances="instances"
         @close="closeHistory"
         @unlock="unlockFromHistory"
       />
@@ -236,7 +247,7 @@ function openOptions() {
         <SummaryView v-else-if="screen === 'summary' && tabId !== null" :tab-id="tabId" :config="view" @submit="onSubmit" />
 
         <template v-else-if="screen === 'result'">
-          <InstanceBadge :config="view" />
+          <InstanceBadge v-if="resultInstance" :instance="resultInstance" />
           <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />
           <ErrorBanner v-if="error" :code="error">
             <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">{{ t('popup.checkConfiguration') }}</button>
@@ -244,7 +255,7 @@ function openOptions() {
           </ErrorBanner>
           <ResultView
             :pendings="pendings"
-            :base-url="view.baseUrl ?? ''"
+            :instances="instances"
             :running="running"
             @updated="upsert"
             @abandoned="onAbandoned"

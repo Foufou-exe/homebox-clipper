@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, useId } from 'vue';
 import { send } from '@/shared/messages';
-import type { HistoryListView } from '@/shared/types';
+import type { HistoryListView, InstanceView } from '@/shared/types';
 import HistoryList from '@/ui/components/HistoryList.vue';
 import { t } from '@/ui/i18n';
 
@@ -9,7 +9,7 @@ import { t } from '@/ui/i18n';
  * "Import history" card of the options page (012, contracts/ui.md): the on/off checkbox, the inline
  * confirmation before turning it off (which erases everything, FR-007), and the list.
  */
-defineProps<{ baseUrl: string }>();
+defineProps<{ instances: InstanceView[] }>();
 const list = ref<InstanceType<typeof HistoryList> | null>(null);
 const view = ref<HistoryListView | null>(null);
 const confirming = ref(false);
@@ -84,7 +84,7 @@ async function turnOff(): Promise<void> {
       <button ref="keepButton" class="keep" type="button" @click="keep">{{ t('options.historyKeep') }}</button>
     </div>
     <p class="card-announce" role="status">{{ announce }}</p>
-    <HistoryList ref="list" :base-url="baseUrl" variant="options" @loaded="view = $event" />
+    <HistoryList ref="list" :instances="instances" variant="options" @loaded="view = $event" />
   </section>
 </template>
 

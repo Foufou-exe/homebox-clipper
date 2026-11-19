@@ -286,3 +286,21 @@ describe('vault-crypto: rekeyVault (pure, nothing written)', () => {
     }
   });
 });
+
+describe('vault-crypto: adding a key to an existing vault (016, US2, T058)', () => {
+  it('a key sealed with the key opened by openVault and its own address opens at the next openVault', async () => {
+    const store = await buildStore({ instances: [A] });
+    const opened = await openVault(store, PASSPHRASE);
+    expect(opened).not.toBeNull();
+    const sealed = await sealApiKeyWith(opened!.key, B.apiKey, B.baseUrl);
+    const next: InstancesStore = {
+      ...store,
+      instances: [...store.instances, { id: B.id, name: B.name, baseUrl: B.baseUrl, key: sealed, maskedKey: 'hb_••••bbbb', lastCheck: null }],
+    };
+    const again = await openVault(next, PASSPHRASE);
+    expect(again?.keys).toEqual({ [A.id]: A.apiKey, [B.id]: B.apiKey });
+    expect(again?.unreadable).toEqual([]);
+    // Bound to B's address: with A's address, it does not open.
+    expect(await openApiKeyWith(opened!.key, sealed, A.baseUrl)).toBeNull();
+  });
+});

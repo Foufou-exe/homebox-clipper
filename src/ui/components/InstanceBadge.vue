@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { ConfigView } from '@/shared/types';
+import type { InstanceView } from '@/shared/types';
 import { t } from '@/ui/i18n';
 import Icon from './Icon.vue';
 
-const props = defineProps<{ config: ConfigView }>();
+/** One HomeBox instance (spec 016): address, state of the last test, version and the unencrypted HTTP warning. */
+const props = defineProps<{ instance: InstanceView }>();
 
-const isHttp = computed(() => props.config.baseUrl?.startsWith('http:') ?? false);
-const status = computed(() => props.config.lastCheck?.status);
+const isHttp = computed(() => props.instance.baseUrl.startsWith('http:'));
+const status = computed(() => props.instance.lastCheck?.status);
 </script>
 
 <template>
@@ -15,8 +16,8 @@ const status = computed(() => props.config.lastCheck?.status);
     <Icon name="pin" :size="14" />
     <span class="dot" :class="status ?? 'unknown'" aria-hidden="true" />
     <span class="label">{{ t('common.instanceLabel') }}</span>
-    <strong class="url">{{ config.baseUrl }}</strong>
-    <span v-if="config.lastCheck?.version" class="version">v{{ config.lastCheck.version }}</span>
+    <strong class="url">{{ instance.baseUrl }}</strong>
+    <span v-if="instance.lastCheck?.version" class="version">v{{ instance.lastCheck.version }}</span>
     <span v-if="isHttp" class="http" :title="t('common.httpWarningHint')">
       {{ t('common.httpWarning') }}
     </span>

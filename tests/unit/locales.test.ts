@@ -306,10 +306,12 @@ describe('import history keys, controlling the data (012, US3)', () => {
   });
 
   // ADAPTED (007): +3 `history.missing.*` keys (manual, warranty, deliveryNote) required by the spec: 47 → 50.
+  // ADAPTED (016, T072): + `history.instanceName` (spec 016, contracts/ui.md §5), counted apart: still 50 of 012/007.
   it('50 history keys added in total (23 + 8 + 16 + 3 of spec 007)', () => {
-    const added = Object.keys(en).filter((k) => k.startsWith('history.') || /^options\.history/.test(k));
+    const of012 = (k: string) => (k.startsWith('history.') || /^options\.history/.test(k)) && k !== 'history.instanceName';
+    const added = Object.keys(en).filter(of012);
     expect(added).toHaveLength(50);
-    expect(Object.keys(catalog).filter((k) => k.startsWith('history.') || /^options\.history/.test(k))).toHaveLength(50);
+    expect(Object.keys(catalog).filter(of012)).toHaveLength(50);
   });
 });
 
@@ -744,5 +746,274 @@ describe('duplicates keys (015, US3)', () => {
     ].sort();
     expect(Object.keys(en).filter((k) => k.startsWith('duplicates.')).sort()).toEqual(expected);
     expect(Object.keys(catalog).filter((k) => k.startsWith('duplicates.')).sort()).toEqual(expected);
+  });
+});
+
+/** Spec 016, delivery B: exact texts of contracts/ui.md §5, copied as is. */
+const INSTANCE_KEYS_EN: Record<string, string> = {
+  'error.INSTANCE_LIMIT': 'You already have the maximum number of HomeBox instances.',
+  'error.INSTANCE_EXISTS': 'This address is already configured.',
+  'error.INSTANCE_NAME_INVALID': 'The name must be 1 to 50 characters long.',
+  'error.INSTANCE_NAME_TAKEN': 'Another instance already has this name.',
+  'error.INSTANCE_BUSY': 'An import to this instance is in progress. Try again when it ends.',
+  'common.instanceError': '$1: $2',
+};
+const INSTANCE_KEYS_FR: Record<string, string> = {
+  'error.INSTANCE_LIMIT': 'Vous avez déjà le nombre maximal d’instances HomeBox.',
+  'error.INSTANCE_EXISTS': 'Cette adresse est déjà configurée.',
+  'error.INSTANCE_NAME_INVALID': 'Le nom doit compter de 1 à 50 caractères.',
+  'error.INSTANCE_NAME_TAKEN': 'Une autre instance porte déjà ce nom.',
+  'error.INSTANCE_BUSY': 'Un import vers cette instance est en cours. Réessayez quand il sera terminé.',
+  'common.instanceError': '$1 : $2',
+};
+
+describe('016 multiple instances: shared keys of delivery B (T052)', () => {
+  const PHASE5 = Object.keys(INSTANCE_KEYS_EN);
+
+  it('the 6 keys of the foundational phase have the exact texts of contracts/ui.md in en and fr', () => {
+    expect(PHASE5).toHaveLength(6);
+    for (const key of PHASE5) {
+      expect(en[key], key).toBe(INSTANCE_KEYS_EN[key]);
+      expect(catalog[key], key).toBe(INSTANCE_KEYS_FR[key]);
+    }
+  });
+
+  it('each new error code has its error.<CODE> key in en and fr', () => {
+    for (const code of ['INSTANCE_LIMIT', 'INSTANCE_EXISTS', 'INSTANCE_NAME_INVALID', 'INSTANCE_NAME_TAKEN', 'INSTANCE_BUSY'] as const) {
+      expect(ERROR_CODES).toContain(code);
+      expect(en[`error.${code}`]?.trim(), code).toBeTruthy();
+      expect(catalog[`error.${code}`]?.trim(), code).toBeTruthy();
+    }
+  });
+
+  it('common.instanceError takes two parameters: the instance name, then the message', () => {
+    expect(makeGetMessage(en)('common.instanceError', ['Maison', 'HomeBox is unreachable.'])).toBe('Maison: HomeBox is unreachable.');
+    expect(makeGetMessage(catalog)('common.instanceError', ['Maison', 'Erreur.'])).toBe('Maison : Erreur.');
+  });
+
+  it('the common section holds exactly the former 7 keys plus instanceError', () => {
+    const expected = [
+      'common.instanceAria',
+      'common.instanceLabel',
+      'common.httpWarning',
+      'common.httpWarningHint',
+      'common.sizeBytes',
+      'common.sizeKb',
+      'common.sizeMb',
+      'common.instanceError',
+    ].sort();
+    expect(Object.keys(en).filter((k) => k.startsWith('common.')).sort()).toEqual(expected);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('common.')).sort()).toEqual(expected);
+  });
+});
+
+describe('016 multiple instances: the 8 keys of US2 (T060)', () => {
+  const EN: Record<string, string> = {
+    'options.instancesTitle': 'HomeBox instances',
+    'instances.add': 'Add an instance',
+    'instances.limitReached': 'You can set up to $1 instances.',
+    'instances.name': 'Display name (optional)',
+    'instances.nameHelp': 'Up to 50 characters. Empty: the address host.',
+    'instances.added': 'Instance "$1" added.',
+    'instances.existing': 'This address is already used by "$1".',
+    'instances.cardAria': 'HomeBox instance $1',
+  };
+  const FR: Record<string, string> = {
+    'options.instancesTitle': 'Instances HomeBox',
+    'instances.add': 'Ajouter une instance',
+    'instances.limitReached': 'Vous pouvez configurer jusqu’à $1 instances.',
+    'instances.name': 'Nom d’affichage (facultatif)',
+    'instances.nameHelp': '50 caractères au plus. Vide : l’hôte de l’adresse.',
+    'instances.added': 'Instance « $1 » ajoutée.',
+    'instances.existing': 'Cette adresse est déjà utilisée par « $1 ».',
+    'instances.cardAria': 'Instance HomeBox $1',
+  };
+
+  it('exact texts of contracts/ui.md in en and fr, same substitutions', () => {
+    expect(Object.keys(EN)).toHaveLength(8);
+    for (const key of Object.keys(EN)) {
+      expect(en[key], key).toBe(EN[key]);
+      expect(catalog[key], key).toBe(FR[key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+});
+
+describe('016 multiple instances: the 5 keys of US3 (T072)', () => {
+  const EN: Record<string, string> = {
+    'summary.instanceTarget': 'HomeBox instance',
+    'summary.instanceOption': '$1 ($2)',
+    'summary.instanceLoaded': 'Locations and tags of $1 loaded.',
+    'result.importedTo': 'Imported to $1',
+    'history.instanceName': 'Instance: $1',
+  };
+  const FR: Record<string, string> = {
+    'summary.instanceTarget': 'Instance HomeBox',
+    'summary.instanceOption': '$1 ($2)',
+    'summary.instanceLoaded': 'Emplacements et tags de $1 chargés.',
+    'result.importedTo': 'Importé dans $1',
+    'history.instanceName': 'Instance : $1',
+  };
+
+  it('exact texts of contracts/ui.md in en and fr, same substitutions', () => {
+    expect(Object.keys(EN)).toHaveLength(5);
+    for (const key of Object.keys(EN)) {
+      expect(en[key], key).toBe(EN[key]);
+      expect(catalog[key], key).toBe(FR[key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('summary.instanceOption is the only 016 value identical in both languages, listed in IDENTICAL_OK', () => {
+    expect(IDENTICAL_OK).toContain('summary.instanceOption');
+    for (const key of ['summary.instanceTarget', 'summary.instanceLoaded', 'result.importedTo', 'history.instanceName']) {
+      expect(IDENTICAL_OK).not.toContain(key);
+      expect(en[key], key).not.toBe(catalog[key]);
+    }
+  });
+});
+
+describe('016 multiple instances: the 10 keys of US4 (T081 h)', () => {
+  const EN: Record<string, string> = {
+    'instances.rename': 'Rename',
+    'instances.saveName': 'Save the name',
+    'instances.edit': 'Change the address or key',
+    'instances.delete': 'Delete this instance',
+    'instances.confirmDelete':
+      'Delete the instance "$1"? Its API key, last location, history entries and interrupted imports will be erased.',
+    'instances.deleted': 'Instance "$1" deleted.',
+    'instances.keyUnreadable': 'Key to re-enter',
+    'instances.requestAccess': 'Request access again',
+    'options.deleteAll': 'Delete all settings',
+    'options.confirmDeleteAll':
+      'Delete all HomeBox instances (addresses and API keys) from this extension, and the import history?',
+  };
+  const FR: Record<string, string> = {
+    'instances.rename': 'Renommer',
+    'instances.saveName': 'Enregistrer le nom',
+    'instances.edit': 'Modifier l’adresse ou la clé',
+    'instances.delete': 'Supprimer cette instance',
+    'instances.confirmDelete':
+      'Supprimer l’instance « $1 » ? Sa clé API, son dernier emplacement, ses entrées d’historique et ses imports interrompus seront effacés.',
+    'instances.deleted': 'Instance « $1 » supprimée.',
+    'instances.keyUnreadable': 'Clé à ressaisir',
+    'instances.requestAccess': 'Redemander l’accès',
+    'options.deleteAll': 'Supprimer toute la configuration',
+    'options.confirmDeleteAll':
+      'Supprimer toutes les instances HomeBox (adresses et clés API) de cette extension et l’historique des imports ?',
+  };
+
+  it('exact texts of contracts/ui.md in en and fr, same substitutions', () => {
+    expect(Object.keys(EN)).toHaveLength(10);
+    for (const key of Object.keys(EN)) {
+      expect(en[key], key).toBe(EN[key]);
+      expect(catalog[key], key).toBe(FR[key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+});
+
+describe('016 multiple instances: the 8 keys of US5 (T089)', () => {
+  const EN: Record<string, string> = {
+    'passphrase.changeTitle': 'Change the passphrase',
+    'passphrase.current': 'Current passphrase',
+    'passphrase.next': 'New passphrase',
+    'passphrase.confirm': 'Confirm the new passphrase',
+    'passphrase.submit': 'Change the passphrase',
+    'passphrase.changed': 'Passphrase changed. All keys are encrypted with it.',
+    'instances.reenterAfterChange':
+      'Passphrase changed. These keys could not be read and must be entered again: $1',
+    'unlock.allInstances': 'Unlocks your $1 HomeBox instances.',
+  };
+  const FR: Record<string, string> = {
+    'passphrase.changeTitle': 'Changer la phrase de passe',
+    'passphrase.current': 'Phrase de passe actuelle',
+    'passphrase.next': 'Nouvelle phrase de passe',
+    'passphrase.confirm': 'Confirmer la nouvelle phrase de passe',
+    'passphrase.submit': 'Changer la phrase de passe',
+    'passphrase.changed': 'Phrase de passe changée. Toutes les clés sont chiffrées avec elle.',
+    'instances.reenterAfterChange':
+      'Phrase de passe changée. Ces clés étaient illisibles et doivent être ressaisies : $1',
+    'unlock.allInstances': 'Déverrouille vos $1 instances HomeBox.',
+  };
+
+  it('exact texts of contracts/ui.md in en and fr, same substitutions', () => {
+    expect(Object.keys(EN)).toHaveLength(8);
+    for (const key of Object.keys(EN)) {
+      expect(en[key], key).toBe(EN[key]);
+      expect(catalog[key], key).toBe(FR[key]);
+      expect(subs(en[key]!), key).toEqual(subs(catalog[key]!));
+    }
+  });
+
+  it('the passphrase section holds exactly these 6 keys', () => {
+    const expected = Object.keys(EN).filter((k) => k.startsWith('passphrase.')).sort();
+    expect(Object.keys(en).filter((k) => k.startsWith('passphrase.')).sort()).toEqual(expected);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('passphrase.')).sort()).toEqual(expected);
+  });
+});
+
+describe('016 multiple instances: the key of US6 (T096)', () => {
+  it('recovery.instance: exact texts of contracts/ui.md in en and fr', () => {
+    expect(en['recovery.instance']).toBe('Interrupted import to $1');
+    expect(catalog['recovery.instance']).toBe('Import interrompu vers $1');
+  });
+});
+
+describe('016 multiple instances: 40 keys in all, none changed (T099, T112, FR-032)', () => {
+  /** Every key added by spec 016 (contracts/ui.md §5): A = 2, B = 38. */
+  const ADDED_016 = [
+    'error.INSTANCE_NOT_FOUND',
+    'error.KEY_UNREADABLE',
+    'error.INSTANCE_LIMIT',
+    'error.INSTANCE_EXISTS',
+    'error.INSTANCE_NAME_INVALID',
+    'error.INSTANCE_NAME_TAKEN',
+    'error.INSTANCE_BUSY',
+    'common.instanceError',
+    'options.instancesTitle',
+    'instances.add',
+    'instances.limitReached',
+    'instances.name',
+    'instances.nameHelp',
+    'instances.added',
+    'instances.existing',
+    'instances.cardAria',
+    'summary.instanceTarget',
+    'summary.instanceOption',
+    'summary.instanceLoaded',
+    'result.importedTo',
+    'history.instanceName',
+    'instances.rename',
+    'instances.saveName',
+    'instances.edit',
+    'instances.delete',
+    'instances.confirmDelete',
+    'instances.deleted',
+    'instances.keyUnreadable',
+    'instances.requestAccess',
+    'options.deleteAll',
+    'options.confirmDeleteAll',
+    'passphrase.changeTitle',
+    'passphrase.current',
+    'passphrase.next',
+    'passphrase.confirm',
+    'passphrase.submit',
+    'passphrase.changed',
+    'instances.reenterAfterChange',
+    'unlock.allInstances',
+    'recovery.instance',
+  ];
+
+  it('40 distinct keys, present in en and fr, the instances section holds exactly its 16', () => {
+    expect(new Set(ADDED_016).size).toBe(40);
+    for (const key of ADDED_016) {
+      expect(en[key]?.trim(), key).toBeTruthy();
+      expect(catalog[key]?.trim(), key).toBeTruthy();
+    }
+    const instances = ADDED_016.filter((k) => k.startsWith('instances.')).sort();
+    expect(instances).toHaveLength(16);
+    expect(Object.keys(en).filter((k) => k.startsWith('instances.')).sort()).toEqual(instances);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('instances.')).sort()).toEqual(instances);
   });
 });

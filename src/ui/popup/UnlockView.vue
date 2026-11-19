@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type { ConfigView } from '@/shared/types';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { t } from '@/ui/i18n';
+import { defaultInstance } from '@/ui/instances';
 
-defineProps<{ config: ConfigView }>();
+const props = defineProps<{ config: ConfigView }>();
+const instance = computed(() => defaultInstance(props.config));
 const emit = defineEmits<{ unlocked: [view: ConfigView] }>();
 
 const passphrase = ref('');
@@ -30,7 +32,7 @@ async function unlock() {
 
 <template>
   <form class="unlock card" @submit.prevent="unlock">
-    <InstanceBadge :config="config" />
+    <InstanceBadge v-if="instance" :instance="instance" />
     <p>{{ t('unlock.description') }}</p>
     <label for="unlock-passphrase">{{ t('unlock.passphrase') }}</label>
     <input

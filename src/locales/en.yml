@@ -36,6 +36,11 @@ error:
   BAD_MESSAGE: "Internal extension error."
   INSTANCE_NOT_FOUND: "This HomeBox instance no longer exists. Choose another one."
   KEY_UNREADABLE: "The API key of this instance cannot be read. Enter it again."
+  INSTANCE_LIMIT: "You already have the maximum number of HomeBox instances."
+  INSTANCE_EXISTS: "This address is already configured."
+  INSTANCE_NAME_INVALID: "The name must be 1 to 50 characters long."
+  INSTANCE_NAME_TAKEN: "Another instance already has this name."
+  INSTANCE_BUSY: "An import to this instance is in progress. Try again when it ends."
 
 common:
   instanceAria: "HomeBox instance in use"
@@ -45,6 +50,7 @@ common:
   sizeBytes: "$1 B"
   sizeKb: "$1 KB"
   sizeMb: "$1 MB"
+  instanceError: "$1: $2"
 
 header:
   brand: "HomeBox"
@@ -113,6 +119,9 @@ popup:
   checkConfiguration: "Check settings"
 
 summary:
+  instanceTarget: "HomeBox instance"
+  instanceOption: "$1 ($2)"
+  instanceLoaded: "Locations and tags of $1 loaded."
   orderNote: "$1 order: $2"
   orderNoteNoStore: "Order: $1"
   defaultDescription: "Purchased on $1 on $2"
@@ -169,6 +178,7 @@ location:
   pathSeparator: " › "
 
 result:
+  importedTo: "Imported to $1"
   running: "Import in progress…"
   addedOne: "Item added to HomeBox."
   addedMany: "$1 items added to HomeBox."
@@ -223,6 +233,7 @@ options:
   pageTitle: "HomeBox Clipper — Settings"
   subtitle: "Settings"
   title: "HomeBox instance"
+  instancesTitle: "HomeBox instances"
   intro: "The extension talks only to your HomeBox instance. The API key is encrypted with your passphrase and stored locally in this browser; it is never sent anywhere else."
   legacyKeyNotice: "Your API key was stored in plain text by a previous version. It has been removed from disk: set a passphrase to encrypt it, otherwise it will be lost when the browser closes."
   locked: "Locked"
@@ -259,6 +270,15 @@ options:
   helpTitle: "Help and project"
   helpIntro: "Found a bug or need a new merchant? Open the project's issues. The project code and documentation are on GitHub."
 
+instances:
+  add: "Add an instance"
+  limitReached: "You can set up to $1 instances."
+  name: "Display name (optional)"
+  nameHelp: "Up to 50 characters. Empty: the address host."
+  added: "Instance \"$1\" added."
+  existing: "This address is already used by \"$1\"."
+  cardAria: "HomeBox instance $1"
+
 links:
   support: "Support"
   github: "GitHub"
@@ -267,6 +287,7 @@ links:
   version: "Version $1"
 
 history:
+  instanceName: "Instance: $1"
   openAria: "Open the import history"
   openTitle: "History"
   title: "Import history"

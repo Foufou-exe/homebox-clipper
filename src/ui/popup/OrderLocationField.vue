@@ -14,6 +14,8 @@ defineProps<{
   error: ErrorCode;
   options: LocationOption[];
   multi: boolean;
+  /** Name of the target instance, prefixed to the error with several instances (spec 016). */
+  instance?: string;
 }>();
 const model = defineModel<LocationChoice | null>({ required: true });
 const helpId = 'order-location-help';
@@ -23,7 +25,7 @@ const helpId = 'order-location-help';
   <div class="card location-section">
     <p v-if="state === 'loading'" class="muted" role="status">{{ t('location.loading') }}</p>
     <template v-else-if="state === 'unavailable'">
-      <ErrorBanner :code="error" tone="warning" />
+      <ErrorBanner :code="error" tone="warning" :instance="instance" />
       <p class="muted">{{ t('location.unavailableHint') }}</p>
     </template>
     <p v-else-if="options.length === 0" class="muted">{{ t('location.empty') }}</p>

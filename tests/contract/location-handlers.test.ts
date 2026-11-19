@@ -162,3 +162,37 @@ describe('location/list targets one instance (016, Q-C2, T012)', () => {
     expect(requests).toEqual([]);
   });
 });
+
+describe('location/list with two real instances of the vault (016, US3, SC-005, T070)', () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+    registerLocationHandlers();
+    const { A, B, PASSPHRASE, buildStore, seedStore } = await import('../unit/instances-fixture');
+    await seedStore(await buildStore({ instances: [A, B] }));
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('B: the tree of B only, with B’s key; lastUsedId of B, never the one of A (FR-019)', async () => {
+    const { A, B } = await import('../unit/instances-fixture');
+    await fakeBrowser.storage.local.set({ lastLocationByInstance: { [A.id]: 'm', [B.id]: 'a' } });
+    const seen: { url: string; auth: string | null }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        seen.push({ url: String(input), auth: new Headers(init.headers).get('Authorization') });
+        return reply(200, TREE);
+      }),
+    );
+    const res = await dispatch({ type: 'location/list', instanceId: B.id }, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
+    expect(res).toMatchObject({ ok: true, value: { lastUsedId: 'a' } });
+    expect(seen.length).toBeGreaterThan(0);
+    for (const s of seen) {
+      expect(s.url.startsWith(`${B.baseUrl}/`)).toBe(true);
+      expect(s.auth).toBe(`Bearer ${B.apiKey}`);
+    }
+  });
+});

@@ -13,6 +13,9 @@ import LockCard from './LockCard.vue';
 import WarrantyCard from './WarrantyCard.vue';
 import TagsCard from './TagsCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
+import { defaultInstance } from '@/ui/instances';
+import InstanceForm from './InstanceForm.vue';
+import InstancesCard from './InstancesCard.vue';
 import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
 import UpdateBanner from '@/ui/components/UpdateBanner.vue';
@@ -29,6 +32,12 @@ const error = ref<ErrorCode | null>(null);
 const mismatch = ref(false);
 const success = ref<string | null>(null);
 const historyCard = ref<InstanceType<typeof HistoryCard> | null>(null);
+/**
+ * Spec 016: from two instances on, one card per instance (InstancesCard). With a single instance, the page keeps
+ * its former form (address, key, passphrase), plus « Add an instance ».
+ */
+const multi = computed(() => (view.value.instances?.length ?? 0) > 1);
+const current = computed(() => defaultInstance(view.value));
 
 /**
  * New key (or key migrated from the old format): a passphrase is chosen, with confirmation.
@@ -139,6 +148,13 @@ async function saveAndTest() {
   }
 }
 
+/** First installation (`instance/add`, new passphrase): same messages as the former form. */
+async function onFirstInstance({ error: code }: { name: string; error: ErrorCode | null }) {
+  error.value = code;
+  success.value = code ? null : t('options.savedAndConnected');
+  await refresh();
+}
+
 async function test() {
   error.value = null;
   success.value = null;
@@ -177,12 +193,12 @@ async function remove() {
   <main class="options">
     <UpdateBanner />
     <section class="card">
-      <h1>{{ t('options.title') }}</h1>
+      <h1>{{ multi ? t('options.instancesTitle') : t('options.title') }}</h1>
       <p class="intro">
         {{ t('options.intro') }}
       </p>
 
-      <InstanceBadge v-if="view.configured" :config="view" />
+      <InstanceBadge v-if="view.configured && !multi && current" :instance="current" />
 
       <p v-if="view.needsPassphrase" class="notice" role="alert">
         {{ t('options.legacyKeyNotice') }}
@@ -194,12 +210,14 @@ async function remove() {
         <template v-else>
           <span class="chip">{{ t('options.unlocked') }}</span>
           <span>{{ t('options.unlockedHint') }}</span>
-          <button type="button" :disabled="busy" @click="test">{{ t('options.test') }}</button>
+          <button v-if="!multi" type="button" :disabled="busy" @click="test">{{ t('options.test') }}</button>
           <button type="button" :disabled="busy" @click="lock">{{ t('options.lock') }}</button>
         </template>
       </div>
 
-      <form @submit.prevent="saveAndTest">
+      <InstanceForm v-if="!view.configured" :view="view" @done="onFirstInstance" />
+
+      <form v-else-if="!multi" @submit.prevent="saveAndTest">
         <label for="baseUrl">{{ t('options.baseUrl') }}</label>
         <input
           id="baseUrl"
@@ -270,11 +288,17 @@ async function remove() {
           </button>
         </div>
       </form>
+
+      <InstancesCard v-if="view.configured" :view="view" @changed="refresh" />
+
+      <div v-if="multi" class="actions">
+        <button type="button" :disabled="busy" @click="remove">{{ t('options.deleteConfig') }}</button>
+      </div>
     </section>
 
     <LockCard />
 
-    <HistoryCard ref="historyCard" :base-url="view.baseUrl ?? ''" />
+    <HistoryCard ref="historyCard" :instances="view.instances ?? []" />
 
     <WarrantyCard />
 

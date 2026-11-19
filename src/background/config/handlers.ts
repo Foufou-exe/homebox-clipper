@@ -2,7 +2,7 @@ import { createHomeBoxClient } from '@/background/homebox/client';
 import { register } from '@/background/router';
 import { hasOrigin } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
-import type { ConfigView } from '@/shared/types';
+import type { ConfigView, LastCheck } from '@/shared/types';
 import * as autoLock from './auto-lock';
 import { configStore, isValidApiKey } from './config-store';
 import { instanceStore } from './instance-store';
@@ -18,14 +18,21 @@ async function testConnection(baseUrl: string, apiKey: string): Promise<Result<{
   return ok({ version: status.value.version });
 }
 
-async function recordCheck(instanceId: string, result: Result<{ version: string }>): Promise<Result<ConfigView>> {
+/** Last check recorded for a connection test result (shared by the configuration and instance handlers). */
+function toLastCheck(result: Result<{ version: string }>): LastCheck {
   const at = new Date().toISOString();
-  await configStore.setLastCheck(
-    instanceId,
-    result.ok ? { status: 'ok', version: result.value.version, at } : { status: 'error', code: result.error, at },
-  );
+  return result.ok ? { status: 'ok', version: result.value.version, at } : { status: 'error', code: result.error, at };
+}
+
+/** The answer of a connection test: the view on success, the test error otherwise (the check is saved anyway). */
+async function checkAnswer(result: Result<{ version: string }>): Promise<Result<ConfigView>> {
   if (!result.ok) return fail(result.error, result.httpStatus);
   return ok(await configStore.getView());
+}
+
+async function recordCheck(instanceId: string, result: Result<{ version: string }>): Promise<Result<ConfigView>> {
+  await configStore.setLastCheck(instanceId, toLastCheck(result));
+  return checkAnswer(result);
 }
 
 /** Spec 016, increment 1: `config/save` and `config/test` stay aliases of the single instance. */
@@ -62,6 +69,37 @@ export function registerConfigHandlers(): void {
     const creds = await configStore.getCredentials(await singleInstanceId());
     if (!creds.ok) return creds;
     return recordCheck(creds.value.id, await testConnection(creds.value.baseUrl, creds.value.apiKey));
+  });
+
+  // Spec 016 (US2): add an instance. The passphrase is always required (never kept in the session); the origin
+  // permission is requested by the UI in the click, the service worker only checks it. Saved even if the
+  // connection test fails (US2-5). Any refusal before saving releases the origin if no instance uses it.
+  register('instance/add', async ({ baseUrl, apiKey, name, passphrase, newPassphrase }) => {
+    const url = normalizeBaseUrl(baseUrl);
+    if (!url.ok) return url;
+    const { origin } = url.value;
+    let tested: Result<{ version: string }> | null = null;
+    let added: Result<{ id: string }>;
+    try {
+      added = await configStore.addInstance(
+        { baseUrl: url.value.baseUrl, apiKey, name, passphrase, newPassphrase },
+        {
+          probe: async (target, key) => {
+            if (!(await hasOrigin(origin))) return fail('PERMISSION_DENIED');
+            tested = await testConnection(target, key);
+            return ok(toLastCheck(tested));
+          },
+        },
+      );
+    } catch (error) {
+      await instanceStore.releaseOriginIfUnused(origin);
+      throw error;
+    }
+    if (!added.ok) {
+      await instanceStore.releaseOriginIfUnused(origin);
+      return added;
+    }
+    return checkAnswer(tested ?? fail('BAD_MESSAGE'));
   });
 
   register('config/delete', async () => {

@@ -5,7 +5,7 @@ import { pendingStore } from '@/background/import/pending-store';
 import { dispatch } from '@/background/router';
 import { fail, ok } from '@/shared/errors';
 import type { PendingImport } from '@/shared/types';
-import { draft } from './orchestrator-harness';
+import { PDF_B64, draft } from './orchestrator-harness';
 import { registerLocationHandlers } from '@/background/location/handlers';
 import { registerTagHandlers } from '@/background/tags/handlers';
 import { A, B, PASSPHRASE, buildStore, seedStore } from '../unit/instances-fixture';
@@ -429,5 +429,133 @@ describe('handlers target one instance only (016, SC-005, FR-016, FR-018, Q-C2, 
     for (const v of ['example.org', 'example.com', 'Atelier', 'Maison', B.id, A.id, 'hb_', PASSPHRASE]) {
       expect(output).not.toContain(v);
     }
+  });
+});
+
+describe('the target chosen in the summary, with two real instances (016, US3, SC-005, FR-012, FR-015, T070)', () => {
+  interface Seen {
+    url: string;
+    method: string;
+    auth: string | null;
+  }
+  const NAME = 'Clavier sans fil Exemple Pro';
+
+  /** A has an identical object (same name and order number); B has none. Every request is recorded. */
+  function homebox(createStatus = 201) {
+    const seen: Seen[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        const url = String(input);
+        const method = init.method ?? 'GET';
+        seen.push({ url, method, auth: new Headers(init.headers).get('Authorization') });
+        const inA = url.startsWith(`${A.baseUrl}/`);
+        if (url.includes('/entities/tree')) return reply(200, [{ id: inA ? 'la' : 'lb', name: 'Garage', type: 'location', children: [] }]);
+        if (url.endsWith('/tags')) return reply(200, [{ id: inA ? 'ta' : 'tb', name: 'Amazon' }]);
+        if (url.includes('/entities?')) {
+          return reply(200, { items: inA ? [{ id: 'dup-a', name: NAME, notes: '', description: 'Commande 999-0000000-0000001' }] : [] });
+        }
+        if (method === 'POST' && url.endsWith('/entities')) return reply(createStatus, { id: 'e1', name: NAME });
+        if (url.includes('/attachments')) return reply(201, { id: 'att' });
+        return reply(200, { id: 'e1', name: NAME, tags: [{ id: inA ? 'ta' : 'tb', name: 'Amazon' }] });
+      }),
+    );
+    return seen;
+  }
+
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(fakeBrowser.runtime, 'sendMessage').mockImplementation((async () => undefined) as never);
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+    activeImports.clear();
+    registerImportHandlers();
+    await seedStore(await buildStore({ instances: [A, B], historyKey: crypto.getRandomValues(new Uint8Array(32)) }));
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('defaultInstanceId = lastInstanceId when it names an existing instance, otherwise the first one (FR-012)', async () => {
+    expect((await configStore.getView()).defaultInstanceId).toBe(A.id);
+    await fakeBrowser.storage.local.set({ lastInstanceId: B.id });
+    expect((await configStore.getView()).defaultInstanceId).toBe(B.id);
+    await fakeBrowser.storage.local.set({ lastInstanceId: 'supprimee' });
+    expect((await configStore.getView()).defaultInstanceId).toBe(A.id);
+  });
+
+  it('import/start to B: creation, attachment and tags go to B only, with B’s key (the search is the duplicate check below)', async () => {
+    const seen = homebox();
+    const doc = { id: 'manual-1', origin: 'manual' as const, kind: 'invoice' as const, label: 'facture.pdf', size: 20 };
+    const res = (await call({
+      type: 'import/start',
+      instanceId: B.id,
+      tabId: 5,
+      manualFiles: [{ docId: 'manual-1', filename: 'facture.pdf', base64: PDF_B64 }],
+      orderLocationId: 'lb',
+      drafts: [draft({ documents: [doc], location: { id: 'lb', path: ['Garage'] }, tags: [{ name: 'Amazon' }] })],
+    })) as { ok: boolean; value: PendingImport[] };
+    expect(res.value[0]?.entityId).toBe('e1');
+    expect(seen.some((s) => s.method === 'POST' && s.url.endsWith('/entities'))).toBe(true);
+    expect(seen.some((s) => s.url.includes('/attachments'))).toBe(true);
+    expect(seen.some((s) => s.url.endsWith('/tags'))).toBe(true);
+    for (const s of seen) {
+      expect(s.url.startsWith(`${B.baseUrl}/`), s.url).toBe(true);
+      expect(s.auth).toBe(`Bearer ${B.apiKey}`);
+    }
+  });
+
+  it('a successful import to B: lastLocationByInstance[B] written, never [A]; lastInstanceId = B', async () => {
+    homebox();
+    const res = (await call({
+      type: 'import/start',
+      instanceId: B.id,
+      tabId: 5,
+      manualFiles: [],
+      orderLocationId: 'lb',
+      drafts: [draft({ documents: [], location: { id: 'lb', path: ['Garage'] } })],
+    })) as { ok: boolean; value: PendingImport[] };
+    expect(res.value[0]?.status).toBe('success');
+    const local = await fakeBrowser.storage.local.get(null);
+    expect(local.lastLocationByInstance).toEqual({ [B.id]: 'lb' });
+    expect(local.lastInstanceId).toBe(B.id);
+  });
+
+  it('duplicates: an identical object present in A is not reported when the target is B', async () => {
+    const seen = homebox();
+    const dupA = (await call({ type: 'duplicate/check', instanceId: A.id, orderNumber: '999-0000000-0000001', name: NAME })) as {
+      ok: true;
+      value: { matches: unknown[] };
+    };
+    const dupB = (await call({ type: 'duplicate/check', instanceId: B.id, orderNumber: '999-0000000-0000001', name: NAME })) as {
+      ok: true;
+      value: { matches: unknown[]; similar: unknown[] };
+    };
+    expect(dupA.value.matches.length).toBeGreaterThan(0);
+    expect(dupB.value.matches).toEqual([]);
+    expect(dupB.value.similar).toEqual([]);
+    const toB = seen.filter((s) => s.auth === `Bearer ${B.apiKey}`);
+    expect(toB.every((s) => s.url.startsWith(`${B.baseUrl}/`))).toBe(true);
+  });
+
+  it('lastInstanceId unchanged after a partial import to B', async () => {
+    await fakeBrowser.storage.local.set({ lastInstanceId: A.id });
+    homebox();
+    vi.mocked(fetch).mockImplementation((async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input);
+      if (url.includes('/entities?')) return reply(200, { items: [] });
+      if ((init.method ?? 'GET') === 'POST' && url.endsWith('/entities')) return reply(201, { id: 'e1', name: NAME });
+      if (url.includes('/attachments')) return reply(500, {});
+      return reply(200, { id: 'e1', name: NAME });
+    }) as never);
+    const doc = { id: 'manual-1', origin: 'manual' as const, kind: 'invoice' as const, label: 'facture.pdf', size: 20 };
+    const res = (await call({
+      type: 'import/start',
+      instanceId: B.id,
+      tabId: 5,
+      manualFiles: [{ docId: 'manual-1', filename: 'facture.pdf', base64: PDF_B64 }],
+      drafts: [draft({ documents: [doc] })],
+    })) as { ok: boolean; value: PendingImport[] };
+    expect(res.value[0]?.status).toBe('partial');
+    expect((await fakeBrowser.storage.local.get('lastInstanceId')).lastInstanceId).toBe(A.id);
   });
 });

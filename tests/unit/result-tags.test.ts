@@ -23,7 +23,14 @@ const pending = (over: Partial<PendingImport> = {}): PendingImport => ({
   ...over,
 });
 const view = (p: PendingImport) =>
-  mount(ResultView, { props: { pendings: [p], baseUrl: 'https://homebox.example.com', running: false } });
+  // ADAPTED (016, T071): ResultView receives the instances instead of one address (same link with one instance).
+  mount(ResultView, {
+    props: {
+      pendings: [p],
+      instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: 'https://homebox.example.com', maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
+      running: false,
+    },
+  });
 
 describe('ResultView: tags not added (FR-012)', () => {
   it('partial with failedTags: the line « Tags non ajoutés : Informatique »', () => {

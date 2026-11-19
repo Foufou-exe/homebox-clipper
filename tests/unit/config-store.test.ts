@@ -344,3 +344,93 @@ describe('config-store: several instances in one vault (016, Q-U4, T010)', () =>
     ]);
   });
 });
+
+describe('configStore.addInstance (016, US2, Q-U2, T058)', () => {
+  const stored = async () => (await fakeBrowser.storage.local.get('homeboxInstances')).homeboxInstances as InstancesStore;
+  const input = (over: Partial<Parameters<typeof configStore.addInstance>[0]> = {}) => ({
+    baseUrl: B.baseUrl,
+    apiKey: B.apiKey,
+    name: '',
+    passphrase: PASSPHRASE,
+    newPassphrase: false,
+    ...over,
+  });
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+  });
+
+  it('one derivation, one set of homeboxInstances; the new key opens with B’s address only (FR-002)', async () => {
+    await seedStore(await buildStore({ instances: [A], historyKey: crypto.getRandomValues(new Uint8Array(32)) }));
+    const derive = vi.spyOn(crypto.subtle, 'deriveKey');
+    const set = vi.spyOn(fakeBrowser.storage.local, 'set');
+    const res = await configStore.addInstance(input());
+    expect(res).toMatchObject({ ok: true, value: { id: expect.any(String) } });
+    expect(derive).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls.filter(([items]) => 'homeboxInstances' in items)).toHaveLength(1);
+
+    const store = await stored();
+    expect(store.instances.map((i) => i.name)).toEqual(['Maison', 'inventaire.example.org']);
+    const added = store.instances[1]!;
+    expect(added).toMatchObject({ baseUrl: B.baseUrl, maskedKey: maskKey(B.apiKey), lastCheck: null });
+    expect(JSON.stringify(store)).not.toContain(B.apiKey);
+
+    const { deriveVaultKey, openApiKeyWith } = await import('@/background/config/vault-crypto');
+    const key = await deriveVaultKey(PASSPHRASE, store.vault!);
+    expect(await openApiKeyWith(key, added.key!, B.baseUrl)).toBe(B.apiKey);
+    expect(await openApiKeyWith(key, added.key!, A.baseUrl)).toBeNull();
+    // Full unlock: both keys in the session.
+    expect(await configStore.getCredentials(A.id)).toMatchObject({ ok: true, value: { apiKey: A.apiKey } });
+    expect(await configStore.getCredentials(added.id)).toMatchObject({ ok: true, value: { apiKey: B.apiKey } });
+  });
+
+  it('a failed set leaves storage.local identical byte for byte and the session untouched', async () => {
+    await seedStore(await buildStore({ instances: [A] }));
+    const before = JSON.stringify(await fakeBrowser.storage.local.get(null));
+    const session = JSON.stringify(await fakeBrowser.storage.session.get(null));
+    vi.spyOn(fakeBrowser.storage.local, 'set').mockRejectedValueOnce(new Error('quota'));
+    await expect(configStore.addInstance(input())).rejects.toThrow();
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).toBe(before);
+    expect(JSON.stringify(await fakeBrowser.storage.session.get(null))).toBe(session);
+  });
+
+  it('wrong passphrase: WRONG_PASSPHRASE, nothing written, the probe never runs (no network)', async () => {
+    await seedStore(await buildStore({ instances: [A] }));
+    const before = JSON.stringify(await fakeBrowser.storage.local.get(null));
+    const probe = vi.fn();
+    expect(await configStore.addInstance(input({ passphrase: 'mauvaise phrase 999' }), { probe })).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
+    expect(probe).not.toHaveBeenCalled();
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).toBe(before);
+  });
+
+  it('the probe result is saved as the last check; a refused probe writes nothing', async () => {
+    await seedStore(await buildStore({ instances: [A] }));
+    const check = { status: 'error' as const, code: 'HOMEBOX_UNREACHABLE' as const, at: '2026-11-19T10:00:00.000Z' };
+    expect(await configStore.addInstance(input(), { probe: async () => ({ ok: true, value: check }) })).toMatchObject({ ok: true });
+    expect((await stored()).instances[1]!.lastCheck).toEqual(check);
+
+    await seedStore(await buildStore({ instances: [A] }));
+    const before = JSON.stringify(await fakeBrowser.storage.local.get(null));
+    expect(await configStore.addInstance(input(), { probe: async () => ({ ok: false, error: 'PERMISSION_DENIED' }) })).toEqual({
+      ok: false,
+      error: 'PERMISSION_DENIED',
+    });
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).toBe(before);
+  });
+
+  it('the vault key is never written: only homeboxUnlocked { v, keys, historyKey } and the activity in session', async () => {
+    await seedStore(await buildStore({ instances: [A], historyKey: crypto.getRandomValues(new Uint8Array(32)) }));
+    await configStore.addInstance(input());
+    const session = await fakeBrowser.storage.session.get(null);
+    expect(Object.keys(session).sort()).toEqual(['homeboxActivity', 'homeboxUnlocked']);
+    expect(Object.keys(session.homeboxUnlocked as object).sort()).toEqual(['historyKey', 'keys', 'v']);
+  });
+
+  it('configStore.save (single instance) is unchanged: it still replaces the only instance', async () => {
+    await configStore.save({ baseUrl: A.baseUrl, apiKey: A.apiKey, passphrase: PASSPHRASE }, 1_000);
+    const id = (await stored()).instances[0]!.id;
+    await configStore.save({ baseUrl: A.baseUrl, apiKey: 'hb_autre_cle_1234', passphrase: PASSPHRASE }, 1_000);
+    expect((await stored()).instances.map((i) => i.id)).toEqual([id]);
+  });
+});

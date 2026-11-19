@@ -102,3 +102,35 @@ describe('tag/list handler (read-only)', () => {
     expect(await call()).toMatchObject({ ok: false, error: 'TAGS_UNAVAILABLE' });
   });
 });
+
+describe('tag/list with two real instances of the vault (016, US3, SC-005, T070)', () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+    registerTagHandlers();
+    const { A, B, PASSPHRASE, buildStore, seedStore } = await import('../unit/instances-fixture');
+    await seedStore(await buildStore({ instances: [A, B] }));
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each(['inst-a', 'inst-b'])('%s: one GET to that instance only, with its own key', async (id) => {
+    const { A, B } = await import('../unit/instances-fixture');
+    const target = id === A.id ? A : B;
+    const other = id === A.id ? B : A;
+    const seen: { url: string; auth: string | null }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        seen.push({ url: String(input), auth: new Headers(init.headers).get('Authorization') });
+        return reply(200, [{ id: 't1', name: 'Amazon' }]);
+      }),
+    );
+    const res = await dispatch({ type: 'tag/list', instanceId: id }, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
+    expect(res).toEqual({ ok: true, value: { tags: [{ id: 't1', name: 'Amazon' }] } });
+    expect(seen).toEqual([{ url: `${target.baseUrl}/api/v1/tags`, auth: `Bearer ${target.apiKey}` }]);
+    expect(JSON.stringify(seen)).not.toContain(new URL(other.baseUrl).host);
+  });
+});

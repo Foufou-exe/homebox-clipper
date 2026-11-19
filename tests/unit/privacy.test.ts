@@ -652,3 +652,45 @@ describe('instances privacy: migration and fallback view logs (016, Q-U7, FR-030
     }
   });
 });
+
+describe('instances privacy: instance/add logs (016, Q-U7, FR-030, T060)', () => {
+  const EXT = 'chrome-extension://abcdefghijklmnop/';
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+
+  it('success and every refusal: no address, name, instance id, key or passphrase in the console', async () => {
+    const { registerConfigHandlers } = await import('@/background/config/handlers');
+    const { dispatch } = await import('@/background/router');
+    const { A, B, PASSPHRASE, buildStore, seedStore } = await import('./instances-fixture');
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    const contains = vi.spyOn(fakeBrowser.permissions, 'contains').mockImplementation((async () => true) as never);
+    vi.spyOn(fakeBrowser.permissions, 'remove').mockImplementation((async () => true) as never);
+    registerConfigHandlers();
+    await seedStore(await buildStore({ instances: [A] }));
+    const spies = spyConsole();
+    const call = (over: Record<string, unknown>) =>
+      dispatch(
+        { type: 'instance/add', baseUrl: B.baseUrl, apiKey: B.apiKey, name: 'Atelier', passphrase: PASSPHRASE, newPassphrase: false, ...over },
+        { id: fakeBrowser.runtime.id, url: `${EXT}options.html` },
+      );
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    await call({ passphrase: 'mauvaise phrase de test' });
+    await call({ baseUrl: A.baseUrl });
+    await call({ name: 'x'.repeat(51) });
+    await call({ baseUrl: 'http://public.example.net' });
+    contains.mockImplementation((async () => false) as never);
+    await call({});
+    contains.mockImplementation((async () => true) as never);
+    await call({});
+    // A storage error inside the handler: BAD_MESSAGE, logged with the constant message type only.
+    vi.spyOn(fakeBrowser.storage.local, 'set').mockRejectedValueOnce(new Error('quota'));
+    await call({ baseUrl: 'https://autre.example.net', name: 'Bureau' });
+    vi.unstubAllGlobals();
+
+    const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+    for (const v of ['homebox.example.com', 'inventaire.example.org', 'autre.example.net', 'Atelier', 'Maison', 'Bureau', 'inst-a', 'hb_', PASSPHRASE, 'mauvaise phrase']) {
+      expect(output).not.toContain(v);
+    }
+  });
+});

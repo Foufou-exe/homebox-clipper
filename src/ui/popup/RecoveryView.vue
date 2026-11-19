@@ -2,7 +2,7 @@
 import { computed, inject, ref, watch, type Ref } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
-import type { DocumentRef, LocationChoice, LocationOption, ManualFile, PendingImport } from '@/shared/types';
+import type { DocumentRef, InstanceView, LocationChoice, LocationOption, ManualFile, PendingImport } from '@/shared/types';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
@@ -10,7 +10,8 @@ import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 
-const props = defineProps<{ pending: PendingImport; baseUrl: string }>();
+/** `instance`: the instance of the import (spec 016), for its link; null when unknown (no link). */
+const props = defineProps<{ pending: PendingImport; instance: InstanceView | null }>();
 const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: string] }>();
 
 /**
@@ -58,7 +59,9 @@ watch(
   { immediate: true },
 );
 
-const link = computed(() => (props.pending.entityId ? `${props.baseUrl}/item/${props.pending.entityId}` : null));
+const link = computed(() =>
+  props.pending.entityId && props.instance ? `${props.instance.baseUrl}/item/${props.pending.entityId}` : null,
+);
 const failedDocs = computed(() =>
   props.pending.draft.documents.filter((d) => props.pending.steps.attachments[d.id] !== 'done'),
 );

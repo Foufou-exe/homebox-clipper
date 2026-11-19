@@ -311,3 +311,68 @@ describe('messages: instanceId is required on the messages that contact HomeBox 
     expect(handler).not.toHaveBeenCalled();
   });
 });
+
+describe('messages: instance/* and session/change-passphrase (016, Q-U6, T051)', () => {
+  const valid = {
+    'instance/add': {
+      type: 'instance/add',
+      baseUrl: 'https://inventaire.example.org',
+      apiKey: 'hb_bbbbbbbb',
+      name: '',
+      passphrase: 'phrase de test 123',
+      newPassphrase: false,
+    },
+    'instance/update': {
+      type: 'instance/update',
+      instanceId: 'inst-b',
+      baseUrl: 'https://inventaire.example.org',
+      apiKey: '',
+      passphrase: 'phrase de test 123',
+      newPassphrase: false,
+    },
+    'instance/rename': { type: 'instance/rename', instanceId: 'inst-b', name: 'Atelier' },
+    'instance/test': { type: 'instance/test', instanceId: 'inst-b' },
+    'instance/delete': { type: 'instance/delete', instanceId: 'inst-b' },
+    'session/change-passphrase': { type: 'session/change-passphrase', current: 'phrase de test 123', next: 'nouvelle phrase 456' },
+  } as const;
+  type Type = keyof typeof valid;
+  const types = Object.keys(valid) as Type[];
+
+  it.each(types)('%s: the complete message is accepted', (type) => {
+    expect(isMessage(valid[type])).toBe(true);
+  });
+
+  it.each(types)('%s: refused when any field is missing', (type) => {
+    const base = valid[type] as Record<string, unknown>;
+    for (const field of Object.keys(base).filter((k) => k !== 'type')) {
+      const rest = Object.fromEntries(Object.entries(base).filter(([k]) => k !== field));
+      expect(isMessage(rest), `${type} without ${field}`).toBe(false);
+    }
+  });
+
+  it.each(types)('%s: refused when a field has the wrong type', (type) => {
+    const base = valid[type] as Record<string, unknown>;
+    for (const field of Object.keys(base).filter((k) => k !== 'type')) {
+      const wrong = typeof base[field] === 'boolean' ? 'true' : 42;
+      expect(isMessage({ ...base, [field]: wrong }), `${type} with a wrong ${field}`).toBe(false);
+    }
+  });
+
+  it.each(types.filter((t) => 'instanceId' in valid[t]))('%s: refused with an empty or too long instanceId', (type) => {
+    for (const instanceId of ['', 'x'.repeat(65), null]) expect(isMessage({ ...valid[type], instanceId })).toBe(false);
+  });
+});
+
+describe('messages: config/save and config/test are withdrawn (016, US4, T079)', () => {
+  it('neither is a valid message type any more (replaced by instance/update and instance/test)', () => {
+    expect(isMessage({ type: 'config/save', baseUrl: 'https://homebox.example.com', apiKey: 'hb_xxxxxxxx', passphrase: 'phrase de test 123' })).toBe(false);
+    expect(isMessage({ type: 'config/test' })).toBe(false);
+  });
+
+  it('source: no handler, no declaration names them any more', () => {
+    for (const path of ['src/shared/messages.ts', 'src/background/config/handlers.ts']) {
+      const source = readFileSync(resolve(__dirname, '../..', path), 'utf8');
+      expect(source, path).not.toMatch(/config\/(save|test)/);
+    }
+  });
+});
