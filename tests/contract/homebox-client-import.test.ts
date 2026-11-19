@@ -180,6 +180,53 @@ describe('client HomeBox — recherche (US5)', () => {
   });
 });
 
+describe('client HomeBox — recherche de ressemblances (015, Q-C1)', () => {
+  const key = 'hb_xxxxxxxx';
+  const hb = (f: typeof fetch) => createHomeBoxClient({ baseUrl: BASE, apiKey: key, fetchImpl: f });
+
+  it('searchEntities(word, 50) → GET /api/v1/entities?q=<word>&pageSize=50, Bearer key, credentials omitted', async () => {
+    const spy = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () =>
+      new Response(JSON.stringify({ items: [{ id: 'a', name: 'Cable usb c noir 2m' }] }), { status: 200 }),
+    );
+    const r = await hb(spy as unknown as typeof fetch).searchEntities('noir', 50);
+    expect(r).toEqual({ ok: true, value: [{ id: 'a', name: 'Cable usb c noir 2m' }] });
+    expect(String(spy.mock.calls[0]?.[0])).toBe(`${BASE}/api/v1/entities?q=noir&pageSize=50`);
+    const init = spy.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${key}`);
+    expect(init?.credentials).toBe('omit');
+    expect(init?.method ?? 'GET').toBe('GET');
+  });
+
+  it('searchEntities without pageSize keeps the default 20', async () => {
+    const m = mockFetch(json(200, { items: [] }));
+    await hb(m.fetch).searchEntities('"999-0000000-0000001"');
+    expect(new URL(m.calls[0]!.url).searchParams.get('pageSize')).toBe('20');
+  });
+
+  it('FR-018: the log never contains the query, the key, the URL or pageSize (success and network error)', async () => {
+    const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) =>
+      vi.spyOn(console, k).mockImplementation(() => undefined),
+    );
+    try {
+      await hb(mockFetch(json(200, { items: [{ id: 'a', name: 'Perceuse visseuse Bosch 18V' }] })).fetch).searchEntities(
+        'perceuse',
+        50,
+      );
+      await hb(mockFetch(networkError()).fetch).searchEntities('perceuse', 50);
+      const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+      for (const value of ['perceuse', 'Perceuse', key, BASE, 'homebox.example.com', 'pageSize']) {
+        expect(output).not.toContain(value);
+      }
+      for (const call of spies.flatMap((s) => s.mock.calls)) {
+        const meta = call[1] as { endpoint?: string } | undefined;
+        if (meta?.endpoint !== undefined) expect(meta.endpoint).toBe('GET /entities?q');
+      }
+    } finally {
+      for (const s of spies) s.mockRestore();
+    }
+  });
+});
+
 describe('client HomeBox — emplacements (US2)', () => {
   const TREE = [{ id: 'l1', name: 'Maison', type: 'location', children: [] }];
 

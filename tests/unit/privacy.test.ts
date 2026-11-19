@@ -6,6 +6,7 @@ import { historyStore } from '@/background/history/history-store';
 import { bytesToBase64 } from '@/shared/pdf';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { createHomeBoxClient } from '@/background/homebox/client';
+import { checkDuplicates } from '@/background/import/duplicates';
 import { createOrchestrator } from '@/background/import/orchestrator';
 import { pendingStore } from '@/background/import/pending-store';
 import { ok } from '@/shared/errors';
@@ -577,5 +578,44 @@ describe('automatic tags privacy documentation (014, Q-U12, FR-020)', () => {
     const frDate = Date.UTC(Number(fr![3]), FR_MONTHS.indexOf(fr![2]!), Number(fr![1]));
     expect(enDate).toBe(frDate);
     expect(enDate).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 18));
+  });
+});
+
+describe('duplicate check privacy (015, FR-018)', () => {
+  const PRODUCT = 'Câble USB-C 2 m noir';
+  const NUMBER = '999-0000000-0000001';
+  const DUP_KEY = 'hb_xxxxxxxx';
+  const FORBIDDEN = [
+    PRODUCT, 'noir', 'usb', 'cable', 'Cable usb c noir 2m', 'Perceuse visseuse Bosch 18V', NUMBER, '/item/', DUP_KEY,
+  ];
+  const items = json(200, {
+    items: [
+      { id: 's1', name: 'Cable usb c noir 2m' },
+      { id: 's2', name: 'Perceuse visseuse Bosch 18V' },
+    ],
+  });
+  const client = (f: typeof fetch) =>
+    createHomeBoxClient({ baseUrl: 'https://homebox.example.com', apiKey: DUP_KEY, fetchImpl: f });
+
+  it.each([
+    ['success', [items, items, items, items]],
+    ['network failure', [networkError(), networkError(), networkError(), networkError()]],
+    ['partial failure', [items, json(500, { error: `${PRODUCT} ${NUMBER}` }), items, items]],
+  ] as const)('%s: no console output contains a name, a queried word, the order number, a link or the key', async (_l, responders) => {
+    const spies = (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) =>
+      vi.spyOn(console, k).mockImplementation(() => undefined),
+    );
+    try {
+      await checkDuplicates(client(mockFetch(...responders).fetch), NUMBER, PRODUCT);
+      const calls = spies.flatMap((s) => s.mock.calls);
+      const output = JSON.stringify(calls).toLowerCase();
+      for (const value of FORBIDDEN) expect(output).not.toContain(value.toLowerCase());
+      for (const call of calls) {
+        const meta = call[1] as { endpoint?: string } | undefined;
+        if (meta?.endpoint !== undefined) expect(meta.endpoint).toBe('GET /entities?q');
+      }
+    } finally {
+      for (const s of spies) s.mockRestore();
+    }
   });
 });

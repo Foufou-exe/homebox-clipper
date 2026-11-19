@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { browser } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { isMessage, send } from '@/shared/messages';
@@ -28,6 +28,12 @@ const error = ref<ErrorCode | null>(null);
 /** History view (012): shown next to the current screen, which stays mounted (`v-show`) and keeps its drafts. */
 const showHistory = ref(false);
 const historyButton = ref<HTMLButtonElement | null>(null);
+/** The duplicate check failed for at least one product (spec 015, FR-013): shown on the result screen. Never stored. */
+const duplicateCheckFailed = ref(false);
+// Reset as soon as the result screen is left (back to the summary, lock…): a later import starts clean.
+watch(screen, (s) => {
+  if (s !== 'result') duplicateCheckFailed.value = false;
+});
 
 function upsert(p: PendingImport) {
   const i = pendings.value.findIndex((x) => x.id === p.id);
@@ -104,12 +110,15 @@ async function onSubmit({
   drafts,
   manualFiles,
   orderLocationId,
+  duplicateCheckFailed: failed,
 }: {
   drafts: ImportDraft[];
   manualFiles: ManualFile[];
   orderLocationId: string | null;
+  duplicateCheckFailed?: boolean;
 }) {
   if (tabId.value === null) return;
+  duplicateCheckFailed.value = failed === true;
   screen.value = 'result';
   running.value = true;
   error.value = null;
@@ -216,6 +225,7 @@ function openOptions() {
 
         <template v-else-if="screen === 'result'">
           <InstanceBadge :config="view" />
+          <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />
           <ErrorBanner v-if="error" :code="error">
             <button v-if="error === 'UNAUTHORIZED'" type="button" @click="openOptions">{{ t('popup.checkConfiguration') }}</button>
             <button v-if="error === 'LOCKED'" type="button" @click="screen = 'locked'">{{ t('unlock.submit') }}</button>

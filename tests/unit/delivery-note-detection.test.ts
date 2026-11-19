@@ -127,7 +127,8 @@ describe('delivery note in the summary (007, US2-2)', () => {
     const purchase: DetectedPurchase = merchant.extract(doc, url);
     vi.mocked(send).mockImplementation(((msg: { type: string }) => {
       if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase, warnings: [] }));
-      if (msg.type === 'duplicate/check') return Promise.resolve(ok({ matches: [] }));
+      // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+      if (msg.type === 'duplicate/check') return Promise.resolve(ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }));
       return Promise.resolve(ok({ locations: [], lastUsedId: null }));
     }) as never);
     const wrapper = mount(SummaryView, { props: { tabId: 1, config } });

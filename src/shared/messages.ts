@@ -8,7 +8,7 @@ import { MAX_TAGS_PER_PRODUCT, normalizeTagName, tagKey, tagNameError } from './
 import type {
   ConfigView,
   DetectedPurchase,
-  DuplicateMatch,
+  DuplicateCheck,
   HistoryListView,
   ImportDraft,
   LocationChoice,
@@ -103,7 +103,7 @@ export interface ResponseMap {
   'update/dismiss': Result<void>;
   'update/apply': UpdateApplyResult;
   'detect/run': Result<DetectResult>;
-  'duplicate/check': Result<{ matches: DuplicateMatch[] }>;
+  'duplicate/check': Result<DuplicateCheck>;
   'location/list': Result<{ locations: LocationOption[]; lastUsedId: string | null }>;
   'tag/list': Result<{ tags: TagOption[] }>;
   'import/start': Result<PendingImport[]>;

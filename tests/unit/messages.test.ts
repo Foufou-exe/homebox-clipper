@@ -241,3 +241,26 @@ describe('messages: tag/list and drafts[].tags on import/start (014, Q-U6)', () 
     expect(isMessage(withTags(Array.from({ length: 50 }, (_, i) => ({ name: `Tag ${i}` }))))).toBe(true);
   });
 });
+
+describe('messages: duplicate/check validator unchanged (015, Q-U5)', () => {
+  const check = (over: Record<string, unknown>) => ({ type: 'duplicate/check', ...over });
+
+  it('accepts an empty order number (product without an order number, FR-003)', () => {
+    expect(isMessage(check({ orderNumber: '', name: 'Câble USB-C 2 m noir' }))).toBe(true);
+  });
+
+  it('accepts a non-empty order number', () => {
+    expect(isMessage(check({ orderNumber: '999-0000000-0000001', name: 'Câble USB-C 2 m noir' }))).toBe(true);
+  });
+
+  it.each([
+    ['orderNumber absent', { name: 'Câble USB-C 2 m noir' }],
+    ['orderNumber 3', { orderNumber: 3, name: 'Câble USB-C 2 m noir' }],
+    ['orderNumber null', { orderNumber: null, name: 'Câble USB-C 2 m noir' }],
+    ['name absent', { orderNumber: '' }],
+    ['name 3', { orderNumber: '', name: 3 }],
+    ['name null', { orderNumber: '', name: null }],
+  ])('refuses %s', (_label, over) => {
+    expect(isMessage(check(over))).toBe(false);
+  });
+});

@@ -3,7 +3,7 @@ import { configStore } from '@/background/config/config-store';
 import { activeImports, registerImportHandlers } from '@/background/import/handlers';
 import { pendingStore } from '@/background/import/pending-store';
 import { dispatch } from '@/background/router';
-import { ok } from '@/shared/errors';
+import { fail, ok } from '@/shared/errors';
 import type { PendingImport } from '@/shared/types';
 import { draft } from './orchestrator-harness';
 
@@ -175,5 +175,68 @@ describe('import/start and import/retry handlers: active imports and concurrent 
       });
       expect(fetchMock).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('duplicate/check handler (015, Q-C2, FR-016)', () => {
+  const ORIGIN = 'https://homebox.example.com';
+  const KEY = 'hb_xxxxxxxx';
+  const MSG = { type: 'duplicate/check', orderNumber: '999-0000000-0000001', name: 'Câble USB-C 2 m noir' };
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ baseUrl: ORIGIN, apiKey: KEY }));
+    registerImportHandlers();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each(['NOT_CONFIGURED', 'LOCKED'] as const)('%s: error returned without any request', async (code) => {
+    vi.mocked(configStore.getCredentials).mockResolvedValue(fail(code));
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await call(MSG)).toEqual({ ok: false, error: code });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('success: every request goes to the instance with the key; the reply only holds id, name, url', async () => {
+    const calls: { url: string; auth: string | null }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        const url = String(input);
+        calls.push({ url, auth: new Headers(init.headers).get('Authorization') });
+        const q = new URL(url).searchParams.get('q');
+        if (q === '"999-0000000-0000001"') return reply(200, { items: [{ id: 'd1', name: 'Câble USB-C 2 m noir' }] });
+        if (q === 'noir') return reply(200, { items: [{ id: 's1', name: 'Cable usb c noir 2m' }, { id: 'x', name: 'Lampe de bureau' }] });
+        return reply(200, { items: [] });
+      }),
+    );
+    const res = await call(MSG);
+    expect(res).toEqual({
+      ok: true,
+      value: {
+        matches: [{ id: 'd1', name: 'Câble USB-C 2 m noir', url: `${ORIGIN}/item/d1` }],
+        similar: [{ id: 's1', name: 'Cable usb c noir 2m', url: `${ORIGIN}/item/s1` }],
+        moreSimilar: false,
+        incomplete: false,
+      },
+    });
+    expect(calls).toHaveLength(4);
+    for (const c of calls) {
+      expect(c.url.startsWith(`${ORIGIN}/api/v1/entities?`)).toBe(true);
+      expect(c.auth).toBe(`Bearer ${KEY}`);
+    }
+    const serialized = JSON.stringify(res);
+    expect(serialized).not.toContain(KEY);
+    expect(serialized).not.toContain('Lampe de bureau');
+    expect(serialized).not.toContain('score');
+    expect(serialized).not.toMatch(/"(noir|usb|cable)"/);
+    expect(serialized).not.toContain(`"${ORIGIN}"`);
+  });
+
+  it('401 on every search → DUPLICATE_CHECK_FAILED', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => reply(401, {})));
+    expect(await call(MSG)).toEqual({ ok: false, error: 'DUPLICATE_CHECK_FAILED' });
   });
 });

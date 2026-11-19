@@ -62,7 +62,8 @@ async function mountSummary(p: DetectedPurchase | null, tags: TagReply = [], set
   vi.mocked(send).mockImplementation(((msg: { type: string }) => {
     if (msg.type === 'detect/run')
       return Promise.resolve(p ? ok({ purchase: p, warnings: [] }) : fail('NOT_AN_ORDER_PAGE'));
-    if (msg.type === 'duplicate/check') return Promise.resolve(ok({ matches: [] }));
+    // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+    if (msg.type === 'duplicate/check') return Promise.resolve(ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }));
     if (msg.type === 'tag/list') {
       if (tags instanceof Promise) return tags;
       return Promise.resolve(typeof tags === 'string' ? fail(tags) : ok({ tags }));
