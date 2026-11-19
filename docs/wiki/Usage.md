@@ -82,6 +82,19 @@ never kept by the extension. The result shows, per product: *Photo added.*, *Pho
 photo available.* or *Photo upload failed.* If the photo fails, the item and its invoice are kept:
 **Retry the photo upload** reruns only the photo, without recreating the item.
 
+## Choose the HomeBox instance
+
+With two instances or more (see [Configuration](Configuration.md#several-homebox-instances)), the summary shows
+a **HomeBox instance selector** above the fields, with the name and host of each instance; with a single
+instance nothing changes. The instance proposed is the one of your **last successful import** (otherwise the
+first one of the list); you can change it before confirming. Changing the instance reloads its locations and
+its tags (the last location of that instance is preselected, tags that do not exist there are marked **new**);
+the fields you edited, the selection, the documents, the photo and the warranty are kept. The selector is
+disabled while the import runs, and the confirmation shows the chosen instance. Everything of the import
+(duplicate check, item, documents, photo, tags) goes **to this instance only**. The extension never switches to
+another instance by itself, even when the chosen one cannot be reached. The result and the import history show
+the name of the instance and open the item there.
+
 ## Choose the location
 
 The summary offers an optional location field: start typing (case and accents are ignored; "etagere"
@@ -216,6 +229,10 @@ rest fails (purchase details or documents), the popup says so, lists each docume
 popup, the recovery is offered again the next time you open it on the same tab. For a file added by hand,
 you must select it again (file bytes are never kept). **Abandon** clears the in-progress import without
 contacting HomeBox, even when the extension is locked (the item already created is kept).
+
+With several instances, an interrupted import is always resumed on the instance it was started on, whatever
+instance is proposed in the summary; the recovery shows its name ("Interrupted import to …"). Deleting that
+instance also erases its interrupted imports.
 
 If the extension's service worker stopped during an import, the popup says so ("The import was
 interrupted before it finished.") and offers to resume it. This recovery only covers that stop:

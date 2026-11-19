@@ -24,9 +24,9 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Numéro de commande et jusqu'à 3 mots du nom de chaque produit coché | Le récapitulatif que vous relisez | Signaler les objets déjà présents dans votre inventaire ou au nom proche | Recherchés sur **votre instance HomeBox** dès que vous cliquez sur « Ajouter », avant votre choix dans la fenêtre de doublon et même si vous annulez ensuite ; rien n'est stocké ni journalisé ; aucun autre destinataire |
 | Facture PDF | Téléchargée uniquement depuis l'origine de la boutique de la commande (par exemple `https://www.amazon.de`), avec votre propre session sur cette boutique, ou PDF choisi sur votre ordinateur | La joindre à l'objet HomeBox | Envoyée à votre instance HomeBox après votre confirmation |
 | Photo du produit | Téléchargée depuis le serveur d'images d'Amazon (`m.media-amazon.com`) sans cookie, sans référent ni clé API, uniquement si sa case est cochée | La joindre comme image principale de l'objet | Envoyée à votre instance HomeBox après votre confirmation ; jamais conservée par l'extension |
-| Adresse de l'instance HomeBox | Vous la saisissez dans les paramètres | Savoir où envoyer l'import | Stockée localement dans le navigateur |
-| Clé API HomeBox | Vous la saisissez dans les paramètres | Authentifier les requêtes vers votre instance | Stockée **chiffrée** localement (AES-GCM 256, clé dérivée de votre phrase de passe avec PBKDF2-SHA256, 600 000 itérations) ; envoyée uniquement à votre instance |
-| Phrase de passe | Vous la choisissez | Chiffrer et déverrouiller la clé API | **Jamais enregistrée** |
+| Adresse et nom d'affichage de l'instance HomeBox (1 à 10 instances) | Vous les saisissez dans les paramètres | Savoir où envoyer l'import ; distinguer les instances | Stockés localement dans le navigateur (`homeboxInstances`) |
+| Clé API HomeBox, une par instance | Vous la saisissez dans les paramètres | Authentifier les requêtes vers cette instance | Stockée **chiffrée** localement (AES-GCM 256, clé dérivée de votre phrase de passe avec PBKDF2-SHA256, 600 000 itérations, l'adresse de l'instance liée à sa clé) ; envoyée uniquement à **sa propre** instance |
+| Phrase de passe | Vous la choisissez | Chiffrer et déverrouiller les clés API : une seule phrase de passe protège les clés de toutes les instances | **Jamais enregistrée** |
 | Liste des emplacements HomeBox et dernier emplacement utilisé (identifiants uniquement) | Votre instance HomeBox | Vous laisser choisir où ranger l'objet | Lue depuis votre instance ; identifiants conservés localement |
 | Garantie proposée avec chaque objet (date d'expiration, garantie à vie, détails), calculée depuis la date d'achat, et réglage de la garantie par défaut (activée ou non, durée) | L'extension et vous | Remplir les champs garantie de l'objet HomeBox | La garantie est envoyée à votre instance HomeBox après votre confirmation et n'est pas conservée par l'extension une fois l'import terminé ; le réglage est stocké localement (aucune donnée personnelle) |
 | Tags HomeBox proposés (l'enseigne de la boutique, par exemple « Amazon », et les tags de vos propres règles) et tags que vous cochez dans le récapitulatif | L'extension, vos règles et vous | Classer l'objet dans HomeBox avec des tags | Lus sur **votre instance HomeBox** et, pour un tag qui n'existe pas encore, créés sur celle-ci (`GET`/`POST /api/v1/tags`) ; les tags sont créés et appliqués uniquement après votre confirmation, et seulement ceux cochés. Conservés seulement avec l'import en cours (`storage.session`), jamais dans l'historique des imports |
@@ -42,17 +42,41 @@ navigation, ni aucune page autre que la page de commande Amazon sur laquelle vou
 facture PDF est transmise telle quelle : elle peut contenir des informations imprimées par Amazon sur le
 document, comme votre nom ou votre adresse ; elle ne part que vers votre instance HomeBox.
 
+## Plusieurs instances HomeBox
+
+Vous pouvez configurer **plusieurs instances HomeBox** (1 à 10), par exemple une pour la maison et une pour un
+atelier, et choisir la cible dans le récapitulatif avant de confirmer un import. Elles sont stockées localement
+dans une seule liste (`homeboxInstances`) : pour chaque instance, son adresse, son nom d'affichage, sa clé API
+chiffrée, sa clé masquée et le résultat de son dernier test de connexion. **Une seule phrase de passe** protège
+toutes les clés ; chaque clé est chiffrée séparément et ne peut être déchiffrée que pour l'adresse de sa propre
+instance. Chaque instance a **sa propre permission d’accès**, limitée à l'**origine exacte** de son adresse et
+demandée à l'ajout de l'instance ; elle est retirée dès qu'aucune autre instance ne l’utilise. Les données d'un
+import ne partent que vers l'instance choisie (une reprise vise toujours l'instance où l'import a commencé),
+jamais vers une autre. La dernière instance utilisée pour un import réussi (`lastInstanceId`, un identifiant)
+est mémorisée pour la proposer la fois suivante.
+
+Chaque entrée de l'historique des imports porte un **identifiant opaque** (`inst`, hors du contenu chiffré) de
+l'instance vers laquelle l'import a été fait, pour que son lien ouvre l'objet dans cette instance et qu'elle
+puisse être effacée avec elle. Cet identifiant ne dit rien de l'instance par lui-même (ni adresse, ni nom).
+
+**Supprimer une instance** (Paramètres → **Supprimer cette instance**) efface son adresse, son nom, sa clé API
+chiffrée, sa clé masquée, son dernier test de connexion, son dernier emplacement, ses entrées d’historique et ses
+imports interrompus, et retire sa permission d'accès si aucune autre instance ne l’utilise. **Supprimer toute la
+configuration** (à partir de deux instances ; **Supprimer la configuration** avec une seule) efface toutes les
+instances et ce qui leur est rattaché.
+
 ## Où les données sont traitées et conservées
 
-- **Dans votre navigateur** (`storage.local`) : adresse de l'instance, clé API chiffrée, clé masquée
-  (par exemple `hb_••••abcd`), résultat du dernier test de connexion, dernier emplacement utilisé par
+- **Dans votre navigateur** (`storage.local`) : la liste des instances (`homeboxInstances` : adresses, noms
+  d'affichage, clés API chiffrées, clés masquées comme `hb_••••abcd`, résultats du dernier test de connexion),
+  la dernière instance utilisée pour un import réussi (`lastInstanceId`), le dernier emplacement utilisé par
   instance, thème, réglage de la garantie par défaut, réglage des tags automatiques (`tagSettings` : option du nom de la boutique et règles de tags), et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
   d'historique aléatoire, elle-même scellée par votre phrase de passe comme la clé API) avec son réglage
   d'activation, le réglage du verrouillage automatique (`lockSettings`) et la version de la dernière
   annonce de mise à jour (`updateNotice`).
 - **En mémoire du navigateur** (`storage.session`, effacée à la fermeture du navigateur ou au
-  verrouillage, au rechargement, à la mise à jour ou à la désactivation de l'extension) : la clé API
-  déchiffrée tant que l'extension est déverrouillée, et les données d'un import en cours pour pouvoir le
+  verrouillage, au rechargement, à la mise à jour ou à la désactivation de l'extension) : les clés API
+  déchiffrées des instances tant que l'extension est déverrouillée, et les données d'un import en cours pour pouvoir le
   reprendre après une erreur (sans le contenu des fichiers), l'heure de la dernière utilisation de
   l'extension (`homeboxActivity`) et la version prête à être installée par Chrome (`updateReady`).
 - **Sur votre instance HomeBox** : les objets, factures et photos que vous choisissez d'importer. Sa
@@ -64,8 +88,9 @@ document, comme votre nom ou votre adresse ; elle ne part que vers votre instanc
 
 - L'extension ne contacte que : (1) la page de la boutique Amazon sur laquelle vous l'avez ouverte (son
   origine exacte, par exemple `https://www.amazon.de`), pour télécharger votre facture, et le serveur
-  d'images d'Amazon (`m.media-amazon.com`) pour la photo du produit, au moment de l'import ; (2) **votre**
-  instance HomeBox. Elle ne contacte jamais une autre boutique Amazon que celle de la commande.
+  d'images d'Amazon (`m.media-amazon.com`) pour la photo du produit, au moment de l'import ; (2) **vos**
+  instances HomeBox, chacune uniquement pour les opérations qui la visent (une clé API n'est jamais envoyée à
+  une autre instance que la sienne). Elle ne contacte jamais une autre boutique Amazon que celle de la commande.
 - Les tags proposés n'ajoutent **aucun nouveau destinataire** : la liste des tags est lue sur votre instance
   HomeBox (`GET /api/v1/tags`) et les tags absents y sont créés (`POST /api/v1/tags`) uniquement après votre
   confirmation. Aucune requête n'est faite à la boutique pour les tags : l'enseigne vient de l'extension elle-même.
@@ -118,10 +143,11 @@ un nom de produit, un prix, un numéro de commande, un nom de tag, le texte d'un
   qui l'efface). **Supprimer la configuration** l'efface aussi. Reconfigurer l'extension verrouillée avec
   une nouvelle phrase de passe l'efface (un avertissement s'affiche avant). Désinstaller l'extension le
   supprime.
-- Les données locales restent jusqu'à ce que vous les supprimiez. **Paramètres → Supprimer la
-  configuration** efface l'adresse, la clé chiffrée, les imports en cours, les derniers emplacements,
-  l'historique des imports, et
-  retire l'autorisation d'accès accordée à votre instance. Le réglage du verrouillage automatique, la
+- Les données locales restent jusqu'à ce que vous les supprimiez. **Paramètres → Supprimer cette
+  instance** efface une instance (voir « Plusieurs instances HomeBox » ci-dessus). **Paramètres → Supprimer la
+  configuration** (**Supprimer toute la configuration** avec plusieurs instances) efface toutes les instances
+  (adresses, noms, clés chiffrées), les imports en cours, les derniers emplacements, la dernière instance
+  utilisée, l'historique des imports, et retire l'autorisation d'accès accordée à chaque instance. Le réglage du verrouillage automatique, la
   dernière annonce de mise à jour et le réglage des tags automatiques (`tagSettings`, aucune donnée personnelle) sont conservés. Désinstaller l'extension
   supprime tout son stockage dans le navigateur.
 - Vous pouvez aussi révoquer la clé API dans HomeBox à tout moment.

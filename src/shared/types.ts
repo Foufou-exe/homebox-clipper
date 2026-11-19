@@ -256,10 +256,6 @@ export interface InstanceView {
 /** View of the configuration exposed to the UI: never contains the key (principle I). */
 export interface ConfigView {
   configured: boolean;
-  /** Increment 1 only (UI compatibility): copy of the default instance (spec 016). */
-  baseUrl?: string;
-  maskedKey?: string;
-  lastCheck?: LastCheck | null;
   /** Encrypted key present but not yet unlocked for this session. */
   locked?: boolean;
   /** Key migrated from the old plaintext format: a passphrase must be set. */

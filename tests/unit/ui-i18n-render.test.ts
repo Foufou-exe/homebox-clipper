@@ -95,8 +95,7 @@ const config = (over: Partial<ConfigView> = {}): ConfigView => ({
   // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
   instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: DATA, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
   defaultInstanceId: 'inst-a',
-  baseUrl: DATA,
-  lastCheck: { status: 'ok', version: DATA, at: '2026-10-22T10:00:00Z' },
+  // ADAPTED (016, T100): no top-level compatibility fields (baseUrl, maskedKey, lastCheck) any more.
   ...over,
 });
 
@@ -696,7 +695,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
     });
 
     it('configured and unlocked', async () => {
-      const wrapper = await mountOptions(config({ maskedKey: 'hb_…abcd' }));
+      // ADAPTED (016, T100): the masked key is the one of the instance (no top-level compatibility field).
+      const wrapper = await mountOptions(config({ instances: [{ ...config().instances![0]!, maskedKey: 'hb_…abcd' }] }));
       expect(wrapper.text()).toContain('Nécessaire pour déchiffrer la clé actuelle.');
       expect(wrapper.text()).toContain('Supprimer la configuration');
       expectCatalogTexts(wrapper, [DATA, 'hb_…abcd']);
@@ -704,7 +704,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
 
     it('configured and locked, migrated key', async () => {
       const wrapper = await mountOptions(config({ locked: true, needsPassphrase: true }));
-      expectCatalogTexts(wrapper, [DATA]);
+      // ADAPTED (016, T100): the key placeholder is the masked key of the instance (data), no longer « hb_… ».
+      expectCatalogTexts(wrapper, [DATA, 'hb_••••a1b2']);
       expect(wrapper.text()).toContain('Apparence');
     });
   });
@@ -1131,15 +1132,16 @@ describe('location choice (US2, US3)', () => {
 
     // 016 (review T039): a resume without instanceId (older version) only uses the default instance when it is the
     // only one; otherwise nothing is sent (mirror of the refusal of import/retry in the service worker).
+    // ADAPTED (016, T098): the instance of the import is the prop `instance` (resolved by ResultView: the single
+    // instance for a state without instanceId, null with several), no longer an injected `singleInstanceId`.
     it.each([
-      ['single instance → its id', 'inst-a', [{ type: 'location/list', instanceId: 'inst-a' }]],
+      ['single instance → its id', ONE[0]!, [{ type: 'location/list', instanceId: 'inst-a' }]],
       ['several instances → nothing sent', null, []],
     ] as const)('pending without instanceId: %s', async (_label, single, expected) => {
-      const { ref: vueRef } = await import('vue');
       vi.mocked(send).mockImplementation(() => Promise.resolve(listOk()) as never);
       const old = { ...gone() };
       delete old.instanceId;
-      mount(RecoveryView, { props: { pending: old, instance: ONE[0]! }, global: { provide: { singleInstanceId: vueRef(single) } } }); // ADAPTED (016)
+      mount(RecoveryView, { props: { pending: old, instance: single } });
       await flushPromises();
       const calls = vi.mocked(send).mock.calls.map(([m]) => m).filter((m) => m.type === 'location/list');
       expect(calls).toEqual(expected);
@@ -1352,7 +1354,8 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
     expectEnglish(popup, [DATA]);
     expect(popup.find('footer').text()).toContain('Support');
 
-    vi.mocked(send).mockResolvedValue(config({ maskedKey: 'hb_…abcd' }) as never);
+    // ADAPTED (016, T100): the masked key is the one of the instance (no top-level compatibility field).
+    vi.mocked(send).mockResolvedValue(config({ instances: [{ ...config().instances![0]!, maskedKey: 'hb_…abcd' }] }) as never);
     const options = mount(OptionsApp);
     await flushPromises();
     expectEnglish(options, [DATA, 'hb_…abcd']);
@@ -1562,7 +1565,8 @@ describe('import history, delete / clear / options: texts from the catalog, in f
     await flushPromises();
     await fr.find('#apiKey').setValue('hb_xxxxxxxx');
     expect(fr.text()).toContain('L’extension est verrouillée');
-    expectCatalogTexts(fr, [DATA]);
+    // ADAPTED (016, T100): the key placeholder is the masked key of the instance (data), no longer « hb_… ».
+    expectCatalogTexts(fr, [DATA, 'hb_••••a1b2']);
     setTestLanguage('en');
     const enApp = mount(OptionsApp);
     await flushPromises();

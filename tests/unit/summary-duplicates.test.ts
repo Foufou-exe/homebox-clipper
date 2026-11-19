@@ -29,8 +29,7 @@ const config: ConfigView = {
   // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
   instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: BASE, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
   defaultInstanceId: 'inst-a',
-  baseUrl: BASE,
-  lastCheck: { status: 'ok', version: '0.27.0', at: '2026-10-22T10:00:00Z' },
+  // ADAPTED (016, T100): no top-level compatibility fields (baseUrl, maskedKey, lastCheck) any more.
 };
 const found = <T>(value: T) => ({ value, selector: 'x' });
 const product = (key: string, name: string): DetectedProduct => ({

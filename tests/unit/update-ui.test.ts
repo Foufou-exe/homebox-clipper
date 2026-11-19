@@ -151,7 +151,13 @@ describe('UpdateBanner: "Update now" (013, Q-U8, FR-014, FR-015)', () => {
   });
 
   it('the banner is shown on the locked popup screen too', async () => {
-    const locked: ConfigView = { configured: true, baseUrl: 'https://homebox.example.com', lastCheck: null, locked: true };
+    // ADAPTED (016, T100): the instance carries the address (no top-level compatibility fields).
+    const locked: ConfigView = {
+      configured: true,
+      instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: 'https://homebox.example.com', maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'locked' }],
+      defaultInstanceId: 'inst-a',
+      locked: true,
+    };
     serve({ 'session/open': locked, 'update/state': updateState({ notice: '0.4.0' }) });
     const w = mount(PopupApp, { attachTo: document.body });
     await flushPromises();

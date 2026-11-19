@@ -21,8 +21,9 @@ const SUPPORT = 'https://github.com/Foufou-exe/homebox-clipper/issues';
 const GITHUB = 'https://github.com/Foufou-exe/homebox-clipper';
 const config = (over: Partial<ConfigView> = {}): ConfigView => ({
   configured: true,
-  baseUrl: 'https://homebox.example.com',
-  lastCheck: { status: 'ok', version: '0.27.0', at: '2026-10-22T10:00:00Z' },
+  // ADAPTED (016, T100): the instance carries the address and the last check (no top-level compatibility fields).
+  instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: 'https://homebox.example.com', maskedKey: 'hb_••••a1b2', lastCheck: { status: 'ok', version: '0.27.0', at: '2026-10-22T10:00:00Z' }, keyState: 'ready' }],
+  defaultInstanceId: 'inst-a',
   ...over,
 });
 

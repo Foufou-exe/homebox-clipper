@@ -10,6 +10,8 @@ import { defaultInstance } from '@/ui/instances';
 
 const props = defineProps<{ config: ConfigView }>();
 const instance = computed(() => defaultInstance(props.config));
+/** Spec 016 (US5-1): one passphrase unlocks every instance; from two on, their number replaces the badge of one. */
+const count = computed(() => props.config.instances?.length ?? 0);
 const emit = defineEmits<{ unlocked: [view: ConfigView] }>();
 
 const passphrase = ref('');
@@ -32,7 +34,8 @@ async function unlock() {
 
 <template>
   <form class="unlock card" @submit.prevent="unlock">
-    <InstanceBadge v-if="instance" :instance="instance" />
+    <p v-if="count > 1" class="all-instances">{{ t('unlock.allInstances', [String(count)]) }}</p>
+    <InstanceBadge v-else-if="instance" :instance="instance" />
     <p>{{ t('unlock.description') }}</p>
     <label for="unlock-passphrase">{{ t('unlock.passphrase') }}</label>
     <input

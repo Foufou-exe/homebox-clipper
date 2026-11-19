@@ -109,6 +109,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         <RecoveryView
           :pending="p"
           :instance="instanceOf(p)"
+          :named="instances.length > 1"
           @updated="emit('updated', $event)"
           @abandoned="emit('abandoned', $event)"
         />

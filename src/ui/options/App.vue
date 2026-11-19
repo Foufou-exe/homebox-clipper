@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { MIN_PASSPHRASE_LENGTH } from '@/background/config/key-vault';
-import { normalizeBaseUrl } from '@/background/config/url-policy';
+import { originOf } from '@/background/config/url-policy';
 import { browser, requestOrigin } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
@@ -16,6 +15,7 @@ import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { defaultInstance } from '@/ui/instances';
 import InstanceForm from './InstanceForm.vue';
 import InstancesCard from './InstancesCard.vue';
+import PassphraseCard from './PassphraseCard.vue';
 import ProjectLinks from '@/ui/components/ProjectLinks.vue';
 import ThemeToggle from '@/ui/components/ThemeToggle.vue';
 import UpdateBanner from '@/ui/components/UpdateBanner.vue';
@@ -23,52 +23,24 @@ import { t } from '@/ui/i18n';
 import { THEME_VALUES, saveTheme, themeLabel, themePreference as theme } from '@/ui/theme';
 
 const view = ref<ConfigView>({ configured: false });
-const baseUrl = ref('');
-const apiKey = ref('');
-const passphrase = ref('');
-const confirmation = ref('');
 const busy = ref(false);
 const error = ref<ErrorCode | null>(null);
-const mismatch = ref(false);
 const success = ref<string | null>(null);
 const historyCard = ref<InstanceType<typeof HistoryCard> | null>(null);
 /**
  * Spec 016: from two instances on, one card per instance (InstancesCard). With a single instance, the page keeps
- * its former form (address, key, passphrase), plus « Add an instance ».
+ * its former form (address, key, passphrase), which changes this instance (`instance/update`), with its name.
  */
 const multi = computed(() => (view.value.instances?.length ?? 0) > 1);
 const current = computed(() => defaultInstance(view.value));
 
-/**
- * New key (or key migrated from the old format): a passphrase is chosen, with confirmation.
- * Kept key: the current passphrase is used to decrypt it.
- */
-const choosingPassphrase = computed(
-  () => !view.value.configured || apiKey.value.trim() !== '' || view.value.needsPassphrase === true,
-);
-
-/**
- * Locked + new API key (so a new passphrase): the encrypted history cannot be re-sealed and will be erased by
- * the save (R5.5). Said before sending, never silently.
- */
-const historyResetWarning = computed(
-  () =>
-    view.value.configured === true &&
-    view.value.locked === true &&
-    !view.value.needsPassphrase &&
-    choosingPassphrase.value &&
-    apiKey.value.trim() !== '',
-);
-
 async function refresh() {
   view.value = await send({ type: 'config/get' });
-  baseUrl.value = view.value.baseUrl ?? '';
 }
 
 /** 013: the first load is an opening (R3, "every open" lock); the following refreshes stay config/get. */
 onMounted(async () => {
   view.value = await send({ type: 'session/open' });
-  baseUrl.value = view.value.baseUrl ?? '';
   try {
     browser.runtime.connect({ name: 'ui-presence' });
   } catch {
@@ -81,7 +53,7 @@ onUnmounted(() => document.removeEventListener('visibilitychange', onVisibility)
 
 /**
  * Back to a hidden tab: the displayed state follows an automatic lock that happened meanwhile. Only the view is
- * reloaded, so that an address being typed is not overwritten.
+ * reloaded; the form keeps what is being typed.
  */
 async function onVisibility() {
   if (document.visibilityState !== 'visible') return;
@@ -92,62 +64,6 @@ async function onTheme() {
   await saveTheme(theme.value);
 }
 
-function reset() {
-  apiKey.value = '';
-  passphrase.value = '';
-  confirmation.value = '';
-}
-
-async function saveAndTest() {
-  error.value = null;
-  mismatch.value = false;
-  success.value = null;
-  const url = normalizeBaseUrl(baseUrl.value);
-  if (!url.ok) {
-    error.value = url.error;
-    return;
-  }
-  if (!view.value.configured && apiKey.value.trim() === '') {
-    error.value = 'UNAUTHORIZED';
-    return;
-  }
-  if (passphrase.value.length < MIN_PASSPHRASE_LENGTH) {
-    error.value = 'WEAK_PASSPHRASE';
-    return;
-  }
-  if (choosingPassphrase.value && passphrase.value !== confirmation.value) {
-    mismatch.value = true;
-    return;
-  }
-  // Must stay in the click handler: Chrome requires a user gesture.
-  // An origin not covered by optional_host_permissions throws an exception.
-  const granted = await requestOrigin(url.value.origin).catch(() => false);
-  if (!granted) {
-    error.value = 'PERMISSION_DENIED';
-    return;
-  }
-  busy.value = true;
-  try {
-    const result = await send({
-      type: 'config/save',
-      baseUrl: url.value.baseUrl,
-      apiKey: apiKey.value.trim(),
-      passphrase: passphrase.value,
-    });
-    if (result.ok) {
-      success.value = t('options.savedAndConnected');
-      reset();
-    } else {
-      error.value = result.error;
-      // The configuration is saved even if the test fails (except input errors).
-      if (!['WRONG_PASSPHRASE', 'WEAK_PASSPHRASE', 'UNAUTHORIZED', 'PERMISSION_DENIED'].includes(result.error)) reset();
-    }
-  } finally {
-    busy.value = false;
-    await refresh();
-  }
-}
-
 /** First installation (`instance/add`, new passphrase): same messages as the former form. */
 async function onFirstInstance({ error: code }: { name: string; error: ErrorCode | null }) {
   error.value = code;
@@ -155,12 +71,27 @@ async function onFirstInstance({ error: code }: { name: string; error: ErrorCode
   await refresh();
 }
 
+/** Single instance changed (`instance/update`): the form shows its own messages; the view is reloaded. */
+async function onSaved() {
+  error.value = null;
+  success.value = null;
+  await refresh();
+}
+
+async function onChanged(history?: boolean) {
+  await refresh();
+  if (history) await historyCard.value?.reload();
+}
+
+/** Single instance: the session's test button (`instance/test`). */
 async function test() {
+  const instance = current.value;
+  if (!instance) return;
   error.value = null;
   success.value = null;
   busy.value = true;
   try {
-    const result = await send({ type: 'config/test' });
+    const result = await send({ type: 'instance/test', instanceId: instance.id });
     if (result.ok) success.value = t('options.connected');
     else error.value = result.error;
   } finally {
@@ -169,15 +100,23 @@ async function test() {
   }
 }
 
+/** The origin permission was withdrawn from the browser settings: asked again in the click (user gesture). */
+async function requestAccess() {
+  const instance = current.value;
+  if (!instance) return;
+  const granted = await requestOrigin(originOf(instance.baseUrl)).catch(() => false);
+  if (granted) error.value = null;
+}
+
 async function lock() {
   view.value = await send({ type: 'session/lock' });
   success.value = null;
 }
 
+/** Global deletion (every instance), with its own wording from two instances on (US4-9). */
 async function remove() {
-  if (!window.confirm(t('options.confirmDelete'))) return;
+  if (!window.confirm(multi.value ? t('options.confirmDeleteAll') : t('options.confirmDelete'))) return;
   await send({ type: 'config/delete' });
-  reset();
   success.value = null;
   error.value = null;
   await refresh();
@@ -215,84 +154,27 @@ async function remove() {
         </template>
       </div>
 
+      <PassphraseCard v-if="view.configured && !view.needsPassphrase" :view="view" @changed="refresh" />
+
+      <ErrorBanner v-if="error" :code="error">
+        <button v-if="error === 'PERMISSION_DENIED' && view.configured" type="button" @click="requestAccess">
+          {{ t('instances.requestAccess') }}
+        </button>
+      </ErrorBanner>
+      <p v-if="success" class="success" role="status">{{ success }}</p>
+
       <InstanceForm v-if="!view.configured" :view="view" @done="onFirstInstance" />
 
-      <form v-else-if="!multi" @submit.prevent="saveAndTest">
-        <label for="baseUrl">{{ t('options.baseUrl') }}</label>
-        <input
-          id="baseUrl"
-          v-model="baseUrl"
-          type="url"
-          required
-          placeholder="https://homebox.example.com"
-          autocomplete="url"
-        />
-
-        <label for="apiKey">{{ t('options.apiKey') }}</label>
-        <input
-          id="apiKey"
-          v-model="apiKey"
-          type="password"
-          autocomplete="off"
-          spellcheck="false"
-          :placeholder="view.maskedKey ?? 'hb_…'"
-          :required="!view.configured"
-          aria-describedby="apiKeyHelp"
-        />
-        <p id="apiKeyHelp" class="help">
-          {{ t('options.apiKeyHelp') }}
-          <template v-if="view.configured">{{ t('options.keepKeyHint') }}</template>
-        </p>
-
-        <label for="passphrase">
-          {{ choosingPassphrase ? t('options.passphraseNew') : t('options.passphraseCurrent') }}
-        </label>
-        <input
-          id="passphrase"
-          v-model="passphrase"
-          type="password"
-          autocomplete="new-password"
-          required
-          :minlength="MIN_PASSPHRASE_LENGTH"
-          aria-describedby="passphraseHelp"
-        />
-        <template v-if="choosingPassphrase">
-          <label for="confirmation">{{ t('options.passphraseConfirm') }}</label>
-          <input
-            id="confirmation"
-            v-model="confirmation"
-            type="password"
-            autocomplete="new-password"
-            required
-            :aria-invalid="mismatch"
-          />
+      <InstanceForm v-else-if="!multi && current" :view="view" mode="edit" :instance="current" plain-ids @done="onSaved">
+        <template #actions="{ busy: saving }">
+          <button type="button" :disabled="saving || busy" @click="remove">{{ t('options.deleteConfig') }}</button>
         </template>
-        <p id="passphraseHelp" class="help">
-          <template v-if="choosingPassphrase">
-            {{ t('options.passphraseHelpNew', [String(MIN_PASSPHRASE_LENGTH)]) }}
-          </template>
-          <template v-else>{{ t('options.passphraseHelpCurrent') }}</template>
-        </p>
+      </InstanceForm>
 
-        <p v-if="historyResetWarning" class="notice" role="alert">{{ t('options.historyResetNotice') }}</p>
-        <p v-if="mismatch" class="error" role="alert">{{ t('options.mismatch') }}</p>
-        <ErrorBanner v-if="error" :code="error" />
-        <p v-if="success" class="success" role="status">{{ success }}</p>
-
-        <div class="actions">
-          <button class="primary" type="submit" :disabled="busy">
-            {{ busy ? t('options.saving') : t('options.saveAndTest') }}
-          </button>
-          <button v-if="view.configured" type="button" :disabled="busy" @click="remove">
-            {{ t('options.deleteConfig') }}
-          </button>
-        </div>
-      </form>
-
-      <InstancesCard v-if="view.configured" :view="view" @changed="refresh" />
+      <InstancesCard v-if="view.configured" :view="view" @changed="onChanged" />
 
       <div v-if="multi" class="actions">
-        <button type="button" :disabled="busy" @click="remove">{{ t('options.deleteConfig') }}</button>
+        <button type="button" :disabled="busy" @click="remove">{{ t('options.deleteAll') }}</button>
       </div>
     </section>
 

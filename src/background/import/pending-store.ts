@@ -37,6 +37,15 @@ export const pendingStore = {
     );
   },
 
+  /** Spec 016 (US4-6): removes every `pendingImport:*` whose target is this instance (deleted instance). */
+  async removeByInstance(instanceId: string): Promise<void> {
+    const all = await browser.storage.session.get(null);
+    const keys = Object.entries(all)
+      .filter(([k, v]) => k.startsWith(PENDING_PREFIX) && (v as Partial<PendingImport> | null)?.instanceId === instanceId)
+      .map(([k]) => k);
+    if (keys.length) await browser.storage.session.remove(keys);
+  },
+
   async purge(pending: Pick<PendingImport, 'tabId' | 'id'>): Promise<void> {
     await browser.storage.session.remove(keyOf(pending));
   },

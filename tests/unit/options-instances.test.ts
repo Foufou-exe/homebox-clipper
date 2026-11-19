@@ -45,9 +45,6 @@ const view = (instances: InstanceView[], over: Partial<ConfigView> = {}): Config
   instances,
   defaultInstanceId: instances[0]?.id ?? null,
   maxInstances: 10,
-  baseUrl: instances[0]?.baseUrl,
-  maskedKey: instances[0]?.maskedKey,
-  lastCheck: null,
   ...over,
 });
 
@@ -449,5 +446,303 @@ describe('options: InstancesCard alone, in English (016, US2, T059/T060)', () =>
     expect(w.findAll('section[role="group"]')[0]!.attributes('aria-label')).toBe(
       makeGetMessage(en)('instances.cardAria', ['n0']),
     );
+  });
+});
+
+describe('options: managing the instances (016, US4, T081)', () => {
+  const card = (w: VueWrapper, name: string) =>
+    w.findAll('section[role="group"]').find((c) => c.get('h2').text() === name)!;
+  const inCard = (w: VueWrapper, name: string, text: string) =>
+    card(w, name).findAll('button').find((b) => b.text() === text);
+
+  it('(a) « Renommer »: inline field + « Enregistrer le nom », instance/rename without passphrase', async () => {
+    let current = view([inst(), B]);
+    serve(() => current, {
+      'instance/rename': (m: MessageOf<MessageType>) => {
+        current = view([inst(), { ...B, name: (m as { name: string }).name }]);
+        return ok(current);
+      },
+    });
+    const w = await options();
+    await inCard(w, 'Atelier', fr['instances.rename']!)!.trigger('click');
+    const field = card(w, 'Atelier').get('form.rename input');
+    expect((field.element as HTMLInputElement).value).toBe('Atelier');
+    expect(field.attributes('maxlength')).toBe('50');
+    expect(document.activeElement).toBe(field.element);
+    await field.setValue('Garage');
+    await inCard(w, 'Atelier', fr['instances.saveName']!)!.trigger('click');
+    await flushPromises();
+    expect(sent('instance/rename')).toEqual([{ type: 'instance/rename', instanceId: 'inst-b', name: 'Garage' }]);
+    expect(JSON.stringify(sent('instance/rename'))).not.toMatch(/passphrase/);
+    expect(card(w, 'Garage')).toBeDefined();
+  });
+
+  it('(a) a refused name: the error is shown on the card, prefixed with the instance name', async () => {
+    serve(() => view([inst(), B]), { 'instance/rename': fail('INSTANCE_NAME_TAKEN') });
+    const w = await options();
+    await inCard(w, 'Atelier', fr['instances.rename']!)!.trigger('click');
+    await card(w, 'Atelier').get('form.rename input').setValue('maison');
+    await card(w, 'Atelier').get('form.rename').trigger('submit');
+    await flushPromises();
+    expect(card(w, 'Atelier').get('[role="alert"]').text()).toBe(
+      tr('common.instanceError', ['Atelier', fr['error.INSTANCE_NAME_TAKEN']!]),
+    );
+  });
+
+  it('(b) « Tester la connexion » sends instance/test with the id of the card; only while unlocked', async () => {
+    serve(() => view([inst(), B]), { 'instance/test': ok(view([inst(), B])) });
+    const w = await options();
+    await inCard(w, 'Atelier', fr['options.test']!)!.trigger('click');
+    await flushPromises();
+    expect(sent('instance/test')).toEqual([{ type: 'instance/test', instanceId: 'inst-b' }]);
+    serve(() => view([inst(), B], { locked: true }));
+    const locked = await options();
+    expect(inCard(locked, 'Atelier', fr['options.test']!)).toBeUndefined();
+  });
+
+  it('(c) « Modifier l’adresse ou la clé »: the form in edit mode; requestOrigin only for a new origin, then instance/update', async () => {
+    serve(() => view([inst(), B]), { 'instance/update': ok(view([inst(), B])) });
+    const w = await options();
+    await inCard(w, 'Atelier', fr['instances.edit']!)!.trigger('click');
+    const form = card(w, 'Atelier').get('form.instance-edit-form');
+    expect((form.get('input[name="baseUrl"]').element as HTMLInputElement).value).toBe('https://inventaire.example.org');
+    expect(form.get('input[name="apiKey"]').attributes('placeholder')).toBe('hb_••••bbbb');
+    expect(form.find('input[name="confirmation"]').exists()).toBe(false);
+    await form.get('input[name="passphrase"]').setValue(PASSPHRASE);
+    order = [];
+    await form.trigger('submit');
+    await flushPromises();
+    // Same origin: no permission request.
+    expect(order.filter((o) => o.startsWith('requestOrigin'))).toEqual([]);
+    expect(sent('instance/update')).toEqual([
+      { type: 'instance/update', instanceId: 'inst-b', baseUrl: 'https://inventaire.example.org', apiKey: '', passphrase: PASSPHRASE, newPassphrase: false },
+    ]);
+
+    await inCard(w, 'Atelier', fr['instances.edit']!)!.trigger('click');
+    const again = card(w, 'Atelier').get('form.instance-edit-form');
+    await again.get('input[name="baseUrl"]').setValue('https://autre.example.net');
+    await again.get('input[name="apiKey"]').setValue('hb_dddddddd');
+    await again.get('input[name="passphrase"]').setValue(PASSPHRASE);
+    order = [];
+    await again.trigger('submit');
+    await flushPromises();
+    expect(order.slice(0, 2)).toEqual(['requestOrigin:https://autre.example.net', 'send:instance/update']);
+    // With several instances, a new key keeps the current passphrase.
+    expect(sent('instance/update')[1]).toMatchObject({ apiKey: 'hb_dddddddd', newPassphrase: false });
+  });
+
+  it('(c) the address of another instance: named, no permission asked, nothing sent', async () => {
+    serve(() => view([inst(), B]));
+    const w = await options();
+    await inCard(w, 'Atelier', fr['instances.edit']!)!.trigger('click');
+    const form = card(w, 'Atelier').get('form.instance-edit-form');
+    await form.get('input[name="baseUrl"]').setValue('https://homebox.example.com/');
+    await form.get('input[name="passphrase"]').setValue(PASSPHRASE);
+    await form.trigger('submit');
+    await flushPromises();
+    expect(card(w, 'Atelier').text()).toContain(tr('instances.existing', ['Maison']));
+    expect(requestOrigin).not.toHaveBeenCalled();
+    expect(sent('instance/update')).toHaveLength(0);
+  });
+
+  it('(d) « Supprimer cette instance »: the confirmation names it; refused → nothing sent', async () => {
+    const confirm = vi.fn(() => false);
+    vi.stubGlobal('confirm', confirm);
+    serve(() => view([inst(), B]));
+    const w = await options();
+    await inCard(w, 'Atelier', fr['instances.delete']!)!.trigger('click');
+    expect(confirm).toHaveBeenCalledWith(tr('instances.confirmDelete', ['Atelier']));
+    expect(sent('instance/delete')).toHaveLength(0);
+    vi.unstubAllGlobals();
+  });
+
+  it('(d) confirmed: instance/delete, announced by name in a status region, the history is reloaded', async () => {
+    vi.stubGlobal('confirm', () => true);
+    let current = view([inst(), B]);
+    serve(() => current, {
+      'instance/delete': () => {
+        current = view([inst()]);
+        return ok(current);
+      },
+    });
+    const w = await options();
+    const before = sent('history/list').length;
+    await inCard(w, 'Atelier', fr['instances.delete']!)!.trigger('click');
+    await flushPromises();
+    expect(sent('instance/delete')).toEqual([{ type: 'instance/delete', instanceId: 'inst-b' }]);
+    const status = w.get('.instances-announce');
+    expect(status.element.tagName).toBe('OUTPUT');
+    expect(status.text()).toBe(tr('instances.deleted', ['Atelier']));
+    expect(sent('history/list').length).toBe(before + 1);
+    vi.unstubAllGlobals();
+  });
+
+  it('(d) INSTANCE_BUSY is shown on the card, named', async () => {
+    vi.stubGlobal('confirm', () => true);
+    serve(() => view([inst(), B]), { 'instance/delete': fail('INSTANCE_BUSY') });
+    const w = await options();
+    await inCard(w, 'Atelier', fr['instances.delete']!)!.trigger('click');
+    await flushPromises();
+    expect(card(w, 'Atelier').get('[role="alert"]').text()).toBe(
+      tr('common.instanceError', ['Atelier', fr['error.INSTANCE_BUSY']!]),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('(e) two instances: global « Supprimer toute la configuration » with its own confirmation; one instance: unchanged', async () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal('confirm', confirm);
+    serve(() => view([inst(), B]));
+    const w = await options();
+    expect(button(w, fr['options.deleteConfig']!)).toBeUndefined();
+    await button(w, fr['options.deleteAll']!)!.trigger('click');
+    await flushPromises();
+    expect(confirm).toHaveBeenLastCalledWith(fr['options.confirmDeleteAll']);
+    expect(sent('config/delete')).toHaveLength(1);
+
+    serve(() => view([inst()]));
+    const one = await options();
+    expect(button(one, fr['options.deleteAll']!)).toBeUndefined();
+    await button(one, fr['options.deleteConfig']!)!.trigger('click');
+    expect(confirm).toHaveBeenLastCalledWith(fr['options.confirmDelete']);
+    vi.unstubAllGlobals();
+  });
+
+  it.each(['unreadable', 'missing'] as const)('(f) keyState %s: « Clé à ressaisir » in a status region of the card', async (keyState) => {
+    serve(() => view([inst(), { ...B, keyState }]));
+    const w = await options();
+    const status = card(w, 'Atelier').get('.key-state');
+    expect(status.attributes('role')).toBe('status');
+    expect(status.text()).toBe(fr['instances.keyUnreadable']);
+    expect(card(w, 'Maison').find('.key-state').exists()).toBe(false);
+  });
+
+  it('(g) PERMISSION_DENIED from a test: « Redemander l’accès » asks for the origin of this instance in the click', async () => {
+    serve(() => view([inst(), B]), { 'instance/test': fail('PERMISSION_DENIED') });
+    const w = await options();
+    await inCard(w, 'Atelier', fr['options.test']!)!.trigger('click');
+    await flushPromises();
+    expect(requestOrigin).not.toHaveBeenCalled();
+    await inCard(w, 'Atelier', fr['instances.requestAccess']!)!.trigger('click');
+    await flushPromises();
+    expect(requestOrigin).toHaveBeenCalledWith('https://inventaire.example.org');
+  });
+
+  it('(c) a single instance: the former form is the edit form (instance/update), with the name; a name alone is a rename', async () => {
+    let current = view([inst()]);
+    serve(() => current, {
+      'instance/update': ok(view([inst()])),
+      'instance/rename': () => {
+        current = view([inst({ name: 'Chalet' })]);
+        return ok(current);
+      },
+    });
+    const w = await options();
+    expect((w.get('#instanceName').element as HTMLInputElement).value).toBe('Maison');
+    await w.get('#passphrase').setValue(PASSPHRASE);
+    await w.findAll('form').find((f) => f.find('#baseUrl').exists())!.trigger('submit');
+    await flushPromises();
+    expect(sent('instance/update')).toEqual([
+      { type: 'instance/update', instanceId: 'inst-a', baseUrl: 'https://homebox.example.com', apiKey: '', passphrase: PASSPHRASE, newPassphrase: false },
+    ]);
+    expect(w.text()).toContain(fr['options.savedAndConnected']);
+
+    // A name alone: no passphrase required, instance/rename only.
+    await w.get('#instanceName').setValue('Chalet');
+    expect(w.get('#passphrase').attributes('required')).toBeUndefined();
+    await w.findAll('form').find((f) => f.find('#baseUrl').exists())!.trigger('submit');
+    await flushPromises();
+    expect(sent('instance/rename')).toEqual([{ type: 'instance/rename', instanceId: 'inst-a', name: 'Chalet' }]);
+    expect(sent('instance/update')).toHaveLength(1);
+  });
+
+  it('(c) a single instance, new key typed: a new passphrase with confirmation (as before), newPassphrase: true', async () => {
+    serve(() => view([inst()]), { 'instance/update': ok(view([inst()])) });
+    const w = await options();
+    await w.get('#apiKey').setValue('hb_dddddddd');
+    expect(w.text()).toContain(fr['options.passphraseNew']);
+    await w.get('#passphrase').setValue(PASSPHRASE);
+    await w.get('#confirmation').setValue(PASSPHRASE);
+    await w.findAll('form').find((f) => f.find('#baseUrl').exists())!.trigger('submit');
+    await flushPromises();
+    expect(sent('instance/update')[0]).toMatchObject({ apiKey: 'hb_dddddddd', newPassphrase: true });
+  });
+
+  it('(b) a single instance: the test button of the session sends instance/test for it', async () => {
+    serve(() => view([inst()]), { 'instance/test': ok(view([inst()])) });
+    const w = await options();
+    await button(w, fr['options.test']!)!.trigger('click');
+    await flushPromises();
+    expect(sent('instance/test')).toEqual([{ type: 'instance/test', instanceId: 'inst-a' }]);
+    expect(w.text()).toContain(fr['options.connected']);
+  });
+});
+
+describe('options: changing the passphrase (016, US5, T089)', () => {
+  const open = async (w: VueWrapper) => {
+    await button(w, fr['passphrase.changeTitle']!)!.trigger('click');
+    await flushPromises();
+    return w.get('form.passphrase-form');
+  };
+  const fillPass = async (form: ReturnType<VueWrapper['get']>, current: string, next: string, confirm: string) => {
+    await form.get('input[name="current"]').setValue(current);
+    await form.get('input[name="next"]').setValue(next);
+    await form.get('input[name="confirm"]').setValue(confirm);
+  };
+
+  it('three fields, session/change-passphrase, « Phrase de passe changée… » in a status region', async () => {
+    serve(() => view([inst(), B]), { 'session/change-passphrase': ok({ view: view([inst(), B]), reenter: [] }) });
+    const w = await options();
+    const form = await open(w);
+    expect(form.text()).toContain(fr['passphrase.current']);
+    expect(form.text()).toContain(fr['passphrase.next']);
+    expect(form.text()).toContain(fr['passphrase.confirm']);
+    expect(document.activeElement).toBe(form.get('input[name="current"]').element);
+    await fillPass(form, PASSPHRASE, 'nouvelle phrase 456', 'nouvelle phrase 456');
+    await form.trigger('submit');
+    await flushPromises();
+    expect(sent('session/change-passphrase')).toEqual([
+      { type: 'session/change-passphrase', current: PASSPHRASE, next: 'nouvelle phrase 456' },
+    ]);
+    expect(w.get('.passphrase-status').attributes('role')).toBe('status');
+    expect(w.get('.passphrase-status').text()).toBe(fr['passphrase.changed']);
+  });
+
+  it('a different confirmation is refused without sending', async () => {
+    serve(() => view([inst()]));
+    const w = await options();
+    const form = await open(w);
+    await fillPass(form, PASSPHRASE, 'nouvelle phrase 456', 'autre phrase 789');
+    await form.trigger('submit');
+    await flushPromises();
+    expect(form.text()).toContain(fr['options.mismatch']);
+    expect(sent('session/change-passphrase')).toHaveLength(0);
+  });
+
+  it('wrong current passphrase: the error is shown', async () => {
+    serve(() => view([inst()]), { 'session/change-passphrase': fail('WRONG_PASSPHRASE') });
+    const w = await options();
+    const form = await open(w);
+    await fillPass(form, 'mauvaise phrase 1', 'nouvelle phrase 456', 'nouvelle phrase 456');
+    await form.trigger('submit');
+    await flushPromises();
+    expect(form.get('[role="alert"]').text()).toBe(fr['error.WRONG_PASSPHRASE']);
+  });
+
+  it('keys to re-enter: « instances.reenterAfterChange » lists their NAMES', async () => {
+    const after = view([inst(), { ...B, keyState: 'missing' }]);
+    serve(() => after, { 'session/change-passphrase': ok({ view: after, reenter: ['inst-b'] }) });
+    const w = await options();
+    const form = await open(w);
+    await fillPass(form, PASSPHRASE, 'nouvelle phrase 456', 'nouvelle phrase 456');
+    await form.trigger('submit');
+    await flushPromises();
+    expect(w.get('.passphrase-status').text()).toBe(tr('instances.reenterAfterChange', ['Atelier']));
+  });
+
+  it('not offered for a legacy key without passphrase', async () => {
+    serve(() => view([inst()], { needsPassphrase: true }));
+    const w = await options();
+    expect(button(w, fr['passphrase.changeTitle']!)).toBeUndefined();
   });
 });

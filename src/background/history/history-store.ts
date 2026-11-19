@@ -1,4 +1,5 @@
 import { HISTORY_PREFIX, HISTORY_SETTINGS_KEY } from '@/background/config/config-store';
+import { instanceStore } from '@/background/config/instance-store';
 import { activeImports } from '@/background/import/active-imports';
 import { browser } from '@/platform';
 import type { HistoryEntryView, ImportHistoryEntry, PendingImport } from '@/shared/types';
@@ -28,11 +29,23 @@ function instOf(raw: unknown): string | undefined {
   return typeof inst === 'string' && inst !== '' ? inst : undefined;
 }
 
+/** Ids of the configured instances; `null` when no configuration is readable (nothing is then pruned by `inst`). */
+async function configuredInstanceIds(): Promise<ReadonlySet<string> | null> {
+  const store = await instanceStore.read();
+  return store ? new Set(store.instances.map((i) => i.id)) : null;
+}
+
 export function createHistoryStore(
-  deps: { clock?: () => number; isActive?: (id: string) => boolean } = {},
+  deps: {
+    clock?: () => number;
+    isActive?: (id: string) => boolean;
+    /** Spec 016: the instance ids that exist; an envelope whose `inst` is not among them is removed (SC-008). */
+    instanceIds?: () => Promise<ReadonlySet<string> | null>;
+  } = {},
 ) {
   const clock = deps.clock ?? Date.now;
   const isActive = deps.isActive ?? (() => false);
+  const instanceIds = deps.instanceIds ?? (async () => null);
   const local = () => browser.storage.local;
 
   // Shared queue (module `history-queue.ts`): also serializes the erasing done by `config-store.ts`.
@@ -80,8 +93,18 @@ export function createHistoryStore(
     reconcileOrphans: boolean,
   ): Promise<Array<{ entry: ImportHistoryEntry; inst?: string }>> {
     const { all, keys } = await historyKeys();
+    // Spec 016 (SC-008): an entry of an instance that no longer exists is removed (deletion interrupted midway).
+    const known = await instanceIds();
+    const orphans = known
+      ? keys.filter((k) => {
+          const inst = instOf(all[k]);
+          return inst !== undefined && !known.has(inst);
+        })
+      : [];
+    if (orphans.length) await local().remove(orphans);
     const opened: Array<{ id: string; entry: ImportHistoryEntry | null; inst?: string }> = [];
     for (const k of keys) {
+      if (orphans.includes(k)) continue;
       const id = k.slice(HISTORY_PREFIX.length);
       const entry = await open(all[k], key, id);
       if (entry === 'future') continue;
@@ -179,6 +202,18 @@ export function createHistoryStore(
       return enqueue(() => local().remove(keyOf(id)));
     },
 
+    /**
+     * Spec 016 (US4-6): removes every envelope of this instance (`inst === instanceId`). Without the key: works while
+     * locked. In the queue, so that an import of this instance finishing meanwhile cannot write its entry back.
+     */
+    removeInstance(instanceId: string): Promise<void> {
+      return enqueue(async () => {
+        const { all, keys } = await historyKeys();
+        const removed = keys.filter((k) => instOf(all[k]) === instanceId);
+        if (removed.length) await local().remove(removed);
+      });
+    },
+
     /** Removes every `importHistory:*` key (unreadable and later versions included); keeps the setting. */
     clear(): Promise<void> {
       return enqueue(removeAll);
@@ -206,4 +241,7 @@ export function createHistoryStore(
 
 export type HistoryStore = ReturnType<typeof createHistoryStore>;
 
-export const historyStore = createHistoryStore({ isActive: (id) => activeImports.has(id) });
+export const historyStore = createHistoryStore({
+  isActive: (id) => activeImports.has(id),
+  instanceIds: configuredInstanceIds,
+});

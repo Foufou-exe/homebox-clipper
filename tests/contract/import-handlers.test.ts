@@ -1,6 +1,10 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { configStore } from '@/background/config/config-store';
 import { activeImports, registerImportHandlers } from '@/background/import/handlers';
+import { activeTargets } from '@/background/import/active-imports';
+import { registerConfigHandlers } from '@/background/config/handlers';
+import { importHistoryKey, open } from '@/background/history/history-crypto';
+import { historyStore } from '@/background/history/history-store';
 import { pendingStore } from '@/background/import/pending-store';
 import { dispatch } from '@/background/router';
 import { fail, ok } from '@/shared/errors';
@@ -557,5 +561,175 @@ describe('the target chosen in the summary, with two real instances (016, US3, S
     })) as { ok: boolean; value: PendingImport[] };
     expect(res.value[0]?.status).toBe('partial');
     expect((await fakeBrowser.storage.local.get('lastInstanceId')).lastInstanceId).toBe(A.id);
+  });
+});
+
+describe('active imports per instance and pending removal by instance (016, US4, Q-C2, T080)', () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(configStore, 'getCredentials').mockImplementation(async (id: string) =>
+      ok({ id, baseUrl: 'https://homebox.example.com', apiKey: 'hb_test_key_0000' }),
+    );
+    activeImports.clear();
+    activeTargets.clear();
+    registerImportHandlers();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('import/start: activeTargets[instance] is incremented during the import and released at the end; activeImports unchanged', async () => {
+    const hb = blockedHomebox();
+    vi.stubGlobal('fetch', hb.fetchMock);
+    const started = call({ type: 'import/start', instanceId: 'inst-b', tabId: 5, manualFiles: [], drafts: [draft({ documents: [] })] });
+    await vi.waitFor(() => expect(hb.posts).toHaveLength(1));
+    expect(activeTargets.get('inst-b')).toBe(1);
+    expect(activeTargets.get('inst-a')).toBeUndefined();
+    expect(activeImports.size).toBe(1);
+    hb.release();
+    await started;
+    expect(activeTargets.get('inst-b') ?? 0).toBe(0);
+    expect(activeImports.size).toBe(0);
+  });
+
+  it('import/retry: the instance of the pending import is active during the resume, released even on a refusal', async () => {
+    await pendingStore.save(failedPending());
+    const hb = blockedHomebox();
+    vi.stubGlobal('fetch', hb.fetchMock);
+    const retry = call({ type: 'import/retry', pendingId: 'r1', manualFiles: [] });
+    await vi.waitFor(() => expect(hb.posts).toHaveLength(1));
+    expect(activeTargets.get('inst-a')).toBe(1);
+    hb.release();
+    await retry;
+    expect(activeTargets.get('inst-a') ?? 0).toBe(0);
+    vi.mocked(configStore.getCredentials).mockResolvedValue(fail('LOCKED'));
+    await pendingStore.save(failedPending());
+    expect(await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [] })).toEqual({ ok: false, error: 'LOCKED' });
+    expect(activeTargets.get('inst-a') ?? 0).toBe(0);
+  });
+
+  it('pendingStore.removeByInstance(id) removes the pendingImport:* of this instance only', async () => {
+    await pendingStore.save({ ...failedPending(), id: 'a1', instanceId: 'inst-a' });
+    await pendingStore.save({ ...failedPending(), id: 'b1', instanceId: 'inst-b' });
+    await pendingStore.save({ ...failedPending(), id: 'b2', tabId: 9, instanceId: 'inst-b' });
+    const legacy: Partial<PendingImport> = { ...failedPending(), id: 'n1' };
+    delete legacy.instanceId;
+    await pendingStore.save(legacy as PendingImport);
+    await pendingStore.removeByInstance('inst-b');
+    expect([...(await pendingStore.ids())].sort()).toEqual(['a1', 'n1']);
+  });
+});
+
+describe('a resume always targets the instance of origin (016, US6, SC-006, FR-018, Q-C2, T095)', () => {
+  interface Seen {
+    url: string;
+    method: string;
+    auth: string | null;
+  }
+  function homebox(mode: 'ok' | 'network' = 'ok') {
+    const seen: Seen[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        const url = String(input);
+        const method = init.method ?? 'GET';
+        seen.push({ url, method, auth: new Headers(init.headers).get('Authorization') });
+        if (mode === 'network') throw new TypeError('Failed to fetch');
+        if (url.includes('/entities?')) return reply(200, { items: [] });
+        if (method === 'POST' && url.endsWith('/entities')) return reply(201, { id: 'e1', name: 'x' });
+        return reply(200, { id: 'e1', name: 'x' });
+      }),
+    );
+    return seen;
+  }
+  const onlyA = (seen: Seen[]) => {
+    expect(seen.length).toBeGreaterThan(0);
+    for (const s of seen) {
+      expect(s.url.startsWith(`${A.baseUrl}/`), s.url).toBe(true);
+      expect(s.auth).toBe(`Bearer ${A.apiKey}`);
+    }
+    expect(JSON.stringify(seen)).not.toContain('inventaire.example.org');
+    expect(JSON.stringify(seen)).not.toContain(B.apiKey);
+  };
+
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(fakeBrowser.runtime, 'sendMessage').mockImplementation((async () => undefined) as never);
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+    vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(true as never);
+    activeImports.clear();
+    activeTargets.clear();
+    registerImportHandlers();
+    registerConfigHandlers();
+    await seedStore(await buildStore({ instances: [A, B], historyKey: crypto.getRandomValues(new Uint8Array(32)) }));
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    // B is the proposed instance (last successful import) when the resume of A is asked.
+    await fakeBrowser.storage.local.set({ lastInstanceId: B.id });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('(a) B proposed by default: the resume of an import started to A only contacts A, with A’s key (US6-1)', async () => {
+    expect((await configStore.getView()).defaultInstanceId).toBe(B.id);
+    await pendingStore.save({ ...failedPending(), instanceId: A.id });
+    const seen = homebox();
+    expect(await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [] })).toMatchObject({ ok: true, value: { instanceId: A.id } });
+    onlyA(seen);
+  });
+
+  it('(b) a location chosen at the resume is used with the instance of the import', async () => {
+    await pendingStore.save({ ...failedPending(), instanceId: A.id, error: 'LOCATION_NOT_FOUND' });
+    const seen = homebox();
+    const res = await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [], location: { id: 'loc-a2', path: ['Cave'] } });
+    expect(res).toMatchObject({ ok: true, value: { instanceId: A.id } });
+    const post = seen.find((s) => s.method === 'POST' && s.url.endsWith('/entities'))!;
+    expect(post.url).toBe(`${A.baseUrl}/api/v1/entities`);
+    onlyA(seen);
+    expect((await fakeBrowser.storage.local.get('lastLocationByInstance')).lastLocationByInstance ?? {}).not.toHaveProperty(B.id);
+  });
+
+  it('(c) A deleted: its pending import is erased with it, import/retry → BAD_MESSAGE, 0 request (US6-2)', async () => {
+    await pendingStore.save({ ...failedPending(), instanceId: A.id });
+    const seen = homebox();
+    expect(await call({ type: 'instance/delete', instanceId: A.id })).toMatchObject({ ok: true });
+    expect(await pendingStore.get('r1')).toBeNull();
+    expect(await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [] })).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(seen).toEqual([]);
+  });
+
+  it('(d) A unreachable at the resume: the usual error, no request to B (US6-3)', async () => {
+    await pendingStore.save({ ...failedPending(), instanceId: A.id });
+    const seen = homebox('network');
+    const res = (await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [] })) as { ok: boolean; value?: PendingImport };
+    expect(res.value?.status ?? 'failed').not.toBe('success');
+    onlyA(seen);
+  });
+
+  it('(e) an instanceId or a baseUrl slipped into import/retry is ignored: the target stays the one of the import', async () => {
+    await pendingStore.save({ ...failedPending(), instanceId: A.id });
+    const seen = homebox();
+    await call({ type: 'import/retry', pendingId: 'r1', manualFiles: [], instanceId: B.id, baseUrl: B.baseUrl });
+    onlyA(seen);
+  });
+
+  it('(f) import/abandon works locked and without network', async () => {
+    await pendingStore.save({ ...failedPending(), instanceId: A.id });
+    await configStore.lock();
+    const seen = homebox('network');
+    expect(await call({ type: 'import/abandon', pendingId: 'r1' })).toEqual({ ok: true, value: undefined });
+    expect(await pendingStore.get('r1')).toBeNull();
+    expect(seen).toEqual([]);
+  });
+
+  it('(g) recoverOrphan keeps instanceId; the reconciliation writes into the history entry of this instance', async () => {
+    const key = await importHistoryKey((await configStore.getHistoryKey())!);
+    const orphan: PendingImport = { ...failedPending(), id: 'o1', instanceId: A.id, status: 'running', entityId: 'e9', error: null };
+    await historyStore.forKey(key, A.id).start(orphan, A.baseUrl);
+    await pendingStore.save(orphan);
+    const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
+    expect(list).toEqual([expect.objectContaining({ id: 'o1', status: 'partial', orphaned: true, instanceId: A.id })]);
+    const env = (await fakeBrowser.storage.local.get('importHistory:o1'))['importHistory:o1'] as { inst?: string };
+    expect(env.inst).toBe(A.id);
+    const entry = await open(env, key, 'o1');
+    expect(entry).toMatchObject({ status: 'partial', interrupted: true, instance: A.baseUrl });
   });
 });

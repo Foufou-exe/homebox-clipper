@@ -7,6 +7,7 @@ import type { ConfigView } from '@/shared/types';
 import LockCard from '@/ui/options/LockCard.vue';
 import OptionsApp from '@/ui/options/App.vue';
 import PopupApp from '@/ui/popup/App.vue';
+import UnlockView from '@/ui/popup/UnlockView.vue';
 import { loadCatalog } from './i18n-harness';
 
 vi.mock('@/shared/messages', async (importOriginal) => ({
@@ -29,9 +30,7 @@ const view = (over: Partial<ConfigView> = {}): ConfigView => ({
   // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
   instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: 'https://homebox.example.com', maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
   defaultInstanceId: 'inst-a',
-  baseUrl: 'https://homebox.example.com',
-  maskedKey: 'hb_••••xxxx',
-  lastCheck: null,
+  // ADAPTED (016, T100): no top-level compatibility fields (baseUrl, maskedKey, lastCheck) any more.
   locked: false,
   needsPassphrase: false,
   ...over,
@@ -202,7 +201,8 @@ describe('session/open and presence port (013, Q-U10)', () => {
     serve({
       'session/open': v,
       'config/get': v,
-      'config/test': ok(v),
+      // ADAPTED (016, T079): config/test is withdrawn; the test button sends instance/test for the single instance.
+      'instance/test': ok(v),
       'session/get-policy': { v: 1, policy: 'browser-close' },
     });
     const connect = vi.fn(() => ({ disconnect: vi.fn() }));
@@ -251,5 +251,36 @@ describe('session/open and presence port (013, Q-U10)', () => {
     await flushPromises();
     expect(sent().filter((m) => m.type === 'config/get').length).toBeGreaterThan(0);
     expect(w.text()).toContain(fr['options.locked']);
+  });
+});
+
+describe('UnlockView with several instances (016, US5, T089)', () => {
+  const B = { id: 'inst-b', name: 'Atelier', baseUrl: 'https://inventaire.example.org', maskedKey: 'hb_••••bbbb', lastCheck: null, keyState: 'locked' as const };
+  const A = { ...view().instances![0]!, keyState: 'locked' as const };
+
+  it('one instance: unchanged (the badge of the instance, no « all instances » text)', () => {
+    const w = mount(UnlockView, { props: { config: view({ locked: true, instances: [A] }) } });
+    expect(w.find('.instance').exists()).toBe(true);
+    expect(w.text()).toContain('https://homebox.example.com');
+    expect(w.text()).not.toContain('Déverrouille vos');
+  });
+
+  it('two instances: « Déverrouille vos 2 instances HomeBox. » instead of the badge of one instance', () => {
+    const w = mount(UnlockView, { props: { config: view({ locked: true, instances: [A, B] }) } });
+    expect(w.find('.instance').exists()).toBe(false);
+    expect(w.text()).toContain('Déverrouille vos 2 instances HomeBox.');
+    expect(w.text()).not.toContain('https://homebox.example.com');
+  });
+
+  it('one unlock makes every instance ready: the view of session/unlock is emitted as is', async () => {
+    const unlocked = view({ locked: false, instances: [{ ...A, keyState: 'ready' }, { ...B, keyState: 'ready' }] });
+    serve({ 'session/unlock': ok(unlocked) });
+    const w = mount(UnlockView, { props: { config: view({ locked: true, instances: [A, B] }) } });
+    await w.get('input[type="password"]').setValue('phrase de test 123');
+    await w.get('form').trigger('submit');
+    await flushPromises();
+    expect(sent()).toEqual([{ type: 'session/unlock', passphrase: 'phrase de test 123' }]);
+    const emitted = w.emitted('unlocked')![0]![0] as ConfigView;
+    expect(emitted.instances!.map((i) => i.keyState)).toEqual(['ready', 'ready']);
   });
 });

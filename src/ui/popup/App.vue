@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { browser } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { isMessage, send } from '@/shared/messages';
@@ -22,12 +22,8 @@ type Screen = 'loading' | 'setup' | 'locked' | 'summary' | 'result';
 
 const screen = ref<Screen>('loading');
 const view = ref<ConfigView>({ configured: false });
-// Spec 016 (delivery A): the target is the default instance, read from the view; never a guess. For a resume
-// without target (older version), only the single instance is usable, as in the service worker.
-provide(
-  'singleInstanceId',
-  computed(() => (view.value.instances?.length === 1 ? (view.value.defaultInstanceId ?? null) : null)),
-);
+// Spec 016: each interrupted import is resumed with ITS instance (ResultView resolves it from `pending.instanceId`;
+// the single instance for a state written before `instanceId` existed), never the one proposed in the summary.
 const instances = computed<InstanceView[]>(() => view.value.instances ?? []);
 /** Target of the import just confirmed (spec 016): the result screen shows this instance, never another one. */
 const submittedTarget = ref<string | null>(null);

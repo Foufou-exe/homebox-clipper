@@ -207,6 +207,7 @@ result:
 
 recovery:
   objectPrefix: "The item"
+  instance: "Interrupted import to $1"
   created: "was created in HomeBox"
   openLink: "(open)"
   incomplete: ", but the import is incomplete."
@@ -228,6 +229,7 @@ unlock:
   passphrase: "Passphrase"
   submit: "Unlock"
   busy: "Unlocking…"
+  allInstances: "Unlocks your $1 HomeBox instances."
 
 options:
   pageTitle: "HomeBox Clipper — Settings"
@@ -256,6 +258,8 @@ options:
   saveAndTest: "Test and save"
   deleteConfig: "Delete settings"
   confirmDelete: "Delete this extension's HomeBox settings (address and API key) and the import history?"
+  deleteAll: "Delete all settings"
+  confirmDeleteAll: "Delete all HomeBox instances (addresses and API keys) from this extension, and the import history?"
   historyTitle: "Import history"
   historyEnable: "Keep a local history of my imports"
   historyHelp: "Kept only in this browser and encrypted with your passphrase: product name, store, order number, dates, result and a link to the item. Never the API key, delivery address, payment method, invoices or photos. Unreadable if you forget the passphrase. Limited to 200 entries and 12 months."
@@ -278,6 +282,23 @@ instances:
   added: "Instance \"$1\" added."
   existing: "This address is already used by \"$1\"."
   cardAria: "HomeBox instance $1"
+  rename: "Rename"
+  saveName: "Save the name"
+  edit: "Change the address or key"
+  delete: "Delete this instance"
+  confirmDelete: "Delete the instance \"$1\"? Its API key, last location, history entries and interrupted imports will be erased."
+  deleted: "Instance \"$1\" deleted."
+  keyUnreadable: "Key to re-enter"
+  requestAccess: "Request access again"
+  reenterAfterChange: "Passphrase changed. These keys could not be read and must be entered again: $1"
+
+passphrase:
+  changeTitle: "Change the passphrase"
+  current: "Current passphrase"
+  next: "New passphrase"
+  confirm: "Confirm the new passphrase"
+  submit: "Change the passphrase"
+  changed: "Passphrase changed. All keys are encrypted with it."
 
 links:
   support: "Support"

@@ -249,8 +249,7 @@ describe('popup: history view (Q-U23, SC-002)', () => {
     // ADAPTED (016, T071): the view lists its instances (the history links use them).
     instances: INSTANCES,
     defaultInstanceId: 'inst-a',
-    baseUrl: BASE,
-    lastCheck: null,
+    // ADAPTED (016, T100): no top-level compatibility fields (baseUrl, lastCheck) any more.
     ...over,
   });
   const purchase = {
@@ -643,8 +642,11 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
   };
   const notice = (w: VueWrapper) => w.findAll('[role="alert"]').find((e) => e.text().includes('nouvelle phrase de passe efface'));
 
+  // ADAPTED (016, T100): the view lists its instance (no top-level compatibility fields baseUrl, lastCheck).
+  const one = { instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: BASE, maskedKey: 'hb_••••xxxx', lastCheck: null, keyState: 'ready' as const }], defaultInstanceId: 'inst-a' };
+
   it('reset warning: only when configured, locked and a new API key is typed', async () => {
-    optionsWith({ configured: true, baseUrl: BASE, lastCheck: null, locked: true, needsPassphrase: false });
+    optionsWith({ configured: true, ...one, locked: true, needsPassphrase: false });
     const locked = mount(OptionsApp);
     await flushPromises();
     expect(notice(locked)).toBeUndefined();
@@ -655,7 +657,7 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
     const submit = locked.find('button[type="submit"]').element;
     expect(notice(locked)!.element.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    optionsWith({ configured: true, baseUrl: BASE, lastCheck: null, locked: false, needsPassphrase: false });
+    optionsWith({ configured: true, ...one, locked: false, needsPassphrase: false });
     const unlocked = mount(OptionsApp);
     await flushPromises();
     await unlocked.find('#apiKey').setValue('hb_xxxxxxxx');
@@ -664,7 +666,7 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
 
   it('after deleting the configuration, the card reloads the history', async () => {
     vi.stubGlobal('confirm', () => true);
-    optionsWith({ configured: true, baseUrl: BASE, lastCheck: null, locked: false, needsPassphrase: false });
+    optionsWith({ configured: true, ...one, locked: false, needsPassphrase: false });
     const w = mount(OptionsApp);
     await flushPromises();
     const before = vi.mocked(send).mock.calls.filter(([m]) => m.type === 'history/list').length;

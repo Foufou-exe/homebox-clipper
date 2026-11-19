@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch, type Ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type { DocumentRef, InstanceView, LocationChoice, LocationOption, ManualFile, PendingImport } from '@/shared/types';
@@ -10,15 +10,18 @@ import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
 
-/** `instance`: the instance of the import (spec 016), for its link; null when unknown (no link). */
-const props = defineProps<{ pending: PendingImport; instance: InstanceView | null }>();
-const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: string] }>();
-
 /**
- * The only instance, if there is exactly one (spec 016): only used for a state written before `instanceId`
- * existed; with several instances nothing is guessed (same refusal as `import/retry` in the service worker).
+ * `instance`: the instance of the import (spec 016), resolved by the caller from `pending.instanceId` (the single
+ * instance for a state written before `instanceId` existed; null when unknown: no link, no location list).
+ * `named`: several instances are configured; the resume is titled with the name of its instance and its errors are
+ * prefixed with it (US6-3). A resume never offers another instance.
  */
-const singleInstanceId = inject<Ref<string | null>>('singleInstanceId', ref(null));
+const props = withDefaults(defineProps<{ pending: PendingImport; instance: InstanceView | null; named?: boolean }>(), {
+  named: false,
+});
+const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: string] }>();
+/** Name prefixing the errors with several instances; none with a single one (same rendering as before). */
+const errorPrefix = computed(() => (props.named ? props.instance?.name : undefined));
 
 const busy = ref(false);
 const error = ref<ErrorCode | null>(null);
@@ -34,8 +37,8 @@ const newLocation = ref<LocationChoice | null>(null);
 
 async function loadLocations() {
   locationsError.value = null;
-  // The locations of the instance of origin of the import (FR-018).
-  const instanceId = props.pending.instanceId ?? singleInstanceId.value;
+  // The locations of the instance of origin of the import (FR-018), never the one proposed in the summary.
+  const instanceId = props.pending.instanceId ?? props.instance?.id;
   if (!instanceId) {
     locationsError.value = 'NOT_CONFIGURED';
     return;
@@ -127,6 +130,7 @@ async function abandon() {
 
 <template>
   <div class="recovery">
+    <p v-if="named && instance" class="recovery-instance">{{ t('recovery.instance', [instance.name]) }}</p>
     <p v-if="pending.entityId">
       {{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ t('recovery.created') }}
       <a v-if="link" :href="link" target="_blank" rel="noopener">{{ t('recovery.openLink') }}</a>{{ t('recovery.incomplete') }}
@@ -134,9 +138,9 @@ async function abandon() {
     <p v-else>{{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ pending.createUncertain || (pending.orphaned && pending.createAttempted) ? t('recovery.maybeCreated') : t('recovery.notCreated') }}</p>
 
     <p v-if="pending.orphaned" class="muted">{{ t('recovery.interrupted') }}</p>
-    <ErrorBanner v-if="pending.error" :code="pending.error" />
-    <ErrorBanner v-if="photoError" :code="photoError" />
-    <ErrorBanner v-if="error" :code="error" />
+    <ErrorBanner v-if="pending.error" :code="pending.error" :instance="errorPrefix" />
+    <ErrorBanner v-if="photoError" :code="photoError" :instance="errorPrefix" />
+    <ErrorBanner v-if="error" :code="error" :instance="errorPrefix" />
     <p v-if="duplicateBlocked" class="muted">{{ t('recovery.duplicateHint') }}</p>
 
     <ul v-if="pending.draft.documents.length" class="docs" role="status" aria-live="polite">
@@ -154,7 +158,7 @@ async function abandon() {
 
     <template v-if="locationGone">
       <LocationPicker v-if="locations.length > 0" v-model="newLocation" :options="locations" :label="t('location.productLabel')" />
-      <ErrorBanner v-else-if="locationsError" :code="locationsError" tone="warning" />
+      <ErrorBanner v-else-if="locationsError" :code="locationsError" tone="warning" :instance="errorPrefix" />
     </template>
 
     <div class="actions">
@@ -182,6 +186,9 @@ async function abandon() {
   border-radius: var(--radius);
   padding: 8px 10px;
   margin: 8px 0;
+}
+.recovery-instance {
+  font-weight: 600;
 }
 .recovery p {
   margin: 0 0 6px;

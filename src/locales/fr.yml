@@ -207,6 +207,7 @@ result:
 
 recovery:
   objectPrefix: "L'objet"
+  instance: "Import interrompu vers $1"
   created: "a été créé dans HomeBox"
   openLink: "(ouvrir)"
   incomplete: ", mais l'import n'est pas complet."
@@ -228,6 +229,7 @@ unlock:
   passphrase: "Phrase de passe"
   submit: "Déverrouiller"
   busy: "Déverrouillage…"
+  allInstances: "Déverrouille vos $1 instances HomeBox."
 
 options:
   pageTitle: "HomeBox Clipper — Configuration"
@@ -256,6 +258,8 @@ options:
   saveAndTest: "Tester et enregistrer"
   deleteConfig: "Supprimer la configuration"
   confirmDelete: "Supprimer la configuration HomeBox (adresse et clé API) de cette extension et l’historique des imports ?"
+  deleteAll: "Supprimer toute la configuration"
+  confirmDeleteAll: "Supprimer toutes les instances HomeBox (adresses et clés API) de cette extension et l’historique des imports ?"
   historyTitle: "Historique des imports"
   historyEnable: "Garder un historique local de mes imports"
   historyHelp: "Conservé uniquement dans ce navigateur et chiffré avec votre phrase de passe : nom du produit, boutique, numéro de commande, dates, résultat et lien vers l’objet. Jamais la clé API, l’adresse de livraison, le moyen de paiement, les factures ni les photos. Illisible si vous oubliez la phrase de passe. Limité à 200 entrées et 12 mois."
@@ -278,6 +282,23 @@ instances:
   added: "Instance « $1 » ajoutée."
   existing: "Cette adresse est déjà utilisée par « $1 »."
   cardAria: "Instance HomeBox $1"
+  rename: "Renommer"
+  saveName: "Enregistrer le nom"
+  edit: "Modifier l’adresse ou la clé"
+  delete: "Supprimer cette instance"
+  confirmDelete: "Supprimer l’instance « $1 » ? Sa clé API, son dernier emplacement, ses entrées d’historique et ses imports interrompus seront effacés."
+  deleted: "Instance « $1 » supprimée."
+  keyUnreadable: "Clé à ressaisir"
+  requestAccess: "Redemander l’accès"
+  reenterAfterChange: "Phrase de passe changée. Ces clés étaient illisibles et doivent être ressaisies : $1"
+
+passphrase:
+  changeTitle: "Changer la phrase de passe"
+  current: "Phrase de passe actuelle"
+  next: "Nouvelle phrase de passe"
+  confirm: "Confirmer la nouvelle phrase de passe"
+  submit: "Changer la phrase de passe"
+  changed: "Phrase de passe changée. Toutes les clés sont chiffrées avec elle."
 
 links:
   support: "Support"

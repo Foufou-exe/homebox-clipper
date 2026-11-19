@@ -74,11 +74,9 @@ describe('config-store (encrypted key)', () => {
     const view = await configStore.getView();
     // ADAPTED (016): the view also lists the instances (without key) and the default instance.
     const id = view.defaultInstanceId!;
+    // ADAPTED (016, T100): no top-level compatibility fields (baseUrl, maskedKey, lastCheck): only per instance.
     expect(view).toEqual({
       configured: true,
-      baseUrl: URL,
-      maskedKey: 'hb_••••a1b2',
-      lastCheck: null,
       locked: false,
       needsPassphrase: false,
       instances: [
@@ -109,7 +107,8 @@ describe('config-store (encrypted key)', () => {
     it('removes the key from disk and keeps it in session memory', async () => {
       expect(await local()).not.toContain(KEY);
       expect(await credentials()).toMatchObject({ ok: true, value: { apiKey: KEY } });
-      expect(await configStore.getView()).toMatchObject({ needsPassphrase: true, locked: false, maskedKey: 'hb_••••a1b2' });
+      // ADAPTED (016, T100): the masked key is read from the instance (no top-level compatibility field).
+      expect(await configStore.getView()).toMatchObject({ needsPassphrase: true, locked: false, instances: [{ maskedKey: 'hb_••••a1b2' }] });
     });
 
     it('currentKey returns the migrated key so it can be encrypted with a new passphrase', async () => {
@@ -432,5 +431,78 @@ describe('configStore.addInstance (016, US2, Q-U2, T058)', () => {
     const id = (await stored()).instances[0]!.id;
     await configStore.save({ baseUrl: A.baseUrl, apiKey: 'hb_autre_cle_1234', passphrase: PASSPHRASE }, 1_000);
     expect((await stored()).instances.map((i) => i.id)).toEqual([id]);
+  });
+});
+
+describe('configStore.changePassphrase (016, US5, Q-U2, T087)', () => {
+  const NEXT = 'nouvelle phrase 456';
+  const C = { id: 'inst-c', name: 'Bureau', baseUrl: 'https://autre.example.net', apiKey: 'hb_cccccccc' };
+  const stored = async () => (await fakeBrowser.storage.local.get('homeboxInstances')).homeboxInstances as InstancesStore;
+
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+    await seedStore(await buildStore({ instances: [A, B, C], historyKey: crypto.getRandomValues(new Uint8Array(32)) }));
+  });
+
+  it('refusals: WEAK_PASSPHRASE (next < 10), WRONG_PASSPHRASE; nothing written', async () => {
+    const before = JSON.stringify(await fakeBrowser.storage.local.get(null));
+    expect(await configStore.changePassphrase(PASSPHRASE, 'court', 1_000)).toEqual({ ok: false, error: 'WEAK_PASSPHRASE' });
+    expect(await configStore.changePassphrase('mauvaise phrase 999', NEXT, 1_000)).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).toBe(before);
+  });
+
+  it('two derivations, one set; the old passphrase is refused, the new one opens the 3 keys and the history key; session unchanged', async () => {
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    const historyKey = await configStore.getHistoryKey();
+    const session = JSON.stringify(await fakeBrowser.storage.session.get(null));
+    const derive = vi.spyOn(crypto.subtle, 'deriveKey');
+    const set = vi.spyOn(fakeBrowser.storage.local, 'set');
+    expect(await configStore.changePassphrase(PASSPHRASE, NEXT, 1_000)).toEqual({ ok: true, value: { reenter: [] } });
+    expect(derive).toHaveBeenCalledTimes(2);
+    expect(set.mock.calls.filter(([items]) => 'homeboxInstances' in items)).toHaveLength(1);
+    expect(JSON.stringify(await fakeBrowser.storage.session.get(null))).toBe(session);
+
+    await configStore.lock();
+    for (const i of [A, B, C]) expect(await configStore.getCredentials(i.id)).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
+    expect(await configStore.unlock(NEXT)).toEqual({ ok: true, value: undefined });
+    for (const i of [A, B, C]) expect(await configStore.getCredentials(i.id)).toMatchObject({ ok: true, value: { apiKey: i.apiKey } });
+    expect(await configStore.getHistoryKey()).toEqual(historyKey);
+  });
+
+  it('a failed set: storage identical byte for byte, the old passphrase still valid (FR-023, US5-3)', async () => {
+    const before = JSON.stringify(await fakeBrowser.storage.local.get(null));
+    vi.spyOn(fakeBrowser.storage.local, 'set').mockRejectedValueOnce(new Error('quota'));
+    await expect(configStore.changePassphrase(PASSPHRASE, NEXT, 1_000)).rejects.toThrow();
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).toBe(before);
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+  });
+
+  it('a key unreadable before the change: key null, keyState missing, listed in reenter; the others unlocked (US5-4)', async () => {
+    const store = await stored();
+    store.instances[1] = { ...store.instances[1]!, key: { ...store.instances[1]!.key!, ct: store.instances[0]!.key!.ct } };
+    await seedStore(store);
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    expect((await configStore.getView()).instances!.map((i) => i.keyState)).toEqual(['ready', 'unreadable', 'ready']);
+    expect(await configStore.changePassphrase(PASSPHRASE, NEXT, 1_000)).toEqual({ ok: true, value: { reenter: [B.id] } });
+    expect((await stored()).instances[1]!.key).toBeNull();
+    expect((await configStore.getView()).instances!.map((i) => i.keyState)).toEqual(['ready', 'missing', 'ready']);
+    await configStore.lock();
+    expect(await configStore.unlock(NEXT)).toEqual({ ok: true, value: undefined });
+    expect(await configStore.getCredentials(B.id)).toEqual({ ok: false, error: 'KEY_UNREADABLE' });
+    expect(await configStore.getCredentials(C.id)).toMatchObject({ ok: true });
+  });
+
+  it('a legacy key without passphrase (no vault): WRONG_PASSPHRASE, nothing written', async () => {
+    fakeBrowser.reset();
+    await seedStore({
+      v: 1,
+      vault: null,
+      instances: [{ id: 'migrated', name: 'homebox.example.com', baseUrl: A.baseUrl, key: null, maskedKey: 'hb_••••xxxx', lastCheck: null }],
+    });
+    const before = JSON.stringify(await fakeBrowser.storage.local.get(null));
+    expect(await configStore.changePassphrase(PASSPHRASE, NEXT, 1_000)).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
+    expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).toBe(before);
   });
 });

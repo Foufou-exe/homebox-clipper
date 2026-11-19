@@ -26,8 +26,6 @@ import type {
 export type Message =
   // UI → service worker
   | { type: 'config/get' }
-  | { type: 'config/save'; baseUrl: string; apiKey: string; passphrase: string }
-  | { type: 'config/test' }
   | { type: 'config/delete' }
   // Spec 016, delivery B: instance management, extension pages only (`instance/` prefix). Never answered with a key.
   | { type: 'instance/add'; baseUrl: string; apiKey: string; name: string; passphrase: string; newPassphrase: boolean }
@@ -108,8 +106,6 @@ export type UpdateApplyResult = { applied: true } | { applied: false; reason: 'b
 
 export interface ResponseMap {
   'config/get': ConfigView;
-  'config/save': Result<ConfigView>;
-  'config/test': Result<ConfigView>;
   'config/delete': Result<void>;
   'instance/add': Result<ConfigView>;
   'instance/update': Result<ConfigView>;
@@ -209,8 +205,6 @@ const areDrafts = (x: unknown): boolean =>
 
 const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean } = {
   'config/get': () => true,
-  'config/save': (m) => isStr(m.baseUrl) && isStr(m.apiKey) && isStr(m.passphrase),
-  'config/test': () => true,
   'config/delete': () => true,
   'instance/add': (m) =>
     isStr(m.baseUrl) && isStr(m.apiKey) && isStr(m.name) && isStr(m.passphrase) && typeof m.newPassphrase === 'boolean',

@@ -23,9 +23,9 @@ control**; you are the controller of that data. Project page:
 | Order number and up to 3 words of the name of each checked product | The summary you review | Flag items already in your inventory or with a similar name | Searched on **your HomeBox instance** as soon as you click "Add", before you choose in the duplicate window and even if you then cancel; nothing is stored or logged; no other recipient |
 | PDF invoice | Downloaded only from the origin of the store of the order (for example `https://www.amazon.de`), with your own session on that store, or a PDF you pick from your computer | Attach it to the HomeBox item | Sent to your HomeBox instance after you confirm |
 | Product photo | Downloaded from Amazon's image server (`m.media-amazon.com`) without cookies, referrer or API key, only if its box is checked | Attach it as the item's main image | Sent to your HomeBox instance after you confirm; never kept by the extension |
-| HomeBox instance address | You enter it in the settings | Know where to send the import | Stored locally in the browser |
-| HomeBox API key | You enter it in the settings | Authenticate requests to your instance | Stored **encrypted** locally (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations); sent only to your instance |
-| Passphrase | You choose it | Encrypt and unlock the API key | **Never stored** |
+| HomeBox instance address and display name (1 to 10 instances) | You enter them in the settings | Know where to send the import; tell the instances apart | Stored locally in the browser (`homeboxInstances`) |
+| HomeBox API key, one per instance | You enter it in the settings | Authenticate requests to that instance | Stored **encrypted** locally (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations, the address of the instance bound to its key); sent only to **its own** instance |
+| Passphrase | You choose it | Encrypt and unlock the API keys: a single passphrase protects the keys of every instance | **Never stored** |
 | HomeBox location list and last location used (identifiers only) | Your HomeBox instance | Let you choose where the item is filed | Read from your instance; identifiers kept locally |
 | Warranty proposed with each item (expiry date, lifetime flag, details), calculated from the purchase date, and the default-warranty setting (on/off, duration) | The extension and you | Fill the warranty fields of the HomeBox item | The warranty is sent to your HomeBox instance after you confirm and is never kept by the extension once the import is done; the setting is stored locally (no personal data) |
 | Suggested HomeBox tags (the store brand, for example "Amazon", and the tags of your own rules) and the tags you check in the summary | The extension, your rules and you | Tag the item in HomeBox | Read from and, for a tag that does not exist yet, created on **your HomeBox instance** (`GET`/`POST /api/v1/tags`); tags are created and applied only after your confirmation, and only the checked ones. Kept only with the import in progress (`storage.session`), never in the import history |
@@ -41,15 +41,37 @@ any page other than the Amazon order page you open it on. The invoice PDF is sen
 contain information printed by Amazon on the document, such as your name or address; it goes only to
 your HomeBox instance.
 
+## Several HomeBox instances
+
+You can set up **several HomeBox instances** (1 to 10), for example one at home and one for a workshop, and
+choose the target in the summary before confirming an import. They are stored locally as one list
+(`homeboxInstances`): for each instance, its address, its display name, its API key encrypted, its masked key
+and the result of its last connection test. **A single passphrase** protects every key; each key is encrypted
+separately and can only be decrypted for the address of its own instance. Each instance has **its own access
+permission**, limited to the **exact origin** of its address and asked when you add the instance; it is removed
+as soon as no other instance uses it. The data of an import goes only to the instance you chose (a resume always
+goes to the instance where the import started), never to another one. The last instance used for a successful
+import (`lastInstanceId`, an identifier) is remembered to propose it next time.
+
+Each import history entry carries an **opaque identifier** (`inst`, outside the encrypted content) of the
+instance it was made to, so that its link opens the item in that instance and so that it can be erased with it.
+This identifier says nothing about the instance by itself (no address, no name).
+
+**Deleting an instance** (Settings → **Delete this instance**) erases its address, name, encrypted API key,
+masked key, last connection test, last location, its history entries and its interrupted imports, and removes its
+access permission if no other instance uses it. **Delete all settings** (from two instances on; **Delete
+settings** with a single one) erases every instance and what is attached to them.
+
 ## Where the data is processed and stored
 
-- **In your browser** (`storage.local`): instance address, encrypted API key, masked key (for example
-  `hb_••••abcd`), result of the last connection test, last location used per instance, theme, the default-warranty setting, the automatic-tag setting (`tagSettings`: store-name option and tag rules), and the
+- **In your browser** (`storage.local`): the list of instances (`homeboxInstances`: addresses, display names,
+  encrypted API keys, masked keys such as `hb_••••abcd`, results of the last connection test), the last instance
+  used for a successful import (`lastInstanceId`), the last location used per instance, theme, the default-warranty setting, the automatic-tag setting (`tagSettings`: store-name option and tag rules), and the
   import history (each entry encrypted with AES-GCM 256 under a random history key, itself sealed with
   your passphrase like the API key) with its on/off setting, the automatic lock setting
   (`lockSettings`) and the version of the last update notice (`updateNotice`).
 - **In browser memory** (`storage.session`, cleared when the browser closes or the extension is
-  locked, reloaded, updated or disabled): the decrypted API key while the extension is unlocked, and
+  locked, reloaded, updated or disabled): the decrypted API keys of the instances while the extension is unlocked, and
   the data of an import in progress so that it can be resumed after an error (without file contents),
   the time of the last use of the extension (`homeboxActivity`) and the version Chrome has ready to install
   (`updateReady`).
@@ -63,7 +85,8 @@ your HomeBox instance.
 - The extension contacts only: (1) the Amazon store page you opened it on (its exact origin, for
   example `https://www.amazon.de`), to download your invoice, and Amazon's image server
   (`m.media-amazon.com`) for the product photo, at the moment of import; (2) **your** HomeBox
-  instance. It never contacts another Amazon store than the one of the order.
+  instances, each one only for the operations that target it (an API key is never sent to another
+  instance than its own). It never contacts another Amazon store than the one of the order.
 - Suggested tags add **no new recipient**: the tag list is read from your HomeBox instance
   (`GET /api/v1/tags`) and missing tags are created there (`POST /api/v1/tags`) only after your
   confirmation. No request is made to the store for tags: the store brand comes from the extension itself.
@@ -112,9 +135,11 @@ a tag name, the text of a tag rule or the API key.
   the history off in the settings (which erases it). **Delete settings** erases it too. Setting up the
   extension again with a new passphrase while it is locked erases it (a warning is shown before).
   Uninstalling the extension removes it.
-- Local data stays until you delete it. **Settings → Delete settings** erases the address, the
-  encrypted key, the in-progress imports, the last locations, the import history, and removes the access permission granted
-  to your instance. The automatic lock setting, the last update notice and the automatic-tag setting (`tagSettings`, no personal data) are kept. Uninstalling the extension removes all its browser storage.
+- Local data stays until you delete it. **Settings → Delete this instance** erases one instance (see
+  "Several HomeBox instances" above). **Settings → Delete settings** (**Delete all settings** with several
+  instances) erases every instance (addresses, names, encrypted keys), the in-progress imports, the last
+  locations, the last instance used, the import history, and removes the access permission granted to each
+  instance. The automatic lock setting, the last update notice and the automatic-tag setting (`tagSettings`, no personal data) are kept. Uninstalling the extension removes all its browser storage.
 - You can also revoke the API key in HomeBox at any time.
 - Items already imported belong to your HomeBox instance: delete them there.
 - The author holds no copy of your data, so there is nothing to erase on their side.

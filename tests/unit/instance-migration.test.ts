@@ -327,12 +327,9 @@ describe('instance migration (016, US1, Q-U1)', () => {
       await instanceStore.migrate();
       await configStore.unlock(PASSPHRASE);
       const view = await configStore.getView();
-      expect(view).toMatchObject({
-        baseUrl: LEGACY_URL,
-        maskedKey: 'hb_••••xxxx',
-        lastCheck,
-        defaultInstanceId: 'migrated',
-      });
+      // ADAPTED (016, T100): no top-level compatibility fields; the instance below carries them.
+      expect(view).toMatchObject({ defaultInstanceId: 'migrated' });
+      expect(view).not.toHaveProperty('baseUrl');
       expect(view.instances).toEqual([
         {
           id: 'migrated',
