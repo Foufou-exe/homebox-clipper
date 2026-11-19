@@ -7,6 +7,18 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.6.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.5.0...v0.6.0) (2026-11-19)
+
+
+### Features
+
+* advanced duplicate detection ([#65](https://github.com/Foufou-exe/homebox-clipper/issues/65)) ([#89](https://github.com/Foufou-exe/homebox-clipper/issues/89)) ([0746520](https://github.com/Foufou-exe/homebox-clipper/commit/0746520f05229e2deadc93bb72c0e5ff9983c187))
+
+
+### Documentation
+
+* mention the automatic lock in the FAQ LOCKED row ([#87](https://github.com/Foufou-exe/homebox-clipper/issues/87)) ([b7dbabd](https://github.com/Foufou-exe/homebox-clipper/commit/b7dbabd4f7880e5b7f4c6cc2f9f589ca6b13c077))
+
 ## [0.5.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.4.0...v0.5.0) (2026-11-18)
 
 
