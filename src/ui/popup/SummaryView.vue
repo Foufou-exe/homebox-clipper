@@ -184,6 +184,8 @@ type Dialog =
   | { kind: 'checking' }
   | { kind: 'duplicates'; groups: DuplicateGroup[]; unchecked: string[] };
 const dialog = ref<Dialog>({ kind: 'none' });
+/** Set at the first `submit()`: the screen is replaced by the result, a second click must emit nothing. */
+const submitting = ref(false);
 const duplicateCheckFailed = ref(false);
 const cancelDuplicates = ref<HTMLButtonElement | null>(null);
 const addButton = ref<HTMLButtonElement | null>(null);
@@ -333,6 +335,8 @@ function checkedTags(line: Line): { tags?: { name: string; id?: string }[] } {
 }
 
 function submit() {
+  if (submitting.value) return; // a second click must not start a second import
+  submitting.value = true;
   dialog.value = { kind: 'none' };
   const docs = selectedDocs.value;
   emit('submit', {
@@ -540,7 +544,7 @@ function submit() {
         </template>
         <div class="actions">
           <button ref="cancelDuplicates" type="button" @click="cancelDuplicateDialog">{{ t('summary.cancel') }}</button>
-          <button class="primary" type="button" @click="submit">{{ t('summary.createAnyway') }}</button>
+          <button class="primary" type="button" :disabled="submitting" @click="submit">{{ t('summary.createAnyway') }}</button>
         </div>
       </div>
       <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />

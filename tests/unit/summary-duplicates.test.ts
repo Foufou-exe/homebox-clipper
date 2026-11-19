@@ -183,6 +183,18 @@ describe('SummaryView: similar items in the duplicate dialog (015, US1)', () => 
     expect(payload.duplicateCheckFailed).toBe(false);
   });
 
+  it('double click on "Créer quand même" emits submit only once', async () => {
+    const w = await mountSummary(purchase([product('a', CABLE)]), {
+      [CABLE]: check({ similar: [item('s1', 'Cable usb c noir 2m')] }),
+    });
+    await add(w);
+    const button = dialogButton(w, 'Créer quand même');
+    await button.trigger('click');
+    await button.trigger('click');
+    await flushPromises();
+    expect(submitted(w)).toHaveLength(1);
+  });
+
   it('US1-5: no result → no dialog, submit emitted with duplicateCheckFailed: false', async () => {
     const w = await mountSummary(purchase([product('a', 'Lampe de bureau')]));
     await add(w);

@@ -234,7 +234,7 @@ ticked.
 | Location | No | No geographic location. The HomeBox "locations" are storage places in the user's inventory (identifiers only). |
 | Web history | No | Only the Amazon order tab opened by the user is read, at the user's click. No browsing history is collected. |
 | User activity | No | No clicks, keystrokes or usage tracking. |
-| Website content | Yes | Text and image address of the Amazon order page (product, price, date, seller, photo) are read at the user's click and sent to the user's own HomeBox instance after confirmation; the product name is kept locally, encrypted, in a short import history. |
+| Website content | Yes | Text and image address of the Amazon order page (product, price, date, seller, photo) are read at the user's click and sent to the user's own HomeBox instance after confirmation (the order number and up to 3 words of each checked product name are also searched on that instance at the click on "Add", to flag duplicates; nothing stored or logged); the product name is kept locally, encrypted, in a short import history. |
 
 Certifications (tick all three):
 

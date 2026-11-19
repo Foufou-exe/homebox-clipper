@@ -79,3 +79,23 @@ describe('015 docs: no new stored data or recipient announced', () => {
     expect(doc).not.toMatch(/similar items? (are|is) (stored|saved)/i);
   });
 });
+
+describe('PRIVACY.md / PRIVACY.fr.md: duplicate search by words of the name (015)', () => {
+  it('EN: up to 3 words of the name searched on the HomeBox instance at the click, even if cancelled, nothing stored or logged', () => {
+    const en = prose('PRIVACY.md');
+    expect(en).toMatch(/up to 3 words of the name of each checked product/);
+    expect(en).toMatch(/as soon as you click "Add"/);
+    expect(en).toMatch(/even if you then cancel/);
+    expect(en).toMatch(/nothing is stored or logged/);
+    expect(en).toMatch(/no other recipient/);
+  });
+
+  it('FR: the same elements in French', () => {
+    const fr = prose('PRIVACY.fr.md');
+    expect(fr).toMatch(/jusqu'à 3 mots du nom de chaque produit coché/);
+    expect(fr).toMatch(/dès que vous cliquez sur « Ajouter »/);
+    expect(fr).toMatch(/même si vous annulez ensuite/);
+    expect(fr).toMatch(/rien n'est stocké ni journalisé/);
+    expect(fr).toMatch(/aucun autre destinataire/);
+  });
+});
