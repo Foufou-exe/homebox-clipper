@@ -1,17 +1,21 @@
-import { browser, removeOrigin } from '@/platform';
+import { browser, hasOrigin, removeOrigin } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
-import type { ConfigView, LastCheck } from '@/shared/types';
+import type { ConfigView, InstancesStore, InstanceView, LastCheck, StoredInstance } from '@/shared/types';
 import { base64ToBytes, bytesToBase64 } from '@/shared/pdf';
+import { DEFAULT_ITERATIONS, sealHistoryKey } from './key-vault';
 import {
-  DEFAULT_ITERATIONS,
-  decryptApiKey,
-  decryptSecrets,
-  encryptSecrets,
-  type EncryptedKey,
-  type SealedHistoryKey,
-} from './key-vault';
+  LAST_LOCATION_KEY,
+  LEGACY_KEY,
+  MAX_INSTANCES,
+  defaultName,
+  instanceStore,
+  type LegacyConfig,
+} from './instance-store';
+import { deriveVaultKey, newVault, openVault, sealApiKeyWith } from './vault-crypto';
 import { originOf } from './url-policy';
 import { enqueueHistoryWrite } from '@/background/history/history-queue';
+import { importHistoryKey } from '@/background/history/history-crypto';
+import { historyStore } from '@/background/history/history-store';
 import { activeImports } from '@/background/import/active-imports';
 import { logError } from '@/shared/logger';
 import {
@@ -23,12 +27,12 @@ import {
   type LockSettings,
 } from '@/shared/lock-policy';
 
-const KEY = 'homeboxConfig';
-/** Decrypted API key: storage.session only (in memory, cleared when the browser closes). */
+/** Former single configuration (≤ 0.6.0): only read by `migrateLegacy`; the instances live in `instance-store.ts`. */
+const KEY = LEGACY_KEY;
+/** Decrypted API keys: storage.session only (in memory, cleared when the browser closes). */
 const SESSION_KEY = 'homeboxUnlocked';
 export const PENDING_PREFIX = 'pendingImport:';
-/** Last location per instance (storage.local): identifiers only, cleared along with the configuration (FR-021). */
-export const LAST_LOCATION_KEY = 'lastLocationByInstance';
+export { LAST_LOCATION_KEY };
 /** Encrypted import history (spec 012): one `importHistory:<id>` key per entry, in storage.local. */
 export const HISTORY_PREFIX = 'importHistory:';
 /** History setting `{ v: 1, enabled }`, in clear (not purchase data); kept when the configuration is deleted. */
@@ -48,23 +52,9 @@ const TOUCH_INTERVAL_MS = 15_000;
  */
 export const LOCK_DUE_KEY = 'homeboxLockDue';
 
-/** Configuration persisted in storage.local: the key is only stored encrypted. */
-interface StoredConfig {
-  baseUrl: string;
-  /** null: key migrated from the old format, awaiting a passphrase. */
-  encryptedKey: EncryptedKey | null;
-  maskedKey: string;
-  lastCheck: LastCheck | null;
-  /**
-   * History key sealed with the passphrase-derived key of `encryptedKey` (same salt and iterations, R10.2).
-   * Absent or null: no history key yet (configuration from before 012, key migrated without passphrase).
-   */
-  historyKey?: SealedHistoryKey | null;
-  /** Old format (v0.1.0): plaintext key. Removed by `migrateLegacy`. */
-  apiKey?: string;
-}
-
+/** Credentials of ONE instance (spec 016): the client of a handler is built from them, never from another one. */
 export interface Credentials {
+  id: string;
   baseUrl: string;
   apiKey: string;
 }
@@ -78,15 +68,40 @@ export function isValidApiKey(apiKey: string): boolean {
   return apiKey.trim() !== '' && !/\s/.test(apiKey);
 }
 
-async function readStored(): Promise<StoredConfig | null> {
+/** Former configuration, for `migrateLegacy` only (plaintext key of v0.1.0). */
+async function readStored(): Promise<LegacyConfig | null> {
   const stored = await browser.storage.local.get(KEY);
-  return (stored[KEY] as StoredConfig | undefined) ?? null;
+  return (stored[KEY] as LegacyConfig | undefined) ?? null;
 }
 
-/** Session content: the API key and, once unlocked with a passphrase, the open history key (base64 of 32 bytes). */
+/**
+ * Session content v2 (spec 016, data-model §3): the API keys by instance id and, once unlocked with a passphrase,
+ * the open history key (base64 of 32 bytes). An instance whose key must be re-entered is not in `keys`.
+ */
 interface UnlockedSession {
-  apiKey: string;
+  v: 2;
+  keys: Record<string, string>;
   historyKey?: string;
+}
+
+const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
+
+/**
+ * Tolerant read of the stored session: v2 as is; v1 `{ apiKey, historyKey? }` (written by `migrateLegacy` or a
+ * previous version) is read as v2 when there is exactly one instance, otherwise ignored (locked).
+ */
+function toSessionV2(raw: unknown, store: InstancesStore | null): UnlockedSession | null {
+  if (!isRecord(raw)) return null;
+  const historyKey = typeof raw.historyKey === 'string' ? { historyKey: raw.historyKey } : {};
+  if (raw.v === 2 && isRecord(raw.keys)) {
+    const keys = Object.fromEntries(Object.entries(raw.keys).filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+    return { v: 2, keys, ...historyKey };
+  }
+  const only = store?.instances.length === 1 ? store.instances[0] : undefined;
+  if (typeof raw.apiKey === 'string' && only) {
+    return { v: 2, keys: { [only.id]: raw.apiKey }, ...historyKey };
+  }
+  return null;
 }
 
 /** Automatic lock setting; never throws: a read error gives the default (FR-010). */
@@ -117,8 +132,9 @@ async function sessionState(now: number): Promise<'open' | 'due' | 'locked'> {
   if (session[LOCK_DUE_KEY] !== true) {
     const { policy } = await getLockSettings();
     if (idleLimitMs(policy) === null) return 'open';
-    const config = await readStored();
-    if (!config?.encryptedKey) return 'open';
+    // "Encrypted configuration" = a vault exists (a legacy key without passphrase would be lost).
+    const store = await instanceStore.read();
+    if (!store?.vault) return 'open';
     const activity = session[ACTIVITY_KEY] as { at?: unknown } | undefined;
     if (!isIdleExpired(policy, activity?.at, now)) return 'open';
   }
@@ -151,19 +167,17 @@ async function writeActivity(now: number, force: boolean): Promise<void> {
   await browser.storage.session.set({ [ACTIVITY_KEY]: { at: now } });
 }
 
-/** Every access to the key goes through here: an expired session is locked before any read (E1). */
+/** Every access to the keys goes through here: an expired session is locked before any read (E1). */
 async function readSession(): Promise<UnlockedSession | null> {
   if ((await sessionState(Date.now())) === 'due') return null;
   const stored = await browser.storage.session.get(SESSION_KEY);
-  return (stored[SESSION_KEY] as UnlockedSession | undefined) ?? null;
+  const raw = stored[SESSION_KEY];
+  if (raw === undefined) return null;
+  return toSessionV2(raw, await instanceStore.read());
 }
 
-async function readSessionKey(): Promise<string | null> {
-  return (await readSession())?.apiKey ?? null;
-}
-
-async function writeSession(apiKey: string, historyKey: Uint8Array | null): Promise<void> {
-  const value: UnlockedSession = historyKey ? { apiKey, historyKey: bytesToBase64(historyKey) } : { apiKey };
+async function writeSession(keys: Record<string, string>, historyKey: Uint8Array | null): Promise<void> {
+  const value: UnlockedSession = historyKey ? { v: 2, keys, historyKey: bytesToBase64(historyKey) } : { v: 2, keys };
   // Unlocking is an activity: key and timestamp are written together (invariant 1 of data-model.md).
   await browser.storage.session.set({ [SESSION_KEY]: value, [ACTIVITY_KEY]: { at: Date.now() } });
   // A new unlock cancels a lock that was due during an import.
@@ -184,12 +198,36 @@ function sessionHistoryKey(session: UnlockedSession | null): Uint8Array | null {
  * History key to seal at `save` (R5.5): the one of the session (unlocked), otherwise the stored one reopened with
  * the passphrase provided (kept key, current passphrase). `null`: no key can be recovered.
  */
-async function recoverHistoryKey(previous: StoredConfig | null, passphrase: string): Promise<Uint8Array | null> {
+async function recoverHistoryKey(previous: InstancesStore | null, passphrase: string): Promise<Uint8Array | null> {
   const fromSession = sessionHistoryKey(await readSession());
   if (fromSession) return fromSession;
-  if (!previous?.encryptedKey || !previous.historyKey) return null;
-  const opened = await decryptSecrets(previous.encryptedKey, previous.historyKey, passphrase, previous.baseUrl);
-  return opened && opened.history !== 'unreadable' ? opened.history.key : null;
+  if (!previous?.vault?.historyKey) return null;
+  const opened = await openVault(previous, passphrase);
+  return opened?.history && opened.history !== 'unreadable' && !opened.created?.historyKey ? opened.history.key : null;
+}
+
+/** keyState of data-model §3 (computed, never stored). */
+function keyStateOf(
+  instance: StoredInstance,
+  store: InstancesStore,
+  session: UnlockedSession | null,
+): InstanceView['keyState'] {
+  if (session && typeof session.keys[instance.id] === 'string') return 'ready';
+  if (store.vault === null || instance.key === null) return 'missing';
+  return session ? 'unreadable' : 'locked';
+}
+
+/**
+ * Attaches the existing history entries to their instance (R5): best effort, never fails the caller; no data
+ * logged (constant endpoint).
+ */
+async function attachHistory(historyKey: Uint8Array | null, store: InstancesStore): Promise<void> {
+  if (!historyKey) return;
+  try {
+    await historyStore.attach(await importHistoryKey(historyKey), store.instances);
+  } catch {
+    logError('history write failed', { endpoint: 'history/attach' });
+  }
 }
 
 /** 32 random bytes: a new history key. */
@@ -212,36 +250,67 @@ function eraseHistoryEntries(): Promise<void> {
  * Only the service worker uses it; the UI only receives `getView`, without the key.
  */
 export const configStore = {
-  /** Usable credentials: only when the extension is unlocked. */
-  async getCredentials(): Promise<Result<Credentials>> {
-    const config = await readStored();
-    if (!config) return fail('NOT_CONFIGURED');
-    const apiKey = await readSessionKey();
-    if (!apiKey) return fail(config.encryptedKey ? 'LOCKED' : 'NOT_CONFIGURED');
-    return ok({ baseUrl: config.baseUrl, apiKey });
+  /**
+   * Usable credentials of ONE instance (spec 016, contracts/runtime-messages.md), in this order: NOT_CONFIGURED →
+   * INSTANCE_NOT_FOUND → LOCKED → KEY_UNREADABLE → PERMISSION_DENIED → ok. Never another instance as a fallback.
+   * A legacy key lost with the session stays NOT_CONFIGURED (current behaviour: a passphrase must be chosen).
+   */
+  async getCredentials(instanceId: string): Promise<Result<Credentials>> {
+    const store = await instanceStore.read();
+    if (!store) return fail('NOT_CONFIGURED');
+    const instance = store.instances.find((i) => i.id === instanceId);
+    if (!instance) return fail('INSTANCE_NOT_FOUND');
+    const session = await readSession();
+    const apiKey = session?.keys[instance.id];
+    if (typeof apiKey !== 'string') {
+      if (store.vault === null) return fail('NOT_CONFIGURED');
+      return fail(session ? 'KEY_UNREADABLE' : 'LOCKED');
+    }
+    // The permission may have been withdrawn from the browser settings; no network request.
+    if (!(await hasOrigin(originOf(instance.baseUrl)))) return fail('PERMISSION_DENIED');
+    return ok({ id: instance.id, baseUrl: instance.baseUrl, apiKey });
   },
 
   async getView(): Promise<ConfigView> {
-    const config = await readStored();
-    if (!config) return { configured: false };
-    const unlocked = (await readSessionKey()) !== null;
+    const store = await instanceStore.read();
+    if (!store) return { configured: false };
+    const session = await readSession();
+    const instances: InstanceView[] = store.instances.map((i) => ({
+      id: i.id,
+      name: i.name,
+      baseUrl: i.baseUrl,
+      maskedKey: i.maskedKey,
+      lastCheck: i.lastCheck,
+      keyState: keyStateOf(i, store, session),
+    }));
+    const [first] = instances as [InstanceView, ...InstanceView[]];
+    const defaultInstanceId = (await instanceStore.defaultId()) ?? first.id;
+    const current = instances.find((i) => i.id === defaultInstanceId) ?? first;
     return {
       configured: true,
-      baseUrl: config.baseUrl,
-      maskedKey: config.maskedKey,
-      lastCheck: config.lastCheck,
-      locked: !unlocked,
-      needsPassphrase: config.encryptedKey === null,
+      // Increment 1 (UI compatibility): copy of the default instance.
+      baseUrl: current.baseUrl,
+      maskedKey: current.maskedKey,
+      lastCheck: current.lastCheck,
+      locked: session === null,
+      needsPassphrase: store.vault === null,
+      instances,
+      defaultInstanceId,
+      maxInstances: MAX_INSTANCES,
     };
   },
 
-  /** Encrypts and saves the key, then unlocks the session. */
+  /**
+   * Single-instance configuration (first installation, or replacement of the only instance): encrypts and saves
+   * the key in a new vault (new salt), then unlocks the session. Same rules as before spec 016 (R5.5).
+   */
   async save(
     { baseUrl, apiKey, passphrase }: { baseUrl: string; apiKey: string; passphrase: string },
     iterations = DEFAULT_ITERATIONS,
   ): Promise<void> {
     if (!isValidApiKey(apiKey)) throw new Error('invalid API key');
-    const previous = await readStored();
+    const previous = await instanceStore.read();
+    if (previous && previous.instances.length > 1) throw new Error('several instances configured');
     let historyKey = await recoverHistoryKey(previous, passphrase);
     if (!historyKey) {
       // R5.5 step 3: the former history key cannot be recovered (new passphrase while locked, unreadable seal):
@@ -249,51 +318,79 @@ export const configStore = {
       await eraseHistoryEntries();
       historyKey = newHistoryKey();
     }
-    const sealed = await encryptSecrets(apiKey, historyKey, passphrase, baseUrl, iterations);
-    const config: StoredConfig = {
+    const vault = newVault(iterations);
+    const key = await deriveVaultKey(passphrase, vault);
+    const before = previous?.instances[0];
+    const instance: StoredInstance = {
+      id: before?.id ?? crypto.randomUUID(),
+      // A name chosen by the user is kept; a default name follows the address.
+      name: before && before.name !== defaultName(before.baseUrl, []) ? before.name : defaultName(baseUrl, []),
       baseUrl,
-      encryptedKey: sealed.encryptedKey,
+      key: await sealApiKeyWith(key, apiKey, baseUrl),
       maskedKey: maskKey(apiKey),
-      lastCheck: previous?.baseUrl === baseUrl ? previous.lastCheck : null,
-      historyKey: sealed.historyKey,
+      lastCheck: before?.baseUrl === baseUrl ? before.lastCheck : null,
     };
-    await browser.storage.local.set({ [KEY]: config });
-    await writeSession(apiKey, historyKey);
+    const store: InstancesStore = {
+      v: 1,
+      vault: { ...vault, historyKey: await sealHistoryKey(historyKey, key) },
+      instances: [instance],
+    };
+    // A single set of the whole vault (atomic).
+    await instanceStore.update(() => store);
+    await writeSession({ [instance.id]: apiKey }, historyKey);
   },
 
   /**
-   * Current key, to re-save the configuration without retyping it:
+   * Current key of an instance, to re-save the configuration without retyping it. Without an id, only when there
+   * is exactly one instance (no implicit fallback, review T039):
    * decrypted with the passphrase, or a migrated key still in memory.
    */
-  async currentKey(passphrase: string): Promise<Result<string>> {
-    const config = await readStored();
-    if (!config) return fail('NOT_CONFIGURED');
-    if (!config.encryptedKey) {
-      const apiKey = await readSessionKey();
-      return apiKey ? ok(apiKey) : fail('NOT_CONFIGURED');
+  async currentKey(passphrase: string, instanceId?: string): Promise<Result<string>> {
+    const store = await instanceStore.read();
+    if (!store) return fail('NOT_CONFIGURED');
+    const only = store.instances.length === 1 ? store.instances[0] : undefined;
+    const instance = instanceId === undefined ? only : store.instances.find((i) => i.id === instanceId);
+    if (!instance) return fail('INSTANCE_NOT_FOUND');
+    if (!store.vault) {
+      const apiKey = (await readSession())?.keys[instance.id];
+      return typeof apiKey === 'string' ? ok(apiKey) : fail('NOT_CONFIGURED');
     }
-    const apiKey = await decryptApiKey(config.encryptedKey, passphrase, config.baseUrl);
-    return apiKey ? ok(apiKey) : fail('WRONG_PASSPHRASE');
+    const opened = await openVault(store, passphrase);
+    if (!opened) return fail('WRONG_PASSPHRASE');
+    const apiKey = opened.keys[instance.id];
+    return typeof apiKey === 'string' ? ok(apiKey) : fail('KEY_UNREADABLE');
   },
 
+  /**
+   * One derivation opens every key (spec 016). A key that does not open while the passphrase is right is left out
+   * of the session ("key to re-enter", FR-022). Seals created while opening are written in a single set.
+   */
   async unlock(passphrase: string): Promise<Result<void>> {
-    const config = await readStored();
-    if (!config) return fail('NOT_CONFIGURED');
-    if (!config.encryptedKey) return fail('NOT_CONFIGURED');
-    // A single PBKDF2 derivation for both secrets (R10.2). The API key is unlocked even if the history key
-    // is absent or corrupted: the history is then created, or unavailable.
-    const opened = await decryptSecrets(config.encryptedKey, config.historyKey, passphrase, config.baseUrl);
+    const store = await instanceStore.read();
+    if (!store) return fail('NOT_CONFIGURED');
+    const vault = store.vault;
+    if (!vault) return fail('NOT_CONFIGURED');
+    const opened = await openVault(store, passphrase);
     if (!opened) return fail('WRONG_PASSPHRASE');
-    if (opened.created) {
+    let historyKey = opened.history && opened.history !== 'unreadable' ? opened.history.key : null;
+    const created = opened.created;
+    if (created) {
+      let saved = false;
       try {
-        await browser.storage.local.set({ [KEY]: { ...config, historyKey: opened.created } });
+        await instanceStore.update((current) => {
+          // Written only onto the vault that was opened (a concurrent reconfiguration wins).
+          if (!current?.vault || current.vault.salt !== vault.salt) return null;
+          saved = true;
+          return { ...current, vault: { ...current.vault, ...created } };
+        });
       } catch {
-        // history key not saved: the API key is unlocked anyway, without history
-        await writeSession(opened.apiKey, null);
-        return ok(undefined);
+        saved = false;
       }
+      // History key not saved: the API keys are unlocked anyway, without history.
+      if (!saved && created.historyKey) historyKey = null;
     }
-    await writeSession(opened.apiKey, opened.history === 'unreadable' ? null : opened.history.key);
+    await writeSession(opened.keys, historyKey);
+    await attachHistory(historyKey, store);
     return ok(undefined);
   },
 
@@ -307,10 +404,10 @@ export const configStore = {
    * `unavailable`: no configuration, key migrated without passphrase, or unlocked without a readable history key.
    */
   async historyState(): Promise<'ready' | 'locked' | 'unavailable'> {
-    const config = await readStored();
-    if (!config?.encryptedKey) return 'unavailable';
+    const store = await instanceStore.read();
+    if (!store?.vault) return 'unavailable';
     const session = await readSession();
-    if (!session?.apiKey) return 'locked';
+    if (!session) return 'locked';
     return sessionHistoryKey(session) ? 'ready' : 'unavailable';
   },
 
@@ -337,8 +434,8 @@ export const configStore = {
   async lockIfEveryOpen(): Promise<'locked' | 'deferred' | 'none'> {
     const { policy } = await getLockSettings();
     if (policy !== 'every-open') return 'none';
-    const config = await readStored();
-    if (!config?.encryptedKey) return 'none';
+    const store = await instanceStore.read();
+    if (!store?.vault) return 'none';
     if (activeImports.size > 0) return 'deferred';
     await lock();
     return 'locked';
@@ -355,10 +452,11 @@ export const configStore = {
     });
   },
 
-  async setLastCheck(lastCheck: LastCheck): Promise<void> {
-    const config = await readStored();
-    if (!config) return;
-    await browser.storage.local.set({ [KEY]: { ...config, lastCheck } });
+  async setLastCheck(instanceId: string, lastCheck: LastCheck): Promise<void> {
+    await instanceStore.update((store) => {
+      if (!store?.instances.some((i) => i.id === instanceId)) return null;
+      return { ...store, instances: store.instances.map((i) => (i.id === instanceId ? { ...i, lastCheck } : i)) };
+    });
   },
 
   async delete(): Promise<void> {
@@ -369,14 +467,14 @@ export const configStore = {
       (k) => k.startsWith(PENDING_PREFIX) || k === SESSION_KEY || k === ACTIVITY_KEY || k === LOCK_DUE_KEY,
     );
     if (keys.length) await browser.storage.session.remove(keys);
-    const config = await readStored();
-    // The sealed history key leaves with KEY; its entries are erased too (FR-009). The history and lock settings
-    // and the update notice are kept (E5).
-    await browser.storage.local.remove([KEY, LAST_LOCATION_KEY]);
+    const store = await instanceStore.read();
+    // The sealed history key leaves with the vault; its entries are erased too (FR-009). The history, lock and tag
+    // settings and the update notice are kept (E5, FR-025).
+    await instanceStore.clear();
     await eraseHistoryEntries();
-    if (config) {
+    for (const origin of new Set((store?.instances ?? []).map((i) => originOf(i.baseUrl)))) {
       try {
-        await removeOrigin(originOf(config.baseUrl));
+        await removeOrigin(origin);
       } catch {
         // permission already absent
       }

@@ -165,3 +165,31 @@ describe('key-vault: history key sealed with the same derivation (R10.2)', () =>
     expect(await decryptApiKey(s.encryptedKey, PASS, URL)).toBe(KEY);
   });
 });
+
+describe('key-vault: primitives exported for the vault of spec 016 (T009, additions only)', () => {
+  it('deriveKey: one PBKDF2-SHA256 derivation, non-extractable AES-GCM key compatible with decryptApiKey', async () => {
+    const { deriveKey } = await import('@/background/config/key-vault');
+    const blob = await encryptApiKey(KEY, PASS, URL, FAST);
+    const key = await deriveKey(PASS, base64ToBytes(blob.salt), blob.iterations);
+    expect(key.extractable).toBe(false);
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: base64ToBytes(blob.iv) as Uint8Array<ArrayBuffer>, additionalData: new TextEncoder().encode(URL) },
+      key,
+      base64ToBytes(blob.ct) as Uint8Array<ArrayBuffer>,
+    );
+    expect(new TextDecoder().decode(plain)).toBe(KEY);
+  });
+
+  it('sealHistoryKey / openHistoryKey: round trip, same seal as encryptSecrets, garbage → null', async () => {
+    const { deriveKey, sealHistoryKey, openHistoryKey } = await import('@/background/config/key-vault');
+    const raw = hek();
+    const sealed = await encryptSecrets(KEY, raw, PASS, URL, FAST);
+    const key = await deriveKey(PASS, base64ToBytes(sealed.encryptedKey.salt), FAST);
+    expect(await openHistoryKey(sealed.historyKey, key)).toEqual(raw);
+    const resealed = await sealHistoryKey(raw, key);
+    expect(resealed.iv).not.toBe(sealed.historyKey.iv);
+    expect(await openHistoryKey(resealed, key)).toEqual(raw);
+    expect((await decryptSecrets(sealed.encryptedKey, resealed, PASS, URL))?.history).toEqual({ key: raw });
+    for (const bad of [null, 42, {}, { iv: 'x', ct: 'y' }]) expect(await openHistoryKey(bad, key)).toBeNull();
+  });
+});

@@ -34,6 +34,8 @@ error:
   WRONG_PASSPHRASE: "Incorrect passphrase."
   WEAK_PASSPHRASE: "The passphrase must be at least 10 characters long."
   BAD_MESSAGE: "Internal extension error."
+  INSTANCE_NOT_FOUND: "This HomeBox instance no longer exists. Choose another one."
+  KEY_UNREADABLE: "The API key of this instance cannot be read. Enter it again."
 
 common:
   instanceAria: "HomeBox instance in use"

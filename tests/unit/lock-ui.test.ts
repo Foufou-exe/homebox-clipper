@@ -26,6 +26,9 @@ const POLICY_KEYS = {
 
 const view = (over: Partial<ConfigView> = {}): ConfigView => ({
   configured: true,
+  // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
+  instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: 'https://homebox.example.com', maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
+  defaultInstanceId: 'inst-a',
   baseUrl: 'https://homebox.example.com',
   maskedKey: 'hb_••••xxxx',
   lastCheck: null,

@@ -445,3 +445,73 @@ describe('history-store (Q-U5, Q-U9 to Q-U12)', () => {
     for (const s of spies) expect(s).not.toHaveBeenCalled();
   });
 });
+
+describe('history-store: instance of the envelope (016, R5, Q-U4, T015)', () => {
+  const envOf = async (id: string) => (await local())[`importHistory:${id}`] as Record<string, unknown>;
+
+  it('forKey(key, instanceId): inst written at start and update; the ciphertext opens as before (AAD unchanged)', async () => {
+    const { store, key } = await setup();
+    const w = store.forKey(key, 'inst-a');
+    await w.start(pending('a'), INSTANCE);
+    expect(Object.keys(await envOf('a')).sort()).toEqual(['ct', 'inst', 'iv', 'v']);
+    expect((await envOf('a')).inst).toBe('inst-a');
+    await w.update(done('a'));
+    expect((await envOf('a')).inst).toBe('inst-a');
+    expect(await open(await envOf('a'), key, 'a')).toMatchObject({ id: 'a', status: 'complete', instance: INSTANCE });
+  });
+
+  it('forKey(key) without instance: no inst (unchanged format); update and reconcile keep an existing inst', async () => {
+    const { store, key } = await setup();
+    await store.forKey(key).start(pending('a'), INSTANCE);
+    expect(Object.keys(await envOf('a')).sort()).toEqual(['ct', 'iv', 'v']);
+    await store.forKey(key, 'inst-b').start(pending('b'), INSTANCE);
+    await store.forKey(key).update(done('b'));
+    expect((await envOf('b')).inst).toBe('inst-b');
+    await store.forKey(key, 'inst-c').start(pending('c'), INSTANCE);
+    await store.reconcile(key, pending('c'));
+    expect((await envOf('c')).inst).toBe('inst-c');
+  });
+
+  it('list: instanceId per entry (null without inst); the reconciliation of an orphan keeps inst', async () => {
+    const { store, key } = await setup();
+    await store.forKey(key, 'inst-a').start(pending('a'), INSTANCE);
+    await store.forKey(key).start(done('b'), INSTANCE);
+    const view = await store.list(key);
+    const byId = Object.fromEntries(view.entries.map((e) => [e.id, e]));
+    expect(byId.a).toMatchObject({ status: 'failed', interrupted: true, instanceId: 'inst-a' });
+    expect(byId.b).toMatchObject({ instanceId: null });
+    expect((await envOf('a')).inst).toBe('inst-a');
+  });
+
+  it('attach: sets inst on entries without inst whose address is an instance, leaves the others, idempotent', async () => {
+    const { store, key } = await setup();
+    await fakeBrowser.storage.local.set({
+      ...(await plant(key, 'a', '2026-11-12T09:00:00.000Z')),
+      ...(await plant(key, 'b', '2026-11-12T09:00:00.000Z', { instance: 'https://inventaire.example.org' })),
+      ...(await plant(key, 'c', '2026-11-12T09:00:00.000Z', { instance: 'https://autre.example.net' })),
+    });
+    await store.forKey(key, 'inst-x').start(pending('d'), INSTANCE);
+    const before = await local();
+    const instances = [
+      { id: 'inst-a', baseUrl: INSTANCE },
+      { id: 'inst-b', baseUrl: 'https://inventaire.example.org' },
+    ];
+    await store.attach(key, instances);
+    const after = await local();
+    expect(after['importHistory:a']).toEqual({ ...(before['importHistory:a'] as object), inst: 'inst-a' });
+    expect(after['importHistory:b']).toEqual({ ...(before['importHistory:b'] as object), inst: 'inst-b' });
+    expect(after['importHistory:c']).toEqual(before['importHistory:c']);
+    // An entry already attached is never moved.
+    expect(after['importHistory:d']).toEqual(before['importHistory:d']);
+    await store.attach(key, instances);
+    expect(await local()).toEqual(after);
+  });
+
+  it('attach with another key: nothing opened, nothing changed', async () => {
+    const { store, key } = await setup();
+    await fakeBrowser.storage.local.set(await plant(key, 'a', '2026-11-12T09:00:00.000Z'));
+    const before = await local();
+    await store.attach(await importHistoryKey(generateHistoryKey()), [{ id: 'inst-a', baseUrl: INSTANCE }]);
+    expect(await local()).toEqual(before);
+  });
+});

@@ -5,7 +5,10 @@ import { dispatch } from '@/background/router';
 import { fail, ok } from '@/shared/errors';
 
 const EXT = 'chrome-extension://abcdefghijklmnop/';
-const call = () => dispatch({ type: 'location/list' }, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
+// ADAPTED (016): location/list names its target instance; the last location is indexed by instance id.
+const ID = 'inst-a';
+const OTHER = 'inst-b';
+const call = () => dispatch({ type: 'location/list', instanceId: ID }, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
 const reply = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -32,7 +35,7 @@ describe('location/list handler (read-only)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
-    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ baseUrl: ORIGIN, apiKey: 'hb_test_key_0000' }));
+    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ id: ID, baseUrl: ORIGIN, apiKey: 'hb_test_key_0000' }));
     registerLocationHandlers();
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -89,7 +92,7 @@ describe('location/list handler (read-only)', () => {
   it('read-only: no POST, PUT or DELETE (FR-022)', async () => {
     const requests = stubFetch(() => reply(200, TREE));
     await call();
-    await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'g' } });
+    await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ID]: 'g' } });
     await call();
     expect(requests.length).toBeGreaterThan(0);
     expect(requests.every((r) => r.method === 'GET')).toBe(true);
@@ -97,33 +100,65 @@ describe('location/list handler (read-only)', () => {
 
   describe('last location used (US3)', () => {
     it('lastUsedId = identifier remembered for this instance when it is in the tree', async () => {
-      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'g' } });
+      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ID]: 'g' } });
       stubFetch(() => reply(200, TREE));
       expect(await call()).toMatchObject({ ok: true, value: { lastUsedId: 'g' } });
     });
 
     it('stale identifier → null, no error, and the entry is removed', async () => {
-      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'disparu', 'https://autre.example.com': 'g' } });
+      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ID]: 'disparu', [OTHER]: 'g' } });
       stubFetch(() => reply(200, TREE));
       expect(await call()).toMatchObject({ ok: true, value: { lastUsedId: null } });
       expect((await fakeBrowser.storage.local.get('lastLocationByInstance')).lastLocationByInstance).toEqual({
-        'https://autre.example.com': 'g',
+        [OTHER]: 'g',
       });
     });
 
     it('memory of another instance → null', async () => {
-      await fakeBrowser.storage.local.set({ lastLocationByInstance: { 'https://autre.example.com': 'g' } });
+      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [OTHER]: 'g' } });
       stubFetch(() => reply(200, TREE));
       expect(await call()).toMatchObject({ ok: true, value: { lastUsedId: null } });
     });
 
     it('list unavailable: memory is left untouched', async () => {
-      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ORIGIN]: 'g' } });
+      await fakeBrowser.storage.local.set({ lastLocationByInstance: { [ID]: 'g' } });
       stubFetch(() => reply(500, {}));
       expect(await call()).toMatchObject({ ok: false, error: 'LOCATIONS_UNAVAILABLE' });
       expect((await fakeBrowser.storage.local.get('lastLocationByInstance')).lastLocationByInstance).toEqual({
-        [ORIGIN]: 'g',
+        [ID]: 'g',
       });
     });
+  });
+});
+
+describe('location/list targets one instance (016, Q-C2, T012)', () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ id: ID, baseUrl: ORIGIN, apiKey: 'hb_test_key_0000' }));
+    registerLocationHandlers();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('the credentials of the instance of the message are used, and only its last location', async () => {
+    await fakeBrowser.storage.local.set({ lastLocationByInstance: { [OTHER]: 'g' } });
+    stubFetch(() => reply(200, TREE));
+    expect(await call()).toMatchObject({ ok: true, value: { lastUsedId: null } });
+    expect(configStore.getCredentials).toHaveBeenCalledWith(ID);
+  });
+
+  it.each([[{}], [{ instanceId: '' }], [{ instanceId: 3 }]])('%j → BAD_MESSAGE, nothing read, no request', async (extra) => {
+    const requests = stubFetch(() => reply(200, TREE));
+    const res = await dispatch({ type: 'location/list', ...extra }, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
+    expect(res).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(configStore.getCredentials).not.toHaveBeenCalled();
+    expect(requests).toEqual([]);
+  });
+
+  it('unknown instance → INSTANCE_NOT_FOUND, no request', async () => {
+    vi.mocked(configStore.getCredentials).mockResolvedValue(fail('INSTANCE_NOT_FOUND'));
+    const requests = stubFetch(() => reply(200, TREE));
+    expect(await call()).toEqual({ ok: false, error: 'INSTANCE_NOT_FOUND' });
+    expect(requests).toEqual([]);
   });
 });

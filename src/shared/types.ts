@@ -184,6 +184,11 @@ export interface PendingImport {
   createUncertain?: boolean;
   /** Set when a `running` import is recovered after the service worker stopped (R8); cleared on resume. */
   orphaned?: boolean;
+  /**
+   * Target instance (spec 016): set by the import handler (wrapped store and notify), never by the orchestrator;
+   * read by `import/retry`. Absent only from a state written by a previous version.
+   */
+  instanceId?: string;
 }
 
 export interface LastCheck {
@@ -194,9 +199,64 @@ export interface LastCheck {
   at: string;
 }
 
+/** Base64 AES-GCM seal; random 12-byte IV for every sealing (spec 016, data-model §2). */
+export interface Sealed {
+  iv: string;
+  ct: string;
+}
+
+/** Passphrase vault shared by every instance (spec 016): one derivation, N keys. */
+export interface Vault {
+  kdf: 'PBKDF2-SHA256';
+  /** 600 000 by default (DEFAULT_ITERATIONS). */
+  iterations: number;
+  /** base64, 16 bytes; copied as is from the former EncryptedKey at migration. */
+  salt: string;
+  /** Passphrase check seal: absent after migration, created at the first successful unlock. */
+  check?: Sealed | null;
+  /** Sealed history key (spec 012); absent/null before 012 or for a legacy key. */
+  historyKey?: Sealed | null;
+}
+
+export interface StoredInstance {
+  /** `crypto.randomUUID()`; `'migrated'` for the instance coming from the migration. Never changed. */
+  id: string;
+  /** 1 to 50 characters after trim, unique ignoring case (FR-005). */
+  name: string;
+  /** Normalized address (`normalizeBaseUrl`); unique (FR-004). Associated data of `key`. */
+  baseUrl: string;
+  /** Sealed API key (AES-GCM, vault key, AAD = baseUrl); null: legacy key in session, or key to re-enter. */
+  key: Sealed | null;
+  /** `maskKey()`: first 3 + •••• + last 4. */
+  maskedKey: string;
+  lastCheck: LastCheck | null;
+}
+
+/** `storage.local.homeboxInstances` (spec 016, data-model §2). */
+export interface InstancesStore {
+  v: 1;
+  /** null: legacy key without passphrase (spec 005), a single instance, `key: null`. */
+  vault: Vault | null;
+  /** 1 to 10 elements, order of addition; the migrated instance first. */
+  instances: StoredInstance[];
+  /** Present if the object was created by the migration (used by steps 2 and 3, then ignored). */
+  migratedFrom?: 'homeboxConfig';
+}
+
+/** Instance exposed to the UI: never the key (principle I). `keyState` is computed, never stored. */
+export interface InstanceView {
+  id: string;
+  name: string;
+  baseUrl: string;
+  maskedKey: string;
+  lastCheck: LastCheck | null;
+  keyState: 'ready' | 'locked' | 'unreadable' | 'missing';
+}
+
 /** View of the configuration exposed to the UI: never contains the key (principle I). */
 export interface ConfigView {
   configured: boolean;
+  /** Increment 1 only (UI compatibility): copy of the default instance (spec 016). */
   baseUrl?: string;
   maskedKey?: string;
   lastCheck?: LastCheck | null;
@@ -204,6 +264,11 @@ export interface ConfigView {
   locked?: boolean;
   /** Key migrated from the old plaintext format: a passphrase must be set. */
   needsPassphrase?: boolean;
+  /** Instances, in the order of the settings (spec 016). */
+  instances?: InstanceView[];
+  /** lastInstanceId if it designates an existing instance, otherwise instances[0].id (FR-012). */
+  defaultInstanceId?: string | null;
+  maxInstances?: 10;
 }
 
 /** File chosen by the user, passed to the service worker. */
@@ -268,8 +333,11 @@ export interface ImportHistoryEntry {
   interrupted?: true;
 }
 
-/** Entry exposed to the UI: `resumable` is computed by `history/list`, never stored. */
-export type HistoryEntryView = ImportHistoryEntry & { resumable: boolean };
+/**
+ * Entry exposed to the UI: `resumable` is computed by `history/list`, never stored; `instanceId` comes from the
+ * envelope (`inst`, spec 016), `null` for an entry not attached to an instance.
+ */
+export type HistoryEntryView = ImportHistoryEntry & { resumable: boolean; instanceId: string | null };
 
 /** Response of `history/list`: never an entry outside `ready` (FR-014). */
 export type HistoryListView =

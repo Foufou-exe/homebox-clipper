@@ -34,6 +34,8 @@ error:
   WRONG_PASSPHRASE: "Phrase de passe incorrecte."
   WEAK_PASSPHRASE: "La phrase de passe doit contenir au moins 10 caractères."
   BAD_MESSAGE: "Erreur interne de l’extension."
+  INSTANCE_NOT_FOUND: "Cette instance HomeBox n’existe plus. Choisissez-en une autre."
+  KEY_UNREADABLE: "La clé API de cette instance est illisible. Saisissez-la à nouveau."
 
 common:
   instanceAria: "Instance HomeBox utilisée"

@@ -12,11 +12,16 @@ import type { HistoryMissing, HistoryStatus, ImportHistoryEntry } from '@/shared
 /** Non-extractable AES-GCM key, never put in the session nor in a message. */
 export type HistoryKey = CryptoKey;
 
-/** What is actually written in storage.local: nothing else is in clear. */
+/**
+ * What is actually written in storage.local: nothing else is in clear. `inst` (spec 016): id of the target
+ * instance, in clear and not authenticated (an opaque identifier, used to attach, link and delete per instance);
+ * the content, the associated data and the whitelist are unchanged, and `open` ignores it.
+ */
 export interface HistoryEnvelope {
   v: 1;
   iv: string;
   ct: string;
+  inst?: string;
 }
 
 const encoder = new TextEncoder();

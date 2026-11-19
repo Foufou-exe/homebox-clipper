@@ -4,7 +4,7 @@ import { encryptApiKey } from '@/background/config/key-vault';
 import { generateHistoryKey, importHistoryKey, seal } from '@/background/history/history-crypto';
 import { createHistoryStore } from '@/background/history/history-store';
 import { bytesToBase64 } from '@/shared/pdf';
-import type { ImportHistoryEntry } from '@/shared/types';
+import type { ImportHistoryEntry, InstancesStore } from '@/shared/types';
 
 const URL = 'https://homebox.example.com';
 const KEY = 'hb_secret_api_key_a1b2';
@@ -16,7 +16,13 @@ const save = (over: Partial<{ baseUrl: string; apiKey: string; passphrase: strin
 
 const local = async () => fakeBrowser.storage.local.get(null);
 const session = async () => fakeBrowser.storage.session.get(null);
-const stored = async () => (await local()).homeboxConfig as Record<string, unknown>;
+// ADAPTED (016): the configuration is stored as a vault + instances (homeboxInstances).
+const storedStore = async () => (await local()).homeboxInstances as InstancesStore;
+const stored = async () => (await storedStore()).vault as unknown as Record<string, unknown>;
+/** Rewrites the vault (homeboxInstances) with `vault`. */
+const setVault = async (vault: Record<string, unknown>) =>
+  fakeBrowser.storage.local.set({ homeboxInstances: { ...(await storedStore()), vault } });
+const credentials = async () => configStore.getCredentials((await configStore.getView()).defaultInstanceId ?? '');
 const hekB64 = async () => {
   const k = await configStore.getHistoryKey();
   return k ? bytesToBase64(k) : null;
@@ -46,7 +52,11 @@ async function writeEntry(id: string) {
 }
 
 describe('config-store: history key (R10.2, Q-U31 to Q-U35)', () => {
-  beforeEach(() => fakeBrowser.reset());
+  beforeEach(() => {
+    fakeBrowser.reset();
+    // ADAPTED (016): getCredentials now checks the origin permission (granted here, as after configuration).
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+  });
   afterEach(() => vi.restoreAllMocks());
 
   describe('sealed in the configuration, open in the session only (Q-U31)', () => {
@@ -55,8 +65,9 @@ describe('config-store: history key (R10.2, Q-U31 to Q-U35)', () => {
       const sealed = (await stored()).historyKey as Record<string, unknown>;
       expect(Object.keys(sealed).sort()).toEqual(['ct', 'iv']);
       const s = (await session()).homeboxUnlocked as Record<string, unknown>;
-      expect(Object.keys(s).sort()).toEqual(['apiKey', 'historyKey']);
-      expect(s.apiKey).toBe(KEY);
+      // ADAPTED (016): session v2, the API keys by instance id.
+      expect(Object.keys(s).sort()).toEqual(['historyKey', 'keys', 'v']);
+      expect(Object.values(s.keys as object)).toEqual([KEY]);
       const b64 = await hekB64();
       expect(b64).toBe(s.historyKey);
       expect((await configStore.getHistoryKey())?.length).toBe(32);
@@ -114,7 +125,9 @@ describe('config-store: history key (R10.2, Q-U31 to Q-U35)', () => {
       expect(await configStore.unlock(PASS)).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
       expect(await configStore.unlock(PASS2)).toEqual({ ok: true, value: undefined });
       expect(await hekB64()).toBe(before);
-      expect((await local())['importHistory:a']).toEqual(env);
+      // ADAPTED (016): the unlock attaches the entry to its instance (`inst` outside the ciphertext); the
+      // ciphertext itself is not rewritten.
+      expect((await local())['importHistory:a']).toEqual({ ...env, inst: (await configStore.getView()).defaultInstanceId });
     });
 
     it('locked, kept key and current passphrase (address change only): key reopened, entries kept', async () => {
@@ -140,11 +153,14 @@ describe('config-store: history key (R10.2, Q-U31 to Q-U35)', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       const cfg = await stored();
       expect(Object.keys(cfg.historyKey as object).sort()).toEqual(['ct', 'iv']);
-      expect(cfg.encryptedKey).toEqual(encryptedKey);
+      // ADAPTED (016): the former encryptedKey is split into the vault (kdf, iterations, salt) and the instance key.
+      const { kdf, iterations, salt, iv, ct } = encryptedKey;
+      expect({ kdf: cfg.kdf, iterations: cfg.iterations, salt: cfg.salt }).toEqual({ kdf, iterations, salt });
+      expect((await storedStore()).instances[0]!.key).toEqual({ iv, ct });
       expect(await configStore.historyState()).toBe('ready');
-      expect(await configStore.getCredentials()).toEqual({
+      expect(await credentials()).toEqual({
         ok: true,
-        value: { baseUrl: URL, apiKey: KEY },
+        value: { id: (await configStore.getView()).defaultInstanceId, baseUrl: URL, apiKey: KEY },
       });
       const created = await hekB64();
       await configStore.lock();
@@ -178,15 +194,16 @@ describe('config-store: history key (R10.2, Q-U31 to Q-U35)', () => {
         const s = cfg.historyKey as { iv: string; ct: string };
         next.historyKey = { ...s, ct: `${s.ct.slice(0, -6)}AAAAAA` };
       } else next.historyKey = value;
-      await fakeBrowser.storage.local.set({ homeboxConfig: next });
+      // ADAPTED (016): the sealed history key lives in the vault.
+      await setVault(next);
     };
 
     it.each([['DELETE'], [null]])('absent (%s): unlock ok, key created (ready)', async (value) => {
       await corrupt(value);
       expect(await configStore.unlock(PASS)).toEqual({ ok: true, value: undefined });
-      expect(await configStore.getCredentials()).toEqual({
+      expect(await credentials()).toEqual({
         ok: true,
-        value: { baseUrl: URL, apiKey: KEY },
+        value: { id: (await configStore.getView()).defaultInstanceId, baseUrl: URL, apiKey: KEY },
       });
       expect(await configStore.historyState()).toBe('ready');
       expect((await stored()).historyKey).toBeTruthy();
@@ -197,12 +214,13 @@ describe('config-store: history key (R10.2, Q-U31 to Q-U35)', () => {
       async (value) => {
         await corrupt(value);
         expect(await configStore.unlock(PASS)).toEqual({ ok: true, value: undefined });
-        expect(await configStore.getCredentials()).toEqual({
+        expect(await credentials()).toEqual({
           ok: true,
-          value: { baseUrl: URL, apiKey: KEY },
+          value: { id: (await configStore.getView()).defaultInstanceId, baseUrl: URL, apiKey: KEY },
         });
         expect(await configStore.getHistoryKey()).toBeNull();
-        expect(Object.keys((await session()).homeboxUnlocked as object)).toEqual(['apiKey']);
+        // ADAPTED (016): session v2 without history key.
+        expect(Object.keys((await session()).homeboxUnlocked as object).sort()).toEqual(['keys', 'v']);
         expect(await configStore.historyState()).toBe('unavailable');
         expect((await configStore.getView()).locked).toBe(false);
       },
@@ -248,7 +266,8 @@ describe('config-store: erasing the history (012, US3, Q-U33, Q-U34, FR-009)', (
     await save();
     await writeEntry('a');
     await configStore.lock();
-    await fakeBrowser.storage.local.set({ homeboxConfig: { ...(await stored()), historyKey: { iv: 'x', ct: 'y' } } });
+    // ADAPTED (016): the sealed history key lives in the vault.
+    await setVault({ ...(await stored()), historyKey: { iv: 'x', ct: 'y' } });
     await save();
     expect(await historyKeys()).toEqual([]);
     expect(await configStore.historyState()).toBe('ready');

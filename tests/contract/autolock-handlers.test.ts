@@ -18,7 +18,12 @@ const MIN = 60_000;
 
 const call = (msg: unknown) =>
   dispatch(msg, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
-const save = () => configStore.save({ baseUrl: URL, apiKey: KEY, passphrase: PASS }, 1_000);
+// ADAPTED (016): the id of the configured instance is kept to name the target of the messages.
+let ID = '';
+const save = async () => {
+  await configStore.save({ baseUrl: URL, apiKey: KEY, passphrase: PASS }, 1_000);
+  ID = (await configStore.getView()).defaultInstanceId ?? '';
+};
 const setPolicy = (policy: string) =>
   fakeBrowser.storage.local.set({ lockSettings: { v: 1, policy } });
 const isLocked = async () => (await configStore.getView()).locked === true;
@@ -36,6 +41,8 @@ function fakePort(name = 'ui-presence', url = `${EXT}popup.html`) {
 describe('automatic lock: handlers, presence port and imports (013)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
+    // ADAPTED (016): getCredentials now checks the origin permission (granted here, as after configuration).
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
     vi.setSystemTime(T0);
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation(
@@ -77,7 +84,7 @@ describe('automatic lock: handlers, presence port and imports (013)', () => {
     activeImports.add('import-1');
     at(20 * MIN);
     // The running import keeps the keys it captured; any new read is refused as locked.
-    expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await configStore.getCredentials(ID)).toEqual({ ok: false, error: 'LOCKED' }); // ADAPTED (016)
     await autoLock.afterImport();
     expect(await fakeBrowser.storage.session.get(null)).toHaveProperty('homeboxUnlocked');
     activeImports.clear();

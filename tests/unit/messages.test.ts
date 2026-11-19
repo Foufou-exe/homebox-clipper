@@ -8,8 +8,10 @@ import type { DocumentRef } from '@/shared/types';
 import { draft, invoice } from '../contract/orchestrator-harness';
 
 const doc = (over: Record<string, unknown> = {}) => ({ ...invoice, ...over });
+// ADAPTED (016): import/start names its target instance (shape only).
 const start = (documents: unknown) => ({
   type: 'import/start',
+  instanceId: 'inst-a',
   tabId: 1,
   manualFiles: [],
   drafts: [{ ...draft(), documents }],
@@ -73,8 +75,10 @@ const goodWarranty = {
   durationMonths: 24,
   edited: false,
 };
+// ADAPTED (016): import/start names its target instance (shape only).
 const startWith = (warranty: unknown) => ({
   type: 'import/start',
+  instanceId: 'inst-a',
   tabId: 1,
   manualFiles: [],
   drafts: [{ ...draft(), warranty }],
@@ -120,7 +124,8 @@ describe('messages: warranty validation on import/start (011, Q-U11)', () => {
   });
 
   it('a draft from before the feature (no warranty) is still accepted', () => {
-    expect(isMessage({ type: 'import/start', tabId: 1, manualFiles: [], drafts: [draft()] })).toBe(true);
+    // ADAPTED (016): with the target instance.
+    expect(isMessage({ type: 'import/start', instanceId: 'inst-a', tabId: 1, manualFiles: [], drafts: [draft()] })).toBe(true);
   });
 
   it('router: an invalid warranty → BAD_MESSAGE and no HomeBox call', async () => {
@@ -207,8 +212,9 @@ describe('messages: tag/list and drafts[].tags on import/start (014, Q-U6)', () 
   const withTags = (tags: unknown) => ({ ...start([invoice]), drafts: [{ ...draft(), documents: [invoice], tags }] });
   const withoutTags = () => start([invoice]);
 
+  // ADAPTED (016): the only parameter is the target instance.
   it('tag/list is accepted without parameters', () => {
-    expect(isMessage({ type: 'tag/list' })).toBe(true);
+    expect(isMessage({ type: 'tag/list', instanceId: 'inst-a' })).toBe(true);
   });
 
   it('import/start accepts tags absent, [], a name, a name with an id', () => {
@@ -243,7 +249,8 @@ describe('messages: tag/list and drafts[].tags on import/start (014, Q-U6)', () 
 });
 
 describe('messages: duplicate/check validator unchanged (015, Q-U5)', () => {
-  const check = (over: Record<string, unknown>) => ({ type: 'duplicate/check', ...over });
+  // ADAPTED (016): duplicate/check names its target instance (shape only).
+  const check = (over: Record<string, unknown>) => ({ type: 'duplicate/check', instanceId: 'inst-a', ...over });
 
   it('accepts an empty order number (product without an order number, FR-003)', () => {
     expect(isMessage(check({ orderNumber: '', name: 'Câble USB-C 2 m noir' }))).toBe(true);
@@ -262,5 +269,45 @@ describe('messages: duplicate/check validator unchanged (015, Q-U5)', () => {
     ['name null', { orderNumber: '', name: null }],
   ])('refuses %s', (_label, over) => {
     expect(isMessage(check(over))).toBe(false);
+  });
+});
+
+describe('messages: instanceId is required on the messages that contact HomeBox (016, Q-U6, T013)', () => {
+  const valid = {
+    'location/list': { type: 'location/list' },
+    'tag/list': { type: 'tag/list' },
+    'duplicate/check': { type: 'duplicate/check', orderNumber: '999-0000000-0000001', name: 'Câble USB-C 2 m noir' },
+    'import/start': { type: 'import/start', tabId: 1, manualFiles: [], drafts: [] },
+  } as const;
+
+  it.each(Object.keys(valid))('%s: accepted with an instanceId of 1 to 64 characters', (type) => {
+    const base = valid[type as keyof typeof valid];
+    expect(isMessage({ ...base, instanceId: 'inst-a' })).toBe(true);
+    expect(isMessage({ ...base, instanceId: 'x' })).toBe(true);
+    expect(isMessage({ ...base, instanceId: 'x'.repeat(64) })).toBe(true);
+    expect(isMessage({ ...base, instanceId: 'migrated' })).toBe(true);
+  });
+
+  it.each(Object.keys(valid))('%s: refused without instanceId, empty, 65 characters, a number, null', (type) => {
+    const base = valid[type as keyof typeof valid];
+    expect(isMessage(base)).toBe(false);
+    for (const instanceId of ['', 'x'.repeat(65), 42, null, {}]) expect(isMessage({ ...base, instanceId })).toBe(false);
+  });
+
+  it('import/retry is unchanged: no target in the message (FR-018)', () => {
+    expect(isMessage({ type: 'import/retry', pendingId: 'p1' })).toBe(true);
+    expect(isMessage({ type: 'import/retry', pendingId: 'p1', manualFiles: [], location: null })).toBe(true);
+  });
+
+  it('router: location/list without instanceId → BAD_MESSAGE, the handler is never reached', async () => {
+    fakeBrowser.reset();
+    const BASE = 'chrome-extension://abcdefghijklmnop/';
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => BASE + p.replace(/^\//, ''));
+    const handler = vi.fn(async () => ({ ok: true as const, value: { locations: [], lastUsedId: null } }));
+    register('location/list', handler);
+    const sender = { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` };
+    expect(await dispatch({ type: 'location/list' }, sender)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(await dispatch({ type: 'location/list', instanceId: '' }, sender)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
   });
 });

@@ -256,3 +256,22 @@ describe('history/*: controlling the data (012, US3, Q-U12, SC-004)', () => {
     expect(await historyKeys()).toEqual([]);
   });
 });
+
+describe('history/list: instance of each entry (016, T015)', () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    registerHistoryHandlers();
+  });
+
+  it('instanceId: string | null per entry, from the envelope (inst)', async () => {
+    const key = await configured();
+    const id = (await configStore.getView()).defaultInstanceId!;
+    await historyStore.forKey(key, id).start(pending('a', { status: 'success', entityId: 'e1' }), URL);
+    await historyStore.forKey(key).start(pending('b', { status: 'success', entityId: 'e2' }), URL);
+    const view = await list();
+    expect(view.state).toBe('ready');
+    const byId = Object.fromEntries((view.entries as Array<{ id: string; instanceId: string | null }>).map((e) => [e.id, e.instanceId]));
+    expect(byId).toEqual({ a: id, b: null });
+  });
+});

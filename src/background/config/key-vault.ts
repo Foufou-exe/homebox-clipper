@@ -22,7 +22,8 @@ export const DEFAULT_ITERATIONS = 600_000;
 const encoder = new TextEncoder();
 const buffer = (bytes: Uint8Array) => bytes as Uint8Array<ArrayBuffer>;
 
-async function deriveKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
+/** One PBKDF2-SHA256 derivation → non-extractable AES-GCM 256 key (also used by the vault of spec 016). */
+export async function deriveKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey('raw', encoder.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt: buffer(salt), iterations },
@@ -117,7 +118,7 @@ async function openApiKey(blob: EncryptedKey, key: CryptoKey, baseUrl: string): 
   return new TextDecoder().decode(plain);
 }
 
-async function sealHistoryKey(historyKey: Uint8Array, key: CryptoKey): Promise<SealedHistoryKey> {
+export async function sealHistoryKey(historyKey: Uint8Array, key: CryptoKey): Promise<SealedHistoryKey> {
   // Fresh random IV for every sealing, never reused with this derived key.
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt(
@@ -129,7 +130,7 @@ async function sealHistoryKey(historyKey: Uint8Array, key: CryptoKey): Promise<S
 }
 
 /** `null` if the seal is malformed, does not authenticate, or does not hold a 32-byte key. Never throws. */
-async function openHistoryKey(sealed: unknown, key: CryptoKey): Promise<Uint8Array | null> {
+export async function openHistoryKey(sealed: unknown, key: CryptoKey): Promise<Uint8Array | null> {
   if (typeof sealed !== 'object' || sealed === null) return null;
   const { iv, ct } = sealed as Record<string, unknown>;
   if (typeof iv !== 'string' || typeof ct !== 'string') return null;

@@ -56,3 +56,57 @@ describe('configuration handlers (passphrase)', () => {
     expect(m.calls[1]?.headers.get('Authorization')).toBe(`Bearer ${KEY}`);
   }, 30_000);
 });
+
+describe('configuration handlers with the instances view (016, T011)', () => {
+  const view = { type: 'config/get' };
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockImplementation((async () => true) as never);
+    registerConfigHandlers();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('config/get, session/open, session/lock, session/unlock: one instance, its keyState and the default id', async () => {
+    expect(await call(view)).toEqual({ configured: false });
+    vi.stubGlobal('fetch', homeboxOk().fetch);
+    await call({ type: 'config/save', baseUrl: URL_A, apiKey: KEY, passphrase: PASS });
+    const got = (await call(view)) as { instances: Array<{ id: string; keyState: string }>; defaultInstanceId: string };
+    expect(got.instances).toHaveLength(1);
+    expect(got.instances[0]).toMatchObject({ name: 'homebox.example.com', baseUrl: URL_A, maskedKey: 'hb_••••a1b2', keyState: 'ready' });
+    expect(got.defaultInstanceId).toBe(got.instances[0]!.id);
+    expect(await call({ type: 'session/open' })).toMatchObject({ defaultInstanceId: got.defaultInstanceId, maxInstances: 10 });
+    expect(await call({ type: 'session/lock' })).toMatchObject({ locked: true, instances: [{ keyState: 'locked' }] });
+    expect(await call({ type: 'session/unlock', passphrase: PASS })).toMatchObject({
+      ok: true,
+      value: { locked: false, instances: [{ id: got.defaultInstanceId, keyState: 'ready' }] },
+    });
+    expect(JSON.stringify(await call(view))).not.toContain(KEY);
+  });
+
+  it('config/save on a single instance keeps its id (updates instances[0], never a second instance)', async () => {
+    vi.stubGlobal('fetch', homeboxOk().fetch);
+    await call({ type: 'config/save', baseUrl: URL_A, apiKey: KEY, passphrase: PASS });
+    const first = ((await call(view)) as { defaultInstanceId: string }).defaultInstanceId;
+    vi.stubGlobal('fetch', homeboxOk().fetch);
+    const saved = (await call({ type: 'config/save', baseUrl: `${URL_A}/sub`, apiKey: '', passphrase: PASS })) as {
+      ok: boolean;
+      value: { instances: Array<{ id: string; baseUrl: string; lastCheck: unknown }> };
+    };
+    expect(saved.ok).toBe(true);
+    expect(saved.value.instances).toEqual([expect.objectContaining({ id: first, baseUrl: `${URL_A}/sub`, lastCheck: expect.objectContaining({ status: 'ok' }) })]);
+  });
+
+  it('config/test contacts only this instance and records its lastCheck', async () => {
+    vi.stubGlobal('fetch', homeboxOk().fetch);
+    await call({ type: 'config/save', baseUrl: URL_A, apiKey: KEY, passphrase: PASS });
+    const m = homeboxOk();
+    vi.stubGlobal('fetch', m.fetch);
+    const res = (await call({ type: 'config/test' })) as { ok: boolean; value: { instances: Array<{ lastCheck: unknown }> } };
+    expect(res).toMatchObject({ ok: true });
+    expect(m.calls.every((c) => c.url.startsWith(`${URL_A}/`))).toBe(true);
+    expect(m.calls).toHaveLength(2);
+    for (const c of m.calls) expect([null, `Bearer ${KEY}`]).toContain(c.headers.get('Authorization'));
+    expect(res.value.instances[0]!.lastCheck).toMatchObject({ status: 'ok', version: expect.any(String) });
+  });
+});

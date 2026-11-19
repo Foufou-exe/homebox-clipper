@@ -26,6 +26,9 @@ const NUMBER = '999-0000000-0000001';
 const BASE = 'https://homebox.example.com';
 const config: ConfigView = {
   configured: true,
+  // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
+  instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: BASE, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
+  defaultInstanceId: 'inst-a',
   baseUrl: BASE,
   lastCheck: { status: 'ok', version: '0.27.0', at: '2026-10-22T10:00:00Z' },
 };
@@ -237,7 +240,7 @@ describe('SummaryView: similar items in the duplicate dialog (015, US1)', () => 
     const w = await mountSummary(purchase([product('a', CABLE), product('b', DRILL)]));
     await w.findAll('.line > label.pick input[type="checkbox"]')[1]!.setValue(false);
     await add(w);
-    expect(sentChecks()).toEqual([{ type: 'duplicate/check', orderNumber: NUMBER, name: CABLE }]);
+    expect(sentChecks()).toEqual([{ type: 'duplicate/check', instanceId: 'inst-a', orderNumber: NUMBER, name: CABLE }]); // ADAPTED (016)
   });
 
   it('a name edited before confirmation is the one sent', async () => {
@@ -245,7 +248,7 @@ describe('SummaryView: similar items in the duplicate dialog (015, US1)', () => 
     await w.findComponent(FieldEditor).find('input[id$="-name"]').setValue('Câble USB-C tressé');
     await add(w);
     expect(sentChecks()).toEqual([
-      { type: 'duplicate/check', orderNumber: NUMBER, name: 'Câble USB-C tressé' },
+      { type: 'duplicate/check', instanceId: 'inst-a', orderNumber: NUMBER, name: 'Câble USB-C tressé' }, // ADAPTED (016)
     ]);
   });
 });
@@ -365,7 +368,7 @@ describe('SummaryView: products without an order number are checked too (015, US
   it('US2-3: a checked product without an order number sends duplicate/check with orderNumber ""', async () => {
     const w = await mountSummary(purchase([product('a', DRILL)], null));
     await add(w);
-    expect(sentChecks()).toEqual([{ type: 'duplicate/check', orderNumber: '', name: DRILL }]);
+    expect(sentChecks()).toEqual([{ type: 'duplicate/check', instanceId: 'inst-a', orderNumber: '', name: DRILL }]); // ADAPTED (016)
   });
 
   it('a product without an order number with a similar item → dialog, group named after it, item under "Ressemblances"', async () => {
@@ -385,8 +388,8 @@ describe('SummaryView: products without an order number are checked too (015, US
     await w.findAllComponents(FieldEditor)[1]!.find('input[id$="-order"]').setValue('');
     await add(w);
     expect(sentChecks()).toEqual([
-      { type: 'duplicate/check', orderNumber: NUMBER, name: CABLE },
-      { type: 'duplicate/check', orderNumber: '', name: DRILL },
+      { type: 'duplicate/check', instanceId: 'inst-a', orderNumber: NUMBER, name: CABLE }, // ADAPTED (016)
+      { type: 'duplicate/check', instanceId: 'inst-a', orderNumber: '', name: DRILL }, // ADAPTED (016)
     ]);
   });
 

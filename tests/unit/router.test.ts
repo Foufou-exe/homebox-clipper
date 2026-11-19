@@ -51,8 +51,10 @@ describe('router — message origin', () => {
 
   describe('import/start: shape of drafts[].photo (T043)', () => {
     const sender = () => ({ id: id(), url: `${BASE}popup.html` });
+    // ADAPTED (016): import/start names its target instance (shape only).
     const start = (photo: unknown) => ({
       type: 'import/start',
+      instanceId: 'inst-a',
       tabId: 1,
       manualFiles: [],
       drafts: [{ name: 'x', documents: [], photo }],
@@ -79,7 +81,8 @@ describe('router — message origin', () => {
     });
 
     it('rejects a draft that is not an object', async () => {
-      expect(await dispatch({ type: 'import/start', tabId: 1, manualFiles: [], drafts: [42] }, sender())).toEqual({
+      // ADAPTED (016): with the target instance, so that only the draft is refused.
+      expect(await dispatch({ type: 'import/start', instanceId: 'inst-a', tabId: 1, manualFiles: [], drafts: [42] }, sender())).toEqual({
         ok: false,
         error: 'BAD_MESSAGE',
       });
@@ -96,18 +99,20 @@ describe('router — message origin', () => {
       register('import/retry', async () => ({ ok: true, value: {} as never }));
     });
 
+    // ADAPTED (016): location/list names its target instance (shape only).
     it('location/list from the popup: accepted', async () => {
-      expect(await dispatch({ type: 'location/list' }, sender())).toEqual({
+      expect(await dispatch({ type: 'location/list', instanceId: 'inst-a' }, sender())).toEqual({
         ok: true,
         value: { locations: [], lastUsedId: null },
       });
     });
 
     it('location/list from an injected script: BAD_MESSAGE (scenario 25, principle I)', async () => {
-      expect(await dispatch({ type: 'location/list' }, web())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+      expect(await dispatch({ type: 'location/list', instanceId: 'inst-a' }, web())).toEqual({ ok: false, error: 'BAD_MESSAGE' });
     });
 
-    const start = (extra: Record<string, unknown>) => ({ type: 'import/start', tabId: 1, manualFiles: [], drafts: [], ...extra });
+    // ADAPTED (016): import/start names its target instance (shape only).
+    const start = (extra: Record<string, unknown>) => ({ type: 'import/start', instanceId: 'inst-a', tabId: 1, manualFiles: [], drafts: [], ...extra });
 
     it.each([undefined, null, 'loc-1'])('import/start accepts orderLocationId = %s', async (orderLocationId) => {
       expect(await dispatch(start({ orderLocationId }), sender())).toEqual({ ok: true, value: [] });
@@ -347,12 +352,14 @@ describe('router — tag/list is reserved to extension pages (014, T009 b)', () 
 
   it('from the script injected on amazon.fr: BAD_MESSAGE and the handler is not called', async () => {
     const web = { id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } };
-    expect(await dispatch({ type: 'tag/list' }, web)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    // ADAPTED (016): a valid tag/list (with its target instance), refused for its sender only.
+    expect(await dispatch({ type: 'tag/list', instanceId: 'inst-a' }, web)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
     expect(handler).not.toHaveBeenCalled();
   });
 
   it('from an extension page: reaches the handler', async () => {
-    expect(await dispatch({ type: 'tag/list' }, { id: id(), url: `${BASE}popup.html` })).toEqual({ ok: true, value: { tags: [] } });
+    // ADAPTED (016): tag/list names its target instance (shape only).
+    expect(await dispatch({ type: 'tag/list', instanceId: 'inst-a' }, { id: id(), url: `${BASE}popup.html` })).toEqual({ ok: true, value: { tags: [] } });
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });
