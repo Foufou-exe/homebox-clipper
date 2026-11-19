@@ -40,12 +40,14 @@ export type Message =
   | { type: 'update/dismiss'; version: string }
   | { type: 'update/apply' }
   | { type: 'detect/run'; tabId: number }
-  | { type: 'duplicate/check'; orderNumber: string; name: string }
-  | { type: 'location/list' }
+  // Spec 016: every message that contacts HomeBox names its target instance; no fallback to a default one.
+  | { type: 'duplicate/check'; instanceId: string; orderNumber: string; name: string }
+  | { type: 'location/list'; instanceId: string }
   // Automatic tags (014): read-only, extension pages only; never the address or the key.
-  | { type: 'tag/list' }
+  | { type: 'tag/list'; instanceId: string }
   | {
       type: 'import/start';
+      instanceId: string;
       tabId: number;
       drafts: ImportDraft[];
       manualFiles: ManualFile[];
@@ -125,6 +127,8 @@ const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object
 const isStr = (x: unknown): x is string => typeof x === 'string';
 const isInt = (x: unknown): x is number => Number.isInteger(x);
 const isArr = Array.isArray;
+/** Instance identifier (spec 016): non-empty string of 1 to 64 characters. */
+export const isInstanceId = (x: unknown): x is string => isStr(x) && x.length >= 1 && x.length <= 64;
 
 /** `ImportDraft.photo`: absent or `null` (no photo), otherwise a properly typed `{ url, merchantId, include }`. */
 const isDraftPhoto = (x: unknown): boolean =>
@@ -195,10 +199,11 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'update/dismiss': (m) => isVersion(m.version),
   'update/apply': () => true,
   'detect/run': (m) => isInt(m.tabId),
-  'duplicate/check': (m) => isStr(m.orderNumber) && isStr(m.name),
-  'location/list': () => true,
-  'tag/list': () => true,
+  'duplicate/check': (m) => isInstanceId(m.instanceId) && isStr(m.orderNumber) && isStr(m.name),
+  'location/list': (m) => isInstanceId(m.instanceId),
+  'tag/list': (m) => isInstanceId(m.instanceId),
   'import/start': (m) =>
+    isInstanceId(m.instanceId) &&
     isInt(m.tabId) &&
     areDrafts(m.drafts) &&
     isArr(m.manualFiles) &&

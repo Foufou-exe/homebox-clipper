@@ -1,5 +1,6 @@
 import * as autoLock from '@/background/config/auto-lock';
 import { configStore } from '@/background/config/config-store';
+import { instanceStore } from '@/background/config/instance-store';
 import { lastLocation } from '@/background/location/last-location';
 import { injectExtractor } from '@/background/detect';
 import { createHomeBoxClient } from '@/background/homebox/client';
@@ -43,17 +44,27 @@ async function recoverOrphan(p: PendingImport): Promise<PendingImport> {
   return recovered;
 }
 
-async function orchestrator(started: string[] = []): Promise<Result<Orchestrator>> {
-  const creds = await configStore.getCredentials();
+/**
+ * Orchestrator bound to ONE instance (spec 016, R6): its client is built from the credentials of `instanceId`
+ * only. The orchestrator itself knows nothing about instances: the wrapped `store` and `notify` set
+ * `PendingImport.instanceId`, so that a resume always targets the instance of origin (FR-018).
+ */
+async function orchestrator(instanceId: string, started: string[] = []): Promise<Result<Orchestrator>> {
+  const creds = await configStore.getCredentials(instanceId);
   if (!creds.ok) return creds;
   const config = creds.value;
+  const target = config.id;
   // History key captured in the closure, like the API key (R10.5): the import keeps writing its entry even if
   // the extension is locked meanwhile. No key (migrated key without passphrase): import without history.
   const rawHistoryKey = await configStore.getHistoryKey();
-  const writer = rawHistoryKey ? historyStore.forKey(await importHistoryKey(rawHistoryKey)) : null;
+  const writer = rawHistoryKey ? historyStore.forKey(await importHistoryKey(rawHistoryKey), target) : null;
   return ok(createOrchestrator({
     client: createHomeBoxClient({ baseUrl: config.baseUrl, apiKey: config.apiKey }),
-    store: pendingStore,
+    store: {
+      save: (p) => pendingStore.save({ ...p, instanceId: target }),
+      get: (id) => pendingStore.get(id),
+      purge: (p) => pendingStore.purge(p),
+    },
     async downloadDetected(tabId, url) {
       // The tab may have been reloaded since detection (US4 resume): the script is injected again.
       if (!(await injectExtractor(tabId))) return fail('DOWNLOAD_REFUSED');
@@ -65,13 +76,13 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
       }
     },
     fetchPhoto,
-    // Last location used, specific to this instance (R10): identifier only.
-    rememberLocation: (id) => lastLocation.set(config.baseUrl, id),
+    // Last location used, specific to this instance (R10, indexed by id since spec 016): identifier only.
+    rememberLocation: (id) => lastLocation.set(target, id),
     ...(writer
       ? { history: { start: (p: PendingImport) => writer.start(p, config.baseUrl), update: (p: PendingImport) => writer.update(p) } }
       : {}),
     notify(pending) {
-      browser.runtime.sendMessage({ type: 'import/progress', pending }).catch(() => {
+      browser.runtime.sendMessage({ type: 'import/progress', pending: { ...pending, instanceId: target } }).catch(() => {
         // popup closed: the state remains readable via import/pending
       });
     },
@@ -85,6 +96,28 @@ async function orchestrator(started: string[] = []): Promise<Result<Orchestrator
   }));
 }
 
+/**
+ * Target of a resume (FR-018): the instance recorded in the pending import, never a value of the message. A state
+ * without `instanceId` (previous version) is attached to the instance only if there is exactly one.
+ */
+async function retryTarget(pending: PendingImport | null): Promise<Result<string>> {
+  if (typeof pending?.instanceId === 'string') return ok(pending.instanceId);
+  const store = await instanceStore.read();
+  if (!store) return fail('NOT_CONFIGURED');
+  const only = store.instances.length === 1 ? store.instances[0] : undefined;
+  return only ? ok(only.id) : fail('INSTANCE_NOT_FOUND');
+}
+
+/** `lastInstanceId` (FR-012): written only when at least one import succeeded; never fails the import. */
+async function rememberInstance(instanceId: string, results: PendingImport[]): Promise<void> {
+  if (!results.some((p) => p.status === 'success')) return;
+  try {
+    await instanceStore.setLastUsed(instanceId);
+  } catch {
+    // the proposed instance stays the previous one
+  }
+}
+
 /** Automatic lock due during the import (013, FR-007): applied now; never alters the import result. */
 async function lockAfterImport(): Promise<void> {
   try {
@@ -95,11 +128,15 @@ async function lockAfterImport(): Promise<void> {
 }
 
 export function registerImportHandlers(): void {
-  register('import/start', async ({ tabId, drafts, manualFiles, orderLocationId }) => {
+  register('import/start', async ({ instanceId, tabId, drafts, manualFiles, orderLocationId }) => {
     const started: string[] = [];
     try {
-      const o = await orchestrator(started);
-      return o.ok ? await o.value.startImport(tabId, drafts, manualFiles, orderLocationId ?? null) : o;
+      const o = await orchestrator(instanceId, started);
+      if (!o.ok) return o;
+      const res = await o.value.startImport(tabId, drafts, manualFiles, orderLocationId ?? null);
+      if (!res.ok) return res;
+      await rememberInstance(instanceId, res.value);
+      return ok(res.value.map((p) => ({ ...p, instanceId })));
     } finally {
       for (const id of started) activeImports.delete(id);
       await lockAfterImport();
@@ -113,14 +150,20 @@ export function registerImportHandlers(): void {
       const current = await pendingStore.get(pendingId);
       return current ? ok(current) : fail('BAD_MESSAGE');
     }
+    const target = await retryTarget(await pendingStore.get(pendingId));
+    if (!target.ok) return target;
     // Credentials checked BEFORE the import is declared active (review T070): an expired session is locked here,
     // even if the router's activity hook failed; no HomeBox call is made.
-    const creds = await configStore.getCredentials();
+    const creds = await configStore.getCredentials(target.value);
     if (!creds.ok) return creds;
     activeImports.add(pendingId);
     try {
-      const o = await orchestrator();
-      return o.ok ? await o.value.retryImport(pendingId, manualFiles, location) : o;
+      const o = await orchestrator(target.value);
+      if (!o.ok) return o;
+      const res = await o.value.retryImport(pendingId, manualFiles, location);
+      if (!res.ok) return res;
+      await rememberInstance(target.value, [res.value]);
+      return ok({ ...res.value, instanceId: target.value });
     } finally {
       activeImports.delete(pendingId);
       await lockAfterImport();
@@ -134,8 +177,9 @@ export function registerImportHandlers(): void {
     return ok(undefined);
   });
 
-  register('duplicate/check', async ({ orderNumber, name }) => {
-    const creds = await configStore.getCredentials();
+  register('duplicate/check', async ({ instanceId, orderNumber, name }) => {
+    // Spec 016: duplicates are only searched on the target instance.
+    const creds = await configStore.getCredentials(instanceId);
     if (!creds.ok) return creds;
     const client = createHomeBoxClient(creds.value);
     return checkDuplicates(client, orderNumber, name);

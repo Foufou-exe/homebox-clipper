@@ -20,6 +20,9 @@ vi.mock('@/shared/messages', async (importOriginal) => ({
 const fr = loadCatalog('fr');
 const config: ConfigView = {
   configured: true,
+  // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
+  instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: 'https://homebox.example.com', maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
+  defaultInstanceId: 'inst-a',
   baseUrl: 'https://homebox.example.com',
   lastCheck: { status: 'ok', version: '0.27.0', at: '2026-10-22T10:00:00Z' },
 };

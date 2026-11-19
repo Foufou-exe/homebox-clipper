@@ -109,8 +109,13 @@ function reconcileTags(target: Line[]) {
 }
 
 async function loadTags() {
+  const instanceId = props.config.defaultInstanceId;
+  if (!instanceId) {
+    tagState.value = 'unavailable';
+    return;
+  }
   try {
-    const res = await send({ type: 'tag/list' });
+    const res = await send({ type: 'tag/list', instanceId });
     if (!res.ok || !Array.isArray(res.value?.tags)) {
       tagState.value = 'unavailable';
       return;
@@ -127,8 +132,15 @@ async function loadTags() {
 const editingLines = reactive(new Set<string>());
 
 async function loadLocations() {
+  // Spec 016 (delivery A): the default instance; without one, nothing is sent (no fallback).
+  const instanceId = props.config.defaultInstanceId;
+  if (!instanceId) {
+    locError.value = 'NOT_CONFIGURED';
+    locState.value = 'unavailable';
+    return;
+  }
   try {
-    const res = await send({ type: 'location/list' });
+    const res = await send({ type: 'location/list', instanceId });
     if (!res.ok || !Array.isArray(res.value?.locations)) {
       locError.value = res.ok ? 'LOCATIONS_UNAVAILABLE' : res.error;
       locState.value = 'unavailable';
@@ -291,9 +303,13 @@ async function checkDuplicates() {
   const unchecked: string[] = [];
   for (const line of selectedLines.value) {
     let res;
+    const instanceId = props.config.defaultInstanceId;
     try {
-      // Without an order number (manual entry, not detected): checked by close name only (FR-003).
-      res = await send({ type: 'duplicate/check', orderNumber: line.draft.orderNumber ?? '', name: line.draft.name });
+      // Without an order number (manual entry, not detected): checked by close name only (FR-003). Without a target
+      // instance nothing is sent and the product stays "not checked".
+      res = instanceId
+        ? await send({ type: 'duplicate/check', instanceId, orderNumber: line.draft.orderNumber ?? '', name: line.draft.name })
+        : null;
     } catch {
       res = null; // unexpected rejection = not checked, never silent
     }

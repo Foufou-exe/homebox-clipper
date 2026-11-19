@@ -183,3 +183,31 @@ describe('history crypto: missing values of 007', () => {
     expect(await open(raw, k, ID)).toBeNull();
   });
 });
+
+describe('history-crypto: envelope with inst (016, T015)', () => {
+  it('open ignores inst: an envelope with inst opens as before; the content whitelist is unchanged', async () => {
+    const { generateHistoryKey: gen, importHistoryKey: imp, open: openEnv, seal: sealEnv, isValidEntry: valid } = await import(
+      '@/background/history/history-crypto'
+    );
+    const key = await imp(gen());
+    const content = {
+      v: 1 as const,
+      id: 'h1',
+      importedAt: '2026-11-12T10:00:00.000Z',
+      name: 'Clavier sans fil Exemple Pro',
+      merchantId: 'amazon.fr' as const,
+      orderNumber: null,
+      purchaseDate: null,
+      instance: 'https://homebox.example.com',
+      entityId: 'e1',
+      status: 'complete' as const,
+      missing: [],
+      reason: null,
+    };
+    const env = await sealEnv(content, key, 'h1');
+    expect(Object.keys(env).sort()).toEqual(['ct', 'iv', 'v']);
+    expect(await openEnv({ ...env, inst: 'inst-a' }, key, 'h1')).toEqual(content);
+    // inst is never part of the content.
+    expect(valid({ ...content, inst: 'inst-a' }, 'h1')).toBe(false);
+  });
+});

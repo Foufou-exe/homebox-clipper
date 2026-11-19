@@ -23,7 +23,12 @@ const MIN = 60_000;
 
 const call = (msg: unknown) =>
   dispatch(msg, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
-const save = () => configStore.save({ baseUrl: URL, apiKey: KEY, passphrase: PASS }, 1_000);
+// ADAPTED (016): the id of the configured instance is kept to name the target of the messages.
+let ID = '';
+const save = async () => {
+  await configStore.save({ baseUrl: URL, apiKey: KEY, passphrase: PASS }, 1_000);
+  ID = (await configStore.getView()).defaultInstanceId ?? '';
+};
 const setPolicy = (policy: string) =>
   fakeBrowser.storage.local.set({ lockSettings: { v: 1, policy } });
 const reply = (status: number, body: unknown) =>
@@ -62,6 +67,8 @@ const failedPending = (): PendingImport => ({
 describe('automatic lock and imports (013, review T070)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
+    // ADAPTED (016): getCredentials now checks the origin permission (granted here, as after configuration).
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(T0);
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation(
@@ -116,6 +123,7 @@ describe('automatic lock and imports (013, review T070)', () => {
     vi.stubGlobal('fetch', hb.fetchMock);
     const a = call({
       type: 'import/start',
+      instanceId: ID, // ADAPTED (016)
       tabId: 5,
       manualFiles: [],
       drafts: [draft({ name: 'A', documents: [] })],
@@ -126,6 +134,7 @@ describe('automatic lock and imports (013, review T070)', () => {
     vi.setSystemTime(T0 + 20 * MIN);
     const b = await call({
       type: 'import/start',
+      instanceId: ID, // ADAPTED (016)
       tabId: 6,
       manualFiles: [],
       drafts: [draft({ name: 'B', documents: [] })],
@@ -136,7 +145,7 @@ describe('automatic lock and imports (013, review T070)', () => {
       ok: true,
       value: { state: 'locked', entries: [] },
     });
-    expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await configStore.getCredentials(ID)).toEqual({ ok: false, error: 'LOCKED' }); // ADAPTED (016)
     expect(await configStore.getHistoryKey()).toBeNull();
     // The key is not erased yet: the running import keeps its captured keys.
     expect(await fakeBrowser.storage.session.get(null)).toHaveProperty('homeboxUnlocked');

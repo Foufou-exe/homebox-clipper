@@ -8,8 +8,9 @@ import { fail, ok } from '@/shared/errors';
  * the answer only carries `{ id, name }`, never the address or the key; no tag name is logged.
  */
 export function registerTagHandlers(): void {
-  register('tag/list', async () => {
-    const creds = await configStore.getCredentials();
+  register('tag/list', async ({ instanceId }) => {
+    // Spec 016: the target instance only, never a default one.
+    const creds = await configStore.getCredentials(instanceId);
     if (!creds.ok) return creds;
     const list = await createHomeBoxClient(creds.value).listTags();
     if (!list.ok) {

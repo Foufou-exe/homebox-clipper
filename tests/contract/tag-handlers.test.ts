@@ -8,7 +8,8 @@ import { fail, ok } from '@/shared/errors';
 const EXT = 'chrome-extension://abcdefghijklmnop/';
 const ORIGIN = 'https://homebox.example.com';
 const KEY = 'hb_xxxxxxxx';
-const call = () => dispatch({ type: 'tag/list' }, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
+// ADAPTED (016): tag/list names its target instance.
+const call = () => dispatch({ type: 'tag/list', instanceId: 'inst-a' }, { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` });
 const reply = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -31,7 +32,8 @@ describe('tag/list handler (read-only)', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
-    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ baseUrl: ORIGIN, apiKey: KEY }));
+    // ADAPTED (016): the credentials carry the instance id.
+    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ id: 'inst-a', baseUrl: ORIGIN, apiKey: KEY }));
     debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
     warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     registerTagHandlers();

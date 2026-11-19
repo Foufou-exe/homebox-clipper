@@ -148,7 +148,8 @@ export interface OrderGroup<T extends ImportHistoryEntry> {
 
 /**
  * Display grouping (R4.3): entries sharing (merchantId, orderNumber, instance) form a group placed where its
- * most recent entry is. An entry without an order number is alone. Input expected sorted most recent first.
+ * most recent entry is; the instance is its id when known (spec 016), otherwise the recorded address. An entry
+ * without an order number is alone. Input expected sorted most recent first.
  */
 export function groupByOrder<T extends ImportHistoryEntry>(entries: T[]): Array<OrderGroup<T>> {
   const groups: Array<OrderGroup<T>> = [];
@@ -158,7 +159,8 @@ export function groupByOrder<T extends ImportHistoryEntry>(entries: T[]): Array<
       groups.push({ orderNumber: null, merchantId: entry.merchantId, entries: [entry] });
       continue;
     }
-    const key = JSON.stringify([entry.merchantId, entry.orderNumber, entry.instance]);
+    const instanceId = (entry as { instanceId?: string | null }).instanceId;
+    const key = JSON.stringify([entry.merchantId, entry.orderNumber, instanceId ?? entry.instance]);
     const existing = byKey.get(key);
     if (existing) existing.entries.push(entry);
     else {

@@ -490,3 +490,20 @@ describe('history entry: never a tag (014, Q-U8, FR-015)', () => {
     expect(entry.reason).toBe('TAG_FAILED');
   });
 });
+
+describe('groupByOrder by instance id (016, T015)', () => {
+  it('key [merchantId, orderNumber, instanceId ?? instance]: two instances, same order ⇒ two groups', () => {
+    const at = (id: string, iso: string, instanceId: string | null, instance = 'https://homebox.example.com') => ({
+      ...base({ id, importedAt: iso, instance }),
+      instanceId,
+    });
+    const groups = groupByOrder([
+      at('a', '2026-11-12T10:03:00Z', 'inst-a'),
+      at('b', '2026-11-12T10:02:00Z', 'inst-b'),
+      at('c', '2026-11-12T10:01:00Z', 'inst-a'),
+      at('d', '2026-11-12T10:00:00Z', null),
+      at('e', '2026-11-12T09:59:00Z', null),
+    ]);
+    expect(groups.map((g) => g.entries.map((x) => x.id))).toEqual([['a', 'c'], ['b'], ['d', 'e']]);
+  });
+});

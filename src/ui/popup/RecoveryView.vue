@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, inject, ref, watch, type Ref } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type { DocumentRef, LocationChoice, LocationOption, ManualFile, PendingImport } from '@/shared/types';
@@ -12,6 +12,12 @@ import type { PickedDocument } from '@/ui/read-pdf';
 
 const props = defineProps<{ pending: PendingImport; baseUrl: string }>();
 const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: string] }>();
+
+/**
+ * The only instance, if there is exactly one (spec 016): only used for a state written before `instanceId`
+ * existed; with several instances nothing is guessed (same refusal as `import/retry` in the service worker).
+ */
+const singleInstanceId = inject<Ref<string | null>>('singleInstanceId', ref(null));
 
 const busy = ref(false);
 const error = ref<ErrorCode | null>(null);
@@ -27,8 +33,14 @@ const newLocation = ref<LocationChoice | null>(null);
 
 async function loadLocations() {
   locationsError.value = null;
+  // The locations of the instance of origin of the import (FR-018).
+  const instanceId = props.pending.instanceId ?? singleInstanceId.value;
+  if (!instanceId) {
+    locationsError.value = 'NOT_CONFIGURED';
+    return;
+  }
   try {
-    const res = await send({ type: 'location/list' });
+    const res = await send({ type: 'location/list', instanceId });
     if (res.ok && Array.isArray(res.value?.locations)) locations.value = res.value.locations;
     else locationsError.value = res.ok ? 'LOCATIONS_UNAVAILABLE' : res.error;
   } catch {

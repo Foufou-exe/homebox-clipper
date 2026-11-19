@@ -1,5 +1,7 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { configStore, maskKey } from '@/background/config/config-store';
+import type { InstancesStore } from '@/shared/types';
+import { A, B, PASSPHRASE, buildStore, seedStore } from './instances-fixture';
 
 const URL = 'https://homebox.example.com';
 const KEY = 'hb_secret_api_key_a1b2';
@@ -8,9 +10,15 @@ const save = (over: Partial<{ baseUrl: string; apiKey: string; passphrase: strin
   configStore.save({ baseUrl: URL, apiKey: KEY, passphrase: PASS, ...over }, 1_000);
 
 const local = async () => JSON.stringify(await fakeBrowser.storage.local.get(null));
+// ADAPTED (016): getCredentials names its instance; the id is the default instance of the view.
+const credentials = async () => configStore.getCredentials((await configStore.getView()).defaultInstanceId ?? '');
 
 describe('config-store (encrypted key)', () => {
-  beforeEach(() => fakeBrowser.reset());
+  beforeEach(() => {
+    fakeBrowser.reset();
+    // ADAPTED (016): getCredentials now checks the origin permission (granted here, as after configuration).
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
+  });
 
   it("the key is never written in plaintext to storage.local", async () => {
     await save();
@@ -22,32 +30,35 @@ describe('config-store (encrypted key)', () => {
 
   it('after saving, the session is unlocked', async () => {
     await save();
-    expect(await configStore.getCredentials()).toEqual({ ok: true, value: { baseUrl: URL, apiKey: KEY } });
+    expect(await credentials()).toEqual({ ok: true, value: { id: (await configStore.getView()).defaultInstanceId, baseUrl: URL, apiKey: KEY } });
     expect(await configStore.getView()).toMatchObject({ configured: true, locked: false, needsPassphrase: false });
   });
 
   it('locking removes the key from the session; unlocking restores it', async () => {
     await save();
     await configStore.lock();
-    expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await credentials()).toEqual({ ok: false, error: 'LOCKED' });
     expect((await configStore.getView()).locked).toBe(true);
 
     expect(await configStore.unlock('mauvaise phrase')).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
     expect(await configStore.unlock(PASS)).toEqual({ ok: true, value: undefined });
-    expect(await configStore.getCredentials()).toMatchObject({ ok: true, value: { apiKey: KEY } });
+    expect(await credentials()).toMatchObject({ ok: true, value: { apiKey: KEY } });
   });
 
   it('browser closed (session cleared) → locked', async () => {
     await save();
     await fakeBrowser.storage.session.clear();
-    expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await credentials()).toEqual({ ok: false, error: 'LOCKED' });
   });
 
   it("a URL modified directly in storage prevents unlocking", async () => {
     await save();
     await configStore.lock();
-    const stored = (await fakeBrowser.storage.local.get('homeboxConfig')).homeboxConfig as Record<string, unknown>;
-    await fakeBrowser.storage.local.set({ homeboxConfig: { ...stored, baseUrl: 'https://attaquant.example.com' } });
+    // ADAPTED (016): the address of the instance is falsified in the new storage format.
+    const stored = (await fakeBrowser.storage.local.get('homeboxInstances')).homeboxInstances as InstancesStore;
+    await fakeBrowser.storage.local.set({
+      homeboxInstances: { ...stored, instances: [{ ...stored.instances[0]!, baseUrl: 'https://attaquant.example.com' }] },
+    });
     expect(await configStore.unlock(PASS)).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
   });
 
@@ -61,6 +72,8 @@ describe('config-store (encrypted key)', () => {
   it('the view exposed to the UI never contains the key', async () => {
     await save();
     const view = await configStore.getView();
+    // ADAPTED (016): the view also lists the instances (without key) and the default instance.
+    const id = view.defaultInstanceId!;
     expect(view).toEqual({
       configured: true,
       baseUrl: URL,
@@ -68,6 +81,11 @@ describe('config-store (encrypted key)', () => {
       lastCheck: null,
       locked: false,
       needsPassphrase: false,
+      instances: [
+        { id, name: 'homebox.example.com', baseUrl: URL, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' },
+      ],
+      defaultInstanceId: id,
+      maxInstances: 10,
     });
     expect(JSON.stringify(view)).not.toContain('secret');
   });
@@ -90,7 +108,7 @@ describe('config-store (encrypted key)', () => {
 
     it('removes the key from disk and keeps it in session memory', async () => {
       expect(await local()).not.toContain(KEY);
-      expect(await configStore.getCredentials()).toMatchObject({ ok: true, value: { apiKey: KEY } });
+      expect(await credentials()).toMatchObject({ ok: true, value: { apiKey: KEY } });
       expect(await configStore.getView()).toMatchObject({ needsPassphrase: true, locked: false, maskedKey: 'hb_••••a1b2' });
     });
 
@@ -102,7 +120,7 @@ describe('config-store (encrypted key)', () => {
 
     it('if the session is lost before the passphrase, the key must be re-entered', async () => {
       await fakeBrowser.storage.session.clear();
-      expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'NOT_CONFIGURED' });
+      expect(await credentials()).toEqual({ ok: false, error: 'NOT_CONFIGURED' });
       expect(await configStore.currentKey('x')).toEqual({ ok: false, error: 'NOT_CONFIGURED' });
     });
   });
@@ -141,5 +159,188 @@ describe('configStore.delete keeps the tag rules (014, Q-U7, US2-9)', () => {
     await configStore.save({ baseUrl: 'https://homebox.example.com', apiKey: 'hb_xxxxxxxx', passphrase: 'une phrase de passe solide' }, 1_000);
     await configStore.delete();
     expect((await fakeBrowser.storage.local.get('tagSettings')).tagSettings).toEqual(value);
+  });
+});
+
+describe('config-store: several instances in one vault (016, Q-U4, T010)', () => {
+  const C = { id: 'inst-c', name: 'Bureau', baseUrl: 'https://autre.example.net', apiKey: 'hb_cccccccc' };
+  const contains = () => vi.spyOn(fakeBrowser.permissions, 'contains');
+  const stored = async () => (await fakeBrowser.storage.local.get('homeboxInstances')).homeboxInstances as InstancesStore;
+  const tamper = (s: { iv: string; ct: string }) => ({ ...s, ct: `${s.ct.slice(0, -6)}AAAAAA` });
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    contains().mockResolvedValue(true as never);
+  });
+
+  it('unlock opens every key with a single derivation (10 instances)', async () => {
+    const seeds = Array.from({ length: 10 }, (_, i) => ({ id: `i${i}`, name: `n${i}`, baseUrl: `https://h${i}.example.com`, apiKey: `hb_key_${i}_xxxxxx` }));
+    await seedStore(await buildStore({ instances: seeds, historyKey: crypto.getRandomValues(new Uint8Array(32)) }));
+    const spy = vi.spyOn(crypto.subtle, 'deriveKey');
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    expect(spy).toHaveBeenCalledTimes(1);
+    for (const seed of seeds) {
+      expect(await configStore.getCredentials(seed.id)).toEqual({ ok: true, value: { id: seed.id, baseUrl: seed.baseUrl, apiKey: seed.apiKey } });
+    }
+    expect((await fakeBrowser.storage.session.get('homeboxUnlocked')).homeboxUnlocked).toMatchObject({ v: 2 });
+  });
+
+  it('unlock of a migrated vault (no check) creates the check seal, written in a single set', async () => {
+    await seedStore(await buildStore({ instances: [A], check: false }));
+    expect((await stored()).vault).not.toHaveProperty('check');
+    const set = vi.spyOn(fakeBrowser.storage.local, 'set');
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    const writes = set.mock.calls.filter(([items]) => 'homeboxInstances' in items);
+    expect(writes).toHaveLength(1);
+    expect((await stored()).vault!.check).toMatchObject({ iv: expect.any(String), ct: expect.any(String) });
+    await configStore.lock();
+    expect(await configStore.unlock('mauvaise phrase de test')).toEqual({ ok: false, error: 'WRONG_PASSPHRASE' });
+  });
+
+  it('a damaged key: unlock ok, that instance "unreadable" (KEY_UNREADABLE), the others ready (FR-022)', async () => {
+    const store = await buildStore({ instances: [A, B, C] });
+    store.instances[1] = { ...store.instances[1]!, key: tamper(store.instances[1]!.key!) };
+    await seedStore(store);
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    const view = await configStore.getView();
+    expect(view.instances!.map((i) => [i.id, i.keyState])).toEqual([
+      ['inst-a', 'ready'],
+      ['inst-b', 'unreadable'],
+      ['inst-c', 'ready'],
+    ]);
+    expect(await configStore.getCredentials('inst-b')).toEqual({ ok: false, error: 'KEY_UNREADABLE' });
+    expect(await configStore.getCredentials('inst-c')).toEqual({ ok: true, value: { id: 'inst-c', baseUrl: C.baseUrl, apiKey: C.apiKey } });
+  });
+
+  it('getCredentials: NOT_CONFIGURED → INSTANCE_NOT_FOUND → LOCKED → KEY_UNREADABLE → PERMISSION_DENIED → ok', async () => {
+    expect(await configStore.getCredentials('inst-a')).toEqual({ ok: false, error: 'NOT_CONFIGURED' });
+    const store = await buildStore({ instances: [A, B] });
+    store.instances[1] = { ...store.instances[1]!, key: tamper(store.instances[1]!.key!) };
+    await seedStore(store);
+    expect(await configStore.getCredentials('inconnu')).toEqual({ ok: false, error: 'INSTANCE_NOT_FOUND' });
+    expect(await configStore.getCredentials('inst-a')).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await configStore.getCredentials('inst-b')).toEqual({ ok: false, error: 'LOCKED' });
+    await configStore.unlock(PASSPHRASE);
+    expect(await configStore.getCredentials('inconnu')).toEqual({ ok: false, error: 'INSTANCE_NOT_FOUND' });
+    expect(await configStore.getCredentials('inst-b')).toEqual({ ok: false, error: 'KEY_UNREADABLE' });
+    contains().mockResolvedValue(false as never);
+    expect(await configStore.getCredentials('inst-a')).toEqual({ ok: false, error: 'PERMISSION_DENIED' });
+    contains().mockResolvedValue(true as never);
+    expect(await configStore.getCredentials('inst-a')).toEqual({
+      ok: true,
+      value: { id: 'inst-a', baseUrl: A.baseUrl, apiKey: A.apiKey },
+    });
+    expect(contains()).toHaveBeenLastCalledWith({ origins: ['https://homebox.example.com/*'] });
+  });
+
+  it('currentKey without id: only for a single instance; with several, INSTANCE_NOT_FOUND (no implicit fallback)', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    expect(await configStore.currentKey(PASSPHRASE)).toEqual({ ok: false, error: 'INSTANCE_NOT_FOUND' });
+    expect(await configStore.currentKey(PASSPHRASE, 'inst-b')).toEqual({ ok: true, value: B.apiKey });
+    await seedStore(await buildStore({ instances: [A] }));
+    expect(await configStore.currentKey(PASSPHRASE)).toEqual({ ok: true, value: A.apiKey });
+  });
+
+  it('an unknown id is never resolved to the first instance (invariant 1)', async () => {
+    await save();
+    expect(await configStore.getCredentials('inconnu')).toEqual({ ok: false, error: 'INSTANCE_NOT_FOUND' });
+    expect(await configStore.getCredentials('')).toEqual({ ok: false, error: 'INSTANCE_NOT_FOUND' });
+  });
+
+  it('lock(): LOCKED for every instance, no key survives (SC-007, FR-021)', async () => {
+    await seedStore(await buildStore({ instances: [A, B, C] }));
+    await configStore.unlock(PASSPHRASE);
+    await configStore.lock();
+    for (const id of ['inst-a', 'inst-b', 'inst-c']) {
+      expect(await configStore.getCredentials(id)).toEqual({ ok: false, error: 'LOCKED' });
+    }
+    expect(await fakeBrowser.storage.session.get(null)).toEqual({});
+    expect((await configStore.getView()).instances!.every((i) => i.keyState === 'locked')).toBe(true);
+  });
+
+  describe('keyState (data-model §3)', () => {
+    it('ready, locked, unreadable, missing (key null with a vault), missing (legacy key lost)', async () => {
+      const store = await buildStore({ instances: [A, B, C] });
+      store.instances[1] = { ...store.instances[1]!, key: tamper(store.instances[1]!.key!) };
+      store.instances[2] = { ...store.instances[2]!, key: null };
+      await seedStore(store);
+      const states = async () => (await configStore.getView()).instances!.map((i) => i.keyState);
+      expect(await states()).toEqual(['locked', 'locked', 'missing']);
+      await configStore.unlock(PASSPHRASE);
+      expect(await states()).toEqual(['ready', 'unreadable', 'missing']);
+
+      fakeBrowser.reset();
+      contains().mockResolvedValue(true as never);
+      await seedStore({
+        v: 1,
+        vault: null,
+        instances: [{ id: 'migrated', name: 'homebox.example.com', baseUrl: URL, key: null, maskedKey: 'hb_••••a1b2', lastCheck: null }],
+      });
+      expect(await states()).toEqual(['missing']);
+      expect(await configStore.getView()).toMatchObject({ needsPassphrase: true, locked: true });
+      await fakeBrowser.storage.session.set({ homeboxUnlocked: { v: 2, keys: { migrated: KEY } } });
+      expect(await states()).toEqual(['ready']);
+    });
+  });
+
+  describe('session v1 { apiKey, historyKey? } (data-model §3)', () => {
+    it('read as v2 with a single instance', async () => {
+      await seedStore({
+        v: 1,
+        vault: null,
+        instances: [{ id: 'migrated', name: 'homebox.example.com', baseUrl: URL, key: null, maskedKey: 'hb_••••a1b2', lastCheck: null }],
+      });
+      await fakeBrowser.storage.session.set({ homeboxUnlocked: { apiKey: KEY } });
+      expect(await configStore.getCredentials('migrated')).toEqual({ ok: true, value: { id: 'migrated', baseUrl: URL, apiKey: KEY } });
+      expect((await configStore.getView()).locked).toBe(false);
+    });
+
+    it('ignored (locked) with two instances', async () => {
+      await seedStore(await buildStore({ instances: [A, B] }));
+      await fakeBrowser.storage.session.set({ homeboxUnlocked: { apiKey: A.apiKey } });
+      expect(await configStore.getCredentials('inst-a')).toEqual({ ok: false, error: 'LOCKED' });
+      expect((await configStore.getView()).locked).toBe(true);
+    });
+  });
+
+  it('save (single instance) keeps the instance id, updates instances[0] in a single set (R2)', async () => {
+    await save();
+    const id = (await configStore.getView()).defaultInstanceId;
+    const set = vi.spyOn(fakeBrowser.storage.local, 'set');
+    await save({ baseUrl: 'https://homebox.example.com/sub' });
+    expect(set.mock.calls.filter(([items]) => 'homeboxInstances' in items)).toHaveLength(1);
+    const after = await stored();
+    expect(after.instances).toHaveLength(1);
+    expect(after.instances[0]).toMatchObject({ id, baseUrl: 'https://homebox.example.com/sub' });
+  });
+
+  it('save refuses to replace a vault of several instances', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    await expect(save()).rejects.toThrow();
+    expect((await stored()).instances).toHaveLength(2);
+  });
+
+  it('delete(): every instance key, lastInstanceId, lastLocationByInstance, session, pending imports, then each distinct origin', async () => {
+    const remove = vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);
+    const second = { ...C, baseUrl: 'https://homebox.example.com/second' };
+    await seedStore(await buildStore({ instances: [A, B, second] }));
+    await configStore.unlock(PASSPHRASE);
+    await fakeBrowser.storage.local.set({
+      lastInstanceId: 'inst-b',
+      lastLocationByInstance: { 'inst-a': 'loc-1' },
+      importHistorySettings: { v: 1, enabled: true },
+      tagSettings: { v: 1, merchantTag: true, rules: [] },
+    });
+    await fakeBrowser.storage.session.set({ 'pendingImport:1:x': { id: 'x', instanceId: 'inst-a' } });
+    await configStore.delete();
+    expect(await fakeBrowser.storage.local.get(null)).toEqual({
+      importHistorySettings: { v: 1, enabled: true },
+      tagSettings: { v: 1, merchantTag: true, rules: [] },
+    });
+    expect(await fakeBrowser.storage.session.get(null)).toEqual({});
+    expect(remove.mock.calls.map(([p]) => p)).toEqual([
+      { origins: ['https://homebox.example.com/*'] },
+      { origins: ['https://inventaire.example.org/*'] },
+    ]);
   });
 });

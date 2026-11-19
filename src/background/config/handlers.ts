@@ -5,6 +5,7 @@ import { fail, ok, type Result } from '@/shared/errors';
 import type { ConfigView } from '@/shared/types';
 import * as autoLock from './auto-lock';
 import { configStore, isValidApiKey } from './config-store';
+import { instanceStore } from './instance-store';
 import { MIN_PASSPHRASE_LENGTH } from './key-vault';
 import { normalizeBaseUrl } from './url-policy';
 
@@ -17,13 +18,19 @@ async function testConnection(baseUrl: string, apiKey: string): Promise<Result<{
   return ok({ version: status.value.version });
 }
 
-async function recordCheck(result: Result<{ version: string }>): Promise<Result<ConfigView>> {
+async function recordCheck(instanceId: string, result: Result<{ version: string }>): Promise<Result<ConfigView>> {
   const at = new Date().toISOString();
   await configStore.setLastCheck(
+    instanceId,
     result.ok ? { status: 'ok', version: result.value.version, at } : { status: 'error', code: result.error, at },
   );
   if (!result.ok) return fail(result.error, result.httpStatus);
   return ok(await configStore.getView());
+}
+
+/** Spec 016, increment 1: `config/save` and `config/test` stay aliases of the single instance. */
+async function singleInstanceId(): Promise<string> {
+  return (await instanceStore.read())?.instances[0]?.id ?? '';
 }
 
 export function registerConfigHandlers(): void {
@@ -48,13 +55,13 @@ export function registerConfigHandlers(): void {
 
     const result = await testConnection(url.value.baseUrl, key);
     await configStore.save({ baseUrl: url.value.baseUrl, apiKey: key, passphrase });
-    return recordCheck(result);
+    return recordCheck(await singleInstanceId(), result);
   });
 
   register('config/test', async () => {
-    const creds = await configStore.getCredentials();
+    const creds = await configStore.getCredentials(await singleInstanceId());
     if (!creds.ok) return creds;
-    return recordCheck(await testConnection(creds.value.baseUrl, creds.value.apiKey));
+    return recordCheck(creds.value.id, await testConnection(creds.value.baseUrl, creds.value.apiKey));
   });
 
   register('config/delete', async () => {

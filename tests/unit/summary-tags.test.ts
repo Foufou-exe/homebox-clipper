@@ -23,6 +23,9 @@ vi.mock('@/shared/messages', async (importOriginal) => ({
 const fr = loadCatalog('fr');
 const config: ConfigView = {
   configured: true,
+  // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
+  instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: 'https://homebox.example.com', maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
+  defaultInstanceId: 'inst-a',
   baseUrl: 'https://homebox.example.com',
   lastCheck: { status: 'ok', version: '0.27.0', at: '2026-10-22T10:00:00Z' },
 };
@@ -337,7 +340,7 @@ describe('SummaryView: HomeBox names not normalised (review 014, point 1)', () =
     await confirm(w);
     const drafts = submitted(w)!.drafts;
     expect(drafts[0]!.tags).toEqual([{ name: 'Amazon', id: 'tA' }, { name: 'Écran', id: 'tE' }]);
-    expect(isMessage({ type: 'import/start', tabId: 1, drafts, manualFiles: [] })).toBe(true);
+    expect(isMessage({ type: 'import/start', instanceId: 'inst-a', tabId: 1, drafts, manualFiles: [] })).toBe(true); // ADAPTED (016)
   });
 });
 
@@ -351,6 +354,6 @@ describe('SummaryView: at most 50 proposed tags (review 014, point 2)', () => {
     expect(tagNames(w)[49]).toBe('Tag 48');
     await confirm(w);
     const drafts = submitted(w)!.drafts;
-    expect(isMessage({ type: 'import/start', tabId: 1, drafts, manualFiles: [] })).toBe(true);
+    expect(isMessage({ type: 'import/start', instanceId: 'inst-a', tabId: 1, drafts, manualFiles: [] })).toBe(true); // ADAPTED (016)
   });
 });

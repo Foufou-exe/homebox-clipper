@@ -91,6 +91,9 @@ function expectCatalogTexts(wrapper: VueWrapper, data: string[] = []) {
 
 const config = (over: Partial<ConfigView> = {}): ConfigView => ({
   configured: true,
+  // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
+  instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: DATA, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
+  defaultInstanceId: 'inst-a',
   baseUrl: DATA,
   lastCheck: { status: 'ok', version: DATA, at: '2026-10-22T10:00:00Z' },
   ...over,
@@ -989,7 +992,7 @@ describe('location choice (US2, US3)', () => {
       expect(wrapper.find('[role="alertdialog"]').text()).toContain('Un objet semblable existe déjà dans HomeBox.');
       // The duplicate check sends neither location nor photo.
       const dup = vi.mocked(send).mock.calls.map(([m]) => m).find((m) => m.type === 'duplicate/check');
-      expect(dup).toEqual({ type: 'duplicate/check', orderNumber: DATA, name: 'Clavier' });
+      expect(dup).toEqual({ type: 'duplicate/check', instanceId: 'inst-a', orderNumber: DATA, name: 'Clavier' }); // ADAPTED (016)
       expect(wrapper.emitted('submit')).toBeUndefined();
       const create = wrapper.findAll('.dialog button').find((b) => b.text() === 'Créer quand même');
       await create!.trigger('click');
@@ -1097,6 +1100,7 @@ describe('location choice (US2, US3)', () => {
         entityId: null,
         status: 'failed',
         error: 'LOCATION_NOT_FOUND',
+        instanceId: 'inst-a', // ADAPTED (016): the handler records the target instance of the import
         steps: { create: 'failed', update: 'pending', attachments: { d1: 'pending', m1: 'pending' }, photo: 'unavailable' },
         draft: draft({ documents: [detectedDoc], location: choice(GARAGE) }),
       });
@@ -1111,9 +1115,25 @@ describe('location choice (US2, US3)', () => {
       return wrapper;
     };
 
+    // 016 (review T039): a resume without instanceId (older version) only uses the default instance when it is the
+    // only one; otherwise nothing is sent (mirror of the refusal of import/retry in the service worker).
+    it.each([
+      ['single instance → its id', 'inst-a', [{ type: 'location/list', instanceId: 'inst-a' }]],
+      ['several instances → nothing sent', null, []],
+    ] as const)('pending without instanceId: %s', async (_label, single, expected) => {
+      const { ref: vueRef } = await import('vue');
+      vi.mocked(send).mockImplementation(() => Promise.resolve(listOk()) as never);
+      const old = { ...gone() };
+      delete old.instanceId;
+      mount(RecoveryView, { props: { pending: old, baseUrl: DATA }, global: { provide: { singleInstanceId: vueRef(single) } } });
+      await flushPromises();
+      const calls = vi.mocked(send).mock.calls.map(([m]) => m).filter((m) => m.type === 'location/list');
+      expect(calls).toEqual(expected);
+    });
+
     it('reloads location/list, displays the message, offers a picker and "Importer sans emplacement"', async () => {
       const wrapper = await mountGone();
-      expect(send).toHaveBeenCalledWith({ type: 'location/list' });
+      expect(send).toHaveBeenCalledWith({ type: 'location/list', instanceId: 'inst-a' }); // ADAPTED (016)
       expect(wrapper.text()).toContain("Cet emplacement n'existe plus dans HomeBox.");
       expect(wrapper.findComponent(LocationPicker).exists()).toBe(true);
       expect(wrapper.findAll('button').some((b) => b.text() === 'Importer sans emplacement')).toBe(true);
@@ -1332,6 +1352,7 @@ describe('import history: texts from the catalog, in fr and en (012)', () => {
   const ISO = '2026-11-12T10:00:00.000Z';
   const entry = (over: Partial<HistoryEntryView> = {}): HistoryEntryView => ({
     v: 1,
+    instanceId: null, // ADAPTED (016): entry not attached to an instance
     id: 'h1',
     importedAt: ISO,
     name: DATA,
@@ -1390,6 +1411,7 @@ describe('import history, incomplete imports: texts from the catalog, in fr and 
   const ISO = '2026-11-12T10:00:00.000Z';
   const entry = (over: Partial<HistoryEntryView>): HistoryEntryView => ({
     v: 1,
+    instanceId: null, // ADAPTED (016): entry not attached to an instance
     id: 'h1',
     importedAt: ISO,
     name: DATA,
@@ -1446,6 +1468,7 @@ describe('import history, delete / clear / options: texts from the catalog, in f
     entries: [
       {
         v: 1,
+        instanceId: null, // ADAPTED (016): entry not attached to an instance
         id: 'h1',
         importedAt: ISO,
         name: DATA,

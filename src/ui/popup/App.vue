@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { browser } from '@/platform';
 import type { ErrorCode } from '@/shared/errors';
 import { isMessage, send } from '@/shared/messages';
@@ -21,6 +21,12 @@ type Screen = 'loading' | 'setup' | 'locked' | 'summary' | 'result';
 
 const screen = ref<Screen>('loading');
 const view = ref<ConfigView>({ configured: false });
+// Spec 016 (delivery A): the target is the default instance, read from the view; never a guess. For a resume
+// without target (older version), only the single instance is usable, as in the service worker.
+provide(
+  'singleInstanceId',
+  computed(() => (view.value.instances?.length === 1 ? (view.value.defaultInstanceId ?? null) : null)),
+);
 const tabId = ref<number | null>(null);
 const pendings = ref<PendingImport[]>([]);
 const running = ref(false);
@@ -123,7 +129,13 @@ async function onSubmit({
   running.value = true;
   error.value = null;
   try {
-    const res = await send({ type: 'import/start', tabId: tabId.value, drafts, manualFiles, orderLocationId });
+    const instanceId = view.value.defaultInstanceId;
+    // No target known: nothing is sent (no fallback to another instance).
+    if (!instanceId) {
+      error.value = 'NOT_CONFIGURED';
+      return;
+    }
+    const res = await send({ type: 'import/start', instanceId, tabId: tabId.value, drafts, manualFiles, orderLocationId });
     if (res.ok) res.value.forEach(upsert);
     else error.value = res.error;
   } finally {

@@ -31,6 +31,9 @@ export const ERROR_CODES = [
   'WRONG_PASSPHRASE',
   'WEAK_PASSPHRASE',
   'BAD_MESSAGE',
+  // Spec 016 (multiple instances): the UI names the instance, the service worker only returns the code.
+  'INSTANCE_NOT_FOUND',
+  'KEY_UNREADABLE',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

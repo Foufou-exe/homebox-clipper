@@ -3,7 +3,7 @@ import { activeImports } from '@/background/import/active-imports';
 import { browser } from '@/platform';
 import type { HistoryEntryView, ImportHistoryEntry, PendingImport } from '@/shared/types';
 import { prune, reconcile as reconcileEntry, sortRecent, toEntry } from './entry';
-import { open, seal, type HistoryKey } from './history-crypto';
+import { open, seal, type HistoryEnvelope, type HistoryKey } from './history-crypto';
 import { enqueueHistoryWrite } from './history-queue';
 
 /**
@@ -13,7 +13,7 @@ import { enqueueHistoryWrite } from './history-queue';
  * only delete do not need the key (they work while locked). No console output, no network.
  */
 
-/** Writer bound to a captured key, given to the orchestrator (R10.5). */
+/** Writer bound to a captured key and, since spec 016, to the target instance; given to the orchestrator (R10.5). */
 export interface HistoryWriter {
   start(p: PendingImport, instance: string): Promise<void>;
   update(p: PendingImport): Promise<void>;
@@ -21,6 +21,12 @@ export interface HistoryWriter {
 }
 
 const keyOf = (id: string) => `${HISTORY_PREFIX}${id}`;
+
+/** Instance id of a stored envelope (`inst`), if any. */
+function instOf(raw: unknown): string | undefined {
+  const inst = typeof raw === 'object' && raw !== null ? (raw as { inst?: unknown }).inst : undefined;
+  return typeof inst === 'string' && inst !== '' ? inst : undefined;
+}
 
 export function createHistoryStore(
   deps: { clock?: () => number; isActive?: (id: string) => boolean } = {},
@@ -49,16 +55,20 @@ export function createHistoryStore(
     if (keys.length) await local().remove(keys);
   }
 
-  async function write(entry: ImportHistoryEntry, key: HistoryKey): Promise<void> {
-    await local().set({ [keyOf(entry.id)]: await seal(entry, key, entry.id) });
+  /** Fresh envelope; `inst` written outside the ciphertext when known (spec 016). */
+  async function write(entry: ImportHistoryEntry, key: HistoryKey, inst?: string): Promise<void> {
+    const env: HistoryEnvelope = await seal(entry, key, entry.id);
+    await local().set({ [keyOf(entry.id)]: inst ? { ...env, inst } : env });
   }
 
   /** Reads the existing entry: `null` if absent, unreadable or of a later version (never modified). */
-  async function readEntry(id: string, key: HistoryKey): Promise<ImportHistoryEntry | null> {
+  async function readEntry(id: string, key: HistoryKey): Promise<{ entry: ImportHistoryEntry; inst?: string } | null> {
     const raw = (await local().get(keyOf(id)))[keyOf(id)];
     if (raw === undefined) return null;
     const entry = await open(raw, key, id);
-    return entry === 'future' ? null : entry;
+    if (entry === 'future' || entry === null) return null;
+    const inst = instOf(raw);
+    return inst ? { entry, inst } : { entry };
   }
 
   /**
@@ -68,45 +78,48 @@ export function createHistoryStore(
   async function maintain(
     key: HistoryKey,
     reconcileOrphans: boolean,
-  ): Promise<ImportHistoryEntry[]> {
+  ): Promise<Array<{ entry: ImportHistoryEntry; inst?: string }>> {
     const { all, keys } = await historyKeys();
-    const opened: Array<{ id: string; entry: ImportHistoryEntry | null }> = [];
+    const opened: Array<{ id: string; entry: ImportHistoryEntry | null; inst?: string }> = [];
     for (const k of keys) {
       const id = k.slice(HISTORY_PREFIX.length);
       const entry = await open(all[k], key, id);
       if (entry === 'future') continue;
+      // Every rewrite keeps the instance of the envelope (spec 016).
+      const inst = instOf(all[k]);
       if (reconcileOrphans && entry && entry.status === 'running' && !isActive(id)) {
         const reconciled = reconcileEntry(entry);
-        await write(reconciled, key);
-        opened.push({ id, entry: reconciled });
-      } else opened.push({ id, entry });
+        await write(reconciled, key, inst);
+        opened.push({ id, entry: reconciled, inst });
+      } else opened.push({ id, entry, inst });
     }
     const removed = new Set(prune(opened, clock()));
     if (removed.size) await local().remove([...removed].map(keyOf));
-    return opened.flatMap((o) => (o.entry && !removed.has(o.id) ? [o.entry] : []));
+    return opened.flatMap((o) => (o.entry && !removed.has(o.id) ? [{ entry: o.entry, inst: o.inst }] : []));
   }
 
   const store = {
     isEnabled,
 
     /** Creates the `running` entry of an import, then prunes. Without effect when disabled. */
-    start(key: HistoryKey, p: PendingImport, instance: string): Promise<void> {
+    start(key: HistoryKey, p: PendingImport, instance: string, instanceId?: string): Promise<void> {
       return enqueue(async () => {
         if (!(await isEnabled())) return;
-        await write(toEntry(p, { importedAt: new Date(clock()).toISOString(), instance }), key);
+        await write(toEntry(p, { importedAt: new Date(clock()).toISOString(), instance }), key, instanceId);
         await maintain(key, false);
       });
     },
 
-    /** Rewrites an existing entry (fresh envelope); never creates one. */
-    update(key: HistoryKey, p: PendingImport): Promise<void> {
+    /** Rewrites an existing entry (fresh envelope, instance kept); never creates one. */
+    update(key: HistoryKey, p: PendingImport, instanceId?: string): Promise<void> {
       return enqueue(async () => {
         if (!(await isEnabled())) return;
         const existing = await readEntry(p.id, key);
         if (!existing) return;
         await write(
-          toEntry(p, { importedAt: existing.importedAt, instance: existing.instance }),
+          toEntry(p, { importedAt: existing.entry.importedAt, instance: existing.entry.instance }),
           key,
+          instanceId ?? existing.inst,
         );
       });
     },
@@ -116,7 +129,27 @@ export function createHistoryStore(
       return enqueue(async () => {
         if (!(await isEnabled())) return;
         const existing = await readEntry(p.id, key);
-        if (existing?.status === 'running') await write(reconcileEntry(existing), key);
+        if (existing?.entry.status === 'running') await write(reconcileEntry(existing.entry), key, existing.inst);
+      });
+    },
+
+    /**
+     * Spec 016 (R5): sets `inst` on every envelope without one whose recorded address equals the address of an
+     * instance; others stay without `inst`. Idempotent. Only `inst` changes: the ciphertext is kept as is.
+     */
+    attach(key: HistoryKey, instances: ReadonlyArray<{ id: string; baseUrl: string }>): Promise<void> {
+      return enqueue(async () => {
+        const { all, keys } = await historyKeys();
+        const updates: Record<string, unknown> = {};
+        for (const k of keys) {
+          const raw = all[k];
+          if (instOf(raw) !== undefined) continue;
+          const entry = await open(raw, key, k.slice(HISTORY_PREFIX.length));
+          if (entry === null || entry === 'future') continue;
+          const target = instances.find((i) => i.baseUrl === entry.instance);
+          if (target) updates[k] = { ...(raw as HistoryEnvelope), inst: target.id };
+        }
+        if (Object.keys(updates).length) await local().set(updates);
       });
     },
 
@@ -131,9 +164,12 @@ export function createHistoryStore(
           await removeAll();
           return { enabled: false, entries: [] };
         }
-        const entries = sortRecent(await maintain(key, true)).map((e) => ({
+        const kept = await maintain(key, true);
+        const instOfEntry = new Map(kept.map((k) => [k.entry.id, k.inst ?? null]));
+        const entries = sortRecent(kept.map((k) => k.entry)).map((e) => ({
           ...e,
           resumable: (e.status === 'partial' || e.status === 'failed') && pendingIds.has(e.id),
+          instanceId: instOfEntry.get(e.id) ?? null,
         }));
         return { enabled: true, entries };
       });
@@ -156,10 +192,11 @@ export function createHistoryStore(
       });
     },
 
-    forKey(key: HistoryKey): HistoryWriter {
+    /** `instanceId` (spec 016): written as `inst` at `start` and `update`. */
+    forKey(key: HistoryKey, instanceId?: string): HistoryWriter {
       return {
-        start: (p, instance) => store.start(key, p, instance),
-        update: (p) => store.update(key, p),
+        start: (p, instance) => store.start(key, p, instance, instanceId),
+        update: (p) => store.update(key, p, instanceId),
         reconcile: (p) => store.reconcile(key, p),
       };
     },

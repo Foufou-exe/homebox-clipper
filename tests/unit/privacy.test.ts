@@ -199,13 +199,14 @@ describe('location privacy (scenario 24, SC-008)', () => {
     const spies = spyConsole();
     const ext = 'chrome-extension://abcdefghijklmnop/';
     vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => ext + p.replace(/^\//, ''));
-    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ baseUrl: 'https://homebox.example.com', apiKey: KEY }));
+    // ADAPTED (016): the credentials carry the instance id; location/list names its target.
+    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ id: 'inst-a', baseUrl: 'https://homebox.example.com', apiKey: KEY }));
     registerLocationHandlers();
     const bodies = [json(200, TREE), json(500, TREE), json(200, { name: NAMES[0] }), networkError()];
     for (const body of bodies) {
       const m = mockFetch(body);
       vi.stubGlobal('fetch', m.fetch);
-      await dispatch({ type: 'location/list' }, { id: fakeBrowser.runtime.id, url: `${ext}popup.html` });
+      await dispatch({ type: 'location/list', instanceId: 'inst-a' }, { id: fakeBrowser.runtime.id, url: `${ext}popup.html` });
     }
     vi.unstubAllGlobals();
 
@@ -263,7 +264,8 @@ describe('import history privacy (012, Q-U4, Q-U18, Q-U28, FR-003, FR-010, FR-01
     }
     for (const [, v] of entries) expect(Object.keys(v as object).sort()).toEqual(['ct', 'iv', 'v']);
     // The encrypted API key is in the configuration, never in an entry.
-    const encryptedKey = (all.homeboxConfig as { encryptedKey: { ct: string } }).encryptedKey.ct;
+    // ADAPTED (016): the sealed key lives in homeboxInstances.
+    const encryptedKey = (all.homeboxInstances as { instances: Array<{ key: { ct: string } }> }).instances[0]!.key.ct;
     expect(entryValues).not.toContain(encryptedKey);
   });
 
@@ -616,6 +618,37 @@ describe('duplicate check privacy (015, FR-018)', () => {
       }
     } finally {
       for (const s of spies) s.mockRestore();
+    }
+  });
+});
+
+describe('instances privacy: migration and fallback view logs (016, Q-U7, FR-030, T032)', () => {
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+
+  it('a failing migration (storage error, invalid homeboxConfig) only logs the constant config/migrate template', async () => {
+    const { instanceStore } = await import('@/background/config/instance-store');
+    const { seedLegacy, PASSPHRASE } = await import('./instances-fixture');
+    fakeBrowser.reset();
+    const spies = spyConsole();
+    await seedLegacy();
+    const set = vi.spyOn(fakeBrowser.storage.local, 'set').mockRejectedValue(new Error('storage down'));
+    expect(await instanceStore.migrate()).toBe('failed');
+    expect((await instanceStore.read())?.instances[0]?.id).toBe('migrated');
+    set.mockRestore();
+    fakeBrowser.reset();
+    await fakeBrowser.storage.local.set({ homeboxConfig: { baseUrl: 'https://homebox.example.com', encryptedKey: 'x', maskedKey: 'hb_••••xxxx' } });
+    expect(await instanceStore.migrate()).toBe('failed');
+    // Invalid stored instances: read() logs config/invalid only.
+    await fakeBrowser.storage.local.set({ homeboxInstances: { v: 1, vault: null, instances: [{ id: 'migrated', name: 'Maison' }] } });
+    expect(await instanceStore.read()).toBeNull();
+
+    const calls = spies.flatMap((s) => s.mock.calls);
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [, meta] of calls) expect(['config/migrate', 'config/invalid']).toContain((meta as { endpoint?: string }).endpoint);
+    const output = JSON.stringify(calls);
+    for (const v of ['https://homebox.example.com', 'homebox.example.com', 'hb_xxxxxxxx', '"migrated"', 'Maison', PASSPHRASE]) {
+      expect(output).not.toContain(v);
     }
   });
 });

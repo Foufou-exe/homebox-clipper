@@ -21,6 +21,7 @@ const BASE = 'https://homebox.example.com';
 
 const historyEntry = (over: Partial<HistoryEntryView> = {}): HistoryEntryView => ({
   v: 1,
+  instanceId: null, // ADAPTED (016): entry not attached to an instance
   id: 'h1',
   importedAt: '2026-11-12T10:00:00.000Z',
   name: 'Clavier sans fil Exemple Pro',

@@ -17,6 +17,8 @@ const session = () => fakeBrowser.storage.session.get(null);
 const setPolicy = (policy: string) =>
   fakeBrowser.storage.local.set({ lockSettings: { v: 1, policy } });
 const at = (ms: number) => vi.setSystemTime(T0 + ms);
+// ADAPTED (016): getCredentials names its instance; the id is the default instance of the view.
+const credentials = async () => configStore.getCredentials((await configStore.getView()).defaultInstanceId ?? '');
 
 describe('config-store: automatic lock (013, Q-U3)', () => {
   beforeEach(() => {
@@ -24,6 +26,8 @@ describe('config-store: automatic lock (013, Q-U3)', () => {
     activeImports.clear();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(T0);
+    // ADAPTED (016): getCredentials now checks the origin permission (granted here, as after configuration).
+    vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true as never);
   });
 
   afterEach(() => {
@@ -57,9 +61,9 @@ describe('config-store: automatic lock (013, Q-U3)', () => {
     at(60 * MIN);
     expect(await configStore.expireIfDue()).toBe(false);
     expect((await session()).homeboxUnlocked).toEqual({ apiKey: KEY });
-    expect(await configStore.getCredentials()).toEqual({
+    expect(await credentials()).toEqual({
       ok: true,
-      value: { baseUrl: URL, apiKey: KEY },
+      value: { id: (await configStore.getView()).defaultInstanceId, baseUrl: URL, apiKey: KEY },
     });
   });
 
@@ -67,7 +71,7 @@ describe('config-store: automatic lock (013, Q-U3)', () => {
     await save();
     await setPolicy('idle-4h');
     await fakeBrowser.storage.session.remove('homeboxActivity');
-    expect(await configStore.getCredentials()).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await credentials()).toEqual({ ok: false, error: 'LOCKED' });
   });
 
   it('A-9: activity 2 min in the future (clock set back) → locked', async () => {

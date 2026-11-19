@@ -6,17 +6,17 @@ import { flattenTree } from '@/shared/locations';
 import { lastLocation } from './last-location';
 
 /**
- * `location/list`: read-only (FR-022). Unlocking required; no HomeBox write, no location name
- * logged. The last location used is ignored (and removed) if it has disappeared.
+ * `location/list { instanceId }`: read-only (FR-022), on the target instance only (spec 016). Unlocking required;
+ * no HomeBox write, no location name logged. The last location used is ignored (and removed) if it has disappeared.
  */
 export function registerLocationHandlers(): void {
-  register('location/list', async () => {
-    const creds = await configStore.getCredentials();
+  register('location/list', async ({ instanceId }) => {
+    const creds = await configStore.getCredentials(instanceId);
     if (!creds.ok) return creds;
     const tree = await createHomeBoxClient(creds.value).listLocations();
     if (!tree.ok) return tree;
     const locations = flattenTree(tree.value);
-    const lastUsedId = await lastLocation.resolve(creds.value.baseUrl, new Set(locations.map((l) => l.id)));
+    const lastUsedId = await lastLocation.resolve(creds.value.id, new Set(locations.map((l) => l.id)));
     return ok({ locations, lastUsedId });
   });
 }
