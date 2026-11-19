@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, useId } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type {
@@ -39,7 +39,9 @@ const supportedStores = MERCHANT_CATALOG.map((e) =>
 
 const props = defineProps<{ tabId: number; config: ConfigView }>();
 const emit = defineEmits<{
-  submit: [payload: { drafts: ImportDraft[]; manualFiles: ManualFile[]; orderLocationId: string | null }];
+  submit: [
+    payload: { drafts: ImportDraft[]; manualFiles: ManualFile[]; orderLocationId: string | null; duplicateCheckFailed: boolean },
+  ];
 }>();
 
 interface Line {
@@ -164,13 +166,27 @@ function onPhotoError(line: Line) {
   if (line.draft.photo) line.draft.photo.include = false;
 }
 
+/** Products concerned by the duplicate check (spec 015): a group only exists with at least one item. */
+interface DuplicateGroup {
+  key: string;
+  /** Name of the draft at confirmation time. */
+  product: string;
+  /** Certain duplicates (same order number and same name). */
+  matches: DuplicateMatch[];
+  /** Similar items (close name, at most 5). */
+  similar: DuplicateMatch[];
+  moreSimilar: boolean;
+}
+
 type Dialog =
   | { kind: 'none' }
   | { kind: 'no-invoice' }
   | { kind: 'checking' }
-  | { kind: 'duplicates'; matches: DuplicateMatch[] };
+  | { kind: 'duplicates'; groups: DuplicateGroup[]; unchecked: string[] };
 const dialog = ref<Dialog>({ kind: 'none' });
 const duplicateCheckFailed = ref(false);
+const cancelDuplicates = ref<HTMLButtonElement | null>(null);
+const addButton = ref<HTMLButtonElement | null>(null);
 
 onMounted(async () => {
   void loadLocations();
@@ -262,21 +278,51 @@ async function onAdd() {
   await checkDuplicates();
 }
 
+/**
+ * Spec 015: every checked product is checked, one after the other (certain duplicates and similar items). A failure,
+ * total or partial, never blocks the import and stays visible (FR-013); nothing is created without a choice (FR-012).
+ */
 async function checkDuplicates() {
   dialog.value = { kind: 'checking' };
   duplicateCheckFailed.value = false;
-  const matches: DuplicateMatch[] = [];
+  const groups: DuplicateGroup[] = [];
+  const unchecked: string[] = [];
   for (const line of selectedLines.value) {
-    if (!line.draft.orderNumber) continue;
-    const res = await send({ type: 'duplicate/check', orderNumber: line.draft.orderNumber, name: line.draft.name });
-    if (res.ok) matches.push(...res.value.matches);
-    else duplicateCheckFailed.value = true;
+    let res;
+    try {
+      // Without an order number (manual entry, not detected): checked by close name only (FR-003).
+      res = await send({ type: 'duplicate/check', orderNumber: line.draft.orderNumber ?? '', name: line.draft.name });
+    } catch {
+      res = null; // unexpected rejection = not checked, never silent
+    }
+    if (!res || !res.ok || res.value.incomplete) unchecked.push(productName(line));
+    if (res?.ok && (res.value.matches.length || res.value.similar.length)) {
+      groups.push({
+        key: line.key,
+        product: productName(line),
+        matches: res.value.matches,
+        similar: res.value.similar,
+        moreSimilar: res.value.moreSimilar,
+      });
+    }
   }
-  if (matches.length) {
-    dialog.value = { kind: 'duplicates', matches };
+  duplicateCheckFailed.value = unchecked.length > 0;
+  if (groups.length) {
+    // Stable sort: the groups with a certain duplicate first, then the others, each in summary order (US3-1).
+    groups.sort((a, b) => Number(b.matches.length > 0) - Number(a.matches.length > 0));
+    dialog.value = { kind: 'duplicates', groups, unchecked };
+    await nextTick();
+    cancelDuplicates.value?.focus(); // FR-020: focus on the action without effect
     return;
   }
   submit();
+}
+
+/** "Cancel": back to the summary, every choice intact (US1-3). */
+async function cancelDuplicateDialog() {
+  dialog.value = { kind: 'none' };
+  await nextTick();
+  addButton.value?.focus();
 }
 
 const copyOf = (loc: LocationChoice | null): LocationChoice | null => (loc ? { id: loc.id, path: [...loc.path] } : null);
@@ -308,6 +354,7 @@ function submit() {
     }),
     // Order choice alone: the service worker uses it to remember the last location (R10).
     orderLocationId: orderLocation.value?.id ?? null,
+    duplicateCheckFailed: duplicateCheckFailed.value,
   });
 }
 </script>
@@ -454,22 +501,52 @@ function submit() {
         </div>
       </div>
 
-      <div v-if="dialog.kind === 'duplicates'" class="dialog" role="alertdialog" aria-labelledby="dup">
+      <div
+        v-if="dialog.kind === 'duplicates'"
+        class="dialog"
+        role="alertdialog"
+        aria-labelledby="dup"
+        aria-describedby="dup-help"
+      >
         <ErrorBanner id="dup" code="DUPLICATE_SUSPECTED" tone="warning" />
-        <ul>
-          <li v-for="m in dialog.matches" :key="m.id">
-            <a :href="m.url" target="_blank" rel="noopener">{{ m.name }}</a>
-          </li>
-        </ul>
+        <p id="dup-help">{{ t('duplicates.help') }}</p>
+        <section v-for="g in dialog.groups" :key="g.key" class="dup-group">
+          <h3>{{ g.product }}</h3>
+          <template v-if="g.matches.length">
+            <h4>{{ t('duplicates.safeTitle') }}</h4>
+            <p class="muted">{{ t('duplicates.safeHelp') }}</p>
+            <ul>
+              <li v-for="m in g.matches" :key="m.id">
+                <a :href="m.url" target="_blank" rel="noopener">{{ m.name }}</a>
+              </li>
+            </ul>
+          </template>
+          <template v-if="g.similar.length">
+            <h4>{{ t('duplicates.similarTitle') }}</h4>
+            <p class="muted">{{ t('duplicates.similarHelp') }}</p>
+            <ul>
+              <li v-for="m in g.similar" :key="m.id">
+                <a :href="m.url" target="_blank" rel="noopener">{{ m.name }}</a>
+              </li>
+            </ul>
+            <p v-if="g.moreSimilar" class="muted">{{ t('duplicates.moreSimilar') }}</p>
+          </template>
+        </section>
+        <template v-if="dialog.unchecked.length">
+          <p>{{ t('duplicates.unchecked') }}</p>
+          <ul>
+            <li v-for="(name, i) in dialog.unchecked" :key="i">{{ name }}</li>
+          </ul>
+        </template>
         <div class="actions">
-          <button type="button" @click="dialog = { kind: 'none' }">{{ t('summary.cancel') }}</button>
+          <button ref="cancelDuplicates" type="button" @click="cancelDuplicateDialog">{{ t('summary.cancel') }}</button>
           <button class="primary" type="button" @click="submit">{{ t('summary.createAnyway') }}</button>
         </div>
       </div>
       <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />
 
       <div class="actions footer">
-        <button class="primary" type="button" :disabled="!canSubmit" @click="onAdd">
+        <button ref="addButton" class="primary" type="button" :disabled="!canSubmit" @click="onAdd">
           {{ dialog.kind === 'checking' ? t('summary.checking') : t('summary.add') }}
         </button>
         <button type="button" @click="cancel">{{ t('summary.cancel') }}</button>
@@ -567,6 +644,17 @@ function submit() {
   margin: 10px 0;
 }
 .dialog p {
+  margin: 0 0 6px;
+}
+.dup-group {
+  margin: 8px 0;
+}
+.dup-group h3,
+.dup-group h4 {
+  margin: 6px 0 4px;
+  font-size: 13px;
+}
+.dup-group ul {
   margin: 0 0 6px;
 }
 .actions {

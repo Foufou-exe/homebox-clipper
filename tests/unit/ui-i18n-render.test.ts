@@ -343,7 +343,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         Promise.resolve(
           msg.type === 'detect/run'
             ? ok({ purchase: purchase([product('a')]), warnings: [] })
-            : ok({ matches: [{ id: 'x', name: DATA, url: DATA }] }),
+            // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+            : ok({ matches: [{ id: 'x', name: DATA, url: DATA }], similar: [], moreSimilar: false, incomplete: false }),
         ) as never,
       );
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
@@ -391,7 +392,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         Promise.resolve(
           msg.type === 'detect/run'
             ? ok({ purchase: purchase([withPhoto('a')]), warnings: [] })
-            : ok({ matches: [] }),
+            // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+            : ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }),
         ) as never,
       );
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
@@ -407,7 +409,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         Promise.resolve(
           msg.type === 'detect/run'
             ? ok({ purchase: purchase([withPhoto('a')]), warnings: [] })
-            : ok({ matches: [] }),
+            // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+            : ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }),
         ) as never,
       );
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
@@ -420,7 +423,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
     it('SummaryView: without a photo, summary.photoNone and draft.photo = null (scenario 4)', async () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(
-          msg.type === 'detect/run' ? ok({ purchase: purchase([product('a')]), warnings: [] }) : ok({ matches: [] }),
+          // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+          msg.type === 'detect/run' ? ok({ purchase: purchase([product('a')]), warnings: [] }) : ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }),
         ) as never,
       );
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
@@ -438,7 +442,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         Promise.resolve(
           msg.type === 'detect/run'
             ? ok({ purchase: purchase([withPhoto('a')]), warnings: [] })
-            : ok({ matches: [] }),
+            // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+            : ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }),
         ) as never,
       );
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
@@ -458,7 +463,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       vi.stubGlobal('fetch', fetchSpy);
       const wrapper = await mountSummary([withPhoto('a')]);
       vi.mocked(send).mockImplementation((msg) =>
-        Promise.resolve(msg.type === 'duplicate/check' ? ok({ matches: [] }) : ok({ purchase: purchase([withPhoto('a')]), warnings: [] })) as never,
+        // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+        Promise.resolve(msg.type === 'duplicate/check' ? ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }) : ok({ purchase: purchase([withPhoto('a')]), warnings: [] })) as never,
       );
       await wrapper.find('.photo img').trigger('error');
       await flushPromises();
@@ -715,7 +721,8 @@ describe('location choice (US2, US3)', () => {
       if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: [] })) as never;
       if (msg.type === 'duplicate/check') {
         const matches = opts.duplicates === 'found' ? [{ id: 'x', name: DATA, url: DATA }] : [];
-        return Promise.resolve(ok({ matches })) as never;
+        // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+        return Promise.resolve(ok({ matches, similar: [], moreSimilar: false, incomplete: false })) as never;
       }
       return Promise.resolve(ok(undefined)) as never;
     });
@@ -1044,7 +1051,8 @@ describe('location choice (US2, US3)', () => {
         vi.mocked(send).mockImplementation((msg) => {
           if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase([named('a', 'Clavier')]), warnings: [] })) as never;
           if (msg.type === 'location/list') return gate.then(() => listOk('g')) as never;
-          return Promise.resolve(ok({ matches: [] })) as never;
+          // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+          return Promise.resolve(ok({ matches: [], similar: [], moreSimilar: false, incomplete: false })) as never;
         });
         const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
         await flushPromises();
@@ -1799,5 +1807,160 @@ describe('014 automatic tags card: texts from the catalog, in fr and en (T046)',
     if (lang === 'fr') expectCatalogTexts(wrapper, [DATA]);
     else expect(wrapper.text().split(DATA).join('')).not.toMatch(/[À-ÖØ-öø-ÿ]/);
     await fakeBrowser.storage.local.clear();
+  });
+});
+
+describe('015 duplicate check: failure banner on the result screen (FR-013, Q-U4)', () => {
+  const FAILED = "La vérification des doublons n'a pas pu être effectuée.";
+
+  function wireApp(opts: { start?: Promise<unknown>; unfinished?: PendingImport[] } = {}) {
+    vi.mocked(send).mockImplementation((msg) => {
+      if (msg.type === 'config/get' || msg.type === 'session/open') return Promise.resolve(config({ locked: false })) as never;
+      if (msg.type === 'import/pending') return Promise.resolve(opts.unfinished ?? []) as never;
+      if (msg.type === 'import/start') return (opts.start ?? Promise.resolve(ok([]))) as never;
+      return Promise.resolve(fail('NOT_AN_ORDER_PAGE')) as never;
+    });
+    vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([{ id: 1, url: 'https://www.amazon.fr/x' }] as never);
+  }
+  const submitFrom = async (wrapper: VueWrapper, duplicateCheckFailed: boolean) => {
+    wrapper.findComponent(SummaryView).vm.$emit('submit', { drafts: [draft()], manualFiles: [], orderLocationId: null, duplicateCheckFailed });
+    await flushPromises();
+  };
+
+  it('shown during the import and with its result when duplicateCheckFailed is true', async () => {
+    let release!: (v: unknown) => void;
+    wireApp({ start: new Promise((r) => (release = r)) });
+    const wrapper = mount(PopupApp);
+    await flushPromises();
+    await submitFrom(wrapper, true);
+    expect(wrapper.text()).toContain(FAILED);
+    release(ok([pending({ status: 'success', error: null })]));
+    await flushPromises();
+    expect(wrapper.text()).toContain(FAILED);
+    expectCatalogTexts(wrapper, [DATA]);
+  });
+
+  it('absent when duplicateCheckFailed is false', async () => {
+    wireApp();
+    const wrapper = mount(PopupApp);
+    await flushPromises();
+    await submitFrom(wrapper, false);
+    expect(wrapper.findComponent(ResultView).exists()).toBe(true);
+    expect(wrapper.text()).not.toContain(FAILED);
+  });
+
+  it('absent on a result screen opened by a resume (no submit)', async () => {
+    wireApp({ unfinished: [pending()] });
+    const wrapper = mount(PopupApp);
+    await flushPromises();
+    expect(wrapper.findComponent(ResultView).exists()).toBe(true);
+    expect(wrapper.text()).not.toContain(FAILED);
+  });
+
+  it('back to the summary then a new import without failure → no banner', async () => {
+    wireApp({ start: Promise.resolve(ok([pending()])) });
+    const wrapper = mount(PopupApp);
+    await flushPromises();
+    await submitFrom(wrapper, true);
+    expect(wrapper.text()).toContain(FAILED);
+    wrapper.findComponent(ResultView).vm.$emit('abandoned', 'p1');
+    await flushPromises();
+    expect(wrapper.findComponent(SummaryView).exists()).toBe(true);
+    expect(wrapper.text()).not.toContain(FAILED);
+    await submitFrom(wrapper, false);
+    expect(wrapper.text()).not.toContain(FAILED);
+  });
+});
+
+describe('015 duplicate dialog: texts from the catalog, in fr and en (US1-8, FR-019)', () => {
+  const en = loadCatalog('en');
+  const mountDialog = async () => {
+    vi.mocked(send).mockImplementation((msg) => {
+      if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase([product('a'), product('b')]), warnings: [] })) as never;
+      if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: [] })) as never;
+      if (msg.type === 'location/list') return Promise.resolve(ok({ locations: [], lastUsedId: null })) as never;
+      if (msg.type === 'duplicate/check') {
+        // First product: one similar item and more; second product: not checked.
+        const first = vi.mocked(send).mock.calls.filter(([m]) => m.type === 'duplicate/check').length === 1;
+        return Promise.resolve(
+          first
+            ? ok({ matches: [], similar: [{ id: 's1', name: DATA, url: DATA }], moreSimilar: true, incomplete: false })
+            : fail('DUPLICATE_CHECK_FAILED'),
+        ) as never;
+      }
+      return Promise.resolve(ok(undefined)) as never;
+    });
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    await wrapper.find('.footer button.primary').trigger('click');
+    await flushPromises();
+    return wrapper;
+  };
+  const KEYS = ['help', 'similarTitle', 'similarHelp', 'moreSimilar', 'unchecked'].map((k) => `duplicates.${k}`);
+
+  it('fr: every visible text comes from fr.yml', async () => {
+    const wrapper = await mountDialog();
+    const d = wrapper.find('[role="alertdialog"]');
+    expect(d.exists()).toBe(true);
+    for (const key of KEYS) expect(d.text()).toContain(catalog[key]);
+    expect(d.text()).not.toContain('duplicates.');
+    expectCatalogTexts(wrapper, [DATA]);
+  });
+
+  it('en: the five labels come from en.yml', async () => {
+    setTestLanguage('en');
+    const wrapper = await mountDialog();
+    const d = wrapper.find('[role="alertdialog"]');
+    for (const key of KEYS) expect(d.text()).toContain(en[key]);
+    expect(d.text()).not.toContain('duplicates.');
+    expect(d.text()).toContain('Similar items');
+  });
+});
+
+describe('015 duplicate dialog: certain duplicate and similar items, in fr and en (US3, FR-006, FR-019)', () => {
+  const en = loadCatalog('en');
+  const mountBoth = async () => {
+    vi.mocked(send).mockImplementation((msg) => {
+      if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase([product('a')]), warnings: [] })) as never;
+      if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: [] })) as never;
+      if (msg.type === 'location/list') return Promise.resolve(ok({ locations: [], lastUsedId: null })) as never;
+      if (msg.type === 'duplicate/check') {
+        return Promise.resolve(
+          ok({
+            matches: [{ id: 'x', name: DATA, url: DATA }],
+            similar: [{ id: 's1', name: DATA, url: DATA }],
+            moreSimilar: false,
+            incomplete: false,
+          }),
+        ) as never;
+      }
+      return Promise.resolve(ok(undefined)) as never;
+    });
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    await wrapper.find('.footer button.primary').trigger('click');
+    await flushPromises();
+    return wrapper;
+  };
+  const headings = (w: VueWrapper) => w.find('[role="alertdialog"]').findAll('h4').map((h) => h.text());
+
+  it('fr: "Doublon sûr" then "Ressemblances", translated explanations, no raw key', async () => {
+    const wrapper = await mountBoth();
+    expect(headings(wrapper)).toEqual(['Doublon sûr', 'Ressemblances']);
+    const text = wrapper.find('[role="alertdialog"]').text();
+    expect(text).toContain(catalog['duplicates.safeHelp']);
+    expect(text).toContain(catalog['duplicates.similarHelp']);
+    expect(text).not.toContain('duplicates.');
+    expectCatalogTexts(wrapper, [DATA]);
+  });
+
+  it('en: "Certain duplicate" then "Similar items", translated explanations, no raw key', async () => {
+    setTestLanguage('en');
+    const wrapper = await mountBoth();
+    expect(headings(wrapper)).toEqual(['Certain duplicate', 'Similar items']);
+    const text = wrapper.find('[role="alertdialog"]').text();
+    expect(text).toContain(en['duplicates.safeHelp']);
+    expect(text).toContain(en['duplicates.similarHelp']);
+    expect(text).not.toContain('duplicates.');
   });
 });

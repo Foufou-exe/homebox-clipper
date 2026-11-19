@@ -155,10 +155,31 @@ the service worker before any call to HomeBox, even if the interface already che
 
 ## Duplicates
 
-Before sending, the extension looks in HomeBox for an item whose notes contain the same order number and
-that has the same name (comparison is case- and whitespace-insensitive). If it finds one, it warns you
-("A similar item already exists in HomeBox.") with a link to the existing item, and lets you choose. If
-the check fails ("The duplicate check could not be performed."), the import remains possible.
+After you confirm and before anything is sent, the extension checks each selected product in HomeBox for:
+
+- a **certain duplicate**: an item whose notes contain the same order number and that has the same name
+  (comparison is case- and whitespace-insensitive), as before;
+- **similar items**: items of your **whole inventory**, whatever their origin (another order, another store,
+  added by hand without any note), whose name is close to the product name. Case, accents, punctuation, word
+  order and a few extra or missing words are ignored: two names are close when at least 80 % of the significant
+  words of the shorter one are shared, with at least 2 shared words. A name with a single significant word is
+  only flagged when it is identical.
+
+A product **without an order number** (manual entry, or number not detected) is checked too, by close name.
+
+If anything is found, the window "A similar item already exists in HomeBox." lists, under the name of each
+product concerned, a **Certain duplicate** section first, then a **Similar items** section (at most 5 per
+product, with a mention when there are others). Each item is shown with its HomeBox name and a link that opens
+it. You choose **Create anyway** or **Cancel**: nothing is created, skipped or merged until you choose, and
+Cancel brings you back to the summary with your choices intact. Variants of a product (for example "1 To" and
+"2 To") can be flagged: open the item to compare.
+
+The detection is an aid, **not a guarantee**: it only sees what your HomeBox instance returns for the searched
+words, and a duplicate under a very different name is not found.
+
+If the check fails, for every product or only some of them ("The duplicate check could not be performed."),
+the import remains possible: the window lists the products that could not be checked, and the message stays
+visible on the result screen, during the import and with its result.
 
 ## No invoice
 

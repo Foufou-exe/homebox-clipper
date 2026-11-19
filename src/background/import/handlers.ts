@@ -11,7 +11,7 @@ import { fail, ok, type Result } from '@/shared/errors';
 import { logError } from '@/shared/logger';
 import type { PendingImport } from '@/shared/types';
 import { sendToTab } from '@/shared/messages';
-import { findDuplicates } from './duplicates';
+import { checkDuplicates } from './duplicates';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { fetchPhoto } from './photo-fetch';
 import { pendingStore } from './pending-store';
@@ -138,8 +138,7 @@ export function registerImportHandlers(): void {
     const creds = await configStore.getCredentials();
     if (!creds.ok) return creds;
     const client = createHomeBoxClient(creds.value);
-    const res = await findDuplicates(client, orderNumber, name);
-    return res.ok ? { ok: true, value: { matches: res.value } } : res;
+    return checkDuplicates(client, orderNumber, name);
   });
 
   register('import/pending', async ({ tabId }) =>

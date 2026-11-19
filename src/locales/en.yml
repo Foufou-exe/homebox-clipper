@@ -137,6 +137,15 @@ summary:
   photoNone: "No photo available for this product."
   photoLoadFailed: "The photo could not be displayed: it will not be uploaded."
 
+duplicates:
+  help: "Check the items below before creating. Nothing is created until you choose."
+  safeTitle: "Certain duplicate"
+  safeHelp: "Same order number and same name: this product has most likely already been imported."
+  similarTitle: "Similar items"
+  similarHelp: "Items with a close name, whatever their origin. Open them to compare: it may be another product."
+  moreSimilar: "Other similar items exist in HomeBox."
+  unchecked: "These products could not be checked:"
+
 location:
   singleLabel: "Location (optional)"
   orderLabel: "Location for the products"

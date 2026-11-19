@@ -219,6 +219,18 @@ export interface DuplicateMatch {
   url: string;
 }
 
+/** Result of the duplicate check of one product (spec 015). Never stored. */
+export interface DuplicateCheck {
+  /** Certain duplicates (spec 001 FR-022, unchanged computation), all of them (FR-005, FR-010). */
+  matches: DuplicateMatch[];
+  /** Similar items (FR-004), at most 5, closest first; no id of `matches` (FR-009). */
+  similar: DuplicateMatch[];
+  /** More than 5 similar items existed (FR-010). */
+  moreSimilar: boolean;
+  /** At least one search for this product failed while another succeeded: product "not checked" (FR-013). */
+  incomplete: boolean;
+}
+
 /** Result of an import as recorded in the local history (spec 012). `success` of `PendingImport` becomes `complete`. */
 export type HistoryStatus = 'running' | 'complete' | 'partial' | 'failed';
 

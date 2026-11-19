@@ -39,7 +39,7 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
   prix en livres ou en dollars est gardé tel quel, avec un avertissement avant confirmation (aucune
   conversion de devise).
 - **Résumé modifiable** avant tout envoi, avec les champs non détectés signalés.
-- **Import en 3 étapes** (objet, facture PDF, photo) ; commandes multi-articles, **ajout manuel** d'un PDF et **détection des doublons**.
+- **Import en 3 étapes** (objet, facture PDF, photo) ; commandes multi-articles, **ajout manuel** d'un PDF et **détection des doublons**, y compris les noms proches.
 - **Reprise sur erreur** : si un document n'a pas pu être envoyé, réessayez sans créer de doublon.
 - **Types de documents** : les PDF joints peuvent être typés manuel, garantie, bon de livraison, facture ou bon de commande, et rangés dans la bonne rubrique de HomeBox.
 - **Garantie** : la garantie de l'objet (date d'expiration, à vie, détails) est proposée au récapitulatif et envoyée à HomeBox : la garantie légale quand sa durée est vérifiée et que l'objet est vendu par la boutique elle-même, ou la garantie indiquée sur la page de commande. Valeur indicative, sans valeur juridique.

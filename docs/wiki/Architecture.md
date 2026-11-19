@@ -78,8 +78,14 @@ POST. A recovery started while the same one is already running (`activeImports`)
 state without a second execution. The mechanism only covers a service worker stop: `storage.session` is
 cleared when the browser closes and when the extension is updated.
 
-Before the import, `duplicate/check` queries HomeBox (`GET /api/v1/entities?q=...`) to spot a probable
-duplicate (same order number in the notes, same name).
+Before the import, `duplicate/check` queries HomeBox for each selected product and returns
+`{ matches, similar, moreSimilar, incomplete }`: at most 4 searches per product, in parallel
+(`GET /api/v1/entities?q=...`): the order number in quotes (certain duplicate: same order number in the notes,
+same name, unchanged) and at most 3 significant words of the name (`pageSize=50`). The closeness of the names
+(FR-004 of spec 015) is computed in the service worker by the pure module `src/shared/similarity.ts`; HomeBox
+only supplies candidates. `similar` holds at most 5 items, never a certain duplicate; `incomplete` means some
+searches failed (product not checked). The recovery of an uncertain creation keeps `findDuplicatesByName`
+(exact name). Nothing is stored and nothing personal is logged.
 
 ## Location
 

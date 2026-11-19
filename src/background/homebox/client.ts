@@ -200,8 +200,9 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       return readJson<EntityOut>(res, 'UPDATE_FAILED');
     },
 
-    async searchEntities(q: string): Promise<Result<EntitySummary[]>> {
-      const params = new URLSearchParams({ q, pageSize: '20' });
+    /** `pageSize` 20 by default (certain duplicate, uncertain creation); 50 for the similar-name words (spec 015). */
+    async searchEntities(q: string, pageSize = 20): Promise<Result<EntitySummary[]>> {
+      const params = new URLSearchParams({ q, pageSize: String(pageSize) });
       const res = await request('GET', `/entities?${params.toString()}`, {
         auth: true,
         endpoint: 'GET /entities?q',

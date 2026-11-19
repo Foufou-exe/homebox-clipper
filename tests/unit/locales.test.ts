@@ -702,3 +702,47 @@ describe('014 automatic tags: the 20 settings keys of US2 and the totals (T047, 
     expect(IDENTICAL_OK).toContain('tags.settings.tag');
   });
 });
+
+describe('duplicates keys (015, US1)', () => {
+  const US1 = ['duplicates.help', 'duplicates.similarTitle', 'duplicates.similarHelp', 'duplicates.moreSimilar', 'duplicates.unchecked'];
+
+  it('the 5 US1 keys exist in en and fr, without $n, non-empty and different, no accent in en', () => {
+    expect(US1.filter((k) => k in en && k in catalog)).toHaveLength(5);
+    for (const key of US1) {
+      expect(subs(en[key] ?? ''), key).toEqual([]);
+      expect(subs(catalog[key] ?? ''), key).toEqual([]);
+      expect(en[key]?.trim(), key).toBeTruthy();
+      expect(catalog[key]?.trim(), key).toBeTruthy();
+      expect(en[key], key).not.toBe(catalog[key]);
+      expect(en[key], key).not.toMatch(/[À-ÿŒœ]/);
+    }
+  });
+});
+
+describe('duplicates keys (015, US3)', () => {
+  const US3 = ['duplicates.safeTitle', 'duplicates.safeHelp'];
+
+  it('the 2 US3 keys exist in en and fr, non-empty and different, no accent in en', () => {
+    expect(US3.filter((k) => k in en && k in catalog)).toHaveLength(2);
+    for (const key of US3) {
+      expect(en[key]?.trim(), key).toBeTruthy();
+      expect(en[key], key).not.toBe(catalog[key]);
+      expect(en[key], key).not.toMatch(/[À-ÿŒœ]/);
+      expect(subs(en[key] ?? ''), key).toEqual([]);
+    }
+  });
+
+  it('the duplicates section holds exactly 7 keys, the same in en and fr', () => {
+    const expected = [
+      'duplicates.help',
+      'duplicates.safeTitle',
+      'duplicates.safeHelp',
+      'duplicates.similarTitle',
+      'duplicates.similarHelp',
+      'duplicates.moreSimilar',
+      'duplicates.unchecked',
+    ].sort();
+    expect(Object.keys(en).filter((k) => k.startsWith('duplicates.')).sort()).toEqual(expected);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('duplicates.')).sort()).toEqual(expected);
+  });
+});

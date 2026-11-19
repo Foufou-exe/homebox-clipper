@@ -40,7 +40,8 @@ const purchase = (products: DetectedProduct[], documents: DocumentRef[] = [detec
 async function mountSummary(products = [product('a')], documents?: DocumentRef[]) {
   vi.mocked(send).mockImplementation(((msg: { type: string }) => {
     if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase(products, documents), warnings: [] }));
-    if (msg.type === 'duplicate/check') return Promise.resolve(ok({ matches: [] }));
+    // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
+    if (msg.type === 'duplicate/check') return Promise.resolve(ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }));
     return Promise.resolve(ok({ locations: [], lastUsedId: null }));
   }) as never);
   const wrapper = mount(SummaryView, { props: { tabId: 1, config } });
