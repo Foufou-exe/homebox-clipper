@@ -8,6 +8,7 @@ import { pendingStore } from '@/background/import/pending-store';
 import { dispatch, setUiActivityHook } from '@/background/router';
 import type { PendingImport } from '@/shared/types';
 import { draft } from './orchestrator-harness';
+import { A, B, PASSPHRASE, buildStore, seedStore } from '../unit/instances-fixture';
 
 /**
  * Spec 013, revue T070: an import in progress keeps the keys it captured, but once the inactivity deadline has
@@ -175,6 +176,27 @@ describe('automatic lock and imports (013, review T070)', () => {
     activeImports.clear();
     expect(await configStore.expireIfDue()).toBe(false);
     expect((await configStore.getView()).locked).toBe(false);
+  });
+
+  it('two instances (016, US5-5): a lock due during an import to B is deferred to its end, then applies to every instance', async () => {
+    await seedStore(await buildStore({ instances: [A, B], historyKey: crypto.getRandomValues(new Uint8Array(32)) }));
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    await setPolicy('idle-15m');
+    const hb = blockedHomebox();
+    vi.stubGlobal('fetch', hb.fetchMock);
+    const running = call({ type: 'import/start', instanceId: B.id, tabId: 5, manualFiles: [], drafts: [draft({ documents: [] })] });
+    await vi.waitFor(() => expect(hb.posts).toHaveLength(1));
+    expect(hb.posts[0]!.startsWith(`${B.baseUrl}/`)).toBe(true);
+    vi.setSystemTime(T0 + 20 * MIN);
+    // Due: every new read is refused, for A as for B; the keys stay for the running import only.
+    expect(await configStore.getCredentials(A.id)).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await configStore.getCredentials(B.id)).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await fakeBrowser.storage.session.get(null)).toHaveProperty('homeboxUnlocked');
+    hb.release();
+    expect(await running).toMatchObject({ ok: true });
+    expect(activeImports.size).toBe(0);
+    expect(await fakeBrowser.storage.session.get(null)).not.toHaveProperty('homeboxUnlocked');
+    expect((await configStore.getView()).instances!.map((i) => i.keyState)).toEqual(['locked', 'locked']);
   });
 
   it('the orchestrator never reads the configuration store: a running import only uses the keys captured at its start', () => {

@@ -515,3 +515,48 @@ describe('history-store: instance of the envelope (016, R5, Q-U4, T015)', () => 
     expect(await local()).toEqual(before);
   });
 });
+
+describe('history-store: removal by instance (016, US4, Q-U4, T080)', () => {
+  const T = '2026-11-12T09:00:00.000Z';
+
+  it('removeInstance(id): removes the envelopes inst === id WITHOUT the key, leaves the others (other inst, no inst)', async () => {
+    const { store, key } = await setup();
+    await store.forKey(key, 'inst-a').start(pending('a'), INSTANCE);
+    await store.forKey(key, 'inst-b').start(pending('b'), 'https://inventaire.example.org');
+    await fakeBrowser.storage.local.set(await plant(key, 'c', T));
+    // Opaque envelope (never opened): removed on its `inst` alone.
+    await fakeBrowser.storage.local.set({ 'importHistory:d': { v: 1, iv: 'AAAA', ct: 'AAAA', inst: 'inst-b' } });
+    await store.removeInstance('inst-b');
+    expect((await historyKeys()).sort()).toEqual(['importHistory:a', 'importHistory:c']);
+  });
+
+  it('removeInstance goes through the history queue (an earlier write is not lost, a later one is not undone)', async () => {
+    const { store, key } = await setup();
+    const w = store.forKey(key, 'inst-b');
+    const started = w.start(pending('b'), INSTANCE);
+    const removed = store.removeInstance('inst-b');
+    const after = store.forKey(key, 'inst-a').start(pending('a'), INSTANCE);
+    await Promise.all([started, removed, after]);
+    expect(await historyKeys()).toEqual(['importHistory:a']);
+  });
+
+  it('maintain removes every envelope whose inst designates no instance any more (SC-008), keeps entries without inst', async () => {
+    fakeBrowser.reset();
+    const key = await importHistoryKey(generateHistoryKey());
+    const store = createHistoryStore({ clock: () => T0, instanceIds: async () => new Set(['inst-a']) });
+    await store.forKey(key, 'inst-a').start(pending('a'), INSTANCE);
+    await store.forKey(key, 'inst-gone').start(pending('g'), 'https://inventaire.example.org');
+    await fakeBrowser.storage.local.set(await plant(key, 'c', T));
+    const listed = await store.list(key);
+    expect(listed.entries.map((e) => e.id).sort()).toEqual(['a', 'c']);
+    expect((await historyKeys()).sort()).toEqual(['importHistory:a', 'importHistory:c']);
+  });
+
+  it('maintain keeps every inst while no configuration is readable (the global deletion erases the history itself)', async () => {
+    fakeBrowser.reset();
+    const key = await importHistoryKey(generateHistoryKey());
+    const store = createHistoryStore({ clock: () => T0, instanceIds: async () => null });
+    await store.forKey(key, 'inst-x').start(pending('x'), INSTANCE);
+    expect((await store.list(key)).entries.map((e) => e.id)).toEqual(['x']);
+  });
+});

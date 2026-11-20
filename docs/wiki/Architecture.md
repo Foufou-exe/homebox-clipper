@@ -105,25 +105,43 @@ reception (`isMessage`). The router (`src/background/router.ts`):
 - answers `BAD_MESSAGE` to any invalid message or one coming from another extension, without running a
   handler;
 - reserves the `config/`, `session/`, `detect/`, `duplicate/`, `import/`, `location/`, `history/`,
-  `update/` and `tag/` prefixes for the extension's pages (popup, options), never for injected scripts;
+  `update/`, `tag/` and `instance/` prefixes for the extension's pages (popup, options), never for injected scripts;
 - calls the activity hook of the automatic lock (`src/background/config/auto-lock.ts`) for each accepted
   message from an extension page, before the handler;
 - converts any handler exception into a visible error, without detail.
 
-Message families: configuration (`config/get|save|test|delete`), session
-(`session/unlock|lock|open|get-policy|set-policy`), updates (`update/state|dismiss|apply`, handled in
+Message families: configuration (`config/get|delete`), HomeBox instances
+(`instance/add|update|rename|test|delete`), session
+(`session/unlock|lock|open|get-policy|set-policy|change-passphrase`), updates (`update/state|dismiss|apply`, handled in
 `src/background/update/`),
 detection (`detect/run`), locations (`location/list`), HomeBox tags (`tag/list`, read-only, `src/background/tags/`), duplicates (`duplicate/check`), import
 (`import/start|retry|abandon|pending`), extraction in the tab (`amazon/extract`, `amazon/download`) and
 progress (`import/progress`). Responses are `Result` values: either a value or an error code from the
 catalog (`src/shared/errors.ts`).
 
+Every message that contacts HomeBox names its target instance: `location/list`, `tag/list`, `duplicate/check`
+and `import/start` carry an `instanceId` (validated, 1 to 64 characters); there is no fallback to a default
+instance. Each handler builds its HomeBox client once, from `configStore.getCredentials(instanceId)` (errors in
+this order: `NOT_CONFIGURED`, `INSTANCE_NOT_FOUND`, `LOCKED`, `KEY_UNREADABLE`, `PERMISSION_DENIED`).
+`import/retry` carries no target: it reads `instanceId` from the interrupted import, set by the import handler
+(the `store` and `notify` given to the orchestrator are wrapped). The orchestrator itself knows nothing about
+instances and stays unchanged (`src/background/import/orchestrator.ts`); its contract snapshot
+(`tests/contract/__snapshots__/orchestrator-call-sequence.test.ts.snap`) is never regenerated.
+
 ## Storage
 
 | Where | What |
 |-------|------|
-| `storage.local` | Settings (`homeboxConfig`: address, **encrypted** key, masked key, last test), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`: identifiers only, erased with the settings). Import history: one **encrypted** envelope `{ v, iv, ct }` per product (`importHistory:<id>`) and its setting (`importHistorySettings`); the history key is sealed in `homeboxConfig`. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). |
-| `storage.session` | Decrypted key and open history key (`homeboxUnlocked`), last activity (`homeboxActivity`, for the inactivity lock), version ready to install (`updateReady`) and in-progress imports (`pendingImport:<tab>:<id>`). Memory, cleared when the browser closes. |
+| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). |
+| `storage.session` | Decrypted keys by instance and open history key (`homeboxUnlocked`, `{ v: 2, keys, historyKey }`; a former `{ apiKey }` is read as the key of the single instance), last activity (`homeboxActivity`, for the inactivity lock), version ready to install (`updateReady`) and in-progress imports (`pendingImport:<tab>:<id>`). Memory, cleared when the browser closes. |
+
+The vault and the instances live in `src/background/config/instance-store.ts` (validated reads, a single write
+queue) and `src/background/config/vault-crypto.ts` (one PBKDF2 derivation per operation opens or seals every key;
+the vault key is never stored nor put in the session). The former single configuration (`homeboxConfig`, up to
+0.6.0) is migrated at start-up into the first instance (id `migrated`): the migration is idempotent and can be
+resumed after an interruption, asks for no passphrase and no permission, and while it has not succeeded a
+fallback view reads `homeboxConfig`. Going back to a version before multi-instance support (a **downgrade**) is
+not supported: such a version does not read `homeboxInstances`.
 
 Security details: [Security-and-privacy](Security-and-privacy.md).
 

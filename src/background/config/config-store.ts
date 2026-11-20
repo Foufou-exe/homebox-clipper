@@ -2,21 +2,24 @@ import { browser, hasOrigin, removeOrigin } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
 import type { ConfigView, InstancesStore, InstanceView, LastCheck, StoredInstance } from '@/shared/types';
 import { base64ToBytes, bytesToBase64 } from '@/shared/pdf';
-import { DEFAULT_ITERATIONS, sealHistoryKey } from './key-vault';
+import { DEFAULT_ITERATIONS, MIN_PASSPHRASE_LENGTH, sealHistoryKey } from './key-vault';
 import {
   LAST_LOCATION_KEY,
   LEGACY_KEY,
   MAX_INSTANCES,
   defaultName,
   instanceStore,
+  sameAddress,
+  validateName,
   type LegacyConfig,
 } from './instance-store';
-import { deriveVaultKey, newVault, openVault, sealApiKeyWith } from './vault-crypto';
+import { deriveVaultKey, newVault, openVault, rekeyVault, sealApiKeyWith, sealCheck } from './vault-crypto';
 import { originOf } from './url-policy';
 import { enqueueHistoryWrite } from '@/background/history/history-queue';
 import { importHistoryKey } from '@/background/history/history-crypto';
 import { historyStore } from '@/background/history/history-store';
-import { activeImports } from '@/background/import/active-imports';
+import { activeImports, activeTargets } from '@/background/import/active-imports';
+import { pendingStore } from '@/background/import/pending-store';
 import { logError } from '@/shared/logger';
 import {
   DEFAULT_LOCK_SETTINGS,
@@ -167,9 +170,12 @@ async function writeActivity(now: number, force: boolean): Promise<void> {
   await browser.storage.session.set({ [ACTIVITY_KEY]: { at: now } });
 }
 
-/** Every access to the keys goes through here: an expired session is locked before any read (E1). */
-async function readSession(): Promise<UnlockedSession | null> {
-  if ((await sessionState(Date.now())) === 'due') return null;
+/**
+ * Every access to the keys goes through here: an expired session is locked before any read (E1). `evenIfDue`: the
+ * session is returned even while a lock is due (only to REMOVE a key from it, spec 016 instance deletion).
+ */
+async function readSession(evenIfDue = false): Promise<UnlockedSession | null> {
+  if ((await sessionState(Date.now())) === 'due' && !evenIfDue) return null;
   const stored = await browser.storage.session.get(SESSION_KEY);
   const raw = stored[SESSION_KEY];
   if (raw === undefined) return null;
@@ -230,6 +236,40 @@ async function attachHistory(historyKey: Uint8Array | null, store: InstancesStor
   }
 }
 
+/** Input of `addInstance` (`instance/add`, spec 016): the address is already normalized by the handler. */
+export interface NewInstance {
+  baseUrl: string;
+  apiKey: string;
+  /** Typed name; empty: default name (host). */
+  name: string;
+  passphrase: string;
+  /** True only for a first installation or a legacy key without passphrase: the passphrase is chosen now. */
+  newPassphrase: boolean;
+}
+
+/**
+ * Run once the passphrase is verified and before anything is written (`instance/add`): checks the origin
+ * permission and tests the connection. A failed result refuses the add (nothing written); a check with
+ * `status: 'error'` is saved as the last check of the new instance (US2-5).
+ */
+export type AddProbe = (baseUrl: string, apiKey: string) => Promise<Result<LastCheck | null>>;
+
+/**
+ * Run once the passphrase is verified and before anything is written (`instance/update`): checks the permission of a
+ * new origin and tests the connection, with the previous address of the instance to compare origins.
+ */
+export type UpdateProbe = (baseUrl: string, apiKey: string, previousBaseUrl: string) => Promise<Result<LastCheck | null>>;
+
+/** Input of `updateInstance` (`instance/update`): the address is already normalized by the handler. */
+export interface InstanceChange {
+  baseUrl: string;
+  /** Empty: keep the current key, reopened with the passphrase. */
+  apiKey: string;
+  passphrase: string;
+  /** True only to replace the vault of the single instance (former single-instance save with a new key). */
+  newPassphrase: boolean;
+}
+
 /** 32 random bytes: a new history key. */
 const newHistoryKey = () => crypto.getRandomValues(new Uint8Array(32));
 
@@ -285,13 +325,9 @@ export const configStore = {
     }));
     const [first] = instances as [InstanceView, ...InstanceView[]];
     const defaultInstanceId = (await instanceStore.defaultId()) ?? first.id;
-    const current = instances.find((i) => i.id === defaultInstanceId) ?? first;
+    // The address, masked key and last check are only given per instance (no top-level copy since spec 016).
     return {
       configured: true,
-      // Increment 1 (UI compatibility): copy of the default instance.
-      baseUrl: current.baseUrl,
-      maskedKey: current.maskedKey,
-      lastCheck: current.lastCheck,
       locked: session === null,
       needsPassphrase: store.vault === null,
       instances,
@@ -307,6 +343,8 @@ export const configStore = {
   async save(
     { baseUrl, apiKey, passphrase }: { baseUrl: string; apiKey: string; passphrase: string },
     iterations = DEFAULT_ITERATIONS,
+    /** Spec 016 (`instance/update`): the connection test result to save with it; absent: kept if same address. */
+    checked?: LastCheck | null,
   ): Promise<void> {
     if (!isValidApiKey(apiKey)) throw new Error('invalid API key');
     const previous = await instanceStore.read();
@@ -328,7 +366,7 @@ export const configStore = {
       baseUrl,
       key: await sealApiKeyWith(key, apiKey, baseUrl),
       maskedKey: maskKey(apiKey),
-      lastCheck: before?.baseUrl === baseUrl ? before.lastCheck : null,
+      lastCheck: checked !== undefined ? checked : before?.baseUrl === baseUrl ? before.lastCheck : null,
     };
     const store: InstancesStore = {
       v: 1,
@@ -338,6 +376,103 @@ export const configStore = {
     // A single set of the whole vault (atomic).
     await instanceStore.update(() => store);
     await writeSession({ [instance.id]: apiKey }, historyKey);
+  },
+
+  /**
+   * Adds an instance (spec 016, US2, contracts/vault-crypto.md). The passphrase is ALWAYS required, even unlocked
+   * (user decision: the vault key is never kept in the session). One derivation: the vault key derived to check the
+   * passphrase seals the new key, with the address of the new instance as associated data. A single set of
+   * `homeboxInstances`, then the session holds every key (full unlock). The vault key is a local variable of this
+   * operation, never stored, never put in the session. Throws only on a storage error (nothing written then).
+   */
+  async addInstance(
+    input: NewInstance,
+    { probe, iterations = DEFAULT_ITERATIONS }: { probe?: AddProbe; iterations?: number } = {},
+  ): Promise<Result<{ id: string }>> {
+    const { baseUrl, passphrase, newPassphrase } = input;
+    const apiKey = input.apiKey.trim();
+    if (!isValidApiKey(apiKey)) return fail('UNAUTHORIZED');
+    const store = await instanceStore.read();
+    const instances = store?.instances ?? [];
+    if (instances.length >= MAX_INSTANCES) return fail('INSTANCE_LIMIT');
+    if (instances.some((i) => sameAddress(i.baseUrl, baseUrl))) return fail('INSTANCE_EXISTS');
+    const name = validateName(input.name, instances.map((i) => i.name), baseUrl);
+    if (!name.ok) return fail(name.error);
+    if (passphrase.length < MIN_PASSPHRASE_LENGTH) return fail('WEAK_PASSPHRASE');
+
+    let key: CryptoKey;
+    let vault: NonNullable<InstancesStore['vault']>;
+    let keys: Record<string, string>;
+    let historyKey: Uint8Array | null;
+    let existing: StoredInstance[];
+    let eraseHistory = false;
+    if (!newPassphrase) {
+      // The current passphrase, checked by opening the vault (one derivation).
+      if (!store) return fail('NOT_CONFIGURED');
+      if (!store.vault) return fail('WRONG_PASSPHRASE');
+      const opened = await openVault(store, passphrase);
+      if (!opened) return fail('WRONG_PASSPHRASE');
+      key = opened.key;
+      vault = { ...store.vault, ...opened.created };
+      keys = opened.keys;
+      historyKey = opened.history && opened.history !== 'unreadable' ? opened.history.key : null;
+      existing = store.instances;
+    } else {
+      // A new passphrase only when there is none yet: first installation, or legacy key without passphrase.
+      if (store?.vault) return fail('WRONG_PASSPHRASE');
+      const session = await readSession();
+      keys = {};
+      existing = [];
+      if (store) {
+        // Legacy key (spec 005): still in memory, sealed now in the same write as the new key.
+        for (const instance of store.instances) {
+          const legacy = session?.keys[instance.id];
+          if (typeof legacy !== 'string') return fail('NOT_CONFIGURED');
+          keys[instance.id] = legacy;
+        }
+      }
+      const fresh = newVault(iterations);
+      key = await deriveVaultKey(passphrase, fresh);
+      const recovered = sessionHistoryKey(session);
+      eraseHistory = recovered === null;
+      historyKey = recovered ?? newHistoryKey();
+      vault = { ...fresh, check: await sealCheck(key), historyKey: await sealHistoryKey(historyKey, key) };
+      for (const instance of store?.instances ?? []) {
+        const legacy = keys[instance.id] ?? '';
+        existing.push({ ...instance, key: await sealApiKeyWith(key, legacy, instance.baseUrl) });
+      }
+    }
+
+    // Permission and connection test: only once the passphrase is known to be right.
+    let lastCheck: LastCheck | null = null;
+    if (probe) {
+      const probed = await probe(baseUrl, apiKey);
+      if (!probed.ok) return probed;
+      lastCheck = probed.value;
+    }
+
+    const instance: StoredInstance = {
+      id: crypto.randomUUID(),
+      name: name.value,
+      baseUrl,
+      key: await sealApiKeyWith(key, apiKey, baseUrl),
+      maskedKey: maskKey(apiKey),
+      lastCheck,
+    };
+    const next: InstancesStore = { v: 1, vault, instances: [...existing, instance] };
+    // New history key that no former entry can match (R5.5, as `save`): those entries could never be read again.
+    if (eraseHistory) await eraseHistoryEntries();
+    const expectedSalt = store?.vault?.salt ?? null;
+    // A single set of the whole vault (atomic); refused if the vault changed meanwhile (concurrent reconfiguration).
+    await instanceStore.update((current) => {
+      if ((current?.vault?.salt ?? null) !== expectedSalt || (current?.instances.length ?? 0) !== instances.length) {
+        throw new Error('configuration changed');
+      }
+      return next;
+    });
+    await writeSession({ ...keys, [instance.id]: apiKey }, historyKey);
+    await attachHistory(historyKey, next);
+    return ok({ id: instance.id });
   },
 
   /**
@@ -359,6 +494,199 @@ export const configStore = {
     if (!opened) return fail('WRONG_PASSPHRASE');
     const apiKey = opened.keys[instance.id];
     return typeof apiKey === 'string' ? ok(apiKey) : fail('KEY_UNREADABLE');
+  },
+
+  /**
+   * Renames an instance (spec 016, US4-1): no passphrase, no network, works locked. Trimmed; empty or > 50 characters
+   * → INSTANCE_NAME_INVALID (US4-2); the name of another instance (case ignored) → INSTANCE_NAME_TAKEN.
+   */
+  async renameInstance(instanceId: string, input: string): Promise<Result<void>> {
+    if (input.trim() === '') return fail('INSTANCE_NAME_INVALID');
+    let result = fail('INSTANCE_NOT_FOUND') as Result<void>;
+    await instanceStore.update((store) => {
+      const target = store?.instances.find((i) => i.id === instanceId);
+      if (!store || !target) return null;
+      const others = store.instances.filter((i) => i.id !== instanceId).map((i) => i.name);
+      const name = validateName(input, others, target.baseUrl);
+      if (!name.ok) {
+        result = fail(name.error);
+        return null;
+      }
+      result = ok(undefined);
+      if (name.value === target.name) return null;
+      return { ...store, instances: store.instances.map((i) => (i.id === instanceId ? { ...i, name: name.value } : i)) };
+    });
+    return result;
+  },
+
+  /**
+   * Changes the address and/or the key of one instance (spec 016, US4-4, contracts/vault-crypto.md), with the rules of
+   * the former single-instance save. Current passphrase: one derivation opens the vault; an empty key keeps the current one
+   * (KEY_UNREADABLE if it cannot be read), resealed with the new address as associated data; a single set. New
+   * passphrase (`newPassphrase`): only with a single instance and a key (typed, or a legacy key still in memory); the
+   * vault is recreated as `save` does. The history entries are attached BEFORE the address changes (R5); the instance
+   * keeps its id, so its last location, history entries and interrupted imports stay attached to it (spec, edge case
+   * "address of an instance changed"). Throws only on a storage error.
+   */
+  async updateInstance(
+    instanceId: string,
+    input: InstanceChange,
+    { probe, iterations = DEFAULT_ITERATIONS }: { probe?: UpdateProbe; iterations?: number } = {},
+  ): Promise<Result<{ previousBaseUrl: string }>> {
+    const { baseUrl, passphrase, newPassphrase } = input;
+    const typed = input.apiKey.trim();
+    const store = await instanceStore.read();
+    if (!store) return fail('NOT_CONFIGURED');
+    const current = store.instances.find((i) => i.id === instanceId);
+    if (!current) return fail('INSTANCE_NOT_FOUND');
+    if (store.instances.some((i) => i.id !== instanceId && sameAddress(i.baseUrl, baseUrl))) return fail('INSTANCE_EXISTS');
+    if (typed !== '' && !isValidApiKey(typed)) return fail('UNAUTHORIZED');
+    if (passphrase.length < MIN_PASSPHRASE_LENGTH) return fail('WEAK_PASSPHRASE');
+    const previousBaseUrl = current.baseUrl;
+
+    if (newPassphrase) {
+      // Replacing the vault is only possible with a single instance (the other keys would be lost otherwise).
+      if (store.instances.length !== 1) return fail('WRONG_PASSPHRASE');
+      let apiKey = typed;
+      if (apiKey === '') {
+        // Kept key: only a legacy key (spec 005) still in memory can be resealed with a new passphrase.
+        if (store.vault) return fail('WRONG_PASSPHRASE');
+        const legacy = (await readSession())?.keys[current.id];
+        if (typeof legacy !== 'string') return fail('UNAUTHORIZED');
+        apiKey = legacy;
+      }
+      await attachHistory(sessionHistoryKey(await readSession()), store);
+      let checked: LastCheck | null | undefined;
+      if (probe) {
+        const probed = await probe(baseUrl, apiKey, previousBaseUrl);
+        if (!probed.ok) return probed;
+        checked = probed.value;
+      }
+      await configStore.save({ baseUrl, apiKey, passphrase }, iterations, checked);
+      return ok({ previousBaseUrl });
+    }
+
+    if (!store.vault) return fail('WRONG_PASSPHRASE');
+    const opened = await openVault(store, passphrase);
+    if (!opened) return fail('WRONG_PASSPHRASE');
+    const apiKey = typed !== '' ? typed : opened.keys[instanceId];
+    if (typeof apiKey !== 'string') return fail('KEY_UNREADABLE');
+    const historyKey = opened.history && opened.history !== 'unreadable' ? opened.history.key : null;
+    // Attached with the former address, before it changes (R5).
+    await attachHistory(historyKey, store);
+
+    let lastCheck = current.lastCheck;
+    if (probe) {
+      const probed = await probe(baseUrl, apiKey, previousBaseUrl);
+      if (!probed.ok) return probed;
+      if (probed.value) lastCheck = probed.value;
+    }
+    const sealed = await sealApiKeyWith(opened.key, apiKey, baseUrl);
+    const salt = store.vault.salt;
+    const created = opened.created ?? {};
+    // A single set of the whole vault (atomic); refused if the vault changed meanwhile.
+    await instanceStore.update((now) => {
+      if (!now?.vault || now.vault.salt !== salt) throw new Error('configuration changed');
+      const target = now.instances.find((i) => i.id === instanceId);
+      if (!target) throw new Error('configuration changed');
+      if (now.instances.some((i) => i.id !== instanceId && sameAddress(i.baseUrl, baseUrl))) {
+        throw new Error('configuration changed');
+      }
+      const others = now.instances.filter((i) => i.id !== instanceId).map((i) => i.name);
+      // A name chosen by the user is kept; a default name follows the address (as `save`).
+      const name = target.name === defaultName(target.baseUrl, others) ? defaultName(baseUrl, others) : target.name;
+      const changed: StoredInstance = { ...target, name, baseUrl, key: sealed, maskedKey: maskKey(apiKey), lastCheck };
+      return {
+        ...now,
+        vault: { ...now.vault, ...created },
+        instances: now.instances.map((i) => (i.id === instanceId ? changed : i)),
+      };
+    });
+    await writeSession({ ...opened.keys, [instanceId]: apiKey }, historyKey);
+    return ok({ previousBaseUrl });
+  },
+
+  /**
+   * Deletes one instance (spec 016, US4-6, contracts/storage-migration.md "Deletion of an instance"): refused while
+   * an import to it runs; the last one → global deletion. Otherwise: its key leaves the session, its interrupted
+   * imports are removed, then the instance (one set), its last location and `lastInstanceId`, then its history
+   * entries (without the key: works locked), then its origin permission if no instance uses it any more.
+   */
+  async removeInstance(instanceId: string): Promise<Result<void>> {
+    const store = await instanceStore.read();
+    if (!store) return fail('NOT_CONFIGURED');
+    const instance = store.instances.find((i) => i.id === instanceId);
+    if (!instance) return fail('INSTANCE_NOT_FOUND');
+    if ((activeTargets.get(instanceId) ?? 0) > 0) return fail('INSTANCE_BUSY');
+    if (store.instances.length === 1) {
+      await configStore.delete();
+      return ok(undefined);
+    }
+    // Step 3: the session first (a later error never leaves its key in memory), then its interrupted imports.
+    const session = await readSession(true);
+    if (session && typeof session.keys[instanceId] === 'string') {
+      // Re-read just before writing: a lock in between (button, expiry) must not bring the other keys back.
+      const current = await readSession(true);
+      if (current && typeof current.keys[instanceId] === 'string') {
+        const keys = Object.fromEntries(Object.entries(current.keys).filter(([id]) => id !== instanceId));
+        await browser.storage.session.set({ [SESSION_KEY]: { ...current, keys } });
+      }
+    }
+    await pendingStore.removeByInstance(instanceId);
+    // Step 4: a single set of the vault without it; its last location and lastInstanceId.
+    const removed = await instanceStore.remove(instanceId);
+    if (!removed) return fail('INSTANCE_NOT_FOUND');
+    // Step 5: its history entries (an interruption here is repaired by the history maintenance, SC-008).
+    await historyStore.removeInstance(instanceId);
+    // Step 6: the origin permission, only if no other instance uses it.
+    await instanceStore.releaseOriginIfUnused(originOf(removed.baseUrl));
+    return ok(undefined);
+  },
+
+  /**
+   * Changes the passphrase (spec 016, US5-3, FR-023): the current one opens the vault from the disk (one derivation),
+   * everything is resealed under a new salt (one derivation) and written in a single set; the session is unchanged.
+   * A key that could not be read becomes "to re-enter" and its id is returned in `reenter`. A failed write leaves the
+   * storage as it was (the old passphrase stays valid). Throws only on a storage error.
+   */
+  async changePassphrase(
+    current: string,
+    next: string,
+    iterations = DEFAULT_ITERATIONS,
+  ): Promise<Result<{ reenter: string[] }>> {
+    if (next.length < MIN_PASSPHRASE_LENGTH) return fail('WEAK_PASSPHRASE');
+    const store = await instanceStore.read();
+    if (!store) return fail('NOT_CONFIGURED');
+    if (!store.vault) return fail('WRONG_PASSPHRASE');
+    const opened = await openVault(store, current);
+    if (!opened) return fail('WRONG_PASSPHRASE');
+    // A history key unreadable on the disk but still open in the session is kept (its entries stay readable).
+    const inSession = opened.history === 'unreadable' ? sessionHistoryKey(await readSession()) : null;
+    const { store: rekeyed, reenter } = await rekeyVault(
+      store,
+      inSession ? { ...opened, history: { key: inSession } } : opened,
+      next,
+      iterations,
+    );
+    const salt = store.vault.salt;
+    const sealedById = new Map(rekeyed.instances.map((i) => [i.id, i.key]));
+    await instanceStore.update((now) => {
+      // Written only onto the vault that was opened, with the same instances (a concurrent change wins).
+      if (!now?.vault || now.vault.salt !== salt) throw new Error('configuration changed');
+      if (now.instances.length !== sealedById.size || now.instances.some((i) => !sealedById.has(i.id))) {
+        throw new Error('configuration changed');
+      }
+      const base = store.instances;
+      if (now.instances.some((i) => i.baseUrl !== base.find((b) => b.id === i.id)?.baseUrl)) {
+        throw new Error('configuration changed');
+      }
+      return {
+        ...now,
+        vault: rekeyed.vault,
+        instances: now.instances.map((i) => ({ ...i, key: sealedById.get(i.id) ?? null })),
+      };
+    });
+    return ok({ reenter });
   },
 
   /**

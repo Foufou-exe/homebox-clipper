@@ -4,6 +4,7 @@ import { configStore } from '@/background/config/config-store';
 import { registerConfigHandlers } from '@/background/config/handlers';
 import { activeImports } from '@/background/import/active-imports';
 import { dispatch, setUiActivityHook } from '@/background/router';
+import { A, B, PASSPHRASE, buildStore, seedStore } from '../unit/instances-fixture';
 
 /**
  * Spec 013, Q-U3, Q-U4: automatic lock seen from the messages (A-2 to A-7, A-14, M-4, M-5).
@@ -248,6 +249,20 @@ describe('automatic lock: handlers, presence port and imports (013)', () => {
       ok: false,
       error: 'BAD_MESSAGE',
     });
+  });
+
+  it('two instances (016, US5-2, SC-007): after session/lock or an automatic lock, no key is left for any instance', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    expect(await call({ type: 'session/lock' })).toMatchObject({ locked: true, instances: [{ keyState: 'locked' }, { keyState: 'locked' }] });
+    expect(await fakeBrowser.storage.session.get(null)).toEqual({});
+    for (const id of [A.id, B.id]) expect(await configStore.getCredentials(id)).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await configStore.unlock(PASSPHRASE)).toEqual({ ok: true, value: undefined });
+    await setPolicy('idle-15m');
+    at(20 * MIN);
+    expect(await call({ type: 'config/get' })).toMatchObject({ locked: true });
+    expect(await fakeBrowser.storage.session.get(null)).not.toHaveProperty('homeboxUnlocked');
+    for (const id of [A.id, B.id]) expect(await configStore.getCredentials(id)).toEqual({ ok: false, error: 'LOCKED' });
   });
 
   it('invariant 9: session/lock locks immediately, whatever the policy and even during an import', async () => {

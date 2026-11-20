@@ -61,5 +61,6 @@ export const IDENTICAL_OK = [
   'links.version', // "Version $1": same word in both languages (013)
   'tags.title', // same word in both languages (014)
   'tags.settings.tag', // same word in both languages (014)
+  'summary.instanceOption', // same format in both languages (016)
 ];
 

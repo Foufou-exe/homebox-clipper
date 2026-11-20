@@ -34,6 +34,11 @@ export const ERROR_CODES = [
   // Spec 016 (multiple instances): the UI names the instance, the service worker only returns the code.
   'INSTANCE_NOT_FOUND',
   'KEY_UNREADABLE',
+  'INSTANCE_LIMIT',
+  'INSTANCE_EXISTS',
+  'INSTANCE_NAME_INVALID',
+  'INSTANCE_NAME_TAKEN',
+  'INSTANCE_BUSY',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

@@ -57,15 +57,43 @@ test instance on another machine of the local network will have an address like
   impossible until the next unlock.
 - A wrong passphrase shows "Incorrect passphrase." without changing anything.
 
+## Several HomeBox instances
+
+You can set up **up to 10 instances** (for example one at home and one for a workshop). With a single
+instance, the settings look as before, with a **Display name (optional)** field and an **Add an instance**
+button.
+
+- **Add an instance**: name (optional; empty: the host of the address), address, API key and passphrase. The
+  passphrase is asked at every add, even when the extension is unlocked: it is your current passphrase (one
+  passphrase protects every key). Chrome asks for access to **this address only**. The address must not be
+  already configured; the button is disabled once 10 instances are set up. The instance is saved even if the
+  connection test fails, like the first configuration.
+- From two instances on, each instance has its card (name, address, masked key, state of the last test) with:
+  - **Test the connection**: only this instance is contacted (the extension must be unlocked);
+  - **Rename**: no passphrase needed; 1 to 50 characters, not already used by another instance (case ignored);
+  - **Change the address or key**: same rules as below for a single instance; a new origin is asked to Chrome,
+    the access to the former one is removed once no instance uses it;
+  - **Delete this instance** (confirmation naming it): erases its key, its last location, its import history
+    entries and its interrupted imports, and removes its access if no other instance uses the same origin. It is
+    refused while an import to this instance is running. Deleting the last instance is the same as **Delete
+    settings**;
+  - **Request access again**, shown when Chrome no longer grants access to this instance (permission removed
+    from the browser settings).
+- A key shown as **Key to re-enter** could not be decrypted with the right passphrase (damaged data): change
+  the key of that instance; the other instances keep working.
+- **Delete all settings** (from two instances on) erases every instance, as **Delete settings** does with one.
+
 ## Changing or deleting the settings
 
 - **Change the address or the key**: in the settings. To **keep the current key**, leave the key field
   empty and enter your current passphrase: changing the address of an existing key therefore requires
   knowing the passphrase (see [Security-and-privacy](Security-and-privacy.md)).
-- **Change the passphrase**: enter the API key again with the new passphrase.
-- **Delete settings**: erases the address, the encrypted key, the in-progress imports kept for recovery,
-  the import history (its on/off setting is kept), and **removes the access permission** granted to the
-  instance.
+- **Change the passphrase**: **Settings → Change the passphrase** (current passphrase, new one, confirmation)
+  re-encrypts every key and the import history key at once; if anything fails, nothing changes and the former
+  passphrase stays valid. With a single instance you can also enter the API key again with a new passphrase.
+- **Delete settings** (**Delete all settings** with several instances): erases every instance (addresses,
+  encrypted keys), the in-progress imports kept for recovery, the import history (its on/off setting is kept),
+  and **removes the access permission** granted to each instance.
 - **Import history**: the **Import history** card turns the local history on or off (turning it off
   erases it, after a confirmation). See [Usage](Usage.md#import-history).
 - **New passphrase while locked**: if the extension is locked and you enter a new key and a new

@@ -4,6 +4,7 @@ import { fail, ok } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type {
   ConfigView,
+  InstanceView,
   DetectedProduct,
   DetectedPurchase,
   DocumentRef,
@@ -94,10 +95,22 @@ const config = (over: Partial<ConfigView> = {}): ConfigView => ({
   // ADAPTED (016): the view lists the instances and names the default one (the target of the messages).
   instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: DATA, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' }],
   defaultInstanceId: 'inst-a',
-  baseUrl: DATA,
-  lastCheck: { status: 'ok', version: DATA, at: '2026-10-22T10:00:00Z' },
+  // ADAPTED (016, T100): no top-level compatibility fields (baseUrl, maskedKey, lastCheck) any more.
   ...over,
 });
+
+// ADAPTED (016, T071): the badge, the result, the resume and the history receive instances (InstanceView) instead of
+// one address or the whole configuration; with one instance at DATA, the rendering is the same as before.
+const instanceOf = (over: Partial<InstanceView> = {}): InstanceView => ({
+  id: 'inst-a',
+  name: 'homebox.example.com',
+  baseUrl: DATA,
+  maskedKey: 'hb_••••a1b2',
+  lastCheck: { status: 'ok', version: DATA, at: '2026-10-22T10:00:00Z' },
+  keyState: 'ready',
+  ...over,
+});
+const ONE = [instanceOf()];
 
 const draft = (over: Partial<ImportDraft> = {}): ImportDraft => ({
   name: DATA,
@@ -157,11 +170,11 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
   });
 
   it('InstanceBadge, adresse HTTPS', () => {
-    expectCatalogTexts(mount(InstanceBadge, { props: { config: config() } }), [DATA]);
+    expectCatalogTexts(mount(InstanceBadge, { props: { instance: instanceOf() } }), [DATA]); // ADAPTED (016)
   });
 
   it('N10: InstanceBadge on a local-network http: address displays the catalog warning', () => {
-    const wrapper = mount(InstanceBadge, { props: { config: config({ baseUrl: 'http://192.0.2.10:7745' }) } });
+    const wrapper = mount(InstanceBadge, { props: { instance: instanceOf({ baseUrl: 'http://192.0.2.10:7745' }) } }); // ADAPTED (016)
     const warning = wrapper.find('.http');
     expect(warning.exists()).toBe(true);
     expect(warning.text()).toBe(catalog['common.httpWarning']);
@@ -286,15 +299,15 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
     const running = pending({ status: 'running', error: null, steps: { create: 'done', update: 'pending', attachments: {}, photo: 'pending' } });
     const done = pending({ id: 'p2', status: 'success', error: null });
     const wrapper = mount(ResultView, {
-      props: { pendings: [running, done, pending({ id: 'p3' })], baseUrl: DATA, running: false },
+      props: { pendings: [running, done, pending({ id: 'p3' })], instances: ONE, running: false }, // ADAPTED (016)
     });
     expectCatalogTexts(wrapper, [DATA]);
-    expect(mount(ResultView, { props: { pendings: [], baseUrl: '', running: true } }).text()).toBe('Import en cours…');
+    expect(mount(ResultView, { props: { pendings: [], instances: [], running: true } }).text()).toBe('Import en cours…'); // ADAPTED (016)
   });
 
   it('ResultView: object added (singular and plural)', () => {
     const ok1 = pending({ status: 'success', error: null });
-    const props = { baseUrl: DATA, running: false };
+    const props = { instances: ONE, running: false }; // ADAPTED (016)
     expect(mount(ResultView, { props: { ...props, pendings: [ok1] } }).text()).toContain('Objet ajouté à HomeBox.');
     const many = mount(ResultView, { props: { ...props, pendings: [ok1, { ...ok1, id: 'p2' }] } });
     expect(many.text()).toContain('2 objets ajoutés à HomeBox.');
@@ -302,18 +315,18 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
   });
 
   it('RecoveryView: object created then object not created', () => {
-    const created = mount(RecoveryView, { props: { pending: pending(), baseUrl: DATA } });
+    const created = mount(RecoveryView, { props: { pending: pending(), instance: ONE[0]! } }); // ADAPTED (016)
     expectCatalogTexts(created, [DATA]);
     expect(created.text()).toContain('a été créé dans HomeBox');
     const notCreated = mount(RecoveryView, {
-      props: { pending: pending({ entityId: null, error: 'CREATE_FAILED' }), baseUrl: '' },
+      props: { pending: pending({ entityId: null, error: 'CREATE_FAILED' }), instance: null }, // ADAPTED (016)
     });
     expectCatalogTexts(notCreated, [DATA]);
     expect(notCreated.text()).toContain('n\'a pas été créé.');
     // Uncertain creation: never claim that the object does not exist.
     for (const state of [{ createUncertain: true }, { orphaned: true, createAttempted: true }]) {
       const uncertain = mount(RecoveryView, {
-        props: { pending: pending({ entityId: null, error: 'DUPLICATE_SUSPECTED', ...state }), baseUrl: '' },
+        props: { pending: pending({ entityId: null, error: 'DUPLICATE_SUSPECTED', ...state }), instance: null }, // ADAPTED (016)
       });
       expect(uncertain.text()).toContain('a peut-être été créé');
       expect(uncertain.text()).not.toContain('n\'a pas été créé.');
@@ -490,7 +503,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
     it('ResultView: "avec sa facture" is separated from the product name (D2)', () => {
       const one = pending({ status: 'success', error: null, draft: draft({ documents: [detectedDoc] }) });
       const many = pending({ id: 'p2', status: 'success', error: null, draft: draft({ documents: [detectedDoc, manualDoc] }) });
-      const wrapper = mount(ResultView, { props: { pendings: [one, many], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [one, many], instances: ONE, running: false } }); // ADAPTED (016)
       const text = wrapper.text();
       expect(text).toContain(`${DATA} avec sa facture —`);
       expect(text).toContain(`${DATA} avec ses documents —`);
@@ -517,7 +530,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         error: null,
         steps: { create: 'done', update: 'done', attachments: {}, photo: 'sending' },
       });
-      const wrapper = mount(ResultView, { props: { pendings: [running], baseUrl: DATA, running: true } });
+      const wrapper = mount(ResultView, { props: { pendings: [running], instances: ONE, running: true } }); // ADAPTED (016)
       expect(wrapper.text()).toContain('Photo : en attente');
       expectCatalogTexts(wrapper, [DATA]);
     });
@@ -527,14 +540,14 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       ['not_requested', 'Photo non demandée.'],
       ['unavailable', 'Aucune photo disponible.'],
     ] as const)('ResultView : résultat par produit, photo %s (FR-009)', (step, text) => {
-      const wrapper = mount(ResultView, { props: { pendings: [withPhotoStep(step)], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [withPhotoStep(step)], instances: ONE, running: false } }); // ADAPTED (016)
       expect(wrapper.text()).toContain(text);
       expectCatalogTexts(wrapper, [DATA]);
     });
 
     it('ResultView: photo failed → photoFailed, with a resume of the photo alone', () => {
       const failed = withPhotoStep('failed', { status: 'partial', error: 'PHOTO_UPLOAD_FAILED', photoError: 'PHOTO_UPLOAD_FAILED', photoAttempted: true });
-      const wrapper = mount(ResultView, { props: { pendings: [failed], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [failed], instances: ONE, running: false } }); // ADAPTED (016)
       expect(wrapper.text()).toContain("Échec de l'envoi de la photo.");
       expect(wrapper.text()).toContain("Réessayer l'envoi de la photo");
       expectCatalogTexts(wrapper, [DATA]);
@@ -546,7 +559,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         error: 'PHOTO_TOO_LARGE',
         photoError: 'PHOTO_TOO_LARGE',
       });
-      const wrapper = mount(RecoveryView, { props: { pending: onlyPhoto, baseUrl: DATA } });
+      const wrapper = mount(RecoveryView, { props: { pending: onlyPhoto, instance: ONE[0]! } }); // ADAPTED (016)
       expect(wrapper.findAll('[role="alert"]')).toHaveLength(1); // no error / photoError duplicate
       expect(wrapper.text()).toContain('La photo dépasse 5 Mo : elle n\'a pas été envoyée.');
       expect(wrapper.find('button.primary').text()).toBe("Réessayer l'envoi de la photo");
@@ -558,7 +571,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         photoError: 'PHOTO_UNAVAILABLE',
         steps: { create: 'done', update: 'done', attachments: { d1: 'failed', m1: 'done' }, photo: 'failed' },
       });
-      const wrapper2 = mount(RecoveryView, { props: { pending: both, baseUrl: DATA } });
+      const wrapper2 = mount(RecoveryView, { props: { pending: both, instance: ONE[0]! } }); // ADAPTED (016)
       expect(wrapper2.findAll('[role="alert"]')).toHaveLength(2);
       expect(wrapper2.find('button.primary').text()).toBe('Réessayer');
       expectCatalogTexts(wrapper2, [DATA]);
@@ -576,7 +589,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       });
 
     it('orphaned partial: interruption message and generic resume', () => {
-      const wrapper = mount(ResultView, { props: { pendings: [interrupted()], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [interrupted()], instances: ONE, running: false } }); // ADAPTED (016)
       expect(wrapper.text()).toContain("L'import a été interrompu avant la fin.");
       expect(wrapper.find('button.primary').text()).toBe('Réessayer');
       expectCatalogTexts(wrapper, [DATA]);
@@ -584,7 +597,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
 
     it('orphaned failed without object: retry of the full import', () => {
       const failed = interrupted({ status: 'failed', entityId: null });
-      const wrapper = mount(ResultView, { props: { pendings: [failed], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [failed], instances: ONE, running: false } }); // ADAPTED (016)
       expect(wrapper.text()).toContain("n'a pas été créé.");
       expect(wrapper.find('button.primary').text()).toBe("Réessayer l'import");
       expectCatalogTexts(wrapper, [DATA]);
@@ -598,7 +611,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
         steps: { create: 'pending', update: 'pending', attachments: { d1: 'pending' }, photo: 'pending' },
       });
       vi.mocked(send).mockResolvedValue(fail('DUPLICATE_SUSPECTED') as never);
-      const wrapper = mount(RecoveryView, { props: { pending: orphan, baseUrl: DATA } });
+      const wrapper = mount(RecoveryView, { props: { pending: orphan, instance: ONE[0]! } }); // ADAPTED (016)
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
       expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/retry', pendingId: 'p1' }));
@@ -682,7 +695,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
     });
 
     it('configured and unlocked', async () => {
-      const wrapper = await mountOptions(config({ maskedKey: 'hb_…abcd' }));
+      // ADAPTED (016, T100): the masked key is the one of the instance (no top-level compatibility field).
+      const wrapper = await mountOptions(config({ instances: [{ ...config().instances![0]!, maskedKey: 'hb_…abcd' }] }));
       expect(wrapper.text()).toContain('Nécessaire pour déchiffrer la clé actuelle.');
       expect(wrapper.text()).toContain('Supprimer la configuration');
       expectCatalogTexts(wrapper, [DATA, 'hb_…abcd']);
@@ -690,7 +704,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
 
     it('configured and locked, migrated key', async () => {
       const wrapper = await mountOptions(config({ locked: true, needsPassphrase: true }));
-      expectCatalogTexts(wrapper, [DATA]);
+      // ADAPTED (016, T100): the key placeholder is the masked key of the instance (data), no longer « hb_… ».
+      expectCatalogTexts(wrapper, [DATA, 'hb_••••a1b2']);
       expect(wrapper.text()).toContain('Apparence');
     });
   });
@@ -1082,14 +1097,14 @@ describe('location choice (US2, US3)', () => {
   describe('ResultView', () => {
     it('displays the retained location per product (result.locationAt)', () => {
       const withLoc = pending({ status: 'success', error: null, draft: draft({ location: choice(GARAGE) }) });
-      const wrapper = mount(ResultView, { props: { pendings: [withLoc], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [withLoc], instances: ONE, running: false } }); // ADAPTED (016)
       expect(wrapper.text()).toContain('Emplacement : Maison › Garage');
       expectCatalogTexts(wrapper, [DATA, ...NAMES]);
     });
 
     it('nothing without a location', () => {
       const none = pending({ status: 'success', error: null });
-      const wrapper = mount(ResultView, { props: { pendings: [none], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [none], instances: ONE, running: false } }); // ADAPTED (016)
       expect(wrapper.text()).not.toContain('Emplacement');
     });
   });
@@ -1110,22 +1125,23 @@ describe('location choice (US2, US3)', () => {
         if (msg.type === 'location/list') return Promise.resolve(listOk()) as never;
         return Promise.resolve(ok(pending({ status: 'success', error: null }))) as never;
       });
-      const wrapper = mount(RecoveryView, { props: { pending: gone(), baseUrl: DATA } });
+      const wrapper = mount(RecoveryView, { props: { pending: gone(), instance: ONE[0]! } }); // ADAPTED (016)
       await flushPromises();
       return wrapper;
     };
 
     // 016 (review T039): a resume without instanceId (older version) only uses the default instance when it is the
     // only one; otherwise nothing is sent (mirror of the refusal of import/retry in the service worker).
+    // ADAPTED (016, T098): the instance of the import is the prop `instance` (resolved by ResultView: the single
+    // instance for a state without instanceId, null with several), no longer an injected `singleInstanceId`.
     it.each([
-      ['single instance → its id', 'inst-a', [{ type: 'location/list', instanceId: 'inst-a' }]],
+      ['single instance → its id', ONE[0]!, [{ type: 'location/list', instanceId: 'inst-a' }]],
       ['several instances → nothing sent', null, []],
     ] as const)('pending without instanceId: %s', async (_label, single, expected) => {
-      const { ref: vueRef } = await import('vue');
       vi.mocked(send).mockImplementation(() => Promise.resolve(listOk()) as never);
       const old = { ...gone() };
       delete old.instanceId;
-      mount(RecoveryView, { props: { pending: old, baseUrl: DATA }, global: { provide: { singleInstanceId: vueRef(single) } } });
+      mount(RecoveryView, { props: { pending: old, instance: single } });
       await flushPromises();
       const calls = vi.mocked(send).mock.calls.map(([m]) => m).filter((m) => m.type === 'location/list');
       expect(calls).toEqual(expected);
@@ -1167,7 +1183,7 @@ describe('location choice (US2, US3)', () => {
       vi.mocked(send).mockImplementation((msg) =>
         Promise.resolve(msg.type === 'location/list' ? fail('LOCATIONS_UNAVAILABLE') : ok(pending())) as never,
       );
-      const wrapper = mount(RecoveryView, { props: { pending: gone(), baseUrl: DATA } });
+      const wrapper = mount(RecoveryView, { props: { pending: gone(), instance: ONE[0]! } }); // ADAPTED (016)
       await flushPromises();
       expect(wrapper.findComponent(LocationPicker).exists()).toBe(false);
       expect(wrapper.findAll('button').some((b) => b.text() === 'Importer sans emplacement')).toBe(true);
@@ -1184,7 +1200,7 @@ describe('location choice (US2, US3)', () => {
 
     it('a failure other than LOCATION_NOT_FOUND does not load the list', async () => {
       vi.mocked(send).mockResolvedValue(ok(undefined) as never);
-      mount(RecoveryView, { props: { pending: pending(), baseUrl: DATA } });
+      mount(RecoveryView, { props: { pending: pending(), instance: ONE[0]! } }); // ADAPTED (016)
       await flushPromises();
       expect(send).not.toHaveBeenCalled();
     });
@@ -1192,7 +1208,7 @@ describe('location choice (US2, US3)', () => {
     it('an ordinary retry does not send a location (choice unchanged)', async () => {
       vi.mocked(send).mockResolvedValue(ok(pending()) as never);
       const plain = pending({ draft: draft({ documents: [detectedDoc] }) });
-      const wrapper = mount(RecoveryView, { props: { pending: plain, baseUrl: DATA } });
+      const wrapper = mount(RecoveryView, { props: { pending: plain, instance: ONE[0]! } }); // ADAPTED (016)
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
       const msg = vi.mocked(send).mock.calls[0]![0] as { location?: unknown };
@@ -1212,7 +1228,8 @@ describe('location choice (US2, US3)', () => {
       vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([{ id: 1, url: 'https://www.amazon.fr/x' }] as never);
       const wrapper = mount(PopupApp);
       await flushPromises();
-      wrapper.findComponent(SummaryView).vm.$emit('submit', { drafts: [draft()], manualFiles: [], orderLocationId: 'g' });
+      // ADAPTED (016, T075): the summary emits its target instance with the payload (shape only).
+      wrapper.findComponent(SummaryView).vm.$emit('submit', { instanceId: 'inst-a', drafts: [draft()], manualFiles: [], orderLocationId: 'g' });
       await flushPromises();
       expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'import/start', orderLocationId: 'g' }));
     });
@@ -1255,8 +1272,8 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
   });
 
   it('InstanceBadge: HTTP warning in English, exactly the catalog value', () => {
-    expectEnglish(mount(InstanceBadge, { props: { config: config() } }), [DATA]);
-    const wrapper = mount(InstanceBadge, { props: { config: config({ baseUrl: 'http://192.0.2.10:7745' }) } });
+    expectEnglish(mount(InstanceBadge, { props: { instance: instanceOf() } }), [DATA]); // ADAPTED (016)
+    const wrapper = mount(InstanceBadge, { props: { instance: instanceOf({ baseUrl: 'http://192.0.2.10:7745' }) } }); // ADAPTED (016)
     const warning = wrapper.find('.http');
     expect(warning.text()).toBe(en['common.httpWarning']);
     expect(warning.attributes('title')).toBe(en['common.httpWarningHint']);
@@ -1291,18 +1308,18 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
     const running = pending({ status: 'running', error: null, steps: { create: 'done', update: 'pending', attachments: {}, photo: 'pending' } });
     const done = pending({ id: 'p2', status: 'success', error: null });
     expectEnglish(
-      mount(ResultView, { props: { pendings: [running, done, pending({ id: 'p3' })], baseUrl: DATA, running: false } }),
+      mount(ResultView, { props: { pendings: [running, done, pending({ id: 'p3' })], instances: ONE, running: false } }), // ADAPTED (016)
       [DATA],
     );
-    expect(mount(ResultView, { props: { pendings: [], baseUrl: '', running: true } }).text()).toBe('Import in progress…');
+    expect(mount(ResultView, { props: { pendings: [], instances: [], running: true } }).text()).toBe('Import in progress…'); // ADAPTED (016)
     const many = mount(ResultView, {
-      props: { pendings: [done, { ...done, id: 'p4' }], baseUrl: DATA, running: false },
+      props: { pendings: [done, { ...done, id: 'p4' }], instances: ONE, running: false }, // ADAPTED (016)
     });
     expect(many.text()).toContain('2 items added to HomeBox.');
     expectEnglish(many, [DATA]);
-    expectEnglish(mount(RecoveryView, { props: { pending: pending(), baseUrl: DATA } }), [DATA]);
+    expectEnglish(mount(RecoveryView, { props: { pending: pending(), instance: ONE[0]! } }), [DATA]); // ADAPTED (016)
     expectEnglish(
-      mount(RecoveryView, { props: { pending: pending({ entityId: null, error: 'CREATE_FAILED' }), baseUrl: '' } }),
+      mount(RecoveryView, { props: { pending: pending({ entityId: null, error: 'CREATE_FAILED' }), instance: null } }), // ADAPTED (016)
       [DATA],
     );
   });
@@ -1337,11 +1354,30 @@ describe('English rendering: everything comes from en.yml, nothing French (T062)
     expectEnglish(popup, [DATA]);
     expect(popup.find('footer').text()).toContain('Support');
 
-    vi.mocked(send).mockResolvedValue(config({ maskedKey: 'hb_…abcd' }) as never);
+    // ADAPTED (016, T100): the masked key is the one of the instance (no top-level compatibility field).
+    vi.mocked(send).mockResolvedValue(config({ instances: [{ ...config().instances![0]!, maskedKey: 'hb_…abcd' }] }) as never);
     const options = mount(OptionsApp);
     await flushPromises();
     expectEnglish(options, [DATA, 'hb_…abcd']);
     expect(options.text()).toContain('Help and project');
+  });
+
+  it('options App with two instances and the add form (016, US2, T060)', async () => {
+    const two = config({
+      instances: [
+        { id: 'inst-a', name: DATA, baseUrl: DATA, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' },
+        { id: 'inst-b', name: DATA, baseUrl: 'https://inventaire.example.org', maskedKey: 'hb_••••b2c3', lastCheck: null, keyState: 'ready' },
+      ],
+    });
+    vi.mocked(send).mockResolvedValue(two as never);
+    const options = mount(OptionsApp);
+    await flushPromises();
+    await options.findAll('button').find((b) => b.text() === 'Add an instance')!.trigger('click');
+    await flushPromises();
+    expectEnglish(options, [DATA, 'hb_••••a1b2', 'hb_••••b2c3', 'https://inventaire.example.org']);
+    expect(options.text()).toContain('HomeBox instances');
+    expect(options.text()).toContain('Display name (optional)');
+    expect(options.text()).toContain('Up to 50 characters. Empty: the address host.');
   });
 });
 
@@ -1379,7 +1415,7 @@ describe('import history: texts from the catalog, in fr and en (012)', () => {
 
   async function render(view: HistoryListView, variant: 'popup' | 'options') {
     vi.mocked(send).mockResolvedValue(ok(view) as never);
-    const wrapper = mount(HistoryList, { props: { baseUrl: 'https://homebox.example.com', variant } });
+    const wrapper = mount(HistoryList, { props: { instances: [instanceOf({ baseUrl: 'https://homebox.example.com' })], variant } }); // ADAPTED (016)
     await flushPromises();
     return wrapper;
   }
@@ -1437,7 +1473,7 @@ describe('import history, incomplete imports: texts from the catalog, in fr and 
 
   async function render() {
     vi.mocked(send).mockResolvedValue(ok(view) as never);
-    const wrapper = mount(HistoryList, { props: { baseUrl: 'https://homebox.example.com' } });
+    const wrapper = mount(HistoryList, { props: { instances: [instanceOf({ baseUrl: 'https://homebox.example.com' })] } }); // ADAPTED (016)
     await flushPromises();
     return wrapper;
   }
@@ -1497,7 +1533,7 @@ describe('import history, delete / clear / options: texts from the catalog, in f
 
   async function card() {
     vi.mocked(send).mockResolvedValue(ok(view) as never);
-    const wrapper = mount(HistoryCard, { props: { baseUrl: 'https://homebox.example.com' }, attachTo: document.body });
+    const wrapper = mount(HistoryCard, { props: { instances: [instanceOf({ baseUrl: 'https://homebox.example.com' })] }, attachTo: document.body }); // ADAPTED (016)
     await flushPromises();
     // Every confirmation block revealed: clear all, then turning off.
     await wrapper.find('button.clear-all').trigger('click');
@@ -1529,7 +1565,8 @@ describe('import history, delete / clear / options: texts from the catalog, in f
     await flushPromises();
     await fr.find('#apiKey').setValue('hb_xxxxxxxx');
     expect(fr.text()).toContain('L’extension est verrouillée');
-    expectCatalogTexts(fr, [DATA]);
+    // ADAPTED (016, T100): the key placeholder is the masked key of the instance (data), no longer « hb_… ».
+    expectCatalogTexts(fr, [DATA, 'hb_••••a1b2']);
     setTestLanguage('en');
     const enApp = mount(OptionsApp);
     await flushPromises();
@@ -1557,11 +1594,11 @@ describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-0
       draft: draft({ documents: [docOf(kind)] }),
       steps: { create: 'done', update: 'done', attachments: { x1: 'done' }, photo: 'unavailable' },
     });
-    const fr = mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } });
+    const fr = mount(ResultView, { props: { pendings: [p], instances: ONE, running: false } }); // ADAPTED (016)
     expect(fr.text()).toContain(withFr);
     expectCatalogTexts(fr, [DATA]);
     setTestLanguage('en');
-    const enW = mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } });
+    const enW = mount(ResultView, { props: { pendings: [p], instances: ONE, running: false } }); // ADAPTED (016)
     expect(enW.text()).toContain(withEn);
   });
 
@@ -1572,7 +1609,7 @@ describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-0
       draft: draft({ documents: [docOf('manual', 'a'), docOf('warranty', 'b')] }),
       steps: { create: 'done', update: 'done', attachments: { a: 'done', b: 'done' }, photo: 'unavailable' },
     });
-    expect(mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } }).text()).toContain('avec ses documents');
+    expect(mount(ResultView, { props: { pendings: [p], instances: ONE, running: false } }).text()).toContain('avec ses documents'); // ADAPTED (016)
   });
 
   describe.each(['fr', 'en'] as const)('partial import (%s)', (lang) => {
@@ -1586,7 +1623,7 @@ describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-0
     it('lists every document with its kind and state, one failure line per failed document, nothing for the sent invoice', () => {
       setTestLanguage(lang);
       const c = cat(lang);
-      const wrapper = mount(ResultView, { props: { pendings: [partial], baseUrl: DATA, running: false } });
+      const wrapper = mount(ResultView, { props: { pendings: [partial], instances: ONE, running: false } }); // ADAPTED (016)
       const text = wrapper.text();
       const sub = (key: string, args: string[]) => args.reduce((acc, a, i) => acc.replace(`$${i + 1}`, a), c[key]!);
       expect(text).toContain(sub('result.stepDocument', ['facture.pdf', c['documents.invoice']!, c['result.stepDone']!]));
@@ -1600,7 +1637,7 @@ describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-0
 
     it('retry button: "Réessayer l\'envoi des documents" / "Retry the document upload"', () => {
       setTestLanguage(lang);
-      const wrapper = mount(RecoveryView, { props: { pending: partial, baseUrl: DATA } });
+      const wrapper = mount(RecoveryView, { props: { pending: partial, instance: ONE[0]! } }); // ADAPTED (016)
       expect(wrapper.find('button.primary').text()).toBe(lang === 'fr' ? "Réessayer l'envoi des documents" : 'Retry the document upload');
     });
   });
@@ -1611,7 +1648,7 @@ describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-0
       steps: { create: 'done', update: 'done', attachments: { z1: 'failed' }, photo: 'unavailable' },
       error: 'ATTACHMENT_FAILED',
     });
-    expect(mount(RecoveryView, { props: { pending: p, baseUrl: DATA } }).text()).toContain(catalog[key]!);
+    expect(mount(RecoveryView, { props: { pending: p, instance: ONE[0]! } }).text()).toContain(catalog[key]!); // ADAPTED (016)
   });
 
   it.each(['fr', 'en'] as const)('fallback line for each id of attachmentFallbacks, in the result and resume screens (%s)', (lang) => {
@@ -1627,13 +1664,13 @@ describe('document kinds: texts from the catalog, in fr and en (007, Q-U16, FR-0
       attachmentFallbacks: ['m1', 'w1'],
     });
     const line = (name: string, type: string) => c['documents.storedAsAttachment']!.replace('$1', name).replace('$2', type);
-    const result = mount(ResultView, { props: { pendings: [ok1], baseUrl: DATA, running: false } });
+    const result = mount(ResultView, { props: { pendings: [ok1], instances: ONE, running: false } }); // ADAPTED (016)
     expect(result.text()).toContain(line('guide.pdf', c['documents.manual']!));
     expect(result.text()).toContain(line('garantie.pdf', c['documents.warranty']!));
-    const resume = mount(RecoveryView, { props: { pending: { ...ok1, status: 'partial', error: 'UPDATE_FAILED' }, baseUrl: DATA } });
+    const resume = mount(RecoveryView, { props: { pending: { ...ok1, status: 'partial', error: 'UPDATE_FAILED' }, instance: ONE[0]! } }); // ADAPTED (016)
     expect(resume.text()).toContain(line('guide.pdf', c['documents.manual']!));
     // No fallback: no such line.
-    const plain = mount(ResultView, { props: { pendings: [{ ...ok1, attachmentFallbacks: undefined }], baseUrl: DATA, running: false } });
+    const plain = mount(ResultView, { props: { pendings: [{ ...ok1, attachmentFallbacks: undefined }], instances: ONE, running: false } }); // ADAPTED (016)
     expect(plain.text()).not.toContain(line('guide.pdf', c['documents.manual']!));
   });
 
@@ -1807,7 +1844,7 @@ describe('014 automatic tags: texts from the catalog, in fr and en (T029 b)', ()
     setTestLanguage(lang);
     const c = loadCatalog(lang);
     const p = pending({ error: 'TAG_FAILED', failedTags: [DATA], steps: { create: 'done', update: 'done', attachments: { d1: 'done', m1: 'done' }, photo: 'unavailable', tags: 'failed' } });
-    const wrapper = mount(ResultView, { props: { pendings: [p], baseUrl: DATA, running: false } });
+    const wrapper = mount(ResultView, { props: { pendings: [p], instances: ONE, running: false } }); // ADAPTED (016)
     expect(wrapper.text()).toContain(c['result.tagsFailed']!.replace('$1', DATA));
     expect(wrapper.text()).toContain(c['error.TAG_FAILED']!);
     if (lang === 'fr') expectCatalogTexts(wrapper, [DATA]);
@@ -1985,5 +2022,63 @@ describe('015 duplicate dialog: certain duplicate and similar items, in fr and e
     expect(text).toContain(en['duplicates.safeHelp']);
     expect(text).toContain(en['duplicates.similarHelp']);
     expect(text).not.toContain('duplicates.');
+  });
+});
+
+describe('instances in the options: texts from fr.yml (016, US2, T060)', () => {
+  it('two instances, add form open, limit reached: every text comes from the catalog', async () => {
+    const ten = Array.from({ length: 10 }, (_, i) => ({
+      id: `i${i}`,
+      name: DATA,
+      baseUrl: `https://h${i}.example.com`,
+      maskedKey: 'hb_••••a1b2',
+      lastCheck: null,
+      keyState: 'ready' as const,
+    }));
+    vi.mocked(send).mockResolvedValue(config({ instances: ten, maxInstances: 10 }) as never);
+    const wrapper = mount(OptionsApp);
+    await flushPromises();
+    expectCatalogTexts(wrapper, [DATA, 'hb_••••a1b2', ...ten.map((i) => i.baseUrl)]);
+    expect(wrapper.text()).toContain('Instances HomeBox');
+    expect(wrapper.text()).toContain('Vous pouvez configurer jusqu’à 10 instances.');
+
+    vi.mocked(send).mockResolvedValue(config() as never);
+    const one = mount(OptionsApp);
+    await flushPromises();
+    await one.findAll('button').find((b) => b.text() === 'Ajouter une instance')!.trigger('click');
+    await flushPromises();
+    expectCatalogTexts(one, [DATA, 'hb_••••a1b2']);
+    expect(one.text()).toContain('Nom d’affichage (facultatif)');
+  });
+});
+
+describe('instance picker of the summary: texts from the catalog, in fr and en (016, US3, T072)', () => {
+  const two = () =>
+    config({
+      instances: [
+        instanceOf({ id: 'inst-a', name: DATA }),
+        instanceOf({ id: 'inst-b', name: DATA, baseUrl: 'https://inventaire.example.org', lastCheck: null }),
+      ],
+      defaultInstanceId: 'inst-a',
+    });
+  const serveSummary = () =>
+    vi.mocked(send).mockImplementation(((msg: { type: string }) => {
+      if (msg.type === 'detect/run') return Promise.resolve(fail('NOT_AN_ORDER_PAGE'));
+      if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: [] }));
+      return Promise.resolve(ok({ locations: [], lastUsedId: null }));
+    }) as never);
+
+  it.each(['fr', 'en'] as const)('%s: label, options and announcement in the language of the interface', async (lang) => {
+    setTestLanguage(lang);
+    const c = loadCatalog(lang);
+    serveSummary();
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: two() }, attachTo: document.body });
+    await flushPromises();
+    expect(wrapper.get('label[for="instance-target"]').text()).toBe(c['summary.instanceTarget']);
+    await wrapper.get('select#instance-target').setValue('inst-b');
+    await flushPromises();
+    expect(wrapper.get('[aria-live="polite"]').text()).toBe(c['summary.instanceLoaded']!.replace('$1', DATA));
+    if (lang === 'fr') expectCatalogTexts(wrapper, [DATA, 'https://inventaire.example.org', 'inventaire.example.org']);
+    wrapper.unmount();
   });
 });

@@ -42,8 +42,9 @@ describe('router — message origin', () => {
     });
   });
 
+  // ADAPTED (016, T079): config/save is withdrawn; instance/update is the same message per instance.
   it('rejects a malformed message', async () => {
-    expect(await dispatch({ type: 'config/save', baseUrl: 1 }, { id: id(), url: `${BASE}options.html` })).toEqual({
+    expect(await dispatch({ type: 'instance/update', instanceId: 'inst-1', baseUrl: 1 }, { id: id(), url: `${BASE}options.html` })).toEqual({
       ok: false,
       error: 'BAD_MESSAGE',
     });
@@ -170,7 +171,8 @@ describe('router — runtime.onMessage listener (contracts/runtime-messages.md)'
 
   it('a malformed message gets BAD_MESSAGE, without running a handler', async () => {
     const ok = { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` };
-    for (const raw of [{ type: 'config/save', baseUrl: 1 }, { nimporte: 'quoi' }, 'texte', null]) {
+    // ADAPTED (016, T079): config/save is withdrawn; instance/update is the same message per instance.
+    for (const raw of [{ type: 'instance/update', instanceId: 'inst-1', baseUrl: 1 }, { nimporte: 'quoi' }, 'texte', null]) {
       const r = await call(raw, ok);
       expect(r.keepOpen).toBe(false);
       expect(r.response).toEqual({ ok: false, error: 'BAD_MESSAGE' });
@@ -286,11 +288,12 @@ describe('router — session/* and update/* reserved to extension pages, activit
   });
 
   // ADAPTED (spec 014, T009 a): 'tag/' added last; only expectation of this file that changes.
-  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/' and 'tag/'", () => {
+  // ADAPTED (016, T051): 'instance/' added last (instance management, extension pages only).
+  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/', 'tag/' and 'instance/'", () => {
     const source = readFileSync(resolve(__dirname, '../../src/background/router.ts'), 'utf8');
     const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='))!;
     const list = [...line.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/']);
+    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/', 'instance/']);
   });
 
   it.each(MESSAGES)('$type from an extension page: the hook runs before the handler', async (msg) => {
@@ -360,6 +363,38 @@ describe('router — tag/list is reserved to extension pages (014, T009 b)', () 
   it('from an extension page: reaches the handler', async () => {
     // ADAPTED (016): tag/list names its target instance (shape only).
     expect(await dispatch({ type: 'tag/list', instanceId: 'inst-a' }, { id: id(), url: `${BASE}popup.html` })).toEqual({ ok: true, value: { tags: [] } });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('router — instance/* and session/change-passphrase are reserved to extension pages (016, T051)', () => {
+  const handler = vi.fn(async () => ({ ok: true, value: undefined }));
+  const id = () => fakeBrowser.runtime.id;
+  const MESSAGES = [
+    { type: 'instance/add', baseUrl: 'https://inventaire.example.org', apiKey: 'hb_bbbbbbbb', name: '', passphrase: 'phrase de test 123', newPassphrase: false },
+    { type: 'instance/update', instanceId: 'inst-b', baseUrl: 'https://inventaire.example.org', apiKey: '', passphrase: 'phrase de test 123', newPassphrase: false },
+    { type: 'instance/rename', instanceId: 'inst-b', name: 'Atelier' },
+    { type: 'instance/test', instanceId: 'inst-b' },
+    { type: 'instance/delete', instanceId: 'inst-b' },
+    { type: 'session/change-passphrase', current: 'phrase de test 123', next: 'nouvelle phrase 456' },
+  ] as const;
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    handler.mockClear();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
+    for (const m of MESSAGES) register(m.type, handler as never);
+  });
+
+  it.each(MESSAGES)('$type from the script injected on amazon.fr: BAD_MESSAGE and the handler is not called', async (msg) => {
+    const web = { id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } };
+    expect(await dispatch(msg, web)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(await dispatch(msg, { id: id() })).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it.each(MESSAGES)('$type from the options page: reaches the handler', async (msg) => {
+    expect(await dispatch(msg, { id: id(), url: `${BASE}options.html` })).toEqual({ ok: true, value: undefined });
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });

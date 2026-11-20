@@ -18,6 +18,8 @@ import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
+import InstancePicker from '@/ui/components/InstancePicker.vue';
+import { defaultInstance } from '@/ui/instances';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
 import TagPicker from '@/ui/components/TagPicker.vue';
 import WarrantyField from '@/ui/components/WarrantyField.vue';
@@ -40,9 +42,38 @@ const supportedStores = MERCHANT_CATALOG.map((e) =>
 const props = defineProps<{ tabId: number; config: ConfigView }>();
 const emit = defineEmits<{
   submit: [
-    payload: { drafts: ImportDraft[]; manualFiles: ManualFile[]; orderLocationId: string | null; duplicateCheckFailed: boolean },
+    payload: {
+      /** Target instance chosen in the summary (spec 016): every request of the import goes to it only. */
+      instanceId: string;
+      drafts: ImportDraft[];
+      manualFiles: ManualFile[];
+      orderLocationId: string | null;
+      duplicateCheckFailed: boolean;
+    },
   ];
 }>();
+
+/**
+ * Target instance (spec 016, US3, research R7): the default one (last successful import, else the first). With
+ * several instances a native select lets the user change it before confirming; with one, nothing changes on screen.
+ * Changing it reloads the locations and tags of the new target, by generation: a late answer for a former target is
+ * ignored (US3-8).
+ */
+const instances = computed(() => props.config.instances ?? []);
+const target = ref<string | null>(defaultInstance(props.config)?.id ?? null);
+const targetInstance = computed(() => instances.value.find((i) => i.id === target.value) ?? null);
+const several = computed(() => instances.value.length > 1);
+/** Name shown before an error concerning the target, only when several instances exist. */
+const errorInstance = computed(() => (several.value ? targetInstance.value?.name : undefined));
+const pickerModel = computed({
+  get: () => target.value ?? '',
+  set: (id: string) => changeTarget(id),
+});
+const announce = ref('');
+/** Incremented at each change of target: an answer of an older generation is ignored. */
+let generation = 0;
+/** Error of the confirmation itself (e.g. the target was deleted meanwhile, FR-020): nothing is sent. */
+const confirmError = ref<ErrorCode | null>(null);
 
 interface Line {
   key: string;
@@ -109,13 +140,15 @@ function reconcileTags(target: Line[]) {
 }
 
 async function loadTags() {
-  const instanceId = props.config.defaultInstanceId;
+  const instanceId = target.value;
+  const gen = generation;
   if (!instanceId) {
     tagState.value = 'unavailable';
     return;
   }
   try {
     const res = await send({ type: 'tag/list', instanceId });
+    if (gen !== generation) return; // answer for a former target
     if (!res.ok || !Array.isArray(res.value?.tags)) {
       tagState.value = 'unavailable';
       return;
@@ -124,7 +157,7 @@ async function loadTags() {
     tagState.value = 'ready';
     reconcileTags(lines.value);
   } catch {
-    tagState.value = 'unavailable';
+    if (gen === generation) tagState.value = 'unavailable';
   }
 }
 
@@ -132,8 +165,9 @@ async function loadTags() {
 const editingLines = reactive(new Set<string>());
 
 async function loadLocations() {
-  // Spec 016 (delivery A): the default instance; without one, nothing is sent (no fallback).
-  const instanceId = props.config.defaultInstanceId;
+  // Spec 016: the target instance; without one, nothing is sent (no fallback).
+  const instanceId = target.value;
+  const gen = generation;
   if (!instanceId) {
     locError.value = 'NOT_CONFIGURED';
     locState.value = 'unavailable';
@@ -141,6 +175,7 @@ async function loadLocations() {
   }
   try {
     const res = await send({ type: 'location/list', instanceId });
+    if (gen !== generation) return; // answer for a former target
     if (!res.ok || !Array.isArray(res.value?.locations)) {
       locError.value = res.ok ? 'LOCATIONS_UNAVAILABLE' : res.error;
       locState.value = 'unavailable';
@@ -152,8 +187,37 @@ async function loadLocations() {
     const last = res.value.lastUsedId ? locations.value.find((l) => l.id === res.value.lastUsedId) : undefined;
     if (last && !orderTouched) orderLocation.value = { id: last.id, path: [...last.path] };
   } catch {
+    if (gen !== generation) return;
     locError.value = 'LOCATIONS_UNAVAILABLE';
     locState.value = 'unavailable';
+  }
+}
+
+/**
+ * New target (R7): locations and per-product choices reset, then the last location of the new instance; tag
+ * identifiers dropped (they belong to one instance) and « new » recomputed against the new list; fields, selection,
+ * documents, photo and warranty kept. The target never changes by itself (no automatic switch after an error).
+ */
+async function changeTarget(id: string) {
+  if (submitting.value || dialog.value.kind !== 'none' || id === target.value || !instances.value.some((i) => i.id === id)) return;
+  target.value = id;
+  const gen = ++generation;
+  announce.value = '';
+  confirmError.value = null;
+  orderLocation.value = null;
+  orderTouched = false;
+  locations.value = [];
+  locState.value = 'loading';
+  editingLines.clear();
+  tagOptions.value = [];
+  tagState.value = 'loading';
+  for (const line of lines.value) {
+    line.location = 'inherit';
+    for (const tag of line.tags) tag.id = null;
+  }
+  await Promise.all([loadLocations(), loadTags()]);
+  if (gen === generation && targetInstance.value) {
+    announce.value = t('summary.instanceLoaded', [targetInstance.value.name]);
   }
 }
 
@@ -299,11 +363,12 @@ async function onAdd() {
 async function checkDuplicates() {
   dialog.value = { kind: 'checking' };
   duplicateCheckFailed.value = false;
+  confirmError.value = null;
   const groups: DuplicateGroup[] = [];
   const unchecked: string[] = [];
   for (const line of selectedLines.value) {
     let res;
-    const instanceId = props.config.defaultInstanceId;
+    const instanceId = target.value;
     try {
       // Without an order number (manual entry, not detected): checked by close name only (FR-003). Without a target
       // instance nothing is sent and the product stays "not checked".
@@ -312,6 +377,12 @@ async function checkDuplicates() {
         : null;
     } catch {
       res = null; // unexpected rejection = not checked, never silent
+    }
+    // The target no longer exists (deleted meanwhile, FR-020): shown, nothing is sent.
+    if (res && !res.ok && res.error === 'INSTANCE_NOT_FOUND') {
+      confirmError.value = 'INSTANCE_NOT_FOUND';
+      dialog.value = { kind: 'none' };
+      return;
     }
     if (!res || !res.ok || res.value.incomplete) unchecked.push(productName(line));
     if (res?.ok && (res.value.matches.length || res.value.similar.length)) {
@@ -352,10 +423,18 @@ function checkedTags(line: Line): { tags?: { name: string; id?: string }[] } {
 
 function submit() {
   if (submitting.value) return; // a second click must not start a second import
+  const instanceId = target.value;
+  if (!instanceId) {
+    // No target known: nothing is sent (no fallback to another instance).
+    confirmError.value = 'NOT_CONFIGURED';
+    dialog.value = { kind: 'none' };
+    return;
+  }
   submitting.value = true;
   dialog.value = { kind: 'none' };
   const docs = selectedDocs.value;
   emit('submit', {
+    instanceId,
     drafts: selectedLines.value.map((l) => ({
       ...l.draft,
       documents: docs,
@@ -381,7 +460,15 @@ function submit() {
 
 <template>
   <section class="summary">
-    <InstanceBadge :config="config" />
+    <!-- Locked from the duplicate check on: the confirmation concerns this target only (US3-7). -->
+    <InstancePicker
+      v-if="several"
+      v-model="pickerModel"
+      :instances="instances"
+      :submitting="submitting || dialog.kind !== 'none'"
+      :announce="announce"
+    />
+    <InstanceBadge v-else-if="targetInstance" :instance="targetInstance" />
 
     <p v-if="loading" class="muted" role="status">{{ t('summary.detecting') }}</p>
 
@@ -389,7 +476,7 @@ function submit() {
       <ErrorBanner v-if="detectError" :code="detectError" tone="warning" />
       <ErrorBanner v-for="w in warnings" :key="w" :code="w" tone="warning" />
       <template v-if="tagState === 'unavailable'">
-        <ErrorBanner code="TAGS_UNAVAILABLE" tone="warning" />
+        <ErrorBanner code="TAGS_UNAVAILABLE" tone="warning" :instance="errorInstance" />
         <p class="muted">{{ t('tags.unavailableHelp') }}</p>
       </template>
       <template v-if="detectError === 'NOT_AN_ORDER_PAGE'">
@@ -398,7 +485,15 @@ function submit() {
       </template>
       <p v-if="detectError" class="muted">{{ t('summary.manualHint') }}</p>
 
-      <OrderLocationField v-if="multi" v-model="orderModel" :state="locState" :error="locError" :options="locations" :multi="true" />
+      <OrderLocationField
+        v-if="multi"
+        v-model="orderModel"
+        :state="locState"
+        :error="locError"
+        :options="locations"
+        :multi="true"
+        :instance="errorInstance"
+      />
 
       <h2 v-if="purchase && multi" class="section-title">{{ t('summary.detectedProducts') }}</h2>
       <div v-for="line in lines" :key="line.key" class="line card">
@@ -477,6 +572,7 @@ function submit() {
         :error="locError"
         :options="locations"
         :multi="false"
+        :instance="errorInstance"
       />
 
       <h2 class="section-title">{{ t('summary.documentsTitle') }}</h2>
@@ -564,6 +660,7 @@ function submit() {
         </div>
       </div>
       <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />
+      <ErrorBanner v-if="confirmError" :code="confirmError" :instance="errorInstance" />
 
       <div class="actions footer">
         <button ref="addButton" class="primary" type="button" :disabled="!canSubmit" @click="onAdd">

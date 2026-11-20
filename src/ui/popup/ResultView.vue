@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { DocumentRef, PendingImport, PhotoStep } from '@/shared/types';
+import type { DocumentRef, InstanceView, PendingImport, PhotoStep } from '@/shared/types';
 import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
+import { instanceById } from '@/ui/instances';
 import RecoveryView from './RecoveryView.vue';
 
-const props = defineProps<{ pendings: PendingImport[]; baseUrl: string; running: boolean }>();
+/** `instances`: the configured instances; the links of an import use ITS instance (spec 016), never the default one. */
+const props = defineProps<{ pendings: PendingImport[]; instances: InstanceView[]; running: boolean }>();
 const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: string] }>();
 
 const STEP_LABELS = {
@@ -57,13 +59,24 @@ const fallbackNotes = (p: PendingImport) =>
 /** Tags not applied (spec 014, FR-012): their names are shown, the import can be retried. */
 const tagsFailed = (p: PendingImport) =>
   p.entityId && p.failedTags?.length ? t('result.tagsFailed', [p.failedTags.join(', ')]) : null;
-const itemLink = (p: PendingImport) => (p.entityId ? `${props.baseUrl}/item/${p.entityId}` : null);
+const instanceOf = (p: PendingImport) => instanceById(props.instances, p.instanceId);
+const itemLink = (p: PendingImport) => {
+  const instance = instanceOf(p);
+  return p.entityId && instance ? `${instance.baseUrl}/item/${p.entityId}` : null;
+};
+/** With several instances, the instances the shown imports went to, by name (US3-6). */
+const importedTo = computed(() =>
+  props.instances.length > 1
+    ? [...new Set(props.pendings.flatMap((p) => instanceOf(p)?.name ?? []))]
+    : [],
+);
 const allDone = computed(() => !props.running && props.pendings.every((p) => p.status === 'success'));
 </script>
 
 <template>
   <section class="result">
     <p v-if="running && pendings.length === 0" role="status">{{ t('result.running') }}</p>
+    <p v-for="name in importedTo" :key="name" class="imported-to">{{ t('result.importedTo', [name]) }}</p>
 
     <p v-if="allDone && pendings.length" class="success" role="status">
       {{ pendings.length > 1 ? t('result.addedMany', [String(pendings.length)]) : t('result.addedOne') }}
@@ -95,7 +108,8 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
       <template v-else>
         <RecoveryView
           :pending="p"
-          :base-url="baseUrl"
+          :instance="instanceOf(p)"
+          :named="instances.length > 1"
           @updated="emit('updated', $event)"
           @abandoned="emit('abandoned', $event)"
         />
@@ -108,6 +122,10 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 </template>
 
 <style scoped>
+.imported-to {
+  margin: 4px 0;
+  font-size: 13px;
+}
 .success {
   background: var(--success-bg);
   color: var(--success-fg);

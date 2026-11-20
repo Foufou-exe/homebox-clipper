@@ -11,8 +11,15 @@ same. Messages are grouped by when they appear.
 |---------------|------|----------------|-----|
 | The HomeBox address is invalid or does not point to a HomeBox instance. | `INVALID_URL` | Mistyped address, with a username/password or a protocol other than http/https; or the address does not answer like HomeBox (HTTP error other than 401/403 during the connection test). | Check the address. In a tab, `<address>/api/v1/status` must return JSON. |
 | An HTTPS address is required. | `INSECURE_URL` | The address uses `http://` and points to a public host. | Switch to HTTPS (reverse proxy), or use the instance's local address (private IP, name ending in `.lan`...). See [Configuration](Configuration.md). |
-| Access to your HomeBox instance was denied. | `PERMISSION_DENIED` | You refused Chrome's request, or the permission was removed. | Click "Test and save" again and accept. |
+| Access to your HomeBox instance was denied. | `PERMISSION_DENIED` | You refused Chrome's request, or the permission was removed. | Click "Test and save" again and accept. With several instances, use **Request access again** on the card of that instance. |
 | The passphrase must be at least 10 characters long. | `WEAK_PASSPHRASE` | Passphrase too short. | Choose one of at least 10 characters. |
+| This HomeBox instance no longer exists. Choose another one. | `INSTANCE_NOT_FOUND` | The instance was deleted (in another settings tab) after the summary was opened, or an interrupted import belongs to an instance that no longer exists. | Choose another instance in the summary. Nothing was sent. |
+| You already have the maximum number of HomeBox instances. | `INSTANCE_LIMIT` | 10 instances are already set up. | Delete an instance you no longer use, then add the new one. |
+| This address is already configured. | `INSTANCE_EXISTS` | The address is already used by another instance (after normalization: trailing `/`, host case, default port). | Use that instance, or change its address. |
+| The name must be 1 to 50 characters long. | `INSTANCE_NAME_INVALID` | The display name is empty (when renaming) or longer than 50 characters. | Choose a name of 1 to 50 characters. |
+| Another instance already has this name. | `INSTANCE_NAME_TAKEN` | Another instance already has this name (case ignored). | Choose another name. |
+| An import to this instance is in progress. Try again when it ends. | `INSTANCE_BUSY` | An import to this instance is running. | Wait for the end of the import, then delete the instance. |
+| The API key of this instance cannot be read. Enter it again. | `KEY_UNREADABLE` | The key of this instance cannot be decrypted with the right passphrase (damaged data); shown as **Key to re-enter**. The other instances keep working. | **Change the address or key** of this instance and enter its API key again. |
 | Set up your HomeBox instance first. | `NOT_CONFIGURED` | No saved settings (or a key migrated without a passphrase). | Open the settings and fill in the address, key and passphrase. |
 
 ## Connection to HomeBox
@@ -135,7 +142,12 @@ Check **Settings → Automatic lock**.
 access to your browser profile. The longest choice keeps it until the browser closes.
 
 **I forgot my passphrase.** It cannot be recovered: delete the settings in the options page, then set up
-the extension again.
+the extension again. If you forgot it while several instances are set up, no key can be read any more: use
+**Delete all settings**, then add your instances again (the import history is erased, as with a single
+instance).
+
+**Can I use several HomeBox instances?** Yes, up to 10, with a single passphrase. Add them in the settings and
+choose the target in the summary. See [Configuration](Configuration.md#several-homebox-instances).
 
 **Can I use an HTTP instance?** Yes, on the local network only. See [Configuration](Configuration.md).
 

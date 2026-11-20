@@ -2,12 +2,11 @@ import { createHomeBoxClient } from '@/background/homebox/client';
 import { register } from '@/background/router';
 import { hasOrigin } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
-import type { ConfigView } from '@/shared/types';
+import type { ConfigView, LastCheck } from '@/shared/types';
 import * as autoLock from './auto-lock';
-import { configStore, isValidApiKey } from './config-store';
+import { configStore } from './config-store';
 import { instanceStore } from './instance-store';
-import { MIN_PASSPHRASE_LENGTH } from './key-vault';
-import { normalizeBaseUrl } from './url-policy';
+import { normalizeBaseUrl, originOf } from './url-policy';
 
 async function testConnection(baseUrl: string, apiKey: string): Promise<Result<{ version: string }>> {
   const client = createHomeBoxClient({ baseUrl, apiKey });
@@ -18,50 +17,117 @@ async function testConnection(baseUrl: string, apiKey: string): Promise<Result<{
   return ok({ version: status.value.version });
 }
 
-async function recordCheck(instanceId: string, result: Result<{ version: string }>): Promise<Result<ConfigView>> {
+/** Last check recorded for a connection test result (shared by the configuration and instance handlers). */
+function toLastCheck(result: Result<{ version: string }>): LastCheck {
   const at = new Date().toISOString();
-  await configStore.setLastCheck(
-    instanceId,
-    result.ok ? { status: 'ok', version: result.value.version, at } : { status: 'error', code: result.error, at },
-  );
+  return result.ok ? { status: 'ok', version: result.value.version, at } : { status: 'error', code: result.error, at };
+}
+
+/** The answer of a connection test: the view on success, the test error otherwise (the check is saved anyway). */
+async function checkAnswer(result: Result<{ version: string }>): Promise<Result<ConfigView>> {
   if (!result.ok) return fail(result.error, result.httpStatus);
   return ok(await configStore.getView());
 }
 
-/** Spec 016, increment 1: `config/save` and `config/test` stay aliases of the single instance. */
-async function singleInstanceId(): Promise<string> {
-  return (await instanceStore.read())?.instances[0]?.id ?? '';
+async function recordCheck(instanceId: string, result: Result<{ version: string }>): Promise<Result<ConfigView>> {
+  await configStore.setLastCheck(instanceId, toLastCheck(result));
+  return checkAnswer(result);
 }
 
 export function registerConfigHandlers(): void {
   register('config/get', () => configStore.getView());
 
-  register('config/save', async ({ baseUrl, apiKey, passphrase }) => {
+  // Spec 016 (US2): add an instance. The passphrase is always required (never kept in the session); the origin
+  // permission is requested by the UI in the click, the service worker only checks it. Saved even if the
+  // connection test fails (US2-5). Any refusal before saving releases the origin if no instance uses it.
+  register('instance/add', async ({ baseUrl, apiKey, name, passphrase, newPassphrase }) => {
     const url = normalizeBaseUrl(baseUrl);
     if (!url.ok) return url;
-    if (passphrase.length < MIN_PASSPHRASE_LENGTH) return fail('WEAK_PASSPHRASE');
-
-    // Empty key = keep the current key, which then has to be decrypted with the passphrase:
-    // changing the URL of an existing key therefore requires knowing the passphrase.
-    let key = apiKey.trim();
-    if (key === '') {
-      const current = await configStore.currentKey(passphrase);
-      if (!current.ok) return current.error === 'NOT_CONFIGURED' ? fail('UNAUTHORIZED') : current;
-      key = current.value;
+    const { origin } = url.value;
+    let tested: Result<{ version: string }> | null = null;
+    let added: Result<{ id: string }>;
+    try {
+      added = await configStore.addInstance(
+        { baseUrl: url.value.baseUrl, apiKey, name, passphrase, newPassphrase },
+        {
+          probe: async (target, key) => {
+            if (!(await hasOrigin(origin))) return fail('PERMISSION_DENIED');
+            tested = await testConnection(target, key);
+            return ok(toLastCheck(tested));
+          },
+        },
+      );
+    } catch (error) {
+      await instanceStore.releaseOriginIfUnused(origin);
+      throw error;
     }
-    if (!isValidApiKey(key)) return fail('UNAUTHORIZED');
-    // The permission is requested by the UI (user gesture) before this call.
-    if (!(await hasOrigin(url.value.origin))) return fail('PERMISSION_DENIED');
-
-    const result = await testConnection(url.value.baseUrl, key);
-    await configStore.save({ baseUrl: url.value.baseUrl, apiKey: key, passphrase });
-    return recordCheck(await singleInstanceId(), result);
+    if (!added.ok) {
+      await instanceStore.releaseOriginIfUnused(origin);
+      return added;
+    }
+    return checkAnswer(tested ?? fail('BAD_MESSAGE'));
   });
 
-  register('config/test', async () => {
-    const creds = await configStore.getCredentials(await singleInstanceId());
+  // Spec 016 (US4): management of one instance; every message names it, never a fallback to another one.
+  register('instance/rename', async ({ instanceId, name }) => {
+    const res = await configStore.renameInstance(instanceId, name);
+    return res.ok ? ok(await configStore.getView()) : res;
+  });
+
+  // Contacts only this instance (getStatus + checkAuth) and records its last check (US4-3).
+  register('instance/test', async ({ instanceId }) => {
+    const creds = await configStore.getCredentials(instanceId);
     if (!creds.ok) return creds;
     return recordCheck(creds.value.id, await testConnection(creds.value.baseUrl, creds.value.apiKey));
+  });
+
+  // Rules of the former single-instance save, per instance (US4-4): a new origin must have been granted by the UI (click);
+  // the former origin is released once no instance uses it (US4-5). Saved even if the connection test fails.
+  register('instance/update', async ({ instanceId, baseUrl, apiKey, passphrase, newPassphrase }) => {
+    const url = normalizeBaseUrl(baseUrl);
+    if (!url.ok) return url;
+    const { origin } = url.value;
+    let tested: Result<{ version: string }> | null = null;
+    const before = await instanceStore.byId(instanceId);
+    const changedOrigin = before !== null && originOf(before.baseUrl) !== origin;
+    let res: Result<{ previousBaseUrl: string }>;
+    try {
+      res = await configStore.updateInstance(
+        instanceId,
+        { baseUrl: url.value.baseUrl, apiKey, passphrase, newPassphrase },
+        {
+          probe: async (target, key) => {
+            // Checked on every update (not only a new origin): the permission may have been removed in the browser.
+            if (!(await hasOrigin(origin))) return fail('PERMISSION_DENIED');
+            tested = await testConnection(target, key);
+            return ok(toLastCheck(tested));
+          },
+        },
+      );
+    } catch (error) {
+      if (changedOrigin) await instanceStore.releaseOriginIfUnused(origin);
+      throw error;
+    }
+    if (!res.ok) {
+      // A new origin granted for nothing is given back (never one still used by an instance).
+      if (changedOrigin) await instanceStore.releaseOriginIfUnused(origin);
+      return res;
+    }
+    const previous = originOf(res.value.previousBaseUrl);
+    if (previous !== origin) await instanceStore.releaseOriginIfUnused(previous);
+    return checkAnswer(tested ?? fail('BAD_MESSAGE'));
+  });
+
+  // US4-6 to US4-8: refused while an import to it runs; the last one is the global deletion.
+  register('instance/delete', async ({ instanceId }) => {
+    const res = await configStore.removeInstance(instanceId);
+    return res.ok ? ok(await configStore.getView()) : res;
+  });
+
+  // US5-3: one passphrase for every key, changed atomically; `reenter`: ids of the keys to enter again.
+  register('session/change-passphrase', async ({ current, next }) => {
+    const res = await configStore.changePassphrase(current, next);
+    return res.ok ? ok({ view: await configStore.getView(), reenter: res.value.reenter }) : res;
   });
 
   register('config/delete', async () => {

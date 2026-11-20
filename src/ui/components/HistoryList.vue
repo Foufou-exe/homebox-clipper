@@ -4,14 +4,14 @@ import { itemUrl } from '@/background/homebox/client';
 import { groupByOrder } from '@/background/history/entry';
 import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
 import { send } from '@/shared/messages';
-import type { HistoryEntryView, HistoryListView } from '@/shared/types';
+import type { HistoryEntryView, HistoryListView, InstanceView } from '@/shared/types';
 import { errorMessage, formatDate, formatDateTime, t, type MessageKey } from '@/ui/i18n';
 
 /**
  * Local import history (spec 012, contracts/ui.md). Read-only towards HomeBox: no request, no re-import.
  * The service worker returns no entry while locked: nothing is kept here between two openings.
  */
-const props = withDefaults(defineProps<{ baseUrl: string; variant?: 'popup' | 'options' }>(), { variant: 'popup' });
+const props = withDefaults(defineProps<{ instances: InstanceView[]; variant?: 'popup' | 'options' }>(), { variant: 'popup' });
 const emit = defineEmits<{ changed: []; unlock: []; loaded: [view: HistoryListView] }>();
 
 const loading = ref(true);
@@ -116,7 +116,21 @@ function missingText(entry: HistoryEntryView): string | null {
   return t('history.missingPrefix', [items.join(t('history.listSeparator'))]);
 }
 
-const linkable = (entry: HistoryEntryView) => entry.entityId !== null && entry.instance === props.baseUrl;
+/**
+ * Instance of an entry (spec 016, FR-026): the one of its `instanceId`, with its CURRENT address; an entry not attached
+ * yet is matched by its recorded address. Otherwise none: the recorded address is shown, without a link.
+ */
+function instanceOf(entry: HistoryEntryView): InstanceView | null {
+  if (entry.instanceId) return props.instances.find((i) => i.id === entry.instanceId) ?? null;
+  return props.instances.find((i) => i.baseUrl === entry.instance) ?? null;
+}
+const linkTo = (entry: HistoryEntryView): string | null => {
+  const instance = instanceOf(entry);
+  return entry.entityId !== null && instance ? itemUrl(instance.baseUrl, entry.entityId) : null;
+};
+/** With several instances, each entry names its instance. */
+const instanceName = (entry: HistoryEntryView): string | null =>
+  props.instances.length > 1 ? (instanceOf(entry)?.name ?? null) : null;
 </script>
 
 <template>
@@ -183,14 +197,15 @@ const linkable = (entry: HistoryEntryView) => entry.entityId !== null && entry.i
                 <span>{{ t('history.importedOn', [formatDateTime(entry.importedAt)]) }}</span>
                 <span v-if="entry.purchaseDate">{{ t('history.purchasedOn', [formatDate(entry.purchaseDate)]) }}</span>
               </p>
+              <p v-if="instanceName(entry)" class="instance-name">{{ t('history.instanceName', [instanceName(entry) ?? '']) }}</p>
               <p v-if="missingText(entry)" class="missing">{{ missingText(entry) }}</p>
               <p v-if="entry.reason" class="reason">{{ t('history.reason', [errorMessage(entry.reason)]) }}</p>
               <p v-if="entry.interrupted" class="interrupted">{{ t('recovery.interrupted') }}</p>
               <p v-if="entry.resumable" class="resumable">{{ t('history.resumable') }}</p>
               <p class="actions">
                 <a
-                  v-if="linkable(entry)"
-                  :href="itemUrl(baseUrl, entry.entityId!)"
+                  v-if="linkTo(entry)"
+                  :href="linkTo(entry) ?? undefined"
                   target="_blank"
                   rel="noopener"
                   :aria-label="t('history.openItemAria', [entry.name])"
@@ -280,6 +295,7 @@ h3 {
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+.instance-name,
 .missing,
 .reason,
 .interrupted,

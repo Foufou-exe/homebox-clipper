@@ -337,6 +337,28 @@ export const instanceStore = {
     });
   },
 
+  /**
+   * Removes one instance (spec 016, contracts/storage-migration.md, step 4), in the write queue: a single set of
+   * `homeboxInstances` without it, then its last location, then `lastInstanceId` if it named it. Returns the removed
+   * instance, or null if it no longer exists (nothing written). Never the last one: the caller deletes everything then.
+   */
+  remove(id: string): Promise<StoredInstance | null> {
+    return enqueueConfigWrite(async () => {
+      const stored = await local().get([INSTANCES_KEY, LAST_LOCATION_KEY, LAST_INSTANCE_KEY]);
+      const store = stored[INSTANCES_KEY];
+      if (!isValidStore(store)) return null;
+      const removed = store.instances.find((i) => i.id === id);
+      if (!removed || store.instances.length < 2) return null;
+      await local().set({ [INSTANCES_KEY]: { ...store, instances: store.instances.filter((i) => i.id !== id) } });
+      const table = stored[LAST_LOCATION_KEY];
+      if (isObj(table) && id in table) {
+        await local().set({ [LAST_LOCATION_KEY]: Object.fromEntries(Object.entries(table).filter(([k]) => k !== id)) });
+      }
+      if (stored[LAST_INSTANCE_KEY] === id) await local().remove(LAST_INSTANCE_KEY);
+      return removed;
+    });
+  },
+
   /** Removes every instance key (global deletion), in the write queue. */
   clear(): Promise<void> {
     return enqueueConfigWrite(() =>
@@ -371,6 +393,7 @@ export const instanceStore = {
     } catch {
       // never rejects
     }
-    await releaseOrigin(origin, except);
+    // In the configuration write queue: a concurrent add on the same origin is ordered with this removal.
+    await enqueueConfigWrite(() => releaseOrigin(origin, except));
   },
 };

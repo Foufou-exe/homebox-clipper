@@ -16,7 +16,7 @@ import { checkDuplicates } from './duplicates';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { fetchPhoto } from './photo-fetch';
 import { pendingStore } from './pending-store';
-import { activeImports } from './active-imports';
+import { activeImports, beginTarget } from './active-imports';
 
 export { activeImports };
 
@@ -130,6 +130,8 @@ async function lockAfterImport(): Promise<void> {
 export function registerImportHandlers(): void {
   register('import/start', async ({ instanceId, tabId, drafts, manualFiles, orderLocationId }) => {
     const started: string[] = [];
+    // The target instance cannot be deleted while this import runs (US4-8).
+    const endTarget = beginTarget(instanceId);
     try {
       const o = await orchestrator(instanceId, started);
       if (!o.ok) return o;
@@ -139,6 +141,7 @@ export function registerImportHandlers(): void {
       return ok(res.value.map((p) => ({ ...p, instanceId })));
     } finally {
       for (const id of started) activeImports.delete(id);
+      endTarget();
       await lockAfterImport();
     }
   });
@@ -157,6 +160,7 @@ export function registerImportHandlers(): void {
     const creds = await configStore.getCredentials(target.value);
     if (!creds.ok) return creds;
     activeImports.add(pendingId);
+    const endTarget = beginTarget(target.value);
     try {
       const o = await orchestrator(target.value);
       if (!o.ok) return o;
@@ -166,6 +170,7 @@ export function registerImportHandlers(): void {
       return ok({ ...res.value, instanceId: target.value });
     } finally {
       activeImports.delete(pendingId);
+      endTarget();
       await lockAfterImport();
     }
   });

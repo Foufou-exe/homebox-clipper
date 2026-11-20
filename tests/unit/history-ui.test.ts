@@ -2,7 +2,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { fail, ok } from '@/shared/errors';
 import { send } from '@/shared/messages';
-import type { ConfigView, HistoryEntryView, HistoryListView } from '@/shared/types';
+import type { ConfigView, HistoryEntryView, HistoryListView, InstanceView, PendingImport } from '@/shared/types';
 import HistoryList from '@/ui/components/HistoryList.vue';
 import HistoryCard from '@/ui/options/HistoryCard.vue';
 import OptionsApp from '@/ui/options/App.vue';
@@ -37,6 +37,12 @@ const historyEntry = (over: Partial<HistoryEntryView> = {}): HistoryEntryView =>
   ...over,
 });
 
+// ADAPTED (016, T071): the history components receive the configured instances (InstanceView) instead of one
+// address; a single instance at BASE gives the same links as before.
+const INSTANCES: InstanceView[] = [
+  { id: 'inst-a', name: 'homebox.example.com', baseUrl: BASE, maskedKey: 'hb_••••a1b2', lastCheck: null, keyState: 'ready' },
+];
+
 const ready = (entries: HistoryEntryView[], enabled = true): HistoryListView => ({
   state: 'ready',
   enabled,
@@ -59,7 +65,7 @@ function serve(
 async function list(view: HistoryListView, props: Record<string, unknown> = {}) {
   serve(view);
   const wrapper = mount(HistoryList, {
-    props: { baseUrl: BASE, variant: 'popup', ...props },
+    props: { instances: INSTANCES, variant: 'popup', ...props },
     attachTo: document.body,
   });
   await flushPromises();
@@ -75,7 +81,7 @@ describe('HistoryList (012, US1, contracts/ui.md)', () => {
 
   it('loading: popup.loading in role=status, then the list', async () => {
     serve(ready([historyEntry()]));
-    const wrapper = mount(HistoryList, { props: { baseUrl: BASE, variant: 'popup' } });
+    const wrapper = mount(HistoryList, { props: { instances: INSTANCES, variant: 'popup' } });
     expect(wrapper.find('[role="status"]').text()).toBe('Chargement…');
     await flushPromises();
     expect(send).toHaveBeenCalledWith({ type: 'history/list' });
@@ -222,7 +228,7 @@ describe('HistoryList (012, US1, contracts/ui.md)', () => {
 
     it('read error: history.loadError in role=alert', async () => {
       vi.mocked(send).mockResolvedValue(fail('BAD_MESSAGE') as never);
-      const wrapper = mount(HistoryList, { props: { baseUrl: BASE, variant: 'popup' } });
+      const wrapper = mount(HistoryList, { props: { instances: INSTANCES, variant: 'popup' } });
       await flushPromises();
       expect(wrapper.find('[role="alert"]').text()).toBe('L’historique n’a pas pu être lu.');
     });
@@ -240,8 +246,10 @@ describe('HistoryList (012, US1, contracts/ui.md)', () => {
 describe('popup: history view (Q-U23, SC-002)', () => {
   const config = (over: Partial<ConfigView> = {}): ConfigView => ({
     configured: true,
-    baseUrl: BASE,
-    lastCheck: null,
+    // ADAPTED (016, T071): the view lists its instances (the history links use them).
+    instances: INSTANCES,
+    defaultInstanceId: 'inst-a',
+    // ADAPTED (016, T100): no top-level compatibility fields (baseUrl, lastCheck) any more.
     ...over,
   });
   const purchase = {
@@ -380,6 +388,9 @@ describe('options: history card (US1)', () => {
       if (msg.type === 'config/get' || msg.type === 'session/open')
         return Promise.resolve({
           configured: true,
+          // ADAPTED (016, T071): the view lists its instances (the history links use them).
+          instances: INSTANCES,
+          defaultInstanceId: 'inst-a',
           baseUrl: BASE,
           lastCheck: null,
           locked: false,
@@ -467,7 +478,9 @@ describe('HistoryList: delete and clear all (012, US3, Q-U22)', () => {
     const host = mount(
       {
         components: { HistoryList },
-        template: `<section><h2 tabindex="-1">Titre</h2><HistoryList base-url="${BASE}" variant="${variant}" /></section>`,
+        // ADAPTED (016, T071): the list receives the instances instead of one address.
+        setup: () => ({ instances: INSTANCES }),
+        template: `<section><h2 tabindex="-1">Titre</h2><HistoryList :instances="instances" variant="${variant}" /></section>`,
       },
       { attachTo: document.body },
     );
@@ -545,7 +558,7 @@ describe('HistoryList: delete and clear all (012, US3, Q-U22)', () => {
 
   it('keyboard order in the popup view: back, clear all, then each entry (link, delete)', async () => {
     serve(ready([historyEntry()]));
-    const w = mount(HistoryView, { props: { baseUrl: BASE }, attachTo: document.body });
+    const w = mount(HistoryView, { props: { instances: INSTANCES }, attachTo: document.body });
     await flushPromises();
     const focusables = w.findAll('button, a[href]').map((e) => e.classes().join(' ') || e.element.tagName);
     expect(focusables).toEqual(['back', 'clear-all', 'A', 'delete']);
@@ -562,7 +575,7 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
   async function card(view: HistoryListView) {
     let current = view;
     serve(() => current);
-    const w = mount(HistoryCard, { props: { baseUrl: BASE }, attachTo: document.body });
+    const w = mount(HistoryCard, { props: { instances: INSTANCES }, attachTo: document.body });
     await flushPromises();
     return { w, setView: (v: HistoryListView) => (current = v) };
   }
@@ -629,8 +642,11 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
   };
   const notice = (w: VueWrapper) => w.findAll('[role="alert"]').find((e) => e.text().includes('nouvelle phrase de passe efface'));
 
+  // ADAPTED (016, T100): the view lists its instance (no top-level compatibility fields baseUrl, lastCheck).
+  const one = { instances: [{ id: 'inst-a', name: 'homebox.example.com', baseUrl: BASE, maskedKey: 'hb_••••xxxx', lastCheck: null, keyState: 'ready' as const }], defaultInstanceId: 'inst-a' };
+
   it('reset warning: only when configured, locked and a new API key is typed', async () => {
-    optionsWith({ configured: true, baseUrl: BASE, lastCheck: null, locked: true, needsPassphrase: false });
+    optionsWith({ configured: true, ...one, locked: true, needsPassphrase: false });
     const locked = mount(OptionsApp);
     await flushPromises();
     expect(notice(locked)).toBeUndefined();
@@ -641,7 +657,7 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
     const submit = locked.find('button[type="submit"]').element;
     expect(notice(locked)!.element.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    optionsWith({ configured: true, baseUrl: BASE, lastCheck: null, locked: false, needsPassphrase: false });
+    optionsWith({ configured: true, ...one, locked: false, needsPassphrase: false });
     const unlocked = mount(OptionsApp);
     await flushPromises();
     await unlocked.find('#apiKey').setValue('hb_xxxxxxxx');
@@ -650,7 +666,7 @@ describe('options: turning the history off, reset warning (012, US3, Q-U22)', ()
 
   it('after deleting the configuration, the card reloads the history', async () => {
     vi.stubGlobal('confirm', () => true);
-    optionsWith({ configured: true, baseUrl: BASE, lastCheck: null, locked: false, needsPassphrase: false });
+    optionsWith({ configured: true, ...one, locked: false, needsPassphrase: false });
     const w = mount(OptionsApp);
     await flushPromises();
     const before = vi.mocked(send).mock.calls.filter(([m]) => m.type === 'history/list').length;
@@ -679,5 +695,81 @@ describe('HistoryList: documents missing by kind (007, Q-U17)', () => {
     setTestLanguage('en');
     const wrapper = await list(ready([historyEntry({ status: 'partial', missing: ['manual'], reason: 'ATTACHMENT_FAILED' })]));
     expect(wrapper.find('.missing').text()).toBe('Missing: manual not sent');
+  });
+});
+
+describe('history and result with several instances (016, US3, FR-017, FR-026, T071)', () => {
+  const A: InstanceView = { id: 'inst-a', name: 'Maison', baseUrl: BASE, maskedKey: 'hb_••••xxxx', lastCheck: null, keyState: 'ready' };
+  const B: InstanceView = {
+    id: 'inst-b',
+    name: 'Atelier',
+    baseUrl: 'https://inventaire.example.org',
+    maskedKey: 'hb_••••bbbb',
+    lastCheck: null,
+    keyState: 'ready',
+  };
+  beforeEach(() => {
+    vi.mocked(send).mockReset();
+  });
+
+  it('a link uses the CURRENT address of the instance of the entry (moved since the import)', async () => {
+    const moved = { ...B, baseUrl: 'https://autre.example.net' };
+    const w = await list(ready([historyEntry({ instanceId: 'inst-b', instance: 'https://inventaire.example.org' })]), {
+      instances: [A, moved],
+    });
+    expect(w.find('a').attributes('href')).toBe('https://autre.example.net/item/entity-1');
+  });
+
+  it('with two instances each entry names its instance (history.instanceName)', async () => {
+    const w = await list(ready([historyEntry({ instanceId: 'inst-b', instance: B.baseUrl })]), { instances: [A, B] });
+    expect(w.text()).toContain('Instance : Atelier');
+    const single = await list(ready([historyEntry({ instanceId: 'inst-a' })]), { instances: [A] });
+    expect(single.text()).not.toContain('Instance :');
+  });
+
+  it('an entry of an instance that is gone: history.otherInstance with the recorded address, no link', async () => {
+    const w = await list(ready([historyEntry({ instanceId: 'deleted', instance: 'https://ancienne.example.net' })]), { instances: [A, B] });
+    expect(w.find('a').exists()).toBe(false);
+    expect(w.text()).toContain('https://ancienne.example.net');
+  });
+
+  it('an entry without instance whose address matches no instance: otherInstance, no link', async () => {
+    const w = await list(ready([historyEntry({ instanceId: null, instance: 'https://ancienne.example.net' })]), { instances: [A, B] });
+    expect(w.find('a').exists()).toBe(false);
+    expect(w.text()).toContain('https://ancienne.example.net');
+  });
+
+  it('the same order imported into two instances gives two groups', async () => {
+    const w = await list(
+      ready([
+        historyEntry({ id: 'h1', instanceId: 'inst-a' }),
+        historyEntry({ id: 'h2', instanceId: 'inst-b', instance: B.baseUrl }),
+      ]),
+      { instances: [A, B] },
+    );
+    expect(w.findAll('li.group, li.single')).toHaveLength(2);
+  });
+
+  it('ResultView: the links go to the instance of the import, never to the default one; « Imported to » with two instances', async () => {
+    const { default: ResultView } = await import('@/ui/popup/ResultView.vue');
+    const pendingB = {
+      id: 'p1',
+      tabId: 1,
+      pageUrl: null,
+      draft: { name: 'Clavier', documents: [] },
+      entityId: 'e9',
+      steps: { create: 'done', update: 'done', attachments: {}, photo: 'not_requested' },
+      status: 'success',
+      error: null,
+      photoError: null,
+      photoAttempted: false,
+      instanceId: 'inst-b',
+    } as unknown as PendingImport;
+    const w = mount(ResultView, { props: { pendings: [pendingB], instances: [A, B], running: false } });
+    expect(w.find('a').attributes('href')).toBe('https://inventaire.example.org/item/e9');
+    expect(w.text()).toContain('Importé dans Atelier');
+    const one = mount(ResultView, { props: { pendings: [{ ...pendingB, instanceId: 'inst-a' }], instances: [A], running: false } });
+    expect(one.text()).not.toContain('Importé dans');
+    expect(one.find('a').attributes('href')).toBe(`${BASE}/item/e9`);
   });
 });

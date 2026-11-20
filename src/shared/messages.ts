@@ -26,9 +26,22 @@ import type {
 export type Message =
   // UI → service worker
   | { type: 'config/get' }
-  | { type: 'config/save'; baseUrl: string; apiKey: string; passphrase: string }
-  | { type: 'config/test' }
   | { type: 'config/delete' }
+  // Spec 016, delivery B: instance management, extension pages only (`instance/` prefix). Never answered with a key.
+  | { type: 'instance/add'; baseUrl: string; apiKey: string; name: string; passphrase: string; newPassphrase: boolean }
+  | {
+      type: 'instance/update';
+      instanceId: string;
+      baseUrl: string;
+      /** Empty: keep the current key (reopened with the passphrase). */
+      apiKey: string;
+      passphrase: string;
+      newPassphrase: boolean;
+    }
+  | { type: 'instance/rename'; instanceId: string; name: string }
+  | { type: 'instance/test'; instanceId: string }
+  | { type: 'instance/delete'; instanceId: string }
+  | { type: 'session/change-passphrase'; current: string; next: string }
   | { type: 'session/unlock'; passphrase: string }
   | { type: 'session/lock' }
   // Automatic lock (013): never the key, the passphrase or the activity timestamp.
@@ -93,9 +106,14 @@ export type UpdateApplyResult = { applied: true } | { applied: false; reason: 'b
 
 export interface ResponseMap {
   'config/get': ConfigView;
-  'config/save': Result<ConfigView>;
-  'config/test': Result<ConfigView>;
   'config/delete': Result<void>;
+  'instance/add': Result<ConfigView>;
+  'instance/update': Result<ConfigView>;
+  'instance/rename': Result<ConfigView>;
+  'instance/test': Result<ConfigView>;
+  'instance/delete': Result<ConfigView>;
+  /** `reenter`: ids of the instances whose key was unreadable and must be entered again. */
+  'session/change-passphrase': Result<{ view: ConfigView; reenter: string[] }>;
   'session/unlock': Result<ConfigView>;
   'session/lock': ConfigView;
   'session/open': ConfigView;
@@ -187,9 +205,19 @@ const areDrafts = (x: unknown): boolean =>
 
 const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean } = {
   'config/get': () => true,
-  'config/save': (m) => isStr(m.baseUrl) && isStr(m.apiKey) && isStr(m.passphrase),
-  'config/test': () => true,
   'config/delete': () => true,
+  'instance/add': (m) =>
+    isStr(m.baseUrl) && isStr(m.apiKey) && isStr(m.name) && isStr(m.passphrase) && typeof m.newPassphrase === 'boolean',
+  'instance/update': (m) =>
+    isInstanceId(m.instanceId) &&
+    isStr(m.baseUrl) &&
+    isStr(m.apiKey) &&
+    isStr(m.passphrase) &&
+    typeof m.newPassphrase === 'boolean',
+  'instance/rename': (m) => isInstanceId(m.instanceId) && isStr(m.name),
+  'instance/test': (m) => isInstanceId(m.instanceId),
+  'instance/delete': (m) => isInstanceId(m.instanceId),
+  'session/change-passphrase': (m) => isStr(m.current) && isStr(m.next),
   'session/unlock': (m) => isStr(m.passphrase),
   'session/lock': () => true,
   'session/open': () => true,

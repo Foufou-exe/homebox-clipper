@@ -36,6 +36,11 @@ error:
   BAD_MESSAGE: "Erreur interne de l’extension."
   INSTANCE_NOT_FOUND: "Cette instance HomeBox n’existe plus. Choisissez-en une autre."
   KEY_UNREADABLE: "La clé API de cette instance est illisible. Saisissez-la à nouveau."
+  INSTANCE_LIMIT: "Vous avez déjà le nombre maximal d’instances HomeBox."
+  INSTANCE_EXISTS: "Cette adresse est déjà configurée."
+  INSTANCE_NAME_INVALID: "Le nom doit compter de 1 à 50 caractères."
+  INSTANCE_NAME_TAKEN: "Une autre instance porte déjà ce nom."
+  INSTANCE_BUSY: "Un import vers cette instance est en cours. Réessayez quand il sera terminé."
 
 common:
   instanceAria: "Instance HomeBox utilisée"
@@ -45,6 +50,7 @@ common:
   sizeBytes: "$1 o"
   sizeKb: "$1 Ko"
   sizeMb: "$1 Mo"
+  instanceError: "$1 : $2"
 
 header:
   brand: "HomeBox"
@@ -113,6 +119,9 @@ popup:
   checkConfiguration: "Vérifier la configuration"
 
 summary:
+  instanceTarget: "Instance HomeBox"
+  instanceOption: "$1 ($2)"
+  instanceLoaded: "Emplacements et tags de $1 chargés."
   orderNote: "Commande $1 : $2"
   orderNoteNoStore: "Commande : $1"
   defaultDescription: "Acheté sur $1 le $2"
@@ -169,6 +178,7 @@ location:
   pathSeparator: " › "
 
 result:
+  importedTo: "Importé dans $1"
   running: "Import en cours…"
   addedOne: "Objet ajouté à HomeBox."
   addedMany: "$1 objets ajoutés à HomeBox."
@@ -197,6 +207,7 @@ result:
 
 recovery:
   objectPrefix: "L'objet"
+  instance: "Import interrompu vers $1"
   created: "a été créé dans HomeBox"
   openLink: "(ouvrir)"
   incomplete: ", mais l'import n'est pas complet."
@@ -218,11 +229,13 @@ unlock:
   passphrase: "Phrase de passe"
   submit: "Déverrouiller"
   busy: "Déverrouillage…"
+  allInstances: "Déverrouille vos $1 instances HomeBox."
 
 options:
   pageTitle: "HomeBox Clipper — Configuration"
   subtitle: "Configuration"
   title: "Instance HomeBox"
+  instancesTitle: "Instances HomeBox"
   intro: "L’extension communique uniquement avec votre instance HomeBox. La clé API est chiffrée avec votre phrase de passe et stockée localement dans ce navigateur ; elle n’est jamais envoyée ailleurs."
   legacyKeyNotice: "Votre clé API était enregistrée en clair par une version précédente. Elle a été retirée du disque : définissez une phrase de passe pour la chiffrer, sinon elle sera perdue à la fermeture du navigateur."
   locked: "Verrouillée"
@@ -245,6 +258,8 @@ options:
   saveAndTest: "Tester et enregistrer"
   deleteConfig: "Supprimer la configuration"
   confirmDelete: "Supprimer la configuration HomeBox (adresse et clé API) de cette extension et l’historique des imports ?"
+  deleteAll: "Supprimer toute la configuration"
+  confirmDeleteAll: "Supprimer toutes les instances HomeBox (adresses et clés API) de cette extension et l’historique des imports ?"
   historyTitle: "Historique des imports"
   historyEnable: "Garder un historique local de mes imports"
   historyHelp: "Conservé uniquement dans ce navigateur et chiffré avec votre phrase de passe : nom du produit, boutique, numéro de commande, dates, résultat et lien vers l’objet. Jamais la clé API, l’adresse de livraison, le moyen de paiement, les factures ni les photos. Illisible si vous oubliez la phrase de passe. Limité à 200 entrées et 12 mois."
@@ -259,6 +274,32 @@ options:
   helpTitle: "Aide et projet"
   helpIntro: "Un bug ou un nouveau marchand à demander ? Ouvrez les issues du projet. Le code et la documentation sont sur GitHub."
 
+instances:
+  add: "Ajouter une instance"
+  limitReached: "Vous pouvez configurer jusqu’à $1 instances."
+  name: "Nom d’affichage (facultatif)"
+  nameHelp: "50 caractères au plus. Vide : l’hôte de l’adresse."
+  added: "Instance « $1 » ajoutée."
+  existing: "Cette adresse est déjà utilisée par « $1 »."
+  cardAria: "Instance HomeBox $1"
+  rename: "Renommer"
+  saveName: "Enregistrer le nom"
+  edit: "Modifier l’adresse ou la clé"
+  delete: "Supprimer cette instance"
+  confirmDelete: "Supprimer l’instance « $1 » ? Sa clé API, son dernier emplacement, ses entrées d’historique et ses imports interrompus seront effacés."
+  deleted: "Instance « $1 » supprimée."
+  keyUnreadable: "Clé à ressaisir"
+  requestAccess: "Redemander l’accès"
+  reenterAfterChange: "Phrase de passe changée. Ces clés étaient illisibles et doivent être ressaisies : $1"
+
+passphrase:
+  changeTitle: "Changer la phrase de passe"
+  current: "Phrase de passe actuelle"
+  next: "Nouvelle phrase de passe"
+  confirm: "Confirmer la nouvelle phrase de passe"
+  submit: "Changer la phrase de passe"
+  changed: "Phrase de passe changée. Toutes les clés sont chiffrées avec elle."
+
 links:
   support: "Support"
   github: "GitHub"
@@ -267,6 +308,7 @@ links:
   version: "Version $1"
 
 history:
+  instanceName: "Instance : $1"
   openAria: "Ouvrir l’historique des imports"
   openTitle: "Historique"
   title: "Historique des imports"

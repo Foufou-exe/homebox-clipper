@@ -86,3 +86,15 @@ describe('formatDateTime (012, Q-U25, FR-011)', () => {
     expect(formatDate('2026-10-22')).toBe('22/10/2026');
   });
 });
+
+describe('errorMessage for the instance codes (016, T052)', () => {
+  it('each instance code goes through error.<CODE>', () => {
+    vi.mocked(getMessage).mockClear();
+    vi.mocked(getMessage).mockReturnValue('Texte');
+    for (const code of ['INSTANCE_LIMIT', 'INSTANCE_EXISTS', 'INSTANCE_NAME_INVALID', 'INSTANCE_NAME_TAKEN', 'INSTANCE_BUSY'] as const) {
+      expect(ERROR_CODES).toContain(code);
+      errorMessage(code);
+      expect(getMessage).toHaveBeenLastCalledWith(`error.${code}`, undefined);
+    }
+  });
+});

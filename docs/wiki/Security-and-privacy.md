@@ -13,6 +13,21 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 - It is **never written to logs**.
 - It is **never included in the source code** (neither in versioned files nor in test fixtures).
 
+## Several HomeBox instances
+
+You can set up several instances (up to 10). Each instance has its own API key, encrypted separately with the
+**same passphrase** (one unlock opens every key, one lock closes them all) and with the address of **its own**
+instance as associated data: a key moved to another instance's address cannot be decrypted. The vault key
+derived from the passphrase is never stored nor kept in the session, which is why the passphrase is asked again
+every time an instance is added. Each message that contacts HomeBox names its target; the client of a request
+is built from that instance only, the `Authorization` header is added only to requests to its address, and
+there is no fallback to another instance: a key, a purchase, a document or an instance name is never sent to
+another instance (an interrupted import is resumed on the instance it started on). Each instance has its own
+optional permission, for the exact origin of its address, asked in the click that adds it; it is removed as
+soon as no instance uses it (deleting an instance, changing its address). Deleting an instance erases its key,
+its last location, its import history entries (identified by the opaque `inst` id stored next to each encrypted
+entry, which works even while locked) and its interrupted imports.
+
 ## Threat model
 
 | Threat | Protection |
@@ -34,8 +49,8 @@ vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-c
 
 | Data | Location | Lifetime |
 |------|----------|----------|
-| Instance address, **encrypted** API key, masked key (`hb_••••abcd`), result of the last test | `storage.local` | Until "Delete settings" or uninstallation |
-| **Decrypted** API key | `storage.session` (memory) | Until locking (🔒), browser close, or extension reload, update or disabling |
+| HomeBox instances (`homeboxInstances`): address, display name, **encrypted** API key, masked key (`hb_••••abcd`), result of the last test, for each instance; the instance of the last successful import (`lastInstanceId`) | `storage.local` | Until "Delete this instance", "Delete settings" / "Delete all settings" or uninstallation |
+| **Decrypted** API keys, by instance | `storage.session` (memory) | Until locking (🔒), browser close, or extension reload, update or disabling |
 | Passphrase | **Nowhere** | Never saved |
 | In-progress imports (purchase data needed for a recovery) | `storage.session` (memory) | Erased as soon as the import succeeds or is abandoned; without file bytes. Only a minimal, **encrypted** extract is kept in the import history (next row) |
 | Import history (`importHistory:<id>`, one **encrypted** envelope per product) and its on/off setting (`importHistorySettings`) | `storage.local` | At most 200 entries and 12 months; erased by "Clear all", turning the history off, or "Delete settings" (the on/off setting is kept) |
@@ -87,7 +102,7 @@ The extension keeps a short history of the imports you confirmed, **only in this
 | `storage` | Remember the address, the encrypted key, the theme and the state of in-progress imports. |
 | `activeTab` | Read the Amazon tab **only when you open the extension**. No permanent access to Amazon. |
 | `scripting` | Inject the detection code into that tab, at that moment. |
-| Access to your instance (**optional**, `https://*/*` and `http://*/*`) | Requested at runtime for **the exact origin** you configure, removed when you delete the settings. The wildcard is never granted wholesale; the restriction of HTTP to the local network is enforced by the code. |
+| Access to your instances (**optional**, `https://*/*` and `http://*/*`) | Requested at runtime for **the exact origin** of each instance you configure, removed as soon as no instance uses it (deleting an instance, changing its address, deleting the settings). The wildcard is never granted wholesale; the restriction of HTTP to the local network is enforced by the code. |
 
 The manifest declares neither static `host_permissions` nor static content scripts, and its content
 security policy forbids `eval` and remote code. `bun run test:build` checks these points on the

@@ -45,6 +45,7 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **Update notice and version**: a short notice after each update, an "Update now" button when Chrome has one ready, and the installed version shown next to the GitHub link; no request is made to check for updates.
 - **Import history**: your latest imports with their result and a link to the item, kept only in your browser and encrypted with your passphrase (200 entries, 12 months; can be cleared or turned off).
 - **Product photo** attached to the item as its main image (can be unticked per product).
+- **Several HomeBox instances** (up to 10, one passphrase for all): choose the target in the summary; each instance keeps its own encrypted key and exact-origin permission.
 - **Location choice** among your HomeBox locations, with search; the last one used is suggested.
 - **Suggested tags**: the store brand and the tags of your own local rules are suggested per product, editable in the summary; missing tags are created in HomeBox only after your confirmation, and existing tags are never removed.
 - **HomeBox-colored interface**, in light, dark or automatic theme, in **English or French** depending on your browser language.
