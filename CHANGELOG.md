@@ -7,6 +7,18 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.7.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.6.0...v0.7.0) (2026-11-20)
+
+
+### Features
+
+* multiple HomeBox instances ([#64](https://github.com/Foufou-exe/homebox-clipper/issues/64)) ([#93](https://github.com/Foufou-exe/homebox-clipper/issues/93)) ([3da5774](https://github.com/Foufou-exe/homebox-clipper/commit/3da577449d5c3a294f8b48947e2d615dd3430dd0))
+
+
+### Code Refactoring
+
+* multi-instance storage and migration ([#64](https://github.com/Foufou-exe/homebox-clipper/issues/64)) ([#91](https://github.com/Foufou-exe/homebox-clipper/issues/91)) ([07e4d21](https://github.com/Foufou-exe/homebox-clipper/commit/07e4d21250b528bb3b1f992644f7ac966f90cd80))
+
 ## [0.6.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.5.0...v0.6.0) (2026-11-19)
 
 
