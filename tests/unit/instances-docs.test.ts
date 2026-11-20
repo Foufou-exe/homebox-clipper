@@ -132,3 +132,33 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
     }
   });
 });
+
+describe('store listing and several HomeBox instances (016, T105, finding T107-1)', () => {
+  const listing = () => prose('docs/store/listing.md');
+
+  it('EN: several instances, one permission per exact origin removed when no instance uses it, last location per instance', () => {
+    const doc = listing();
+    expect(doc).toContain('1 to 10 HomeBox instances');
+    expect(doc).toContain('exact origin of each HomeBox instance');
+    expect(doc).toContain('removes it as soon as no instance uses that origin any more');
+    expect(doc).toContain('the last location used for each instance');
+    expect(doc).toContain('the addresses of the user\'s HomeBox instances');
+    expect(doc).not.toContain('that one HomeBox address only');
+    expect(doc).not.toContain('removes it when the user deletes the settings');
+    expect(doc).not.toContain("the user's HomeBox instance address");
+    expect(doc).not.toContain('the last location used,');
+  });
+
+  it('FR: plusieurs instances, une permission par origine exacte retirée quand plus aucune instance ne l\'utilise', () => {
+    const doc = listing();
+    expect(doc).toContain('1 à 10 instances HomeBox');
+    expect(doc).toContain("l'origine exacte de chaque instance HomeBox");
+    expect(doc).toContain("la retire dès qu'aucune instance n'utilise plus cette origine");
+    expect(doc).toContain("le dernier emplacement utilisé pour chaque instance");
+    expect(doc).toContain("les adresses des instances HomeBox de l'utilisateur");
+    expect(doc).not.toContain('cette seule adresse HomeBox');
+    expect(doc).not.toContain("quand l'utilisateur supprime la configuration");
+    expect(doc).not.toContain("l'adresse de l'instance HomeBox de l'utilisateur");
+    expect(doc).not.toContain('le dernier emplacement utilisé,');
+  });
+});
