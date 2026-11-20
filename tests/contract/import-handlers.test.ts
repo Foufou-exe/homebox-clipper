@@ -607,7 +607,8 @@ describe('active imports per instance and pending removal by instance (016, US4,
     expect(activeTargets.get('inst-a') ?? 0).toBe(0);
   });
 
-  it('pendingStore.removeByInstance(id) removes the pendingImport:* of this instance only', async () => {
+  // ADAPTED (016, review T107/T108): imports without instanceId are erased too (unattributable once an instance is deleted).
+  it('pendingStore.removeByInstance(id) removes the pendingImport:* of this instance and those without instanceId', async () => {
     await pendingStore.save({ ...failedPending(), id: 'a1', instanceId: 'inst-a' });
     await pendingStore.save({ ...failedPending(), id: 'b1', instanceId: 'inst-b' });
     await pendingStore.save({ ...failedPending(), id: 'b2', tabId: 9, instanceId: 'inst-b' });
@@ -615,7 +616,7 @@ describe('active imports per instance and pending removal by instance (016, US4,
     delete legacy.instanceId;
     await pendingStore.save(legacy as PendingImport);
     await pendingStore.removeByInstance('inst-b');
-    expect([...(await pendingStore.ids())].sort()).toEqual(['a1', 'n1']);
+    expect([...(await pendingStore.ids())].sort()).toEqual(['a1']);
   });
 });
 

@@ -42,7 +42,15 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
 
   it('Architecture: storage, session v2, targeted messages, inst, no downgrade, orchestrator and snapshot unchanged', () => {
     const doc = prose('docs/wiki/Architecture.md');
-    for (const term of ['homeboxInstances', 'lastInstanceId', 'lastLocationByInstance', '`{ v: 2, keys', 'instanceId', '`inst`', 'orchestrator-call-sequence']) {
+    for (const term of [
+      'homeboxInstances',
+      'lastInstanceId',
+      'lastLocationByInstance',
+      '`{ v: 2, keys',
+      'instanceId',
+      '`inst`',
+      'orchestrator-call-sequence',
+    ]) {
       expect(doc, term).toContain(term);
     }
     expect(doc).toMatch(/downgrad/i);
@@ -52,7 +60,15 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
 
   it('Configuration: add, rename, test, change, delete an instance; limit 10; passphrase asked at every add; change it', () => {
     const doc = prose('docs/wiki/Configuration.md');
-    for (const term of ['Add an instance', 'Rename', 'Test the connection', 'Change the address or key', 'Delete this instance', 'Change the passphrase', 'Delete all settings']) {
+    for (const term of [
+      'Add an instance',
+      'Rename',
+      'Test the connection',
+      'Change the address or key',
+      'Delete this instance',
+      'Change the passphrase',
+      'Delete all settings',
+    ]) {
       expect(doc, term).toContain(term);
     }
     expect(doc).toMatch(/up to 10 instances/i);
@@ -77,7 +93,15 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
 
   it('Troubleshooting and FAQ: the instance codes and the forgotten passphrase with several instances', () => {
     const doc = prose('docs/wiki/Troubleshooting-and-FAQ.md');
-    for (const code of ['INSTANCE_NOT_FOUND', 'INSTANCE_LIMIT', 'INSTANCE_EXISTS', 'INSTANCE_NAME_INVALID', 'INSTANCE_NAME_TAKEN', 'INSTANCE_BUSY', 'KEY_UNREADABLE']) {
+    for (const code of [
+      'INSTANCE_NOT_FOUND',
+      'INSTANCE_LIMIT',
+      'INSTANCE_EXISTS',
+      'INSTANCE_NAME_INVALID',
+      'INSTANCE_NAME_TAKEN',
+      'INSTANCE_BUSY',
+      'KEY_UNREADABLE',
+    ]) {
       expect(doc, code).toContain(`\`${code}\``);
     }
     expect(doc).toMatch(/forgot[^.]{0,120}several instances[^.]{0,200}Delete all settings/i);
@@ -89,11 +113,21 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
   });
 
   it('no real address or key: only fictitious example domains and key prefixes', () => {
-    for (const path of ['PRIVACY.md', 'PRIVACY.fr.md', 'docs/wiki/Architecture.md', 'docs/wiki/Configuration.md', 'docs/wiki/Usage.md', 'docs/wiki/Security-and-privacy.md', 'docs/wiki/Troubleshooting-and-FAQ.md']) {
+    for (const path of [
+      'PRIVACY.md',
+      'PRIVACY.fr.md',
+      'docs/wiki/Architecture.md',
+      'docs/wiki/Configuration.md',
+      'docs/wiki/Usage.md',
+      'docs/wiki/Security-and-privacy.md',
+      'docs/wiki/Troubleshooting-and-FAQ.md',
+    ]) {
       const doc = prose(path);
       expect(doc, path).not.toMatch(/hb_[A-Za-z0-9]{12,}/);
       for (const host of doc.match(/https?:\/\/[a-z0-9.-]+\.[a-z]{2,}/gi) ?? []) {
-        expect(host, path).toMatch(/^https?:\/\/([a-z0-9-]+\.)*(example\.(com|org|net)|amazon\.[a-z.]+|github\.com|vuejs\.org|wxt\.dev)$|^http:\/\/localhost/i);
+        expect(host, path).toMatch(
+          /^https?:\/\/([a-z0-9-]+\.)*(example\.(com|org|net)|amazon\.[a-z.]+|github\.com|vuejs\.org|wxt\.dev)$|^http:\/\/localhost/i,
+        );
       }
     }
   });

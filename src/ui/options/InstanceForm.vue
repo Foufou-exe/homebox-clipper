@@ -195,7 +195,8 @@ async function submit() {
 
 /** Edit mode (`instance/update`, then `instance/rename` if the name changed too). */
 async function submitEdit() {
-  const instance = props.instance!;
+  const instance = props.instance;
+  if (!instance) return;
   // With a single instance the messages are not prefixed (the page looks as before).
   const prefix = single.value ? undefined : instance.name;
   const url = normalizeBaseUrl(baseUrl.value);
@@ -251,9 +252,11 @@ async function submitEdit() {
 }
 
 async function rename(typed: string, prefix: string | undefined) {
+  const instance = props.instance;
+  if (!instance) return;
   busy.value = true;
   try {
-    const res = await send({ type: 'instance/rename', instanceId: props.instance!.id, name: typed });
+    const res = await send({ type: 'instance/rename', instanceId: instance.id, name: typed });
     if (!res.ok) return refuse(res.error, prefix);
     emit('done', { name: typed, error: null });
   } catch {

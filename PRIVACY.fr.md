@@ -2,7 +2,7 @@
 
 # Politique de confidentialité
 
-**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **19 novembre 2026**
+**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **20 novembre 2026**
 
 En bref : l'extension n'a **aucun serveur, aucun compte, aucune statistique et aucune télémétrie**. Les
 données qu'elle traite vont de votre navigateur vers **votre propre** instance HomeBox, uniquement au

@@ -2,7 +2,7 @@
 
 # Privacy policy
 
-**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **19 November 2026**
+**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **20 November 2026**
 
 In short: the extension has **no server, no account, no analytics and no telemetry**. The data it
 handles goes from your browser to **your own** HomeBox instance, only when you click "Add to HomeBox",

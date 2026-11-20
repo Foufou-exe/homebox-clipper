@@ -44,7 +44,7 @@ describe('router — message origin', () => {
 
   // ADAPTED (016, T079): config/save is withdrawn; instance/update is the same message per instance.
   it('rejects a malformed message', async () => {
-    expect(await dispatch({ type: 'instance/update', baseUrl: 1 }, { id: id(), url: `${BASE}options.html` })).toEqual({
+    expect(await dispatch({ type: 'instance/update', instanceId: 'inst-1', baseUrl: 1 }, { id: id(), url: `${BASE}options.html` })).toEqual({
       ok: false,
       error: 'BAD_MESSAGE',
     });
@@ -172,7 +172,7 @@ describe('router — runtime.onMessage listener (contracts/runtime-messages.md)'
   it('a malformed message gets BAD_MESSAGE, without running a handler', async () => {
     const ok = { id: fakeBrowser.runtime.id, url: `${BASE}popup.html` };
     // ADAPTED (016, T079): config/save is withdrawn; instance/update is the same message per instance.
-    for (const raw of [{ type: 'instance/update', baseUrl: 1 }, { nimporte: 'quoi' }, 'texte', null]) {
+    for (const raw of [{ type: 'instance/update', instanceId: 'inst-1', baseUrl: 1 }, { nimporte: 'quoi' }, 'texte', null]) {
       const r = await call(raw, ok);
       expect(r.keepOpen).toBe(false);
       expect(r.response).toEqual({ ok: false, error: 'BAD_MESSAGE' });

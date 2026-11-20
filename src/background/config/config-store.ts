@@ -625,8 +625,12 @@ export const configStore = {
     // Step 3: the session first (a later error never leaves its key in memory), then its interrupted imports.
     const session = await readSession(true);
     if (session && typeof session.keys[instanceId] === 'string') {
-      const keys = Object.fromEntries(Object.entries(session.keys).filter(([id]) => id !== instanceId));
-      await browser.storage.session.set({ [SESSION_KEY]: { ...session, keys } });
+      // Re-read just before writing: a lock in between (button, expiry) must not bring the other keys back.
+      const current = await readSession(true);
+      if (current && typeof current.keys[instanceId] === 'string') {
+        const keys = Object.fromEntries(Object.entries(current.keys).filter(([id]) => id !== instanceId));
+        await browser.storage.session.set({ [SESSION_KEY]: { ...current, keys } });
+      }
     }
     await pendingStore.removeByInstance(instanceId);
     // Step 4: a single set of the vault without it; its last location and lastInstanceId.

@@ -391,6 +391,26 @@ describe('instance-store: storage', () => {
       expect(remove).toHaveBeenCalledWith({ origins: ['https://homebox.example.com/*'] });
     });
 
+    it('goes through the write queue: a concurrent add on the same origin keeps its permission', async () => {
+      const remove = vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);
+      const full = await buildStore({ instances: [A, B] });
+      await seedStore({ ...full, instances: [full.instances[0]!] });
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      // A queued write (adds an instance on the origin) is still running when the release is requested.
+      const adding = instanceStore.update(async (s) => {
+        await gate;
+        return s ? { ...s, instances: [...s.instances, full.instances[1]!] } : s;
+      });
+      const released = instanceStore.releaseOriginIfUnused(new URL(B.baseUrl).origin);
+      await new Promise((r) => setTimeout(r, 20));
+      expect(remove).not.toHaveBeenCalled();
+      release();
+      await adding;
+      await released;
+      expect(remove).not.toHaveBeenCalled();
+    });
+
     it('never throws (permission API or storage error)', async () => {
       vi.spyOn(fakeBrowser.permissions, 'remove').mockRejectedValue(new Error('denied'));
       await expect(

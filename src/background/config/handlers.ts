@@ -96,8 +96,9 @@ export function registerConfigHandlers(): void {
         instanceId,
         { baseUrl: url.value.baseUrl, apiKey, passphrase, newPassphrase },
         {
-          probe: async (target, key, previous) => {
-            if (originOf(previous) !== origin && !(await hasOrigin(origin))) return fail('PERMISSION_DENIED');
+          probe: async (target, key) => {
+            // Checked on every update (not only a new origin): the permission may have been removed in the browser.
+            if (!(await hasOrigin(origin))) return fail('PERMISSION_DENIED');
             tested = await testConnection(target, key);
             return ok(toLastCheck(tested));
           },

@@ -393,6 +393,7 @@ export const instanceStore = {
     } catch {
       // never rejects
     }
-    await releaseOrigin(origin, except);
+    // In the configuration write queue: a concurrent add on the same origin is ordered with this removal.
+    await enqueueConfigWrite(() => releaseOrigin(origin, except));
   },
 };

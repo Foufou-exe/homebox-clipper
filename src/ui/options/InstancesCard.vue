@@ -60,10 +60,8 @@ async function onDone({ name, error }: { name: string; error: ErrorCode | null }
 }
 
 function setError(id: string, code: ErrorCode | null) {
-  const next = { ...errors.value };
-  if (code) next[id] = code;
-  else delete next[id];
-  errors.value = next;
+  const next = Object.fromEntries(Object.entries(errors.value).filter(([key]) => key !== id));
+  errors.value = code ? { ...next, [id]: code } : next;
 }
 
 /** The card's action buttons get the focus back when a panel closes (FR-033). */

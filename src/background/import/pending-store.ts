@@ -37,11 +37,20 @@ export const pendingStore = {
     );
   },
 
-  /** Spec 016 (US4-6): removes every `pendingImport:*` whose target is this instance (deleted instance). */
+  /**
+   * Spec 016 (US4-6): removes every `pendingImport:*` of this deleted instance. Rule: also those without `instanceId`
+   * (previous version). Deleting needs at least two instances, so such an import was already unattributable
+   * (`retryTarget` attaches it only when exactly one instance exists); it must not become attributable to the
+   * survivor, nor outlive the deletion (PRIVACY: deleting an instance erases its interrupted imports).
+   */
   async removeByInstance(instanceId: string): Promise<void> {
     const all = await browser.storage.session.get(null);
     const keys = Object.entries(all)
-      .filter(([k, v]) => k.startsWith(PENDING_PREFIX) && (v as Partial<PendingImport> | null)?.instanceId === instanceId)
+      .filter(([k, v]) => {
+        if (!k.startsWith(PENDING_PREFIX)) return false;
+        const id = (v as Partial<PendingImport> | null)?.instanceId;
+        return id === instanceId || typeof id !== 'string';
+      })
       .map(([k]) => k);
     if (keys.length) await browser.storage.session.remove(keys);
   },

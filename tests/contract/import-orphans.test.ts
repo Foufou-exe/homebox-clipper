@@ -143,4 +143,13 @@ describe('orphaned imports of a deleted instance (016, US4, T080)', () => {
     const list = (await call({ type: 'import/pending', tabId: 5 })) as PendingImport[];
     expect(list.map((p) => [p.id, p.instanceId, p.orphaned])).toEqual([['a', 'inst-a', true]]);
   });
+
+  it('removeByInstance also erases the imports without instanceId (unattributable once an instance is deleted)', async () => {
+    await pendingStore.save({ ...running('old', 'e0') });
+    await pendingStore.save({ ...running('a', 'e1'), instanceId: 'inst-a' });
+    await pendingStore.save({ ...running('b', 'e2'), instanceId: 'inst-b' });
+    await pendingStore.removeByInstance('inst-b');
+    const left = await fakeBrowser.storage.session.get(null);
+    expect(Object.keys(left).filter((k) => k.startsWith('pendingImport:')).map((k) => k.split(':')[2])).toEqual(['a']);
+  });
 });

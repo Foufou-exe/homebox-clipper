@@ -28,7 +28,12 @@ const inst = (over: Partial<InstanceView> = {}): InstanceView => ({
   ...over,
 });
 const A = inst();
-const B = inst({ id: 'inst-b', name: 'Atelier', baseUrl: 'https://inventaire.example.org', maskedKey: 'hb_••••bbbb' });
+const B = inst({
+  id: 'inst-b',
+  name: 'Atelier',
+  baseUrl: 'https://inventaire.example.org',
+  maskedKey: 'hb_••••bbbb',
+});
 
 const gone = (over: Partial<PendingImport> = {}): PendingImport => ({
   id: 'p1',
@@ -56,39 +61,64 @@ describe('RecoveryView and the instance of the import (016, US6, T096)', () => {
     // B is the default instance of the popup; the import was made to A.
     mount(ResultView, { props: { pendings: [gone()], instances: [B, A], running: false } });
     await flushPromises();
-    expect(vi.mocked(send).mock.calls.map(([m]) => m)).toEqual([{ type: 'location/list', instanceId: A.id }]);
+    expect(vi.mocked(send).mock.calls.map(([m]) => m)).toEqual([
+      { type: 'location/list', instanceId: A.id },
+    ]);
   });
 
   it('two instances: « Import interrompu vers Maison »; the errors are prefixed with its name', async () => {
     const w = mount(ResultView, {
-      props: { pendings: [gone({ entityId: 'e1', status: 'partial', error: 'UPDATE_FAILED' })], instances: [A, B], running: false },
+      props: {
+        pendings: [gone({ entityId: 'e1', status: 'partial', error: 'UPDATE_FAILED' })],
+        instances: [A, B],
+        running: false,
+      },
     });
     await flushPromises();
     expect(w.get('.recovery-instance').text()).toBe(tr('recovery.instance', ['Maison']));
-    expect(w.get('.recovery [role="alert"]').text()).toBe(tr('common.instanceError', ['Maison', fr['error.UPDATE_FAILED']!]));
+    expect(w.get('.recovery [role="alert"]').text()).toBe(
+      tr('common.instanceError', ['Maison', fr['error.UPDATE_FAILED']!]),
+    );
     // The link of the created object opens in A.
     expect(w.get('.recovery a').attributes('href')).toBe('https://homebox.example.com/item/e1');
   });
 
   it('« Réessayer » sends import/retry without any target: the service worker uses the instance of the import', async () => {
     vi.mocked(send).mockImplementation(((m: { type: string }) =>
-      Promise.resolve(m.type === 'import/retry' ? fail('HOMEBOX_UNREACHABLE') : ok({ locations: [], lastUsedId: null }))) as never);
+      Promise.resolve(
+        m.type === 'import/retry'
+          ? fail('HOMEBOX_UNREACHABLE')
+          : ok({ locations: [], lastUsedId: null }),
+      )) as never);
     const w = mount(RecoveryView, {
-      props: { pending: gone({ entityId: 'e1', status: 'partial', error: 'UPDATE_FAILED' }), instance: A, named: true },
+      props: {
+        pending: gone({ entityId: 'e1', status: 'partial', error: 'UPDATE_FAILED' }),
+        instance: A,
+        named: true,
+      },
     });
     await w.get('button.primary').trigger('click');
     await flushPromises();
-    const retry = vi.mocked(send).mock.calls.map(([m]) => m).find((m) => m.type === 'import/retry')!;
+    const retry = vi
+      .mocked(send)
+      .mock.calls.map(([m]) => m)
+      .find((m) => m.type === 'import/retry')!;
     expect(retry).toEqual({ type: 'import/retry', pendingId: 'p1', manualFiles: [] });
     // US6-3: the error names the instance; no other instance is offered.
-    expect(w.findAll('[role="alert"]').map((a) => a.text())).toContain(tr('common.instanceError', ['Maison', fr['error.HOMEBOX_UNREACHABLE']!]));
+    expect(w.findAll('[role="alert"]').map((a) => a.text())).toContain(
+      tr('common.instanceError', ['Maison', fr['error.HOMEBOX_UNREACHABLE']!]),
+    );
     expect(w.find('select').exists()).toBe(false);
     expect(w.text()).not.toContain('Atelier');
   });
 
   it('one instance: rendering unchanged (no title, errors not prefixed)', async () => {
     const w = mount(ResultView, {
-      props: { pendings: [gone({ entityId: 'e1', status: 'partial', error: 'UPDATE_FAILED' })], instances: [A], running: false },
+      props: {
+        pendings: [gone({ entityId: 'e1', status: 'partial', error: 'UPDATE_FAILED' })],
+        instances: [A],
+        running: false,
+      },
     });
     await flushPromises();
     expect(w.find('.recovery-instance').exists()).toBe(false);
@@ -98,8 +128,12 @@ describe('RecoveryView and the instance of the import (016, US6, T096)', () => {
   it('in English too', async () => {
     setTestLanguage('en');
     const en = loadCatalog('en');
-    const w = mount(ResultView, { props: { pendings: [gone()], instances: [A, B], running: false } });
+    const w = mount(ResultView, {
+      props: { pendings: [gone()], instances: [A, B], running: false },
+    });
     await flushPromises();
-    expect(w.get('.recovery-instance').text()).toBe(makeGetMessage(en)('recovery.instance', ['Maison']));
+    expect(w.get('.recovery-instance').text()).toBe(
+      makeGetMessage(en)('recovery.instance', ['Maison']),
+    );
   });
 });

@@ -4,7 +4,6 @@ import { registerConfigHandlers } from '@/background/config/handlers';
 import { deriveVaultKey, openApiKeyWith } from '@/background/config/vault-crypto';
 import { dispatch } from '@/background/router';
 import { activeTargets } from '@/background/import/active-imports';
-import { pendingStore } from '@/background/import/pending-store';
 import { historyStore } from '@/background/history/history-store';
 import * as logger from '@/shared/logger';
 import type { ConfigView, InstancesStore } from '@/shared/types';
@@ -638,6 +637,17 @@ describe('instance management: rename, test, update, delete (016, US4, Q-C1, T07
       expect(m.calls).toEqual([]);
     });
 
+    it('same address but permission removed in the browser → PERMISSION_DENIED, nothing written, no network', async () => {
+      await seed();
+      granted.delete(`${B.baseUrl}/*`);
+      const before = await snapshot();
+      const m = mockFetch();
+      vi.stubGlobal('fetch', m.fetch);
+      expect(await call(update({ apiKey: 'hb_dddddddd' }))).toEqual({ ok: false, error: 'PERMISSION_DENIED' });
+      expect(await snapshot()).toBe(before);
+      expect(m.calls).toEqual([]);
+    });
+
     it('empty key and unreadable current key → KEY_UNREADABLE', async () => {
       const store = await buildStore({ instances: [A, B] });
       store.instances[1] = { ...store.instances[1]!, key: { ...store.instances[1]!.key!, ct: store.instances[0]!.key!.ct } };
@@ -724,6 +734,39 @@ describe('instance management: rename, test, update, delete (016, US4, Q-C1, T07
       expect(Object.keys(keys)).toEqual(unlock ? [A.id] : []);
       expect(removedOrigins()).toEqual(['https://inventaire.example.org/*']);
       if (unlock) expect(await configStore.getCredentials(A.id)).toMatchObject({ ok: true });
+    });
+
+    it('a lock between the session read and its rewrite leaves the session empty (no key comes back)', async () => {
+      await seed();
+      await configStore.unlock(PASSPHRASE);
+      const realGet = fakeBrowser.storage.session.get.bind(fakeBrowser.storage.session);
+      const realRemove = fakeBrowser.storage.session.remove.bind(fakeBrowser.storage.session);
+      let locked = false;
+      vi.spyOn(fakeBrowser.storage.session, 'get').mockImplementation((async (k: unknown) => {
+        const res = await realGet(k as never);
+        if (k === 'homeboxUnlocked' && !locked) {
+          locked = true;
+          await realRemove(['homeboxUnlocked', 'homeboxActivity']);
+        }
+        return res;
+      }) as never);
+      expect(await call({ type: 'instance/delete', instanceId: B.id })).toMatchObject({ ok: true });
+      expect(locked).toBe(true);
+      vi.restoreAllMocks();
+      const session = await fakeBrowser.storage.session.get(null);
+      expect(session.homeboxUnlocked).toBeUndefined();
+    });
+
+    it('imports without instanceId (previous version) are erased with the instance', async () => {
+      await seed();
+      const p = { tabId: 4, pageUrl: null, entityId: 'e1', status: 'partial', error: 'ATTACHMENT_FAILED' } as const;
+      await fakeBrowser.storage.session.set({
+        'pendingImport:4:p0': { ...p, id: 'p0' },
+        'pendingImport:4:p2': { ...p, id: 'p2', instanceId: A.id },
+      });
+      expect(await call({ type: 'instance/delete', instanceId: B.id })).toMatchObject({ ok: true });
+      const session = await fakeBrowser.storage.session.get(null);
+      expect(Object.keys(session).filter((k) => k.startsWith('pendingImport:'))).toEqual(['pendingImport:4:p2']);
     });
 
     it('(e) permissions: A and A’ on the same origin + B: deleting A keeps the origin, deleting A’ removes it', async () => {
