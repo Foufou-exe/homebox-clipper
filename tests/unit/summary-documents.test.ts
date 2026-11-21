@@ -44,6 +44,8 @@ async function mountSummary(products = [product('a')], documents?: DocumentRef[]
     if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase(products, documents), warnings: [] }));
     // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
     if (msg.type === 'duplicate/check') return Promise.resolve(ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }));
+    // ADAPTED (018): template/list answers an instance without templates (no picker, no banner).
+    if (msg.type === 'template/list') return Promise.resolve(ok({ templates: [], defaultTemplate: null, defaultState: 'none' }));
     return Promise.resolve(ok({ locations: [], lastUsedId: null }));
   }) as never);
   const wrapper = mount(SummaryView, { props: { tabId: 1, config } });

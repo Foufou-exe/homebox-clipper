@@ -13,6 +13,7 @@ import WarrantyCard from './WarrantyCard.vue';
 import TagsCard from './TagsCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { defaultInstance } from '@/ui/instances';
+import DefaultTemplateField from './DefaultTemplateField.vue';
 import InstanceForm from './InstanceForm.vue';
 import InstancesCard from './InstancesCard.vue';
 import PassphraseCard from './PassphraseCard.vue';
@@ -170,6 +171,12 @@ async function remove() {
           <button type="button" :disabled="saving || busy" @click="remove">{{ t('options.deleteConfig') }}</button>
         </template>
       </InstanceForm>
+      <!-- Spec 018: default template of the single instance (FR-024). -->
+      <DefaultTemplateField
+        v-if="view.configured && !multi && current"
+        :instance="current"
+        :locked="view.locked !== false || view.needsPassphrase === true"
+      />
 
       <InstancesCard v-if="view.configured" :view="view" @changed="onChanged" />
 

@@ -121,3 +121,51 @@ export interface StatusOut {
   title?: string;
   build?: { version?: string };
 }
+
+/** `repo.EntityTemplateSummary` (Swagger v0.27.1, spec 018): entry of `GET /templates`. */
+export interface TemplateSummary {
+  id: string;
+  name: string;
+  description?: string;
+  updatedAt?: string;
+}
+
+/** `repo.TemplateField`. `timeValue` is read but never used (creation timestamp, research R1). */
+export interface TemplateField {
+  id?: string;
+  type: string;
+  name: string;
+  textValue?: string;
+  numberValue?: number;
+  booleanValue?: boolean;
+  timeValue?: string;
+}
+
+/** `repo.EntityTemplateOut` (subset). */
+export interface TemplateOut {
+  id: string;
+  name: string;
+  description?: string;
+  updatedAt?: string;
+  defaultDescription?: string;
+  defaultQuantity?: number;
+  defaultInsured?: boolean;
+  defaultManufacturer?: string;
+  defaultModelNumber?: string;
+  defaultLifetimeWarranty?: boolean;
+  defaultWarrantyDetails?: string;
+  defaultLocation?: { id: string; name?: string } | null;
+  defaultTags?: { id: string; name: string }[] | null;
+  fields?: TemplateField[] | null;
+}
+
+/** `v1.EntityTemplateCreateItemRequest`: only these keys are ever sent (research D2). */
+export interface TemplateCreateItem {
+  /** 1 to 255 characters. */
+  name: string;
+  /** <= 1000; omitted when empty. */
+  description?: string;
+  quantity: number;
+  /** Required by HomeBox: identifier of the effective location. */
+  parentId: string;
+}

@@ -39,7 +39,8 @@ export interface TagLine {
   /** Displayed name (the HomeBox spelling when the tag exists). */
   name: string;
   id: string | null;
-  origin: 'merchant' | 'rule' | 'user';
+  /** `template`: default tag of a HomeBox template (spec 018), never created if it no longer exists. */
+  origin: 'merchant' | 'rule' | 'user' | 'template';
   /** True when proposed and when added. */
   checked: boolean;
 }

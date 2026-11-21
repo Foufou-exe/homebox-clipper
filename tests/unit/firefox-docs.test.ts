@@ -11,6 +11,19 @@ const raw = (path: string) => readFileSync(resolve(root, path), 'utf8');
 /** Text with line breaks folded, for sentences wrapped in the Markdown source. */
 const prose = (path: string) => raw(path).replace(/\s+/g, ' ');
 
+const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const FR_MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/**
+ * Fixed floor (release of the 017: 21 November 2026) rather than an exact date: an equality would forbid any
+ * later update of the privacy policy. EN/FR consistency is checked in privacy.test.ts.
+ */
+const FLOOR_017 = Date.UTC(2026, 10, 21);
+/** Effective date (UTC timestamp) of a privacy document, NaN when the label is missing. */
+const effective = (doc: string, label: RegExp, months: string[]) => {
+  const m = doc.match(label);
+  return m ? Date.UTC(Number(m[3]), months.indexOf(m[2]!), Number(m[1])) : Number.NaN;
+};
+
 /** Hosts allowed in the privacy and store documents: project, Mozilla and tooling links, the one Amazon store cited as an example, plus fictitious or local addresses. */
 const ALLOWED_HOST = /(^|\.)(example\.com|localhost|github\.com|githubusercontent\.com|mozilla\.org|shields\.io|bun\.sh|www\.amazon\.de|127\.0\.0\.1)$/;
 /** Same, plus the tooling and documentation hosts used by the guides (not instance addresses). */
@@ -28,7 +41,7 @@ describe('Firefox documentation, privacy and AMO listing (017, FR-024 à FR-026,
     expect(doc).toContain('websiteContent');
     expect(doc).toContain('the version the browser has ready');
     expect(doc).not.toContain('the version Chrome has ready');
-    expect(doc).toContain('Effective date: **21 November 2026**');
+    expect(effective(doc, /Effective date: \*\*(\d{1,2}) ([A-Z][a-z]+) (\d{4})\*\*/, EN_MONTHS)).toBeGreaterThanOrEqual(FLOOR_017);
     expect(doc).toContain('the text and the product photo of the Amazon order page');
     expect(doc).not.toContain('product image address');
   });
@@ -41,7 +54,7 @@ describe('Firefox documentation, privacy and AMO listing (017, FR-024 à FR-026,
     expect(doc).toContain('websiteContent');
     expect(doc).toContain('la version que le navigateur a prête');
     expect(doc).not.toContain('la version prête à être installée par Chrome');
-    expect(doc).toContain('Date d\'effet : **21 novembre 2026**');
+    expect(effective(doc, /Date d'effet : \*\*(\d{1,2}) ([a-zéû]+) (\d{4})\*\*/, FR_MONTHS)).toBeGreaterThanOrEqual(FLOOR_017);
     expect(doc).toContain('la photo du produit de la page de commande Amazon');
     expect(doc).not.toContain('l\'image du produit');
   });

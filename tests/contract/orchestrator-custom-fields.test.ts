@@ -66,3 +66,15 @@ describe('custom fields survive the import PUT (#109)', () => {
     for (const put of puts) expect('fields' in put).toBe(false);
   });
 });
+
+describe('a date field kept in textValue survives the import PUT without template (018, Q-C5, #109)', () => {
+  it('a time field { textValue: 2026-11-01 } is sent back as is', async () => {
+    const date = { id: 'f4', type: 'time', name: 'Lu le', textValue: '2026-11-01', numberValue: 0, booleanValue: false };
+    const puts = await run([...FIELDS, date]);
+    expect(puts.length).toBeGreaterThan(0);
+    for (const put of puts) {
+      expect(put.fields).toEqual([...FIELDS, date]);
+      expect(put.fields?.at(-1)?.textValue).toBe('2026-11-01');
+    }
+  });
+});

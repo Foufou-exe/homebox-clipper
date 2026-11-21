@@ -580,6 +580,9 @@ describe('automatic tags privacy documentation (014, Q-U12, FR-020)', () => {
     const frDate = Date.UTC(Number(fr![3]), FR_MONTHS.indexOf(fr![2]!), Number(fr![1]));
     expect(enDate).toBe(frDate);
     expect(enDate).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 18));
+    // Spec 018 (HomeBox templates) changed the policy on 22 November 2026: fixed floor, not an equality, so that
+    // later updates of the policy stay possible.
+    expect(enDate).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 22));
   });
 });
 
@@ -691,6 +694,116 @@ describe('instances privacy: instance/add logs (016, Q-U7, FR-030, T060)', () =>
     const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
     for (const v of ['homebox.example.com', 'inventaire.example.org', 'autre.example.net', 'Atelier', 'Maison', 'Bureau', 'inst-a', 'hb_', PASSPHRASE, 'mauvaise phrase']) {
       expect(output).not.toContain(v);
+    }
+  });
+});
+
+describe('template privacy (018, FR-032)', () => {
+  const BASE = 'https://homebox.example.com';
+  const TPL_KEY = 'hb_xxxxxxxx';
+  const PRODUCT = 'Clavier sans fil Exemple Pro';
+  const TEMPLATE = { id: 'tpl-1', name: 'Livre', updatedAt: '2026-11-01T10:00:00Z', fields: [{ id: 'tf1', type: 'text', name: 'Auteur', textValue: '' }] };
+  const FIELDS = [{ id: 'f1', type: 'text', name: 'Auteur', textValue: 'Jane Doe', numberValue: 0, booleanValue: false }];
+  const TEMPLATE_ENDPOINTS = ['GET /templates', 'GET /templates/{id}', 'POST /templates/{id}/create-item'];
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+  const jsonReply = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+  function router(mode: 'success' | 'network' | 'put-failure') {
+    return (async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      if (mode === 'network') throw new TypeError('Failed to fetch');
+      const url = String(input);
+      const method = init.method ?? 'GET';
+      if (url.endsWith('/templates')) return jsonReply(200, [{ id: 'tpl-1', name: 'Livre' }]);
+      if (url.includes('/templates/') && url.endsWith('/create-item')) return jsonReply(201, { id: 'e1', name: PRODUCT, parent: { id: 'loc-1' }, fields: FIELDS });
+      if (url.includes('/templates/')) return jsonReply(200, TEMPLATE);
+      if (method === 'PUT') return mode === 'put-failure' ? jsonReply(500, { error: `${PRODUCT} Jane Doe` }) : jsonReply(200, { id: 'e1', name: PRODUCT });
+      if (url.includes('/entities/tree')) return jsonReply(200, [{ id: 'loc-1', name: 'Bureau', type: 'location' }]);
+      if (url.includes('/entities/e1') && method === 'GET') return jsonReply(200, { id: 'e1', name: PRODUCT, fields: FIELDS });
+      return jsonReply(200, {});
+    }) as typeof fetch;
+  }
+
+  function check(spies: ReturnType<typeof spyConsole>, fingerprint: string) {
+    const calls = spies.flatMap((s) => s.mock.calls);
+    const output = JSON.stringify(calls);
+    for (const v of ['Livre', 'Auteur', 'Jane Doe', 'tpl-1', fingerprint, TPL_KEY, BASE, 'homebox.example.com', PRODUCT]) {
+      expect(output).not.toContain(v);
+    }
+    for (const [, meta] of calls) {
+      const endpoint = (meta as { endpoint?: string } | undefined)?.endpoint;
+      if (endpoint && /template/i.test(endpoint)) expect(TEMPLATE_ENDPOINTS).toContain(endpoint);
+    }
+    return calls;
+  }
+
+  it.each(['success', 'network', 'put-failure'] as const)('import with a template, %s: no template name, id, field, value or key in the logs', async (mode) => {
+    const { normalizeTemplate } = await import('@/background/templates/normalize');
+    const norm = await normalizeTemplate(TEMPLATE);
+    if (!norm.ok) throw new Error('fixture');
+    fakeBrowser.reset();
+    const spies = spyConsole();
+    try {
+      const client = createHomeBoxClient({ baseUrl: BASE, apiKey: TPL_KEY, fetchImpl: router(mode) });
+      let id = 0;
+      const orchestrator = createOrchestrator({
+        client,
+        store: pendingStore,
+        downloadDetected: async () => ok({ base64: PDF_B64 }),
+        fetchPhoto: async () => ok({ bytes: new Uint8Array([1]), mimeType: 'image/jpeg', filename: 'p.jpg' }),
+        notify: () => undefined,
+        newId: () => `p${++id}`,
+      });
+      await orchestrator.startImport(
+        1,
+        [
+          draft({
+            location: { id: 'loc-1', path: ['Maison', 'Bureau'] },
+            template: {
+              id: 'tpl-1',
+              name: 'Livre',
+              fingerprint: norm.value.fingerprint,
+              insured: false,
+              manufacturer: '',
+              modelNumber: '',
+              fields: [{ type: 'text', kind: 'text', name: 'Auteur', textValue: 'Jane Doe', numberValue: 0, booleanValue: false }],
+            },
+          }),
+        ],
+        [],
+      );
+      const calls = check(spies, norm.value.fingerprint);
+      const endpoints = calls.map(([, meta]) => (meta as { endpoint?: string }).endpoint);
+      expect(endpoints).toContain('GET /templates/{id}');
+      if (mode !== 'network') expect(endpoints).toContain('POST /templates/{id}/create-item');
+    } finally {
+      for (const s of spies) s.mockRestore();
+    }
+  });
+
+  it('template/list, template/get, template/check handlers: the same rules', async () => {
+    const EXT = 'chrome-extension://abcdefghijklmnop/';
+    const { registerTemplateHandlers } = await import('@/background/templates/handlers');
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ id: 'inst-a', baseUrl: BASE, apiKey: TPL_KEY }));
+    registerTemplateHandlers();
+    const spies = spyConsole();
+    try {
+      for (const mode of ['success', 'network'] as const) {
+        vi.stubGlobal('fetch', vi.fn(router(mode)));
+        const sender = { id: fakeBrowser.runtime.id, url: `${EXT}popup.html` };
+        await dispatch({ type: 'template/list', instanceId: 'inst-a' }, sender);
+        await dispatch({ type: 'template/get', instanceId: 'inst-a', templateId: 'tpl-1' }, sender);
+        await dispatch({ type: 'template/check', instanceId: 'inst-a', refs: [{ id: 'tpl-1', fingerprint: 'a'.repeat(64) }] }, sender);
+        vi.unstubAllGlobals();
+      }
+      const calls = check(spies, 'a'.repeat(64));
+      expect(calls.map(([, meta]) => (meta as { endpoint?: string }).endpoint)).toContain('GET /templates');
+    } finally {
+      for (const s of spies) s.mockRestore();
+      vi.restoreAllMocks();
     }
   });
 });

@@ -11,6 +11,8 @@ const props = defineProps<{
   /** Id of a help element linked to the field (aria-describedby). */
   describedBy?: string;
   disabled?: boolean;
+  /** Spec 018: the field is required and empty (aria-invalid). */
+  invalid?: boolean;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: LocationChoice | null] }>();
 
@@ -122,6 +124,7 @@ watch(active, async (index) => {
         :aria-expanded="visible ? 'true' : 'false'"
         :aria-controls="listId"
         :aria-describedby="describedBy"
+        :aria-invalid="invalid ? 'true' : undefined"
         :aria-activedescendant="activeId"
         :placeholder="t('location.placeholder')"
         :disabled="disabled"

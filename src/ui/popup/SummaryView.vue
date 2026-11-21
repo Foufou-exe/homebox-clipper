@@ -13,6 +13,10 @@ import type {
   LocationOption,
   ManualFile,
   TagOption,
+  TemplateCheck,
+  DefaultTemplateRef,
+  TemplateDetail,
+  TemplateOption,
 } from '@/shared/types';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
@@ -22,12 +26,30 @@ import InstancePicker from '@/ui/components/InstancePicker.vue';
 import { defaultInstance } from '@/ui/instances';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
 import TagPicker from '@/ui/components/TagPicker.vue';
+import TemplatePicker from '@/ui/components/TemplatePicker.vue';
+import TemplateSection from '@/ui/components/TemplateSection.vue';
 import WarrantyField from '@/ui/components/WarrantyField.vue';
 import OrderLocationField from './OrderLocationField.vue';
 import { DOCUMENT_KIND_KEYS, DOCUMENT_KIND_OPTIONS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
-import { draftErrors, draftFrom, emptyDraft, formatSize, missingFields, proposalFor, tagLinesFor } from './drafts';
+import {
+  applyTemplate,
+  draftErrors,
+  draftFrom,
+  emptyDraft,
+  emptyLineTemplate,
+  formatSize,
+  isTemplateDetail,
+  mergeChangedDetail,
+  missingFields,
+  proposalFor,
+  removeTemplate,
+  tagLinesFor,
+  templateBlocks,
+  templateChoiceFor,
+  type LineTemplate,
+} from './drafts';
 import { loadWarrantySettings } from '@/ui/warranty-settings';
 import { loadTagSettings } from '@/ui/tag-settings';
 import { DEFAULT_TAG_SETTINGS, findExisting, normalizeTagName, tagKey, tagNameError, type TagLine, type TagSettings } from '@/shared/tags';
@@ -86,6 +108,8 @@ interface Line {
   warrantyReason: NoDefaultReason | null;
   /** Tags of the product (spec 014): in memory only; only the checked ones are sent at confirmation. */
   tags: TagLine[];
+  /** HomeBox template of the product (spec 018): in memory only; sent as `template` only when chosen. */
+  template: LineTemplate;
 }
 
 const loading = ref(true);
@@ -118,6 +142,163 @@ const orderModel = computed({
 /** HomeBox tags: loaded in parallel with detection, never blocking the summary (spec 014, FR-011). */
 const tagState = ref<'loading' | 'ready' | 'unavailable'>('loading');
 const tagOptions = ref<TagOption[]>([]);
+
+/**
+ * HomeBox item templates (spec 018, contracts/ui.md §1): loaded in parallel with the locations and tags, by
+ * generation (an answer for a former target is ignored), never blocking the summary nor an import without template.
+ * Details read are kept in memory for the current generation only; nothing is logged nor persisted.
+ */
+const templateState = ref<'loading' | 'ready' | 'empty' | 'unavailable'>('loading');
+const templateOptions = ref<TemplateOption[]>([]);
+const templateError = ref<ErrorCode>('TEMPLATES_UNAVAILABLE');
+const defaultTpl = ref<{ ref: DefaultTemplateRef | null; state: 'none' | 'ok' | 'missing' | 'unavailable' }>({ ref: null, state: 'none' });
+const details = new Map<string, TemplateDetail>();
+const templateAnnounce = ref('');
+/** Template whose detail could not be read, per product: shown with « Try again » (US5-5). */
+const loadFailed = reactive(new Map<string, { id: string; name: string; code: ErrorCode }>());
+/** Messages of the last re-check of the templates at confirmation (US6). */
+const templateNotices = ref<string[]>([]);
+let linesReady = false;
+let defaultApplied = false;
+
+const templateName = (id: string) => templateOptions.value.find((o) => o.id === id)?.name ?? details.get(id)?.name ?? id;
+
+type DetailResult = { detail: TemplateDetail } | { code: ErrorCode };
+/** Reads in flight, by template: the default template applied to several products is read once (SC-005). */
+const inflight = new Map<string, Promise<DetailResult>>();
+
+/** Detail of a template: from the memory of this generation, otherwise `template/get` on the target instance. */
+function fetchDetail(id: string): Promise<DetailResult> {
+  const cached = details.get(id);
+  if (cached) return Promise.resolve({ detail: cached });
+  let pending = inflight.get(id);
+  if (!pending) {
+    pending = readDetail(id).finally(() => inflight.delete(id));
+    inflight.set(id, pending);
+  }
+  return pending;
+}
+
+async function readDetail(id: string): Promise<DetailResult> {
+  const instanceId = target.value;
+  const gen = generation;
+  if (!instanceId) return { code: 'NOT_CONFIGURED' };
+  try {
+    const res = await send({ type: 'template/get', instanceId, templateId: id });
+    if (!res.ok) return { code: res.error };
+    if (!isTemplateDetail(res.value?.template)) return { code: 'TEMPLATES_UNAVAILABLE' };
+    // An answer for a former target never enters the memory of the new one (US5-2).
+    if (gen === generation) details.set(id, res.value.template);
+    return { detail: res.value.template };
+  } catch {
+    return { code: 'TEMPLATES_UNAVAILABLE' };
+  }
+}
+
+/** Applies a detail on a line (§1.3) and places the proposed location (order field or product). */
+function applyOn(line: Line, detail: TemplateDetail) {
+  const res = applyTemplate({ draft: line.draft, tags: line.tags, template: line.template }, detail, {
+    manual: line.product === null,
+    tagState: tagState.value,
+    tagOptions: tagOptions.value,
+    locations: locState.value === 'ready' ? locations.value : [],
+    currentLocation: effectiveLocation(line),
+  });
+  line.draft = res.line.draft;
+  line.tags = res.line.tags;
+  line.template = res.line.template;
+  if (res.location) {
+    if (multi.value) line.location = res.location;
+    else if (orderTouched) line.template.applied.location = false;
+    else orderLocation.value = res.location;
+  }
+  templateAnnounce.value = t('templates.applied', [detail.name, String(detail.fields.length)]);
+}
+
+/** Removes the template of a line and what it set, keeping what the user changed (FR-003). */
+function dropTemplate(line: Line) {
+  const proposed = line.template.detail?.locationId ?? null;
+  const res = removeTemplate({ draft: line.draft, tags: line.tags, template: line.template });
+  line.draft = res.line.draft;
+  line.tags = res.line.tags;
+  line.template = res.line.template;
+  if (!res.removeLocation || !proposed) return;
+  if (multi.value) {
+    if (line.location !== 'inherit' && line.location?.id === proposed) line.location = 'inherit';
+  } else if (!orderTouched && orderLocation.value?.id === proposed) {
+    orderLocation.value = null;
+  }
+}
+
+/** Choice of the picker: `null` = « None ». A late answer (other choice, other target) is ignored. */
+async function chooseTemplate(line: Line, id: string | null) {
+  loadFailed.delete(line.key);
+  templateNotices.value = [];
+  if (line.template.id !== null) dropTemplate(line);
+  if (id === null) {
+    templateAnnounce.value = t('templates.removed');
+    return;
+  }
+  line.template = { ...emptyLineTemplate(), id, state: 'loading' };
+  const gen = generation;
+  const res = await fetchDetail(id);
+  if (gen !== generation || line.template.id !== id || line.template.state !== 'loading') return;
+  if ('code' in res) {
+    line.template = emptyLineTemplate();
+    loadFailed.set(line.key, { id, name: templateName(id), code: res.code });
+    return;
+  }
+  applyOn(line, res.detail);
+}
+
+/** Default template of the instance (FR-002): preselected on each product selected when the list arrives. */
+function applyDefault() {
+  if (defaultApplied || !linesReady || templateState.value !== 'ready' || defaultTpl.value.state !== 'ok') return;
+  const ref = defaultTpl.value.ref;
+  defaultApplied = true;
+  if (!ref || !templateOptions.value.some((o) => o.id === ref.id)) return;
+  for (const line of lines.value) if (line.selected && line.template.id === null) void chooseTemplate(line, ref.id);
+}
+
+/** Without a template list, a remembered default is only read to say it was not applied (US5-4). No network. */
+async function loadDefaultRef(instanceId: string, gen: number) {
+  try {
+    const res = await send({ type: 'template/get-default', instanceId });
+    if (gen !== generation || !res.ok || !res.value?.defaultTemplate) return;
+    defaultTpl.value = { ref: res.value.defaultTemplate, state: 'unavailable' };
+  } catch {
+    // nothing to say
+  }
+}
+
+async function loadTemplates() {
+  const instanceId = target.value;
+  const gen = generation;
+  if (!instanceId) {
+    templateError.value = 'NOT_CONFIGURED';
+    templateState.value = 'unavailable';
+    return;
+  }
+  templateState.value = 'loading';
+  try {
+    const res = await send({ type: 'template/list', instanceId });
+    if (gen !== generation) return; // answer for a former target
+    if (!res.ok || !Array.isArray(res.value?.templates)) {
+      templateError.value = res.ok ? 'TEMPLATES_UNAVAILABLE' : res.error;
+      templateState.value = 'unavailable';
+      await loadDefaultRef(instanceId, gen);
+      return;
+    }
+    templateOptions.value = res.value.templates;
+    templateState.value = res.value.templates.length ? 'ready' : 'empty';
+    defaultTpl.value = { ref: res.value.defaultTemplate ?? null, state: res.value.defaultState ?? 'none' };
+    applyDefault();
+  } catch {
+    if (gen !== generation) return;
+    templateError.value = 'TEMPLATES_UNAVAILABLE';
+    templateState.value = 'unavailable';
+  }
+}
 
 /** Existing tags take the HomeBox name and identifier (FR-004, US1-5); also when the list arrives late. */
 function reconcileTags(target: Line[]) {
@@ -200,8 +381,18 @@ async function loadLocations() {
  */
 async function changeTarget(id: string) {
   if (submitting.value || dialog.value.kind !== 'none' || id === target.value || !instances.value.some((i) => i.id === id)) return;
+  // Spec 018 (US5-1): the template of each product and what it set are removed; templates belong to one instance.
+  for (const line of lines.value) if (line.template.id !== null) dropTemplate(line);
   target.value = id;
   const gen = ++generation;
+  details.clear();
+  inflight.clear();
+  loadFailed.clear();
+  templateNotices.value = [];
+  templateOptions.value = [];
+  templateState.value = 'loading';
+  defaultTpl.value = { ref: null, state: 'none' };
+  defaultApplied = false;
   announce.value = '';
   confirmError.value = null;
   orderLocation.value = null;
@@ -215,7 +406,7 @@ async function changeTarget(id: string) {
     line.location = 'inherit';
     for (const tag of line.tags) tag.id = null;
   }
-  await Promise.all([loadLocations(), loadTags()]);
+  await Promise.all([loadLocations(), loadTags(), loadTemplates()]);
   if (gen === generation && targetInstance.value) {
     announce.value = t('summary.instanceLoaded', [targetInstance.value.name]);
   }
@@ -269,6 +460,7 @@ const addButton = ref<HTMLButtonElement | null>(null);
 onMounted(async () => {
   void loadLocations();
   void loadTags();
+  void loadTemplates();
   // Read at each opening (never cached); an unreadable storage gives the defaults, never a blocked popup.
   const [res, settings, tagSettings] = await Promise.all([
     send({ type: 'detect/run', tabId: props.tabId }),
@@ -281,8 +473,19 @@ onMounted(async () => {
     detectError.value = res.error;
     // Manual entry: no store and no detected name, so no tag is proposed (E3).
     lines.value = [
-      { key: 'manual', product: null, selected: true, draft: emptyDraft(), location: 'inherit', warrantyReason: null, tags: [] },
+      {
+        key: 'manual',
+        product: null,
+        selected: true,
+        draft: emptyDraft(),
+        location: 'inherit',
+        warrantyReason: null,
+        tags: [],
+        template: emptyLineTemplate(),
+      },
     ];
+    linesReady = true;
+    applyDefault();
     return;
   }
   const store = MERCHANT_CATALOG.find((e) => e.id === res.value.purchase.source);
@@ -300,12 +503,15 @@ onMounted(async () => {
       warrantyReason: proposalFor(res.value.purchase, p, ctx).reason,
       // Evaluated once, on the detected name (E3): editing the name does not recompute them.
       tags: tagLinesFor(store?.tagName ?? null, p?.name.value ?? null, tagSettings),
+      template: emptyLineTemplate(),
     };
   };
   const built = products.length ? products.map((p) => lineFor(p.key, p)) : [lineFor('manual', null)];
   reconcileTags(built);
   lines.value = built;
   documents.value = res.value.purchase.documents.map((doc) => ({ doc, selected: true }));
+  linesReady = true;
+  applyDefault();
 });
 
 /** A single product: a single "Location" field. Several: an order field, then one mention per product. */
@@ -318,10 +524,17 @@ const manualMonths = computed(() =>
 
 const selectedLines = computed(() => lines.value.filter((l) => l.selected));
 const selectedDocs = computed(() => documents.value.filter((d) => d.selected).map((d) => d.doc));
+/** Spec 018 (FR-005): a product with a template needs an effective location. */
+const needsLocation = (line: Line) => line.selected && line.template.id !== null && effectiveLocation(line) === null;
+const locationRequiredMessage = computed(() =>
+  locState.value === 'unavailable' ? t('templates.locationRequiredUnavailable') : t('templates.locationRequired'),
+);
 const canSubmit = computed(
   () =>
     selectedLines.value.length > 0 &&
     selectedLines.value.every((l) => draftErrors(l.draft).length === 0) &&
+    // Spec 018: template loaded, fields valid, location chosen (contracts/ui.md §1.6).
+    selectedLines.value.every((l) => !templateBlocks(l.template) && !needsLocation(l)) &&
     dialog.value.kind === 'none',
 );
 
@@ -404,7 +617,7 @@ async function checkDuplicates() {
     cancelDuplicates.value?.focus(); // FR-020: focus on the action without effect
     return;
   }
-  submit();
+  await submit();
 }
 
 /** "Cancel": back to the summary, every choice intact (US1-3). */
@@ -416,12 +629,80 @@ async function cancelDuplicateDialog() {
 
 const copyOf = (loc: LocationChoice | null): LocationChoice | null => (loc ? { id: loc.id, path: [...loc.path] } : null);
 
-function checkedTags(line: Line): { tags?: { name: string; id?: string }[] } {
-  const tags = line.tags.filter((t) => t.checked).map((t) => (t.id ? { name: t.name, id: t.id } : { name: t.name }));
+function checkedTags(line: Line): { tags?: { name: string; id?: string; noCreate?: true }[] } {
+  const tags = line.tags
+    .filter((t) => t.checked)
+    .map((t) => ({
+      name: t.name,
+      ...(t.id ? { id: t.id } : {}),
+      // Spec 018 (FR-015): a default tag of a template is never created.
+      ...(t.origin === 'template' ? { noCreate: true as const } : {}),
+    }));
   return tags.length ? { tags } : {};
 }
 
-function submit() {
+/** Spec 018: `template` only for a product with a template; no key at all otherwise (invariant 1). */
+function templateOf(line: Line) {
+  const choice = templateChoiceFor(line.template);
+  return choice ? { template: choice } : {};
+}
+
+/** Distinct templates (by id) of the lines, with the fingerprint known to the screen. */
+function templateRefs(withTemplate: Line[]): { id: string; fingerprint: string }[] {
+  const refs: { id: string; fingerprint: string }[] = [];
+  for (const l of withTemplate) {
+    const d = l.template.detail;
+    if (d && !refs.some((r) => r.id === d.id)) refs.push({ id: d.id, fingerprint: d.fingerprint });
+  }
+  return refs;
+}
+
+/** Applies one re-check result to the lines concerned; returns the notice to show, if the template is gone or changed. */
+function noticeFor(r: TemplateCheck, withTemplate: Line[]): string | null {
+  const concerned = withTemplate.filter((l) => l.template.id === r.id);
+  const name = concerned[0]?.template.detail?.name ?? templateName(r.id);
+  if (r.state === 'missing') {
+    for (const l of concerned) l.template = { ...l.template, state: 'error' };
+    return t('templates.goneBeforeImport', [name, concerned.map(productName).join(', ')]);
+  }
+  if (r.state !== 'changed') return null;
+  details.set(r.id, r.template);
+  let changes: string[] = [];
+  for (const l of concerned) {
+    const merged = mergeChangedDetail(l.template, r.template);
+    l.template = merged.template;
+    changes = merged.changes;
+  }
+  return t('templates.changedList', [name, changes.length ? changes.join(', ') : '—']);
+}
+
+/**
+ * Re-check of the chosen templates just before the import (FR-020, contracts/ui.md §1.6): deleted → the choice is
+ * kept, marked in error; changed → the new detail replaces the old one, the values entered are kept, the changes are
+ * listed. In both cases nothing is sent and a new confirmation is required (FR-021). `true`: every template is the same.
+ */
+async function checkTemplates(instanceId: string, withTemplate: Line[]): Promise<boolean> {
+  const refs = templateRefs(withTemplate);
+  let res;
+  try {
+    res = await send({ type: 'template/check', instanceId, refs });
+  } catch {
+    res = null;
+  }
+  if (!res?.ok) {
+    confirmError.value = res ? res.error : 'TEMPLATES_UNAVAILABLE';
+    return false;
+  }
+  const notices: string[] = [];
+  for (const r of res.value.results) {
+    const notice = noticeFor(r, withTemplate);
+    if (notice) notices.push(notice);
+  }
+  templateNotices.value = notices;
+  return notices.length === 0;
+}
+
+async function submit() {
   if (submitting.value) return; // a second click must not start a second import
   const instanceId = target.value;
   if (!instanceId) {
@@ -429,6 +710,16 @@ function submit() {
     confirmError.value = 'NOT_CONFIGURED';
     dialog.value = { kind: 'none' };
     return;
+  }
+  const withTemplate = selectedLines.value.filter((l) => l.template.id !== null);
+  if (withTemplate.length) {
+    dialog.value = { kind: 'checking' };
+    templateNotices.value = [];
+    const same = await checkTemplates(instanceId, withTemplate);
+    if (!same) {
+      dialog.value = { kind: 'none' };
+      return;
+    }
   }
   submitting.value = true;
   dialog.value = { kind: 'none' };
@@ -446,6 +737,7 @@ function submit() {
       warranty: l.draft.warranty ? { ...l.draft.warranty, expires: l.draft.warranty.lifetime ? null : l.draft.warranty.expires } : null,
       // Only the checked tags, as plain copies; no key at all without a checked tag (sequence unchanged).
       ...checkedTags(l),
+      ...templateOf(l),
     })),
     manualFiles: docs.flatMap((d) => {
       const f = manualFiles.get(d.id);
@@ -479,6 +771,13 @@ function submit() {
         <ErrorBanner code="TAGS_UNAVAILABLE" tone="warning" :instance="errorInstance" />
         <p class="muted">{{ t('tags.unavailableHelp') }}</p>
       </template>
+      <!-- Spec 018: a template list that cannot be read never blocks an import without template (US5-3). -->
+      <ErrorBanner v-if="templateState === 'unavailable'" :code="templateError" tone="warning" :instance="errorInstance">
+        <button type="button" :disabled="submitting || dialog.kind !== 'none'" @click="loadTemplates">{{ t('templates.retry') }}</button>
+      </ErrorBanner>
+      <output v-if="defaultTpl.state === 'unavailable'" class="muted">{{ t('templates.defaultNotApplied') }}</output>
+      <output v-if="defaultTpl.state === 'missing'" class="muted">{{ t('templates.defaultMissing') }}</output>
+      <p class="visually-hidden" aria-live="polite">{{ templateAnnounce }}</p>
       <template v-if="detectError === 'NOT_AN_ORDER_PAGE'">
         <p class="muted">{{ t('summary.supportedStores', [supportedStores]) }}</p>
         <p class="muted">{{ t('summary.reportHint') }}</p>
@@ -493,6 +792,7 @@ function submit() {
         :options="locations"
         :multi="true"
         :instance="errorInstance"
+        :invalid="lines.some((l) => l.location === 'inherit' && needsLocation(l))"
       />
 
       <h2 v-if="purchase && multi" class="section-title">{{ t('summary.detectedProducts') }}</h2>
@@ -513,6 +813,27 @@ function submit() {
         </div>
         <p v-else-if="line.selected && line.product" class="photo muted">{{ t('summary.photoNone') }}</p>
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
+        <template v-if="line.selected && templateState === 'ready'">
+          <TemplatePicker
+            :options="templateOptions"
+            :model-value="line.template.id"
+            :product-name="productName(line)"
+            :disabled="submitting || dialog.kind !== 'none'"
+            @update:model-value="chooseTemplate(line, $event)"
+          />
+          <output v-if="line.template.state === 'loading'" class="muted">{{ t('templates.loading') }}</output>
+          <ErrorBanner v-if="line.template.state === 'error'" code="TEMPLATE_NOT_FOUND" />
+          <TemplateSection v-if="line.template.state === 'ready'" v-model="line.template" :product-name="productName(line)" />
+        </template>
+        <ErrorBanner v-if="line.selected && loadFailed.has(line.key)" :code="loadFailed.get(line.key)!.code" tone="warning">
+          <p class="failed-name">{{ t('templates.loadFailed', [loadFailed.get(line.key)!.name]) }}</p>
+          <button type="button" :disabled="submitting || dialog.kind !== 'none'" @click="chooseTemplate(line, loadFailed.get(line.key)!.id)">
+            {{ t('templates.retry') }}
+          </button>
+        </ErrorBanner>
+        <p v-if="multi && needsLocation(line)" class="required" role="alert">
+          {{ locationRequiredMessage }}
+        </p>
         <WarrantyField
           v-if="line.selected"
           v-model="line.draft.warranty"
@@ -573,6 +894,7 @@ function submit() {
         :options="locations"
         :multi="false"
         :instance="errorInstance"
+        :required-message="lines[0] && needsLocation(lines[0]) ? locationRequiredMessage : undefined"
       />
 
       <h2 class="section-title">{{ t('summary.documentsTitle') }}</h2>
@@ -660,6 +982,7 @@ function submit() {
         </div>
       </div>
       <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />
+      <p v-for="(notice, i) in templateNotices" :key="i" class="required" role="alert">{{ notice }}</p>
       <ErrorBanner v-if="confirmError" :code="confirmError" :instance="errorInstance" />
 
       <div class="actions footer">
@@ -678,6 +1001,10 @@ function submit() {
 }
 .muted {
   color: var(--muted);
+}
+output.muted {
+  display: block;
+  margin: 1em 0;
 }
 .product-location {
   display: flex;
@@ -780,5 +1107,22 @@ function submit() {
 }
 .footer {
   margin-top: 12px;
+}
+.required {
+  margin: 6px 0;
+  color: var(--danger-fg);
+  font-size: 13px;
+}
+.failed-name {
+  flex-basis: 100%;
+  margin: 0;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 </style>

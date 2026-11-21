@@ -280,6 +280,8 @@ describe('popup: history view (Q-U23, SC-002)', () => {
         return Promise.resolve(ok({ purchase, warnings: [] })) as never;
       if (msg.type === 'location/list')
         return Promise.resolve(ok({ locations: [], lastUsedId: null })) as never;
+      // ADAPTED (018): template/list answers an instance without templates (no picker, no banner).
+      if (msg.type === 'template/list') return Promise.resolve(ok({ templates: [], defaultTemplate: null, defaultState: 'none' })) as never;
       if (msg.type === 'history/list') return Promise.resolve(ok(ready([historyEntry()]))) as never;
       return Promise.resolve(ok(undefined)) as never;
     });

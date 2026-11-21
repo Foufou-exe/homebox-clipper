@@ -721,3 +721,16 @@ describe('configStore.changePassphrase (016, US5, Q-U2, T087)', () => {
     expect(JSON.stringify(await fakeBrowser.storage.local.get(null))).toBe(before);
   });
 });
+
+describe('018: « Delete the settings » also erases the default templates (Q-U3, US4-7)', () => {
+  it('configStore.delete(): the defaultTemplateByInstance key is removed with every instance', async () => {
+    fakeBrowser.reset();
+    await save();
+    vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);
+    await fakeBrowser.storage.local.set({
+      defaultTemplateByInstance: { 'inst-a': { id: 'tpl-1', name: 'Livre' }, 'inst-b': { id: 'tpl-2', name: 'Jeu' } },
+    });
+    await configStore.delete();
+    expect(await fakeBrowser.storage.local.get('defaultTemplateByInstance')).toEqual({});
+  });
+});

@@ -10,6 +10,9 @@ import type {
   StatusOut,
   TagCreate,
   TagSummary,
+  TemplateCreateItem,
+  TemplateOut,
+  TemplateSummary,
   TreeItem,
 } from './types';
 
@@ -51,6 +54,24 @@ function toTagSummary(x: unknown): TagSummary | null {
   if (typeof x !== 'object' || x === null) return null;
   const { id, name } = x as Record<string, unknown>;
   return typeof id === 'string' && typeof name === 'string' ? { id, name } : null;
+}
+
+/** Entry of a template list with a textual `id` and `name` (spec 018); other fields kept only if textual. */
+function toTemplateSummary(x: unknown): TemplateSummary | null {
+  if (typeof x !== 'object' || x === null) return null;
+  const { id, name, description, updatedAt } = x as Record<string, unknown>;
+  if (typeof id !== 'string' || typeof name !== 'string') return null;
+  return {
+    id,
+    name,
+    ...(typeof description === 'string' ? { description } : {}),
+    ...(typeof updatedAt === 'string' ? { updatedAt } : {}),
+  };
+}
+
+/** A non-2xx HTTP status that `request` mapped to a generic code: 404 gets its own code (same technique as 422). */
+function on404<T>(res: Result<T>, code: ErrorCode): Result<T> {
+  return !res.ok && res.httpStatus === 404 ? fail(code, 404) : res;
 }
 
 export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClientOptions) {
@@ -212,6 +233,63 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       const json = await readJson<{ items?: EntitySummary[] }>(res, 'DUPLICATE_CHECK_FAILED');
       if (!json.ok) return json;
       return ok(Array.isArray(json.value.items) ? json.value.items : []);
+    },
+
+    /**
+     * GET /templates (spec 018): read-only. Entries without textual `id` and `name` are ignored; 404 means an
+     * instance without templates (`TEMPLATES_UNSUPPORTED`). No template name is logged.
+     */
+    async listTemplates(): Promise<Result<TemplateSummary[]>> {
+      const res = on404(
+        await request('GET', '/templates', { auth: true, endpoint: 'GET /templates', onHttpError: 'TEMPLATES_UNAVAILABLE' }),
+        'TEMPLATES_UNSUPPORTED',
+      );
+      const json = await readJson<unknown>(res, 'TEMPLATES_UNAVAILABLE');
+      if (!json.ok) return json;
+      if (!Array.isArray(json.value)) return fail('TEMPLATES_UNAVAILABLE');
+      return ok(json.value.flatMap((x) => toTemplateSummary(x) ?? []));
+    },
+
+    /** GET /templates/{id} (spec 018): read-only; 404 → `TEMPLATE_NOT_FOUND`. The id is never logged. */
+    async getTemplate(id: string): Promise<Result<TemplateOut>> {
+      const res = on404(
+        await request('GET', `/templates/${encodeURIComponent(id)}`, {
+          auth: true,
+          endpoint: 'GET /templates/{id}',
+          onHttpError: 'TEMPLATES_UNAVAILABLE',
+        }),
+        'TEMPLATE_NOT_FOUND',
+      );
+      const json = await readJson<TemplateOut>(res, 'TEMPLATES_UNAVAILABLE');
+      if (!json.ok) return json;
+      const value = json.value as unknown;
+      if (typeof value !== 'object' || value === null || typeof (value as { id?: unknown }).id !== 'string') {
+        return fail('TEMPLATES_UNAVAILABLE');
+      }
+      return json;
+    },
+
+    /**
+     * POST /templates/{id}/create-item (spec 018, research D2): the body is exactly `{ name, description?, quantity,
+     * parentId }` (never `locationId`, `tagIds` or `entityTypeId`). Failures as `createEntity`: an unreadable 2xx
+     * answer or one without `id` is `CREATE_FAILED` with the 2xx status (uncertain creation).
+     */
+    async createFromTemplate(id: string, data: TemplateCreateItem): Promise<Result<EntityOut>> {
+      const body: TemplateCreateItem = {
+        name: data.name,
+        ...(data.description ? { description: data.description } : {}),
+        quantity: data.quantity,
+        parentId: data.parentId,
+      };
+      const res = await request('POST', `/templates/${encodeURIComponent(id)}/create-item`, {
+        auth: true,
+        endpoint: 'POST /templates/{id}/create-item',
+        onHttpError: 'CREATE_FAILED',
+        json: body,
+      });
+      const json = await readJson<EntityOut>(res, 'CREATE_FAILED');
+      if (json.ok && typeof json.value?.id !== 'string') return fail('CREATE_FAILED', res.ok ? res.value.status : undefined);
+      return json;
     },
 
     async addAttachment(id: string, file: AttachmentUpload): Promise<Result<void>> {

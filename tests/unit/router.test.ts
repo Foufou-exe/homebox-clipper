@@ -289,11 +289,12 @@ describe('router — session/* and update/* reserved to extension pages, activit
 
   // ADAPTED (spec 014, T009 a): 'tag/' added last; only expectation of this file that changes.
   // ADAPTED (016, T051): 'instance/' added last (instance management, extension pages only).
-  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/', 'tag/' and 'instance/'", () => {
+  // ADAPTED (018): 'template/' added last (HomeBox item templates, extension pages only).
+  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/', 'tag/', 'instance/' and 'template/'", () => {
     const source = readFileSync(resolve(__dirname, '../../src/background/router.ts'), 'utf8');
     const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='))!;
     const list = [...line.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/', 'instance/']);
+    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/', 'instance/', 'template/']);
   });
 
   it.each(MESSAGES)('$type from an extension page: the hook runs before the handler', async (msg) => {
@@ -395,6 +396,32 @@ describe('router — instance/* and session/change-passphrase are reserved to ex
 
   it.each(MESSAGES)('$type from the options page: reaches the handler', async (msg) => {
     expect(await dispatch(msg, { id: id(), url: `${BASE}options.html` })).toEqual({ ok: true, value: undefined });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('router — template/* reserved to extension pages (018, Q-U2, T012)', () => {
+  const handler = vi.fn(async () => ({ ok: true, value: { templates: [], defaultTemplate: null, defaultState: 'none' } }));
+  const id = () => fakeBrowser.runtime.id;
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    handler.mockClear();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
+    register('template/list', handler as never);
+  });
+
+  it('template/list from a script injected in a web page: BAD_MESSAGE, handler not called', async () => {
+    const sender = { id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } };
+    expect(await dispatch({ type: 'template/list', instanceId: 'inst-a' }, sender)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('template/list from an extension page: accepted', async () => {
+    expect(await dispatch({ type: 'template/list', instanceId: 'inst-a' }, { id: id(), url: `${BASE}popup.html` })).toEqual({
+      ok: true,
+      value: { templates: [], defaultTemplate: null, defaultState: 'none' },
+    });
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });

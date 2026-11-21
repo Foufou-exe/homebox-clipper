@@ -52,6 +52,28 @@ The orchestrator (`src/background/import/orchestrator.ts`) keeps the state of ea
 step is never replayed and, once the item's identifier is known, the item is never recreated**: a recovery
 only performs the remaining steps. On success, the kept purchase data is purged.
 
+### Import with a HomeBox item template (spec 018)
+
+When a template is chosen for a product (`ImportDraft.template`), the orchestrator follows a template path,
+selected only by `draft.template` (without a template, the code, the requests and the persisted states are
+unchanged: the `orchestrator-call-sequence` snapshot is never regenerated):
+
+1. before anything is persisted, each distinct template of the batch is read again (`GET /api/v1/templates/{id}`)
+   and its SHA-256 fingerprint compared with the one confirmed: deleted gives `TEMPLATE_NOT_FOUND`, changed gives
+   `TEMPLATE_CHANGED`, and nothing is created for any product of the batch;
+2. `POST /api/v1/templates/{id}/create-item` with exactly `{ name, description?, quantity, parentId }` replaces
+   `POST /api/v1/entities` (a location is required; never a fallback to `POST /entities`);
+3. a single `PUT /api/v1/entities/{id}` carries the purchase data, the template values (insured, manufacturer,
+   model number, the warranty shown), the custom fields paired by `(name, type)` (foreign fields sent back as they
+   are) and the tags; a default tag of a template is never created (`noCreate`);
+4. the extension reads the item again (`GET /api/v1/entities/{id}`) and compares every confirmed field: a gap
+   fails the « template fields » step (`steps.templateFields`, `TEMPLATE_FIELDS_FAILED`), the item is kept and
+   the step can be retried alone, without creating the item again.
+
+A retry before creation re-checks the template the same way; once the item exists, the template is never read
+again. The template list is unavailable (`TEMPLATES_UNAVAILABLE`) or unsupported by the instance
+(`TEMPLATES_UNSUPPORTED`, 404): an import without template stays possible.
+
 ### Photo step (`photo-fetch.ts`)
 
 `src/background/import/photo-fetch.ts` retrieves the image with an anonymous `fetch`, in a module
@@ -105,7 +127,7 @@ reception (`isMessage`). The router (`src/background/router.ts`):
 - answers `BAD_MESSAGE` to any invalid message or one coming from another extension, without running a
   handler;
 - reserves the `config/`, `session/`, `detect/`, `duplicate/`, `import/`, `location/`, `history/`,
-  `update/`, `tag/` and `instance/` prefixes for the extension's pages (popup, options), never for injected scripts;
+  `update/`, `tag/`, `instance/` and `template/` prefixes for the extension's pages (popup, options), never for injected scripts;
 - calls the activity hook of the automatic lock (`src/background/config/auto-lock.ts`) for each accepted
   message from an extension page, before the handler;
 - converts any handler exception into a visible error, without detail.
@@ -114,7 +136,10 @@ Message families: configuration (`config/get|delete`), HomeBox instances
 (`instance/add|update|rename|test|delete`), session
 (`session/unlock|lock|open|get-policy|set-policy|change-passphrase`), updates (`update/state|dismiss|apply`, handled in
 `src/background/update/`),
-detection (`detect/run`), locations (`location/list`), HomeBox tags (`tag/list`, read-only, `src/background/tags/`), duplicates (`duplicate/check`), import
+detection (`detect/run`), locations (`location/list`), HomeBox tags (`tag/list`, read-only, `src/background/tags/`),
+HomeBox item templates (`template/list`, `template/get`, `template/check`, `template/get-default`,
+`template/set-default`, `src/background/templates/`: read-only on the templates, never a template write;
+`template/get-default` needs neither the network nor the key), duplicates (`duplicate/check`), import
 (`import/start|retry|abandon|pending`), extraction in the tab (`amazon/extract`, `amazon/download`) and
 progress (`import/progress`). Responses are `Result` values: either a value or an error code from the
 catalog (`src/shared/errors.ts`).
@@ -132,7 +157,7 @@ instances and stays unchanged (`src/background/import/orchestrator.ts`); its con
 
 | Where | What |
 |-------|------|
-| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). |
+| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). Default item template per instance (`defaultTemplateByInstance`: `{ [instanceId]: { id, name } }`, erased with the instance or the settings, spec 018). |
 | `storage.session` | Decrypted keys by instance and open history key (`homeboxUnlocked`, `{ v: 2, keys, historyKey }`; a former `{ apiKey }` is read as the key of the single instance), last activity (`homeboxActivity`, for the inactivity lock), version ready to install (`updateReady`) and in-progress imports (`pendingImport:<tab>:<id>`). Memory, cleared when the browser closes. |
 
 The vault and the instances live in `src/background/config/instance-store.ts` (validated reads, a single write

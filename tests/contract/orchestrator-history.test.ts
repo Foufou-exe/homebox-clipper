@@ -242,3 +242,48 @@ describe('orchestrator with history: incomplete imports and resume (012, US2)', 
     expect(await historyKeys()).toEqual([]);
   });
 });
+
+describe('history of an import with a template (018, Q-R3, FR-029)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('the entry holds nothing of the template; TEMPLATE_FIELDS_FAILED is an accepted reason', async () => {
+    const { normalizeTemplate } = await import('@/background/templates/normalize');
+    const template = { id: 'tpl-1', name: 'Livre', updatedAt: '2026-11-01T10:00:00Z', fields: [{ id: 'tf1', type: 'text', name: 'Auteur', textValue: '' }] };
+    const norm = await normalizeTemplate(template);
+    if (!norm.ok) throw new Error('fixture');
+    const fingerprint = norm.value.fingerprint;
+    const { orchestrator, client, read } = await setupHistory();
+    const fields = [{ id: 'f1', type: 'text', name: 'Auteur', textValue: 'Jane Doe', numberValue: 0, booleanValue: false }];
+    Object.assign(client, {
+      getTemplate: vi.fn(async () => ok(template)),
+      createFromTemplate: vi.fn(async () => ok({ id: 'e1', name: 'x', parent: { id: 'loc-1' }, fields })),
+    });
+    client.getEntity.mockImplementation(async (id: string) => ok({ id, name: 'x', fields } as never));
+    const r = await orchestrator.startImport(
+      1,
+      [
+        draft({
+          location: { id: 'loc-1', path: ['Maison'] },
+          template: {
+            id: 'tpl-1',
+            name: 'Livre',
+            fingerprint,
+            insured: false,
+            manufacturer: '',
+            modelNumber: '',
+            fields: [{ type: 'text', kind: 'text', name: 'Auteur', textValue: 'Jane Doe', numberValue: 0, booleanValue: false }],
+          },
+        }),
+      ],
+      [],
+    );
+    expect(r.ok && r.value[0]?.status).toBe('success');
+    const text = JSON.stringify(await read('p1'));
+    for (const s of ['tpl-1', 'Livre', 'Auteur', 'Jane Doe', fingerprint, 'fingerprint', 'template']) expect(text).not.toContain(s);
+  });
+
+  it('TEMPLATE_FIELDS_FAILED is a member of ERROR_CODES (accepted history reason)', async () => {
+    const { ERROR_CODES } = await import('@/shared/errors');
+    expect(ERROR_CODES).toContain('TEMPLATE_FIELDS_FAILED');
+  });
+});

@@ -105,7 +105,8 @@ watch(
     </legend>
 
     <template v-if="model">
-      <p class="origin">{{ t(`warranty.origin.${model.origin}`) }}</p>
+      <!-- Spec 018: a warranty filled from a HomeBox template is labelled « Template » (no extra catalog key). -->
+      <p class="origin">{{ model.origin === 'template' ? t('templates.label') : t(`warranty.origin.${model.origin}`) }}</p>
 
       <label :for="`${id}-expires`">{{ t('warranty.expires') }}</label>
       <input

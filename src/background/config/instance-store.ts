@@ -15,6 +15,8 @@ export const LEGACY_KEY = 'homeboxConfig';
 export const LAST_INSTANCE_KEY = 'lastInstanceId';
 /** Last location per instance (storage.local): identifiers only, cleared along with the configuration (FR-021). */
 export const LAST_LOCATION_KEY = 'lastLocationByInstance';
+/** Default HomeBox template per instance (spec 018, storage.local): `{ id, name }` only, cleared with the instance. */
+export const DEFAULT_TEMPLATE_KEY = 'defaultTemplateByInstance';
 export const MAX_INSTANCES = 10;
 export const MAX_NAME_LENGTH = 50;
 export const MIGRATED_ID = 'migrated';
@@ -339,12 +341,12 @@ export const instanceStore = {
 
   /**
    * Removes one instance (spec 016, contracts/storage-migration.md, step 4), in the write queue: a single set of
-   * `homeboxInstances` without it, then its last location, then `lastInstanceId` if it named it. Returns the removed
+   * `homeboxInstances` without it, then its last location and its default template (spec 018), then `lastInstanceId` if it named it. Returns the removed
    * instance, or null if it no longer exists (nothing written). Never the last one: the caller deletes everything then.
    */
   remove(id: string): Promise<StoredInstance | null> {
     return enqueueConfigWrite(async () => {
-      const stored = await local().get([INSTANCES_KEY, LAST_LOCATION_KEY, LAST_INSTANCE_KEY]);
+      const stored = await local().get([INSTANCES_KEY, LAST_LOCATION_KEY, LAST_INSTANCE_KEY, DEFAULT_TEMPLATE_KEY]);
       const store = stored[INSTANCES_KEY];
       if (!isValidStore(store)) return null;
       const removed = store.instances.find((i) => i.id === id);
@@ -354,6 +356,11 @@ export const instanceStore = {
       if (isObj(table) && id in table) {
         await local().set({ [LAST_LOCATION_KEY]: Object.fromEntries(Object.entries(table).filter(([k]) => k !== id)) });
       }
+      // Spec 018: its default template too (configuration data of this instance only).
+      const templates = stored[DEFAULT_TEMPLATE_KEY];
+      if (isObj(templates) && id in templates) {
+        await local().set({ [DEFAULT_TEMPLATE_KEY]: Object.fromEntries(Object.entries(templates).filter(([k]) => k !== id)) });
+      }
       if (stored[LAST_INSTANCE_KEY] === id) await local().remove(LAST_INSTANCE_KEY);
       return removed;
     });
@@ -362,7 +369,7 @@ export const instanceStore = {
   /** Removes every instance key (global deletion), in the write queue. */
   clear(): Promise<void> {
     return enqueueConfigWrite(() =>
-      local().remove([INSTANCES_KEY, LEGACY_KEY, LAST_INSTANCE_KEY, LAST_LOCATION_KEY]),
+      local().remove([INSTANCES_KEY, LEGACY_KEY, LAST_INSTANCE_KEY, LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY]),
     );
   },
 

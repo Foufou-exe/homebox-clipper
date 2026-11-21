@@ -1017,3 +1017,122 @@ describe('016 multiple instances: 40 keys in all, none changed (T099, T112, FR-0
     expect(Object.keys(catalog).filter((k) => k.startsWith('instances.')).sort()).toEqual(instances);
   });
 });
+
+describe('018 socle: the 5 error keys (T020)', () => {
+  const KEYS: [string, string, string][] = [
+    ["error.TEMPLATES_UNAVAILABLE", "HomeBox item templates could not be retrieved.", "Les modèles d'objets HomeBox n'ont pas pu être obtenus."],
+    ["error.TEMPLATES_UNSUPPORTED", "This HomeBox version does not support item templates.", "Cette version de HomeBox ne prend pas en charge les modèles d'objets."],
+    ["error.TEMPLATE_NOT_FOUND", "This item template no longer exists in HomeBox.", "Ce modèle d'objet n'existe plus dans HomeBox."],
+    ["error.TEMPLATE_CHANGED", "This item template was changed in HomeBox. Check the values, then confirm again.", "Ce modèle d'objet a été modifié dans HomeBox. Vérifiez les valeurs, puis confirmez de nouveau."],
+    ["error.TEMPLATE_FIELDS_FAILED", "The item was created but some template fields could not be saved.", "L'objet a été créé mais certains champs du modèle n'ont pas pu être enregistrés."],
+  ];
+
+  it('5 keys with the exact texts of the contracts, en and fr different', () => {
+    expect(KEYS).toHaveLength(5);
+    for (const [key, enText, frText] of KEYS) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(en[key], key).not.toBe(catalog[key]);
+      expect(en[key], key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+  });
+});
+
+describe('018 US1: the 10 template keys (T042)', () => {
+  const KEYS: [string, string, string][] = [
+    ["templates.label", "Template", "Modèle"],
+    ["templates.none", "None", "Aucun"],
+    ["templates.pickerFor", "Template for $1", "Modèle pour $1"],
+    ["templates.loading", "Loading the template…", "Chargement du modèle…"],
+    ["templates.locationRequired", "A location is required to create an item from a template.", "Un emplacement est nécessaire pour créer un objet à partir d'un modèle."],
+    ["templates.locationRequiredUnavailable", "A location is required to use a template, but the locations could not be loaded. Choose \"None\" or try again.", "Un emplacement est nécessaire pour utiliser un modèle, mais les emplacements n'ont pas pu être chargés. Choisissez « Aucun » ou réessayez."],
+    ["templates.applied", "Template $1 applied: $2 fields.", "Modèle $1 appliqué : $2 champs."],
+    ["templates.removed", "Template removed.", "Modèle retiré."],
+    ["templates.retry", "Try again", "Réessayer"],
+    ["templates.loadFailed", "The template $1 could not be loaded.", "Le modèle $1 n'a pas pu être chargé."],
+  ];
+
+  it('10 keys with the exact texts of the contracts, en and fr different', () => {
+    expect(KEYS).toHaveLength(10);
+    for (const [key, enText, frText] of KEYS) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(en[key], key).not.toBe(catalog[key]);
+      expect(en[key], key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+  });
+});
+
+describe('018 US2: the 9 keys (T053)', () => {
+  const KEYS: [string, string, string][] = [
+    ["templates.sectionLegend", "Values from the template $1", "Valeurs du modèle $1"],
+    ["templates.manufacturer", "Manufacturer", "Fabricant"],
+    ["templates.modelNumber", "Model number", "Numéro de modèle"],
+    ["templates.insured", "Insured", "Assuré"],
+    ["templates.readOnlyType", "Unsupported field type: copied as is", "Type de champ non pris en charge : recopié tel quel"],
+    ["templates.errors.notInteger", "Enter a whole number, or leave the field empty.", "Saisissez un nombre entier, ou laissez le champ vide."],
+    ["templates.errors.invalidDate", "Enter a valid date, or leave the field empty.", "Saisissez une date valide, ou laissez le champ vide."],
+    ["templates.errors.tooLong", "$1 characters at most.", "$1 caractères au maximum."],
+    ["result.stepTemplateFields", "Template fields: $1", "Champs du modèle : $1"],
+  ];
+
+  it('9 keys with the exact texts of the contracts, en and fr different', () => {
+    expect(KEYS).toHaveLength(9);
+    for (const [key, enText, frText] of KEYS) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(en[key], key).not.toBe(catalog[key]);
+      expect(en[key], key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+  });
+});
+
+describe('018 US4: the 8 keys (T068)', () => {
+  const KEYS: [string, string, string][] = [
+    ["templates.defaultLabel", "Default template", "Modèle par défaut"],
+    ["templates.defaultMissing", "The default template no longer exists in HomeBox. Choose another one in the settings.", "Le modèle par défaut n'existe plus dans HomeBox. Choisissez-en un autre dans les réglages."],
+    ["templates.defaultNotApplied", "The default template could not be applied: the templates could not be loaded.", "Le modèle par défaut n'a pas pu être appliqué : les modèles n'ont pas pu être chargés."],
+    ["templates.noneOnInstance", "No template on this instance", "Aucun modèle sur cette instance"],
+    ["templates.unlockToChange", "Unlock to change the default template.", "Déverrouillez pour changer le modèle par défaut."],
+    ["templates.change", "Change", "Changer"],
+    ["templates.save", "Save", "Enregistrer"],
+    ["templates.defaultSaved", "Default template saved.", "Modèle par défaut enregistré."],
+  ];
+
+  it('8 keys with the exact texts of the contracts, en and fr different', () => {
+    expect(KEYS).toHaveLength(8);
+    for (const [key, enText, frText] of KEYS) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(en[key], key).not.toBe(catalog[key]);
+      expect(en[key], key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+  });
+});
+
+describe('018 US6: the 3 keys (T084)', () => {
+  const KEYS: [string, string, string][] = [
+    ["templates.goneBeforeImport", "The template $1 no longer exists. Products concerned: $2. Choose another template or \"None\".", "Le modèle $1 n'existe plus. Produits concernés : $2. Choisissez un autre modèle ou « Aucun »."],
+    ["templates.changedList", "The template $1 was changed in HomeBox: $2. Check the values, then confirm again.", "Le modèle $1 a été modifié dans HomeBox : $2. Vérifiez les valeurs, puis confirmez de nouveau."],
+    ["templates.backToSummary", "Nothing was created. Open the summary again to choose.", "Rien n'a été créé. Rouvrez le récapitulatif pour choisir."],
+  ];
+
+  it('3 keys with the exact texts of the contracts, en and fr different', () => {
+    expect(KEYS).toHaveLength(3);
+    for (const [key, enText, frText] of KEYS) {
+      expect(en[key], key).toBe(enText);
+      expect(catalog[key], key).toBe(frText);
+      expect(en[key], key).not.toBe(catalog[key]);
+      expect(en[key], key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    }
+  });
+});
+
+describe('018: 35 keys added in all (T102, FR-035)', () => {
+  it('the templates section holds exactly its 29 keys; IDENTICAL_OK not extended', () => {
+    const templates = Object.keys(en).filter((k) => k.startsWith('templates.'));
+    expect(templates).toHaveLength(29);
+    expect(Object.keys(catalog).filter((k) => k.startsWith('templates.')).sort()).toEqual(templates.sort());
+    expect(IDENTICAL_OK.some((k) => k.startsWith('templates.'))).toBe(false);
+  });
+});

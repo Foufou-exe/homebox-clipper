@@ -16,6 +16,10 @@ import type {
   ManualFile,
   PendingImport,
   TagOption,
+  TemplateCheck,
+  TemplateDetail,
+  TemplateListView,
+  DefaultTemplateRef,
   UpdateStateView,
 } from './types';
 
@@ -58,6 +62,12 @@ export type Message =
   | { type: 'location/list'; instanceId: string }
   // Automatic tags (014): read-only, extension pages only; never the address or the key.
   | { type: 'tag/list'; instanceId: string }
+  // HomeBox item templates (018): extension pages only (`template/` prefix); never the address or the key.
+  | { type: 'template/list'; instanceId: string }
+  | { type: 'template/get'; instanceId: string; templateId: string }
+  | { type: 'template/check'; instanceId: string; refs: { id: string; fingerprint: string }[] }
+  | { type: 'template/get-default'; instanceId: string }
+  | { type: 'template/set-default'; instanceId: string; templateId: string | null }
   | {
       type: 'import/start';
       instanceId: string;
@@ -126,6 +136,11 @@ export interface ResponseMap {
   'duplicate/check': Result<DuplicateCheck>;
   'location/list': Result<{ locations: LocationOption[]; lastUsedId: string | null }>;
   'tag/list': Result<{ tags: TagOption[] }>;
+  'template/list': Result<TemplateListView>;
+  'template/get': Result<{ template: TemplateDetail }>;
+  'template/check': Result<{ results: TemplateCheck[] }>;
+  'template/get-default': Result<{ defaultTemplate: DefaultTemplateRef | null }>;
+  'template/set-default': Result<{ defaultTemplate: DefaultTemplateRef | null }>;
   'import/start': Result<PendingImport[]>;
   'import/retry': Result<PendingImport>;
   'import/abandon': Result<void>;
@@ -165,7 +180,7 @@ const isWarrantyDraft = (x: unknown): boolean =>
   x === undefined ||
   x === null ||
   (isObj(x) &&
-    (x.origin === 'legal' || x.origin === 'page' || x.origin === 'user') &&
+    (x.origin === 'legal' || x.origin === 'page' || x.origin === 'user' || x.origin === 'template') &&
     (x.expires === null || isValidIsoDate(x.expires)) &&
     typeof x.lifetime === 'boolean' &&
     !(x.lifetime === true && x.expires !== null) &&
@@ -187,9 +202,52 @@ const isTagChoices = (x: unknown): boolean =>
         isStr(c.name) &&
         c.name === normalizeTagName(c.name) &&
         tagNameError(c.name) === null &&
-        (c.id === undefined || (isStr(c.id) && c.id !== '')),
+        (c.id === undefined || (isStr(c.id) && c.id !== '')) &&
+        // Spec 018: default tag of a template, never created; absent or exactly `true`.
+        (c.noCreate === undefined || c.noCreate === true),
     ) &&
     new Set(x.map((c) => tagKey((c as { name: string }).name))).size === x.length);
+const strLen = (x: unknown, min: number, max: number): x is string => isStr(x) && x.length >= min && x.length <= max;
+/** Template identifier (spec 018): 1 to 64 characters. */
+export const isTemplateId = (x: unknown): x is string => strLen(x, 1, 64);
+const isFingerprint = (x: unknown): x is string => isStr(x) && /^[0-9a-f]{64}$/.test(x);
+const FIELD_KINDS: ReadonlySet<string> = new Set(['text', 'number', 'boolean', 'time', 'unknown']);
+/** One confirmed field (data-model §3): bounds, then the consistency of the kind with the values (research D1). */
+const isTemplateFieldValue = (f: unknown): boolean => {
+  if (!isObj(f)) return false;
+  if (!strLen(f.type, 1, 32) || !isStr(f.kind) || !FIELD_KINDS.has(f.kind) || !strLen(f.name, 1, 255)) return false;
+  if (!strLen(f.textValue, 0, 500) || !Number.isSafeInteger(f.numberValue) || typeof f.booleanValue !== 'boolean') return false;
+  switch (f.kind) {
+    case 'number':
+      return f.textValue === '' ? f.numberValue === 0 : f.textValue === String(f.numberValue);
+    case 'boolean':
+      return f.textValue === String(f.booleanValue);
+    case 'time':
+      return f.textValue === '' || isValidIsoDate(f.textValue);
+    default:
+      return true;
+  }
+};
+/** `ImportDraft.template` (spec 018): absent (never `null`), or conforming to the rules of data-model §3. */
+const isTemplateChoice = (x: unknown): boolean =>
+  x === undefined ||
+  (isObj(x) &&
+    isTemplateId(x.id) &&
+    strLen(x.name, 1, 255) &&
+    isFingerprint(x.fingerprint) &&
+    typeof x.insured === 'boolean' &&
+    strLen(x.manufacturer, 0, 255) &&
+    strLen(x.modelNumber, 0, 255) &&
+    isArr(x.fields) &&
+    x.fields.length <= 100 &&
+    x.fields.every(isTemplateFieldValue));
+/** `template/check` refs: 1 to 50, distinct ids, 64-hex fingerprints. */
+const isTemplateRefs = (x: unknown): boolean =>
+  isArr(x) &&
+  x.length >= 1 &&
+  x.length <= 50 &&
+  x.every((r) => isObj(r) && isTemplateId(r.id) && isFingerprint(r.fingerprint)) &&
+  new Set(x.map((r) => (r as { id: string }).id)).size === x.length;
 const areDrafts = (x: unknown): boolean =>
   isArr(x) &&
   x.every(
@@ -197,6 +255,9 @@ const areDrafts = (x: unknown): boolean =>
       isObj(d) &&
       isDraftPhoto(d.photo) &&
       isOptionalLocation(d.location) &&
+      isTemplateChoice(d.template) &&
+      // A template requires a location (FR-005).
+      (d.template === undefined || isLocationChoice(d.location)) &&
       isWarrantyDraft(d.warranty) &&
       isTagChoices(d.tags) &&
       isArr(d.documents) &&
@@ -230,6 +291,11 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'duplicate/check': (m) => isInstanceId(m.instanceId) && isStr(m.orderNumber) && isStr(m.name),
   'location/list': (m) => isInstanceId(m.instanceId),
   'tag/list': (m) => isInstanceId(m.instanceId),
+  'template/list': (m) => isInstanceId(m.instanceId),
+  'template/get': (m) => isInstanceId(m.instanceId) && isTemplateId(m.templateId),
+  'template/check': (m) => isInstanceId(m.instanceId) && isTemplateRefs(m.refs),
+  'template/get-default': (m) => isInstanceId(m.instanceId),
+  'template/set-default': (m) => isInstanceId(m.instanceId) && (m.templateId === null || isTemplateId(m.templateId)),
   'import/start': (m) =>
     isInstanceId(m.instanceId) &&
     isInt(m.tabId) &&

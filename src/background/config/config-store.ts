@@ -4,7 +4,6 @@ import type { ConfigView, InstancesStore, InstanceView, LastCheck, StoredInstanc
 import { base64ToBytes, bytesToBase64 } from '@/shared/pdf';
 import { DEFAULT_ITERATIONS, MIN_PASSPHRASE_LENGTH, sealHistoryKey } from './key-vault';
 import {
-  LAST_LOCATION_KEY,
   LEGACY_KEY,
   MAX_INSTANCES,
   defaultName,
@@ -35,7 +34,7 @@ const KEY = LEGACY_KEY;
 /** Decrypted API keys: storage.session only (in memory, cleared when the browser closes). */
 const SESSION_KEY = 'homeboxUnlocked';
 export const PENDING_PREFIX = 'pendingImport:';
-export { LAST_LOCATION_KEY };
+export { LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY } from './instance-store';
 /** Encrypted import history (spec 012): one `importHistory:<id>` key per entry, in storage.local. */
 export const HISTORY_PREFIX = 'importHistory:';
 /** History setting `{ v: 1, enabled }`, in clear (not purchase data); kept when the configuration is deleted. */

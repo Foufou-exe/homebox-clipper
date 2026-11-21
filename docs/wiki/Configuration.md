@@ -116,6 +116,20 @@ The **Automatic tags** card of the settings chooses the tags suggested in the su
 The setting is stored in the browser (`tagSettings`, `storage.local`), works whether the extension is
 configured or locked, and is kept when you delete the settings. A change applies to the next summaries.
 
+## Default item template
+
+Each HomeBox instance can have a **default template**, proposed on every product of the summary (see
+[Usage](Usage.md#homebox-item-templates)). It is shown under the instance (in its card from two instances on):
+
+- while the extension is locked, the name of the default template (or **None**) is shown, but cannot be changed:
+  the extension must be **unlocked** to change it;
+- **Change** reads the templates of **this instance only**; choose one (or **None**) and click **Save**. The name
+  kept is the one HomeBox returns.
+
+Only the identifier and the name of the template are stored (`defaultTemplateByInstance`, `storage.local`). They
+are erased with the instance or with **Delete settings**. If the template is renamed in HomeBox, the name is
+updated at the next summary; if it is deleted, the summary says so and the products stay on **None**.
+
 ## Appearance
 
 The theme (**Automatic (system)**, **Light** or **Dark**) is chosen in the *Appearance* section of the

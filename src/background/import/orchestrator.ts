@@ -6,6 +6,8 @@ import { homeboxTypeOf, isOptionalHomeboxType } from '@/shared/document-kinds';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { logError } from '@/shared/logger';
 import { findDuplicatesByName } from './duplicates';
+import { fieldsFor, fieldsMatch, templatePatch } from './template-patch';
+import { normalizeTemplate } from '@/background/templates/normalize';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
 import { flattenTree } from '@/shared/locations';
 import { warrantyPatch } from '@/shared/warranty';
@@ -19,6 +21,7 @@ import type {
   PendingImport,
   PhotoStep,
   TagChoice,
+  TemplateChoice,
 } from '@/shared/types';
 import type { FetchedPhoto } from './photo-fetch';
 
@@ -118,8 +121,11 @@ const tagIdsFor = (current: EntityOut, tags: ResolvedTags) =>
  */
 const knowsTags = (o: EntityOut) => Array.isArray(o.tags) || o.tags === null;
 
-/** Purchase data of the PUT, built from the draft and the object read (or created). */
-function purchasePatch(draft: ImportDraft, current: EntityOut): Partial<EntityUpdate> {
+/**
+ * Purchase data of the PUT without the warranty (spec 018, research D3): the template path sends the warranty
+ * explicitly (`templatePatch`) instead of `warrantyPatch`.
+ */
+function purchaseBase(draft: ImportDraft, current: EntityOut): Partial<EntityUpdate> {
   return {
     purchasePrice: draft.purchasePrice ?? undefined,
     purchaseDate: draft.purchaseDate ?? undefined,
@@ -127,10 +133,20 @@ function purchasePatch(draft: ImportDraft, current: EntityOut): Partial<EntityUp
     notes: buildNotes(draft),
     // A PUT without `parentId` would lose the location (V3): it is always sent.
     parentId: current.parent?.id ?? draft.location?.id,
+  };
+}
+
+/** Purchase data of the PUT, built from the draft and the object read (or created). */
+function purchasePatch(draft: ImportDraft, current: EntityOut): Partial<EntityUpdate> {
+  return {
+    ...purchaseBase(draft, current),
     // Never overwrites a warranty already filled on the object (FR-008).
     ...warrantyPatch(draft.warranty, current),
   };
 }
+
+type TemplateDraft = ImportDraft & { template: TemplateChoice };
+const hasTemplate = (d: ImportDraft): d is TemplateDraft => d.template !== undefined;
 
 function manualBytes(file: ManualFile): Result<Uint8Array> {
   if (base64Size(file.base64) > MAX_DOCUMENT_BYTES) return fail('FILE_TOO_LARGE');
@@ -141,6 +157,35 @@ function manualBytes(file: ManualFile): Result<Uint8Array> {
 
 function filesFrom(manualFiles: ManualFile[]): FileMap {
   return new Map(manualFiles.map((f) => [f.docId, manualBytes(f)]));
+}
+
+/** Records the outcome of the template fields (spec 018): `done` only after a conforming read-back. */
+function settleTemplateFields(p: PendingImport, matched: boolean): ErrorCode | null {
+  if (matched) {
+    p.steps.templateFields = 'done';
+    delete p.templateFieldsError;
+    return null;
+  }
+  p.steps.templateFields = 'failed';
+  p.templateFieldsError = 'TEMPLATE_FIELDS_FAILED';
+  return 'TEMPLATE_FIELDS_FAILED';
+}
+
+/** Retry (invariant 3): the location of an existing object is fixed; spec 018: no "without location" with a template. */
+function locationChangeRefused(p: PendingImport, location: LocationChoice | null | undefined): boolean {
+  if (location === undefined) return false;
+  return Boolean(p.entityId) || (location === null && Boolean(p.draft.template));
+}
+
+/** First refused manual file, if any (same order as the map). */
+function firstFileFailure(files: FileMap): Result<never> | null {
+  for (const result of files.values()) if (!result.ok) return result;
+  return null;
+}
+
+/** A manual document is missing: neither already attached nor provided. */
+function needsManualFile(p: PendingImport, files: FileMap): boolean {
+  return p.draft.documents.some((d) => d.origin === 'manual' && p.steps.attachments[d.id] !== 'done' && !files.has(d.id));
 }
 
 /** A delivery note whose name already says what it is keeps it (no double prefix); otherwise the prefix is added. */
@@ -265,6 +310,66 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return flattenTree(tree.value).some((l) => l.id === location.id) ? 'CREATE_FAILED' : 'LOCATION_NOT_FOUND';
   }
 
+  /** Definite failure of `create-item` (spec 018): the template read again; deleted → `TEMPLATE_NOT_FOUND`. */
+  async function templateCreationFailureFor(template: TemplateChoice, location: LocationChoice | null | undefined): Promise<ErrorCode> {
+    const read = await client.getTemplate(template.id);
+    if (!read.ok && read.error === 'TEMPLATE_NOT_FOUND') return 'TEMPLATE_NOT_FOUND';
+    return creationFailureFor(location);
+  }
+
+  /**
+   * Re-check of the templates of a batch (spec 018, FR-020, invariant 2): one read per distinct template, before any
+   * persistence or creation. Deleted → `TEMPLATE_NOT_FOUND`; fingerprint different from the one confirmed →
+   * `TEMPLATE_CHANGED`; another failure → its code. Never called for a batch without template.
+   */
+  async function verifyTemplates(drafts: readonly ImportDraft[]): Promise<Result<void>> {
+    const byId = new Map<string, Set<string>>();
+    for (const d of drafts) {
+      if (!d.template) continue;
+      const set = byId.get(d.template.id) ?? new Set<string>();
+      set.add(d.template.fingerprint);
+      byId.set(d.template.id, set);
+    }
+    for (const [id, fingerprints] of byId) {
+      const read = await client.getTemplate(id); // NOSONAR: sequential on purpose (one instance, short list)
+      if (!read.ok) return fail(read.error);
+      const detail = await normalizeTemplate(read.value);
+      if (!detail.ok) return fail(detail.error);
+      if ([...fingerprints].some((f) => f !== detail.value.fingerprint)) return fail('TEMPLATE_CHANGED');
+    }
+    return ok(undefined);
+  }
+
+  /**
+   * Uncertain creation (lost response, or service worker stopped during the POST): the object may have been created
+   * without its identifier being saved. Its exact name is searched for before sending another POST; the duplicate risk
+   * is only reduced, not eliminated (renamed object, lagging search index). `null`: the retry may go on.
+   */
+  async function uncertainDuplicate(pending: PendingImport): Promise<Result<never> | null> {
+    const uncertain = pending.createUncertain || (pending.orphaned && pending.createAttempted);
+    if (pending.entityId || !uncertain) return null;
+    const dup = await findDuplicatesByName(client, pending.draft.name);
+    if (!dup.ok) return fail('DUPLICATE_CHECK_FAILED');
+    return dup.value.length > 0 ? fail('DUPLICATE_SUSPECTED') : null;
+  }
+
+  /**
+   * Spec 018: before any creation, the template is checked again (US6-4); once the object exists, never (US6-3).
+   * A template without location is refused and recorded as a failed creation. `null`: the retry may go on.
+   */
+  async function templateGate(pending: PendingImport): Promise<Result<never> | null> {
+    if (pending.entityId || !pending.draft.template) return null;
+    if (!pending.draft.location) {
+      pending.steps.create = 'failed';
+      pending.status = 'failed';
+      pending.error = 'BAD_MESSAGE';
+      await persist(pending);
+      return fail('BAD_MESSAGE');
+    }
+    const verified = await verifyTemplates([pending.draft]);
+    return verified.ok ? null : verified;
+  }
+
   /** Writes the last-location memory; never blocks the import. */
   async function remember(locationId: string | null | undefined, results: PendingImport[]): Promise<void> {
     if (!locationId || !deps.rememberLocation || !results.some((r) => r.entityId)) return;
@@ -291,8 +396,10 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   async function createFailed(p: PendingImport, error: ErrorCode, httpStatus: number | undefined): Promise<void> {
     p.steps.create = 'failed';
     p.status = 'failed';
-    p.error = error === 'CREATE_FAILED' ? await creationFailureFor(p.draft.location) : error;
     const acceptedButUnreadable = httpStatus !== undefined && httpStatus >= 200 && httpStatus < 300;
+    if (error !== 'CREATE_FAILED') p.error = error;
+    else if (p.draft.template && !acceptedButUnreadable) p.error = await templateCreationFailureFor(p.draft.template, p.draft.location);
+    else p.error = await creationFailureFor(p.draft.location);
     if (error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
     else p.createAttempted = false;
     await persist(p);
@@ -302,16 +409,34 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   async function createStep(p: PendingImport): Promise<EntityOut | null> {
     // Early write (R8): if the service worker stops during the POST, the orphaned import will know
     // that the object may have been created.
+    const draft = p.draft;
+    const location = draft.location;
+    // Spec 018 (invariant 4): a template always needs a location; refused before any request.
+    if (hasTemplate(draft) && !location) {
+      p.steps.create = 'failed';
+      p.status = 'failed';
+      p.error = 'BAD_MESSAGE';
+      await persist(p);
+      return null;
+    }
     p.createAttempted = true;
     delete p.createUncertain;
     await persist(p);
-    const res = await client.createEntity({
-      name: p.draft.name,
-      description: p.draft.description || undefined,
-      quantity: p.draft.quantity,
-      // `parentId` only when a location is chosen: with no choice, the body stays that of spec 001.
-      ...(p.draft.location ? { parentId: p.draft.location.id } : {}),
-    });
+    const res = hasTemplate(draft) && location
+      ? // Spec 018: created from the template, never a fallback to POST /entities (FR-021).
+        await client.createFromTemplate(draft.template.id, {
+          name: draft.name,
+          description: draft.description || undefined,
+          quantity: draft.quantity,
+          parentId: location.id,
+        })
+      : await client.createEntity({
+          name: draft.name,
+          description: draft.description || undefined,
+          quantity: draft.quantity,
+          // `parentId` only when a location is chosen: with no choice, the body stays that of spec 001.
+          ...(location ? { parentId: location.id } : {}),
+        });
     if (!res.ok) {
       await createFailed(p, res.error, res.httpStatus);
       return null;
@@ -339,6 +464,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   async function tagFor(choice: TagChoice, list: TagSummary[], cache: TagCache): Promise<TagSummary | null> {
     const found = findExisting(choice, list);
     if (found) return found;
+    // Spec 018 (FR-015): a default tag of a template is never created; it fails alone.
+    if (choice.noCreate) return null;
     const key = tagKey(choice.name);
     let created = cache.created.get(key);
     if (!created) {
@@ -433,6 +560,76 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return { updateError: res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED', tagsError };
   }
 
+  /** Read-back of the object after a successful PUT (FR-018): every confirmed field with its exact values. */
+  async function readBack(entityId: string, confirmed: TemplateChoice['fields']): Promise<boolean> {
+    const read = await client.getEntity(entityId);
+    return read.ok && fieldsMatch(read.value.fields, confirmed);
+  }
+
+  /**
+   * Template path (spec 018, contracts/import-templates.md §2, §3): a single PUT carries the purchase data (without
+   * `warrantyPatch`), the template values, the paired fields and the tags; then the object is read again. Purchase
+   * already saved: PUT reserved to the template fields (and to the tags if they also remain), on the object read again.
+   */
+  async function templateUpdateStep(
+    p: PendingImport,
+    draft: TemplateDraft,
+    entityId: string,
+    created: EntityOut | null,
+    tags: ResolvedTags | null,
+  ): Promise<{ updateError: ErrorCode | null; tagsError: ErrorCode | null; templateFieldsError: ErrorCode | null }> {
+    const confirmed = draft.template.fields;
+    if (p.steps.update === 'done') {
+      if (p.steps.templateFields === 'done') {
+        return { updateError: null, tagsError: tags ? await tagsOnlyStep(p, entityId, tags) : null, templateFieldsError: null };
+      }
+      return { updateError: null, ...(await templateFieldsOnlyStep(p, draft, entityId, tags)) };
+    }
+    const current = created ? ok(created) : await client.getEntity(entityId);
+    const { res, applied } = current.ok
+      ? await purchasePut(
+          entityId,
+          current.value,
+          { ...purchaseBase(draft, current.value), ...templatePatch(draft), fields: fieldsFor(current.value.fields, confirmed) },
+          tags,
+        )
+      : { res: current, applied: false };
+    p.steps.update = res.ok ? 'done' : 'failed';
+    const tagsError = tags ? settleTags(p, tags, applied) : null;
+    const templateFieldsError = settleTemplateFields(p, res.ok && (await readBack(entityId, confirmed)));
+    await persist(p);
+    if (res.ok) return { updateError: null, tagsError, templateFieldsError };
+    return { updateError: res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED', tagsError, templateFieldsError };
+  }
+
+  /** Fields step alone (resume): never touches the purchase data; the tags join the same PUT when they remain too. */
+  async function templateFieldsOnlyStep(
+    p: PendingImport,
+    draft: TemplateDraft,
+    entityId: string,
+    tags: ResolvedTags | null,
+  ): Promise<{ tagsError: ErrorCode | null; templateFieldsError: ErrorCode | null }> {
+    const confirmed = draft.template.fields;
+    const current = await client.getEntity(entityId);
+    let applied = false;
+    let putOk = false;
+    if (current.ok) {
+      const withTags = !!tags?.resolved.length && knowsTags(current.value);
+      const patch: Partial<EntityUpdate> = {
+        ...templatePatch(draft),
+        fields: fieldsFor(current.value.fields, confirmed),
+        ...(withTags ? { tagIds: tagIdsFor(current.value, tags) } : {}),
+      };
+      const res = await client.updateEntity(entityId, entityOutToUpdate(current.value, patch));
+      putOk = res.ok;
+      applied = res.ok && withTags;
+    }
+    const tagsError = tags ? settleTags(p, tags, applied) : null;
+    const templateFieldsError = settleTemplateFields(p, putOk && (await readBack(entityId, confirmed)));
+    await persist(p);
+    return { tagsError, templateFieldsError };
+  }
+
   /** Sends one document; returns the error to report, if any. */
   async function attachDocument(
     p: PendingImport,
@@ -512,10 +709,13 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     // Tags (spec 014): only once the object exists; `null` without tags to apply (nothing else runs).
     const tags = await resolveTags(p, tagCache);
     // Each step runs even if a previous one failed; the first error is the one reported.
-    const { updateError, tagsError } = await updateStep(p, entity.entityId, entity.created, tags);
+    const draft = p.draft;
+    const { updateError, tagsError, templateFieldsError } = hasTemplate(draft)
+      ? await templateUpdateStep(p, draft, entity.entityId, entity.created, tags)
+      : { ...(await updateStep(p, entity.entityId, entity.created, tags)), templateFieldsError: null };
     const attachmentsError = await attachmentsStep(p, entity.entityId, files);
     const photoError = await photoStep(p, entity.entityId, photos);
-    return finish(p, updateError ?? attachmentsError ?? photoError ?? tagsError);
+    return finish(p, updateError ?? templateFieldsError ?? attachmentsError ?? photoError ?? tagsError);
   }
 
   return {
@@ -531,6 +731,13 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       const photos: PhotoMap = new Map();
       // Invalid manual files are rejected before any HomeBox call.
       for (const result of files.values()) if (!result.ok) return result;
+      // Spec 018: a template requires a location (defense), then every template of the batch is checked again
+      // before anything is persisted or created (FR-020). A batch without template makes no extra call.
+      if (drafts.some((d) => d.template && !d.location)) return fail('BAD_MESSAGE');
+      if (drafts.some((d) => d.template)) {
+        const verified = await verifyTemplates(drafts);
+        if (!verified.ok) return verified;
+      }
 
       // All imports of the batch are persisted before the first POST: if the service worker stops during
       // the first one, the following ones remain visible and retryable.
@@ -547,6 +754,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
           photo: initialPhotoStep(draft.photo),
           // Only with tags: without them, the persisted state is unchanged (invariant 1).
           ...(draft.tags?.length ? { tags: 'pending' as const } : {}),
+          // Only with a template (spec 018, invariant 1).
+          ...(draft.template ? { templateFields: 'pending' as const } : {}),
         },
         status: 'running',
         error: null,
@@ -571,24 +780,20 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     ): Promise<Result<PendingImport>> {
       const pending = await store.get(pendingId);
       if (!pending) return fail('BAD_MESSAGE');
-      // Invariant 3: the object already exists, its location can no longer be changed here. Refused before any request.
-      if (location !== undefined && pending.entityId) return fail('BAD_MESSAGE');
+      // Refused before any request (invariant 3; spec 018 FR-005).
+      if (locationChangeRefused(pending, location)) return fail('BAD_MESSAGE');
       if (location !== undefined) pending.draft = { ...pending.draft, location };
       const files = filesFrom(manualFiles);
-      for (const result of files.values()) if (!result.ok) return result;
+      const fileFailure = firstFileFailure(files);
+      if (fileFailure) return fileFailure;
       // Uncertain creation (lost response, or service worker stopped during the POST): the object may have been
       // created without its identifier being saved. Its exact name is searched for before sending another POST;
       // the duplicate risk is only reduced, not eliminated (renamed object, lagging search index).
-      const uncertain = pending.createUncertain || (pending.orphaned && pending.createAttempted);
-      if (!pending.entityId && uncertain) {
-        const dup = await findDuplicatesByName(client, pending.draft.name);
-        if (!dup.ok) return fail('DUPLICATE_CHECK_FAILED');
-        if (dup.value.length > 0) return fail('DUPLICATE_SUSPECTED');
-      }
-      const needsManual = pending.draft.documents.some(
-        (d) => d.origin === 'manual' && pending.steps.attachments[d.id] !== 'done' && !files.has(d.id),
-      );
-      if (needsManual) return fail('MANUAL_FILE_REQUIRED');
+      const duplicate = await uncertainDuplicate(pending);
+      if (duplicate) return duplicate;
+      if (needsManualFile(pending, files)) return fail('MANUAL_FILE_REQUIRED');
+      const refused = await templateGate(pending);
+      if (refused) return refused;
       // A new cache: the retry always reads the tag list again before any creation (invariant 4).
       return ok(await run(pending, files, new Map(), newTagCache()));
     },

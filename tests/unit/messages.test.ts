@@ -376,3 +376,143 @@ describe('messages: config/save and config/test are withdrawn (016, US4, T079)',
     }
   });
 });
+
+describe('messages: template/* and drafts[].template on import/start (018, Q-U2, T011)', () => {
+  const FP = 'a'.repeat(64);
+  const choice = (over: Record<string, unknown> = {}) => ({
+    id: 'tpl-1',
+    name: 'Livre',
+    fingerprint: FP,
+    insured: true,
+    manufacturer: 'Éditions Exemple',
+    modelNumber: '',
+    fields: [{ type: 'text', kind: 'text', name: 'Auteur', textValue: 'Jane Doe', numberValue: 0, booleanValue: false }],
+    ...over,
+  });
+  const fieldOf = (over: Record<string, unknown>) => ({
+    type: 'text',
+    kind: 'text',
+    name: 'Auteur',
+    textValue: '',
+    numberValue: 0,
+    booleanValue: false,
+    ...over,
+  });
+  const LOC = { id: 'loc-1', path: ['Maison', 'Bureau'] };
+  const withTemplate = (template: unknown, extra: Record<string, unknown> = { location: LOC }) => ({
+    type: 'import/start',
+    instanceId: 'inst-a',
+    tabId: 1,
+    manualFiles: [],
+    drafts: [{ ...draft(), ...extra, template }],
+  });
+
+  it.each(['template/list', 'template/get-default'])('%s requires a valid instanceId', (type) => {
+    expect(isMessage({ type, instanceId: 'inst-a' })).toBe(true);
+    expect(isMessage({ type })).toBe(false);
+    expect(isMessage({ type, instanceId: '' })).toBe(false);
+    expect(isMessage({ type, instanceId: 'x'.repeat(65) })).toBe(false);
+  });
+
+  it('template/get: templateId string of 1 to 64 characters', () => {
+    expect(isMessage({ type: 'template/get', instanceId: 'inst-a', templateId: 'tpl-1' })).toBe(true);
+    expect(isMessage({ type: 'template/get', instanceId: 'inst-a', templateId: 'x'.repeat(64) })).toBe(true);
+    expect(isMessage({ type: 'template/get', instanceId: 'inst-a', templateId: '' })).toBe(false);
+    expect(isMessage({ type: 'template/get', instanceId: 'inst-a', templateId: 'x'.repeat(65) })).toBe(false);
+    expect(isMessage({ type: 'template/get', templateId: 'tpl-1' })).toBe(false);
+  });
+
+  it('template/check: 1 to 50 distinct refs with a 64-hex fingerprint', () => {
+    const refs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `tpl-${i}`, fingerprint: FP }));
+    const check = (r: unknown) => isMessage({ type: 'template/check', instanceId: 'inst-a', refs: r });
+    expect(check(refs(1))).toBe(true);
+    expect(check(refs(50))).toBe(true);
+    expect(check(refs(0))).toBe(false);
+    expect(check(refs(51))).toBe(false);
+    expect(check([{ id: 'tpl-1', fingerprint: FP }, { id: 'tpl-1', fingerprint: FP }])).toBe(false);
+    expect(check([{ id: 'tpl-1', fingerprint: 'a'.repeat(63) }])).toBe(false);
+    expect(check([{ id: 'tpl-1', fingerprint: 'g'.repeat(64) }])).toBe(false);
+    expect(check([{ id: '', fingerprint: FP }])).toBe(false);
+    expect(check('nope')).toBe(false);
+    expect(isMessage({ type: 'template/check', refs: refs(1) })).toBe(false);
+  });
+
+  it('template/set-default: templateId string of 1 to 64 characters or null', () => {
+    const set = (templateId: unknown) => isMessage({ type: 'template/set-default', instanceId: 'inst-a', templateId });
+    expect(set('tpl-1')).toBe(true);
+    expect(set(null)).toBe(true);
+    expect(set('')).toBe(false);
+    expect(set('x'.repeat(65))).toBe(false);
+    expect(set(undefined)).toBe(false);
+    expect(isMessage({ type: 'template/set-default', templateId: 'tpl-1' })).toBe(false);
+  });
+
+  it('import/start: a conforming template with a location is accepted', () => {
+    expect(isMessage(withTemplate(choice()))).toBe(true);
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['id of 65 characters', { id: 'x'.repeat(65) }],
+    ['empty id', { id: '' }],
+    ['name of 256 characters', { name: 'x'.repeat(256) }],
+    ['empty name', { name: '' }],
+    ['fingerprint of 63 characters', { fingerprint: 'a'.repeat(63) }],
+    ['non-hexadecimal fingerprint', { fingerprint: 'z'.repeat(64) }],
+    ['manufacturer of 256 characters', { manufacturer: 'x'.repeat(256) }],
+    ['modelNumber of 256 characters', { modelNumber: 'x'.repeat(256) }],
+    ['non-boolean insured', { insured: 'yes' }],
+    ['101 fields', { fields: Array.from({ length: 101 }, () => fieldOf({})) }],
+    ['unknown kind', { fields: [fieldOf({ kind: 'color' })] }],
+    ['textValue of 501 characters', { fields: [fieldOf({ textValue: 'x'.repeat(501) })] }],
+    ['non-integer numberValue', { fields: [fieldOf({ kind: 'number', type: 'number', textValue: '1.5', numberValue: 1.5 })] }],
+    ['unsafe numberValue', { fields: [fieldOf({ kind: 'number', type: 'number', textValue: String(2 ** 53), numberValue: 2 ** 53 })] }],
+    ['empty type', { fields: [fieldOf({ type: '' })] }],
+    ['type of 33 characters', { fields: [fieldOf({ type: 'x'.repeat(33), kind: 'unknown' })] }],
+    ['empty field name', { fields: [fieldOf({ name: '' })] }],
+    ['non-boolean booleanValue', { fields: [fieldOf({ booleanValue: 'true' })] }],
+    ['number 5 / 6', { fields: [fieldOf({ kind: 'number', type: 'number', textValue: '5', numberValue: 6 })] }],
+    ['number empty / 3', { fields: [fieldOf({ kind: 'number', type: 'number', textValue: '', numberValue: 3 })] }],
+    ['boolean true / false', { fields: [fieldOf({ kind: 'boolean', type: 'boolean', textValue: 'true', booleanValue: false })] }],
+    ['boolean oui', { fields: [fieldOf({ kind: 'boolean', type: 'boolean', textValue: 'oui', booleanValue: true })] }],
+    ['time 2026-02-30', { fields: [fieldOf({ kind: 'time', type: 'time', textValue: '2026-02-30' })] }],
+  ])('import/start: template with %s → refused', (_label, over) => {
+    expect(isMessage(withTemplate(choice(over)))).toBe(false);
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['number empty / 0', { kind: 'number', type: 'number', textValue: '', numberValue: 0 }],
+    ['number 320', { kind: 'number', type: 'number', textValue: '320', numberValue: 320 }],
+    ['number -4', { kind: 'number', type: 'number', textValue: '-4', numberValue: -4 }],
+    ['boolean true', { kind: 'boolean', type: 'boolean', textValue: 'true', booleanValue: true }],
+    ['boolean false', { kind: 'boolean', type: 'boolean', textValue: 'false', booleanValue: false }],
+    ['time 2026-11-01', { kind: 'time', type: 'time', textValue: '2026-11-01' }],
+    ['time empty', { kind: 'time', type: 'time', textValue: '' }],
+    ['unknown', { kind: 'unknown', type: 'color', textValue: 'rouge', numberValue: 3, booleanValue: true }],
+  ])('import/start: field %s → accepted', (_label, over) => {
+    expect(isMessage(withTemplate(choice({ fields: [fieldOf(over)] })))).toBe(true);
+  });
+
+  it('import/start: template without location → refused (FR-005); without template, null location accepted', () => {
+    expect(isMessage(withTemplate(choice(), { location: null }))).toBe(false);
+    const noLocation = { ...draft(), template: choice() } as Record<string, unknown>;
+    delete noLocation.location;
+    expect(isMessage({ type: 'import/start', instanceId: 'inst-a', tabId: 1, manualFiles: [], drafts: [noLocation] })).toBe(false);
+    expect(isMessage({ type: 'import/start', instanceId: 'inst-a', tabId: 1, manualFiles: [], drafts: [{ ...draft(), location: null }] })).toBe(true);
+  });
+
+  it('import/start: template null is refused (the key is absent without template)', () => {
+    expect(isMessage(withTemplate(null))).toBe(false);
+  });
+
+  it('import/start: tags accept noCreate true only', () => {
+    const tags = (t: unknown) => ({ type: 'import/start', instanceId: 'inst-a', tabId: 1, manualFiles: [], drafts: [{ ...draft(), tags: t }] });
+    expect(isMessage(tags([{ name: 'Livres', id: 'tag-1', noCreate: true }]))).toBe(true);
+    expect(isMessage(tags([{ name: 'Livres', id: 'tag-1', noCreate: false }]))).toBe(false);
+    expect(isMessage(tags([{ name: 'Livres', id: 'tag-1', noCreate: 'yes' }]))).toBe(false);
+  });
+
+  it('import/start: a warranty of origin template is accepted', () => {
+    const warranty = { origin: 'template', expires: null, lifetime: true, details: 'Garantie éditeur', durationMonths: null, edited: false };
+    expect(isMessage(withTemplate(choice(), { location: LOC, warranty }))).toBe(true);
+  });
+});

@@ -9,6 +9,7 @@ import type { ConfigView, InstanceView } from '@/shared/types';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { t } from '@/ui/i18n';
+import DefaultTemplateField from './DefaultTemplateField.vue';
 import InstanceForm from './InstanceForm.vue';
 
 /**
@@ -190,6 +191,8 @@ const isOpen = (i: InstanceView, kind: 'rename' | 'edit') => panel.value?.id ===
           </button>
           <button type="button" :disabled="busy === i.id" @click="remove(i)">{{ t('instances.delete') }}</button>
         </div>
+        <!-- Spec 018: default template of this instance only (FR-024). -->
+        <DefaultTemplateField :instance="i" :locked="!canTest" />
 
         <form v-if="isOpen(i, 'rename')" class="rename" @submit.prevent="saveName(i)" @keydown.esc="panel = null">
           <label :for="`${uid}-rename-${i.id}`">{{ t('instances.rename') }}</label>

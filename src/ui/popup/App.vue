@@ -253,6 +253,7 @@ function openOptions() {
             :pendings="pendings"
             :instances="instances"
             :running="running"
+            :batch-error="error"
             @updated="upsert"
             @abandoned="onAbandoned"
           />

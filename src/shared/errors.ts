@@ -39,6 +39,12 @@ export const ERROR_CODES = [
   'INSTANCE_NAME_INVALID',
   'INSTANCE_NAME_TAKEN',
   'INSTANCE_BUSY',
+  // Spec 018 (HomeBox item templates).
+  'TEMPLATES_UNAVAILABLE',
+  'TEMPLATES_UNSUPPORTED',
+  'TEMPLATE_NOT_FOUND',
+  'TEMPLATE_CHANGED',
+  'TEMPLATE_FIELDS_FAILED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

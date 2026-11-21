@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { ErrorCode } from '@/shared/errors';
 import type { DocumentRef, InstanceView, PendingImport, PhotoStep } from '@/shared/types';
 import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
@@ -7,7 +8,14 @@ import { instanceById } from '@/ui/instances';
 import RecoveryView from './RecoveryView.vue';
 
 /** `instances`: the configured instances; the links of an import use ITS instance (spec 016), never the default one. */
-const props = defineProps<{ pendings: PendingImport[]; instances: InstanceView[]; running: boolean }>();
+const props = defineProps<{
+  pendings: PendingImport[];
+  instances: InstanceView[];
+  running: boolean;
+  /** Error of the whole batch, shown by App.vue (spec 018: a template changed or deleted, nothing was created). */
+  batchError?: ErrorCode | null;
+}>();
+const templateBatchError = computed(() => props.batchError === 'TEMPLATE_NOT_FOUND' || props.batchError === 'TEMPLATE_CHANGED');
 const emit = defineEmits<{ updated: [pending: PendingImport]; abandoned: [id: string] }>();
 
 const STEP_LABELS = {
@@ -75,6 +83,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 
 <template>
   <section class="result">
+    <output v-if="templateBatchError" class="muted">{{ t('templates.backToSummary') }}</output>
     <p v-if="running && pendings.length === 0" role="status">{{ t('result.running') }}</p>
     <p v-for="name in importedTo" :key="name" class="imported-to">{{ t('result.importedTo', [name]) }}</p>
 
@@ -92,6 +101,8 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
             {{ t('result.stepDocument', [d.label, t(kindKeys(d).label), stepLabel(p.steps.attachments[d.id] ?? 'pending')]) }}
           </li>
           <li v-if="photoStepLabel(p)">{{ t('result.stepPhoto', [photoStepLabel(p) ?? '']) }}</li>
+          <!-- Spec 018: only for an import with a template (absent otherwise, invariant 1). -->
+          <li v-if="p.steps.templateFields">{{ t('result.stepTemplateFields', [stepLabel(p.steps.templateFields)]) }}</li>
         </ul>
       </template>
 
@@ -116,12 +127,20 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         <p v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</p>
         <p v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</p>
         <p v-if="tagsFailed(p)" class="photo-result">{{ tagsFailed(p) }}</p>
+        <p v-if="p.steps.templateFields" class="photo-result">{{ t('result.stepTemplateFields', [stepLabel(p.steps.templateFields)]) }}</p>
       </template>
     </article>
   </section>
 </template>
 
 <style scoped>
+.muted {
+  color: var(--muted);
+}
+output.muted {
+  display: block;
+  margin: 1em 0;
+}
 .imported-to {
   margin: 4px 0;
   font-size: 13px;

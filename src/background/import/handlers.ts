@@ -153,7 +153,10 @@ export function registerImportHandlers(): void {
       const current = await pendingStore.get(pendingId);
       return current ? ok(current) : fail('BAD_MESSAGE');
     }
-    const target = await retryTarget(await pendingStore.get(pendingId));
+    const stored = await pendingStore.get(pendingId);
+    // Spec 018 (FR-005): a product with a template is never retried without location; refused before any request.
+    if (location === null && stored?.draft.template) return fail('BAD_MESSAGE');
+    const target = await retryTarget(stored);
     if (!target.ok) return target;
     // Credentials checked BEFORE the import is declared active (review T070): an expired session is locked here,
     // even if the router's activity hook failed; no HomeBox call is made.
