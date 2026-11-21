@@ -11,7 +11,7 @@ import { compareVersions, isVersion } from '@/shared/version';
 
 /** `{ v: 1, version, dismissed }` in storage.local: survives a restart, kept when the configuration is deleted. */
 export const NOTICE_KEY = 'updateNotice';
-/** `{ v: 1, version }` in storage.session: the version Chrome has ready, forgotten at restart or reload. */
+/** `{ v: 1, version }` in storage.session: the version the browser has ready, forgotten at restart or reload. */
 export const READY_KEY = 'updateReady';
 
 interface UpdateNotice {

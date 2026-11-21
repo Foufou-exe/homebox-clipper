@@ -9,6 +9,9 @@ export default defineWebExtConfig({
   // Use another Chromium-based browser:
   // binaries: { chrome: '/usr/bin/brave' },
 
+  // Firefox (`bun run dev:firefox`), e.g. the Developer Edition:
+  // binaries: { firefox: 'firefoxdeveloperedition' },
+
   // Open a useful page directly:
   // startUrls: ['https://www.amazon.fr/your-orders/orders'],
 });

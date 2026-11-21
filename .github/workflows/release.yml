@@ -2,7 +2,8 @@ name: Release
 
 # Release Please keeps a "release PR" up to date on main (next version + CHANGELOG.md, computed from
 # the Conventional Commits). Merging that PR creates the vX.Y.Z tag and the GitHub release; the
-# `publish` job below then builds the Chrome archive and attaches it with its SHA-256.
+# `publish` job below then builds the Chrome and Firefox archives and the source archive (for
+# addons.mozilla.org, allowlist only) and attaches them, each with its SHA-256.
 #
 # Why the build lives in this same workflow: a tag created with GITHUB_TOKEN does not trigger other
 # workflows, so a separate `on: push: tags` workflow would never run. The old tag trigger is removed
@@ -102,38 +103,88 @@ jobs:
             echo "::error::CHANGELOG.md has no (or an empty) section for $VERSION."
             exit 1
           fi
-      - name: Build and check the archive
+      - name: Build and check the archives
         run: |
+          set -euo pipefail
           bun run zip
-          zip_file=".output/homebox-clipper-${VERSION}-chrome.zip"
-          if [ ! -f "$zip_file" ]; then
-            echo "::error::Expected archive not found: $zip_file"
+          archives=""
+          # One archive per browser, each with the version of the tag.
+          for b in chrome firefox; do
+            zip_file=".output/homebox-clipper-${VERSION}-${b}.zip"
+            if [ ! -f "$zip_file" ]; then
+              echo "::error::Expected ${b} archive not found: $zip_file"
+              ls -la .output
+              exit 1
+            fi
+            manifest_version="$(unzip -p "$zip_file" manifest.json | bun -e 'console.log(JSON.parse(await Bun.stdin.text()).version)')"
+            if [ "$manifest_version" != "$VERSION" ]; then
+              echo "::error::${b} manifest.json version ${manifest_version} != ${VERSION}"
+              exit 1
+            fi
+            archives="$archives $zip_file"
+          done
+          # Firefox: the fixed add-on id (data kept between loads, same add-on on addons.mozilla.org).
+          gecko_id="$(unzip -p ".output/homebox-clipper-${VERSION}-firefox.zip" manifest.json | bun -e 'console.log(JSON.parse(await Bun.stdin.text()).browser_specific_settings?.gecko?.id ?? "")')"
+          if [ "$gecko_id" != "homebox-clipper@foufou-exe.github.io" ]; then
+            echo "::error::firefox manifest.json gecko id '${gecko_id}' != 'homebox-clipper@foufou-exe.github.io'"
+            exit 1
+          fi
+          # Source archive (addons.mozilla.org): allowlist only (wxt.config.ts, zip.includeSources), checked
+          # again here. Only the entry names are listed, never their content. `homebox/` is anchored at the
+          # root: src/background/homebox/ is legitimate. Key files, `..` segments and absolute paths are refused.
+          sources=".output/homebox-clipper-${VERSION}-sources.zip"
+          if [ ! -f "$sources" ]; then
+            echo "::error::Expected source archive not found: $sources"
             ls -la .output
             exit 1
           fi
-          unzip -p "$zip_file" manifest.json | bun -e '
-            const m = JSON.parse(await Bun.stdin.text());
-            if (m.version !== process.env.VERSION) {
-              console.error(`manifest.json version ${m.version} != ${process.env.VERSION}`);
-              process.exit(1);
-            }'
-          (cd .output && sha256sum "$(basename "$zip_file")" > "$(basename "$zip_file").sha256")
+          # An unreadable archive fails here (set -e); an empty one fails explicitly.
+          names="$(unzip -Z1 "$sources")" || { echo "::error::Cannot list the source archive (unreadable or empty): $sources"; exit 1; }
+          if [ -z "$names" ]; then
+            echo "::error::The source archive is empty: $sources"
+            exit 1
+          fi
+          unexpected=0
+          while IFS= read -r entry; do
+            case "$entry" in
+              src/* | public/* | package.json | bun.lock | tsconfig.json | wxt.config.ts | LICENSE | README.md | docs/store/amo-build.md) allowed=1 ;;
+              *) allowed=0 ;;
+            esac
+            if [ "$allowed" -ne 1 ] || printf '%s\n' "$entry" | grep -Eq '^(homebox|tests|specs|coverage|node_modules|\.output)/|(^|/)raw/|\.pepper$|(^|/)\.env|\.(pem|key|p12|pfx)$|(^|/)\.\.(/|$)|^/'; then
+              echo "::error::Unexpected file in the source archive: $entry"
+              unexpected=1
+            fi
+          done <<< "$names"
+          if [ "$unexpected" -ne 0 ]; then
+            exit 1
+          fi
+          archives="$archives $sources"
+          # SHA-256 next to each archive, and in the release notes.
+          zip_files=""
+          for zip_file in $archives; do
+            (cd .output && sha256sum "$(basename "$zip_file")" > "$(basename "$zip_file").sha256")
+            zip_files="$zip_files $zip_file ${zip_file}.sha256"
+          done
           {
             cat "$RUNNER_TEMP/notes.md"
-            printf '\n## Checksum\n\nSHA-256 of the archive:\n\n```\n'
-            cat "${zip_file}.sha256"
-            printf '```\n'
+            printf '\n## Checksums\n\nSHA-256 of the archives:\n\n```\n'
+            for zip_file in $archives; do
+              cat "${zip_file}.sha256"
+            done
+            printf '```\n\n'
+            printf 'The Firefox archive is not signed by Mozilla: use it for temporary loading (about:debugging); install from addons.mozilla.org.\n'
           } > "$RUNNER_TEMP/release-notes.md"
-          echo "ZIP_FILE=$zip_file" >> "$GITHUB_ENV"
+          echo "ZIP_FILES=${zip_files# }" >> "$GITHUB_ENV"
       # Release Please already created the release (tag + notes); attach the files and complete the
-      # notes with the checksum. If the release does not exist (manual run), create it.
-      - name: Attach the archive to the GitHub release
+      # notes with the checksums. If the release does not exist (manual run), create it.
+      - name: Attach the archives to the GitHub release
         run: |
+          read -r -a files <<< "$ZIP_FILES"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" "$ZIP_FILE" "${ZIP_FILE}.sha256" --clobber
+            gh release upload "$TAG" "${files[@]}" --clobber
             gh release edit "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           else
-            gh release create "$TAG" "$ZIP_FILE" "${ZIP_FILE}.sha256" \
+            gh release create "$TAG" "${files[@]}" \
               --title "$TAG" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
               --verify-tag \

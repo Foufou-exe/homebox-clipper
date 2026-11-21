@@ -74,7 +74,7 @@ cat <<'MSG'
 Ready. Next:
   bun run homebox:up     start HomeBox on http://localhost:3100 (guide: docs/local-homebox.md)
   bun run dev            develop with automatic reload
-  bun run build          build → .output/chrome-mv3/ (to load in chrome://extensions)
+  bun run build          build → .output/chrome-mv3/ and .output/firefox-mv3/
   bun run check:config   validate the settings files (JSON, YAML, Bun versions, issue templates)
   bun run ci             all checks (including check:config), before every push
 Environment maintenance: https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment
