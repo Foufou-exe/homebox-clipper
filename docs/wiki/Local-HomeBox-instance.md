@@ -89,7 +89,7 @@ Choose the address according to where the browser runs:
 | On the same machine as Docker | `http://localhost:3100` |
 | On another machine of the network (homelab) | `http://<machine-IP>:3100` (e.g. `http://192.0.2.10:3100`) |
 
-Both work with the single build (`bun run build` → `.output/chrome-mv3/`, or `bun run dev`). HTTP is
+Both work with the single build (`bun run build` → `.output/chrome-mv3/` or `.output/firefox-mv3/`, or `bun run dev` / `bun run dev:firefox`). HTTP is
 accepted for local network addresses and refused for public addresses (see the
 [Configuration](Configuration.md) page).
 
@@ -98,7 +98,9 @@ Then:
 1. `chrome://extensions` → *Developer mode* → *Load unpacked* → the build folder. If the extension is
    already loaded, click ↻ after each build.
 2. Settings page: address, API key, passphrase (at least 10 characters) → **Test and save** → accept the
-   access requested by Chrome.
+   access requested by the browser.
+   In Firefox: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on…* → the `.zip` or the
+   `manifest.json` of `.output/firefox-mv3/` (see [Installation](Installation.md)).
 3. The badge must show `● HomeBox: http://… v0.27.0`.
 
 > [!TIP]

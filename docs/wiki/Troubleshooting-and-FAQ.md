@@ -11,7 +11,7 @@ same. Messages are grouped by when they appear.
 |---------------|------|----------------|-----|
 | The HomeBox address is invalid or does not point to a HomeBox instance. | `INVALID_URL` | Mistyped address, with a username/password or a protocol other than http/https; or the address does not answer like HomeBox (HTTP error other than 401/403 during the connection test). | Check the address. In a tab, `<address>/api/v1/status` must return JSON. |
 | An HTTPS address is required. | `INSECURE_URL` | The address uses `http://` and points to a public host. | Switch to HTTPS (reverse proxy), or use the instance's local address (private IP, name ending in `.lan`...). See [Configuration](Configuration.md). |
-| Access to your HomeBox instance was denied. | `PERMISSION_DENIED` | You refused Chrome's request, or the permission was removed. | Click "Test and save" again and accept. With several instances, use **Request access again** on the card of that instance. |
+| Access to your HomeBox instance was denied. | `PERMISSION_DENIED` | You refused the browser's request, or the permission was removed (in Firefox: `about:addons` › the extension › **Permissions**). | Click "Test and save" again and accept. With several instances, use **Request access again** on the card of that instance. |
 | The passphrase must be at least 10 characters long. | `WEAK_PASSPHRASE` | Passphrase too short. | Choose one of at least 10 characters. |
 | This HomeBox instance no longer exists. Choose another one. | `INSTANCE_NOT_FOUND` | The instance was deleted (in another settings tab) after the summary was opened, or an interrupted import belongs to an instance that no longer exists. | Choose another instance in the summary. Nothing was sent. |
 | You already have the maximum number of HomeBox instances. | `INSTANCE_LIMIT` | 10 instances are already set up. | Delete an instance you no longer use, then add the new one. |
@@ -154,8 +154,27 @@ choose the target in the summary. See [Configuration](Configuration.md#several-h
 **All my API keys are refused after HomeBox restarted.** The server secret (pepper) changed: put back the
 old one, or recreate the keys. See [Local-HomeBox-instance](Local-HomeBox-instance.md).
 
-**Does it work on Firefox?** Not yet: Chrome and Chromium only. A port is planned (browser calls go
-through a single abstraction layer, see [Architecture](Architecture.md)).
+**Does it work on Firefox?** Yes: Firefox 140 or later on desktop (Firefox for Android is not supported). See
+[Installation](Installation.md#load-the-extension-in-firefox).
+
+- **Private windows.** Firefox does not run extensions in private windows by default: allow it in
+  `about:addons` › the extension › **Run in Private Windows**.
+- **Access removed in `about:addons`.** If you remove the access to your instance in `about:addons` ›
+  the extension › **Permissions**, the extension shows the "access denied" message and **Request access again**:
+  click it and accept.
+- **No "Update now" button after loading from GitHub.** A temporarily loaded add-on is not updated by the
+  browser (see below).
+- **An invoice cannot be downloaded.** The existing messages apply (`INVOICE_UNAVAILABLE`, `DOWNLOAD_REFUSED`,
+  see the table above): sign in to Amazon again and retry, or attach the PDF by hand.
+
+**Differences between Firefox and Chrome.**
+
+- The archive from GitHub (`-firefox.zip`) is not signed by Mozilla: it can only be loaded temporarily
+  (`about:debugging`) and is removed when Firefox restarts. A durable installation comes from Firefox Add-ons.
+- The **Update now** button appears only for an installation from Firefox Add-ons, not for a temporary loading.
+- Private windows must be allowed by the user.
+- Firefox for Android is not supported.
+- The same permissions and the same behaviour otherwise: one build per browser, no extra access.
 
 **My merchant's site is not supported.** See [Supported-merchants](Supported-merchants.md).
 

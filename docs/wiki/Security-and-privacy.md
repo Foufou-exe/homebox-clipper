@@ -32,7 +32,7 @@ entry, which works even while locked) and its interrupted imports.
 
 | Threat | Protection |
 |--------|------------|
-| A file of the Chrome profile is read (disk copy, backup) | The key is stored only **encrypted** (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations, random salt and IV) in `storage.local`. The import history is encrypted too (see [Import history](#import-history)): only the number of entries and their approximate size can be seen. |
+| A file of the browser profile is read (disk copy, backup) | The key is stored only **encrypted** (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations, random salt and IV) in `storage.local`. The import history is encrypted too (see [Import history](#import-history)): only the number of entries and their approximate size can be seen. |
 | Someone edits the stored address to divert the key to another server | The instance address is used as **associated data** for the encryption: changing it without the passphrase makes decryption impossible. |
 | A web page (Amazon) tries to read the key | Only the **service worker** uses the key. The script injected into the page has access to neither storage nor the settings, and no message addressed to it contains the address or the key. |
 | A page script tries to call the service worker | Messages are **typed and validated** on reception; those touching settings, unlocking, detection and imports are refused unless they come from an extension page (popup, options). |
@@ -61,7 +61,7 @@ entry, which works even while locked) and its interrupted imports.
 | Automatic lock setting (`lockSettings`: `{ v: 1, policy }`, a choice, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
 | Last time the extension was used while unlocked (`homeboxActivity`: `{ at }`, a technical timestamp, never shown or logged) | `storage.session` (memory) | Written with the decrypted key, erased with it (lock, browser close, "Delete settings") |
 | Version of the last update notice (`updateNotice`: version and whether it was closed) | `storage.local` | Replaced at the next update; kept when you delete the settings |
-| Version ready to install, as signalled by Chrome (`updateReady`) | `storage.session` (memory) | Until the browser closes or the extension restarts |
+| Version ready to install, as signalled by the browser (`updateReady`) | `storage.session` (memory) | Until the browser closes or the extension restarts |
 | Default-warranty setting (`warrantySettings`: on/off and a duration in years, in clear: a preference, no personal data) | `storage.local` | Until uninstallation (kept when you delete the settings) |
 | Warranty of an in-progress import (expiry date, details) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs |
 | Automatic-tag setting (`tagSettings`: store-name option and rules "contains … → tag …", in clear: preferences, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
@@ -103,6 +103,14 @@ The extension keeps a short history of the imports you confirmed, **only in this
 | `activeTab` | Read the Amazon tab **only when you open the extension**. No permanent access to Amazon. |
 | `scripting` | Inject the detection code into that tab, at that moment. |
 | Access to your instances (**optional**, `https://*/*` and `http://*/*`) | Requested at runtime for **the exact origin** of each instance you configure, removed as soon as no instance uses it (deleting an instance, changing its address, deleting the settings). The wildcard is never granted wholesale; the restriction of HTTP to the local network is enforced by the code. |
+
+In Firefox, the access to an instance can be removed at any time in `about:addons` › the extension ›
+**Permissions**, with the same effect as in Chrome: the extension can no longer reach it until you grant it
+again (**Request access again**). The Firefox manifest also declares, as Firefox requires, its data collection
+category: `websiteContent` (required), meaning that the Amazon order page content and the invoice go only to
+your own HomeBox instance after your confirmation, and nowhere else (see
+[PRIVACY.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/PRIVACY.md)). The permissions are the same
+in both browsers.
 
 The manifest declares neither static `host_permissions` nor static content scripts, and its content
 security policy forbids `eval` and remote code. `bun run test:build` checks these points on the
