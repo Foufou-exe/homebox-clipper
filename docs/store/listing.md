@@ -1,5 +1,7 @@
 # Chrome Web Store: listing texts
 
+Firefox: see [amo-listing.md](./amo-listing.md)
+
 Copy-paste material for the first manual submission. English is the default language; French follows
 in the same sections. Source of truth for data handling: [PRIVACY.md](../../PRIVACY.md).
 

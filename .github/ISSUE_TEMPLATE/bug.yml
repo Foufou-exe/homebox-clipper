@@ -14,7 +14,7 @@ body:
     id: extension-version
     attributes:
       label: Extension version
-      description: Visible in `chrome://extensions`.
+      description: Visible in `chrome://extensions` or `about:addons`.
       placeholder: "0.2.0"
     validations:
       required: true
@@ -22,8 +22,8 @@ body:
     id: browser
     attributes:
       label: Browser and version
-      description: Name and version (see `chrome://version`).
-      placeholder: "Chrome 140, Brave 1.80, Edge 140…"
+      description: Name and version (see `chrome://version` or `about:support`).
+      placeholder: "Chrome 140, Firefox 153, Brave 1.80…"
     validations:
       required: true
   - type: input

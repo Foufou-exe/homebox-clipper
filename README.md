@@ -15,6 +15,7 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
 ![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supported-success)
+![Firefox 140+](https://img.shields.io/badge/Firefox-140%2B-FF7139)
 ![Status: beta](https://img.shields.io/badge/status-beta-orange)
 
 </div>
@@ -42,7 +43,7 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **Document types**: attached PDFs can be typed as manual, warranty, delivery note, invoice or order document, and are filed in the matching section of HomeBox.
 - **Warranty**: the item's warranty (expiry date, lifetime, details) is proposed in the summary and sent to HomeBox: the legal guarantee where the duration is verified and the item is sold by the store itself, or the warranty shown on the order page. Indicative value, no legal force.
 - **Automatic lock**: choose when the passphrase is asked again (browser close by default, after 15 minutes, 1 hour or 4 hours of inactivity, or at every opening; no "never" option).
-- **Update notice and version**: a short notice after each update, an "Update now" button when Chrome has one ready, and the installed version shown next to the GitHub link; no request is made to check for updates.
+- **Update notice and version**: a short notice after each update, an "Update now" button when the browser has one ready, and the installed version shown next to the GitHub link; no request is made to check for updates.
 - **Import history**: your latest imports with their result and a link to the item, kept only in your browser and encrypted with your passphrase (200 entries, 12 months; can be cleared or turned off).
 - **Product photo** attached to the item as its main image (can be unticked per product).
 - **Several HomeBox instances** (up to 10, one passphrase for all): choose the target in the summary; each instance keeps its own encrypted key and exact-origin permission.
@@ -70,7 +71,7 @@ The up-to-date list (supported, partial, planned, requested) is in
 ## Installation
 
 The extension is not yet published on the Chrome Web Store: install it from a release, or build it
-yourself, then load it in developer mode.
+yourself, then load it in developer mode. For Firefox, see [Firefox](#firefox) below.
 
 ### From a release (no build)
 
@@ -80,9 +81,23 @@ yourself, then load it in developer mode.
 2. Unzip it into a folder you will keep (Chrome reads the extension from there).
 3. In `chrome://extensions`: enable **Developer mode**, click **Load unpacked** and select that folder.
 
+### Firefox
+
+Requires **Firefox 140 or later** on desktop (Firefox for Android is not supported).
+
+- **From Firefox Add-ons (addons.mozilla.org)**: coming soon; the link will be added here once the add-on is
+  published.
+- **Temporary loading, from a release**: download `homebox-clipper-<version>-firefox.zip` from the
+  [latest release](https://github.com/Foufou-exe/homebox-clipper/releases/latest) (check it with the `.sha256`
+  file), then open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and select the
+  `.zip` file (or the `manifest.json` of the unzipped folder). The archive is **not signed by Mozilla**, so
+  Firefox removes it when it restarts; a durable installation comes from Firefox Add-ons.
+- **From source**: `bun run build` produces `.output/firefox-mv3/` next to `.output/chrome-mv3/`; load that
+  folder the same way (`bun run dev:firefox` starts a development Firefox).
+
 ### From source
 
-Prerequisites: Chrome or Chromium, [Bun](https://bun.sh) and
+Prerequisites: Chrome or Chromium (or Firefox 140+), [Bun](https://bun.sh) and
 [Node.js](https://nodejs.org) LTS, and a [HomeBox](https://github.com/sysadminsmedia/homebox)
 instance (tested with **v0.27.0**).
 
@@ -90,7 +105,7 @@ instance (tested with **v0.27.0**).
 git clone https://github.com/Foufou-exe/homebox-clipper.git
 cd homebox-clipper
 bun install
-bun run build      # → .output/chrome-mv3/
+bun run build      # → .output/chrome-mv3/ and .output/firefox-mv3/
 ```
 
 Then in `chrome://extensions`: enable **Developer mode**, click **Load unpacked** and select

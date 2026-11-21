@@ -20,7 +20,7 @@ only once.
 3. **Passphrase** (at least **10 characters**, entered twice): it encrypts the API key on disk. Remember
    it: it cannot be recovered.
 4. Click **Test and save**.
-5. Chrome asks for permission to access **this address only**: accept.
+5. The browser asks for permission to access **this address only**: accept.
 
 The extension checks that the address answers like a HomeBox instance (`GET /api/v1/status`) and that the
 key is accepted (`GET /api/v1/users/self`), then shows the connected instance and its version. The result
@@ -65,20 +65,20 @@ button.
 
 - **Add an instance**: name (optional; empty: the host of the address), address, API key and passphrase. The
   passphrase is asked at every add, even when the extension is unlocked: it is your current passphrase (one
-  passphrase protects every key). Chrome asks for access to **this address only**. The address must not be
+  passphrase protects every key). The browser asks for access to **this address only**. The address must not be
   already configured; the button is disabled once 10 instances are set up. The instance is saved even if the
   connection test fails, like the first configuration.
 - From two instances on, each instance has its card (name, address, masked key, state of the last test) with:
   - **Test the connection**: only this instance is contacted (the extension must be unlocked);
   - **Rename**: no passphrase needed; 1 to 50 characters, not already used by another instance (case ignored);
-  - **Change the address or key**: same rules as below for a single instance; a new origin is asked to Chrome,
+  - **Change the address or key**: same rules as below for a single instance; a new origin is asked to the browser,
     the access to the former one is removed once no instance uses it;
   - **Delete this instance** (confirmation naming it): erases its key, its last location, its import history
     entries and its interrupted imports, and removes its access if no other instance uses the same origin. It is
     refused while an import to this instance is running. Deleting the last instance is the same as **Delete
     settings**;
-  - **Request access again**, shown when Chrome no longer grants access to this instance (permission removed
-    from the browser settings).
+  - **Request access again**, shown when the browser no longer grants access to this instance (permission removed
+    from the browser settings, for example in `about:addons` › the extension › **Permissions** in Firefox).
 - A key shown as **Key to re-enter** could not be decrypted with the right passphrase (damaged data): change
   the key of that instance; the other instances keep working.
 - **Delete all settings** (from two instances on) erases every instance, as **Delete settings** does with one.

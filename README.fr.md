@@ -15,6 +15,7 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
 ![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supporté-success)
+![Firefox 140+](https://img.shields.io/badge/Firefox-140%2B-FF7139)
 ![Statut : bêta](https://img.shields.io/badge/statut-b%C3%AAta-orange)
 
 </div>
@@ -44,7 +45,7 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
 - **Types de documents** : les PDF joints peuvent être typés manuel, garantie, bon de livraison, facture ou bon de commande, et rangés dans la bonne rubrique de HomeBox.
 - **Garantie** : la garantie de l'objet (date d'expiration, à vie, détails) est proposée au récapitulatif et envoyée à HomeBox : la garantie légale quand sa durée est vérifiée et que l'objet est vendu par la boutique elle-même, ou la garantie indiquée sur la page de commande. Valeur indicative, sans valeur juridique.
 - **Verrouillage automatique** : choisissez quand la phrase de passe est redemandée (à la fermeture du navigateur par défaut, après 15 minutes, 1 heure ou 4 heures d'inactivité, ou à chaque ouverture ; pas d'option « jamais »).
-- **Annonce de mise à jour et version** : une courte annonce après chaque mise à jour, un bouton « Mettre à jour maintenant » quand Chrome en a une prête, et le numéro de version affiché à côté du lien GitHub ; aucune requête n'est faite pour vérifier les mises à jour.
+- **Annonce de mise à jour et version** : une courte annonce après chaque mise à jour, un bouton « Mettre à jour maintenant » quand le navigateur en a une prête, et le numéro de version affiché à côté du lien GitHub ; aucune requête n'est faite pour vérifier les mises à jour.
 - **Historique des imports** : vos derniers imports avec leur résultat et un lien vers l'objet, conservés uniquement dans votre navigateur et chiffrés avec votre phrase de passe (200 entrées, 12 mois ; effaçable ou désactivable).
 - **Photo du produit** jointe à l'objet comme image principale (décochable par produit).
 - **Plusieurs instances HomeBox** (jusqu'à 10, une seule phrase de passe) : choisissez la cible au récapitulatif ; chaque instance garde sa propre clé chiffrée et sa permission d'origine exacte.
@@ -73,7 +74,7 @@ La liste à jour (pris en charge, partiels, prévus, demandés) est dans
 ## Installation
 
 L'extension n'est pas encore publiée sur le Chrome Web Store : installez-la depuis une release, ou
-compilez-la vous-même, puis chargez-la en mode développeur.
+compilez-la vous-même, puis chargez-la en mode développeur. Pour Firefox, voir [Firefox](#firefox) ci-dessous.
 
 ### Depuis une release (sans compilation)
 
@@ -84,9 +85,24 @@ compilez-la vous-même, puis chargez-la en mode développeur.
 3. Dans `chrome://extensions` : activez le **Mode développeur**, cliquez sur **Charger l'extension non
    empaquetée** et sélectionnez ce dossier.
 
+### Firefox
+
+Nécessite **Firefox 140 ou ultérieur** sur ordinateur (Firefox pour Android n'est pas pris en charge).
+
+- **Depuis Firefox Add-ons (addons.mozilla.org)** : bientôt ; le lien sera ajouté ici une fois l'extension
+  publiée.
+- **Chargement temporaire, depuis une release** : téléchargez `homebox-clipper-<version>-firefox.zip` depuis
+  la [dernière release](https://github.com/Foufou-exe/homebox-clipper/releases/latest) (vérifiez-le avec le
+  fichier `.sha256`), puis ouvrez `about:debugging#/runtime/this-firefox`, cliquez sur **Charger un module
+  complémentaire temporaire…** (*Load Temporary Add-on…* en anglais) et sélectionnez le fichier `.zip` (ou le
+  `manifest.json` du dossier décompressé). L'archive n'est **pas signée par Mozilla** : Firefox la retire au
+  redémarrage ; une installation durable passe par Firefox Add-ons.
+- **Depuis les sources** : `bun run build` produit `.output/firefox-mv3/` à côté de `.output/chrome-mv3/` ;
+  chargez ce dossier de la même façon (`bun run dev:firefox` lance un Firefox de développement).
+
 ### Depuis les sources
 
-Prérequis : Chrome ou Chromium, [Bun](https://bun.sh) et
+Prérequis : Chrome ou Chromium (ou Firefox 140+), [Bun](https://bun.sh) et
 [Node.js](https://nodejs.org) LTS, et une instance
 [HomeBox](https://github.com/sysadminsmedia/homebox) (testé avec **v0.27.0**).
 
@@ -94,7 +110,7 @@ Prérequis : Chrome ou Chromium, [Bun](https://bun.sh) et
 git clone https://github.com/Foufou-exe/homebox-clipper.git
 cd homebox-clipper
 bun install
-bun run build      # → .output/chrome-mv3/
+bun run build      # → .output/chrome-mv3/ et .output/firefox-mv3/
 ```
 
 Puis dans `chrome://extensions` : activez le **Mode développeur**, cliquez sur **Charger

@@ -22,17 +22,23 @@ version and the changelog are computed from them.
    1. runs `bun run ci` (all checks and the build);
    2. fails if the tag is not exactly `v` + the `package.json` version;
    3. fails if `CHANGELOG.md` has no non-empty section for that version (`bun run release:notes`);
-   4. builds the archive with `bun run zip` and checks that it exists under the expected name and that its
-      `manifest.json` carries the same version;
-   5. attaches `homebox-clipper-X.Y.Z-chrome.zip` and its `.sha256` to the release and completes the notes
-      with the SHA-256 of the archive;
+   4. builds the archives with `bun run zip` and checks that they exist under the expected names, that the
+      `manifest.json` of the Chrome and Firefox archives carries the same version, that the Firefox one has the
+      fixed add-on id, and that the source archive contains only allowed files (a `homebox/`, `tests/`,
+      `specs/`, `raw/`, `.env*` or `*.pepper` entry fails the release);
+   5. attaches **three archives**, each with its `.sha256`, to the release: `homebox-clipper-X.Y.Z-chrome.zip`,
+      `homebox-clipper-X.Y.Z-firefox.zip` and `homebox-clipper-X.Y.Z-sources.zip` (the source archive is for
+      the addons.mozilla.org reviewers), and completes the notes with a `## Checksums` section (the SHA-256
+      of the three archives);
 4. then the `chrome-web-store` job downloads that archive from the release, uploads it to the Chrome Web
    Store and submits it for review (see [Chrome Web Store](#chrome-web-store)). It is skipped with a
    notice if its secrets are not configured.
 
 The build is in the same workflow because a tag created with the default `GITHUB_TOKEN` does not trigger
 other workflows. The `publish` token is limited to `contents: write` (plus `pull-requests: write` for the
-bot); the only other secrets are the five of the `chrome-web-store` environment, used by that job alone. Pushing a tag by hand no longer releases anything: it would bypass the changelog.
+bot); the only other secrets are the five of the `chrome-web-store` environment, used by that job alone.
+There is no job and no secret for addons.mozilla.org: the Firefox submission is manual (see
+[addons.mozilla.org](#addonsmozillaorg)). Pushing a tag by hand no longer releases anything: it would bypass the changelog.
 
 ## Chrome Web Store
 
@@ -113,6 +119,37 @@ existing tag, for example `v0.3.0`. The `publish` job rebuilds and re-attaches t
 one it already has: if that version was already uploaded successfully, only the review submission remains,
 which you can do from the dashboard. You can follow the review status in the dashboard.
 
+## addons.mozilla.org
+
+The Firefox add-on is submitted **by hand** to addons.mozilla.org (AMO); nothing is automated and no AMO secret
+is stored in the repository. The first version available for Firefox is 0.8.0. The texts to paste are in
+`docs/store/amo-listing.md` (listing in English and French, permission justifications, data collection
+declaration, notes to the reviewer, checklist); the policy is `PRIVACY.md` / `PRIVACY.fr.md`.
+
+### First submission
+
+1. Sign in to the [Firefox Add-on Developer Hub](https://addons.mozilla.org/developers/) with a Mozilla
+   account (turn on two-step authentication) and accept the distribution agreement.
+2. Download `homebox-clipper-X.Y.Z-firefox.zip` and `homebox-clipper-X.Y.Z-sources.zip` from the same GitHub
+   release, and check them with `sha256sum -c` against their `.sha256` files.
+3. **Submit a New Add-on**, distribution **On this site** (listed), and upload the Firefox archive. The
+   validator must report no blocking error (read the warnings).
+4. Platforms: keep **Firefox** only and **untick "Firefox for Android"**: Android is not supported.
+5. Source code: answer that the code is minified, attach the `-sources.zip` archive and point to
+   `docs/store/amo-build.md` (rebuild with Bun 1.4.4: the result has the same SHA-256 as the submitted file).
+6. Fill in the listing from `docs/store/amo-listing.md` (name, summary, description in English and French,
+   categories, support links, privacy policy), the data collection declaration (it must match the manifest:
+   `websiteContent`, required) and the notes to the reviewer (a demo HomeBox with fictitious data, no real
+   account or key).
+7. Submit. Mozilla reviews the add-on (this can take from hours to days) and publishes it.
+
+### Next versions
+
+For each release: upload the new `-firefox.zip` of the release as a new version of the same add-on, attach
+the `-sources.zip` of that release again, keep "Firefox for Android" unticked, and update the listing only if
+it changed. A later automation (a dedicated `amo` environment, on the model of `chrome-web-store`) is not
+provided.
+
 ## Commit types and the changelog
 
 | Type | Version bump (below 1.0.0) | Changelog section |
@@ -142,9 +179,12 @@ them.
 ## After the release
 
 - The `publish` job opens an announcement in the Discussions `announcements` category (skipped if the release already has a discussion; a warning, never a failure, if the category is missing). See [Moderating-Discussions](Moderating-Discussions.md).
-- Open the release page and check the notes, the two attached files and the checksum.
+- Open the release page and check the notes, the three archives with their `.sha256` files and the Checksums section.
 - Check that the archive loads in Chrome: download it, verify with `sha256sum -c`, unzip it, then in
   `chrome://extensions` enable developer mode and use **Load unpacked** on the unzipped folder.
+- Check that the Firefox archive loads: verify it with `sha256sum -c`, then in
+  `about:debugging#/runtime/this-firefox` use **Load Temporary Add-on…** on the `-firefox.zip` file.
+- Documentation of a feature is merged **before** the release pull request, so the release ships with it.
 - If the wiki sources changed, republish it: see the next section.
 
 ## Publishing the wiki

@@ -13,6 +13,7 @@ mise install          # optional: installs Bun and Node at the project's version
 bun run setup         # dependencies, HomeBox instance .env, pre-push hook (optional)
 bun run homebox:up    # HomeBox on http://localhost:3100
 bun run dev           # opens a development Chrome with the extension
+bun run dev:firefox   # same with Firefox (Firefox must be installed)
 ```
 
 **Option B: development container (VS Code / GitHub Codespaces)**
@@ -20,8 +21,8 @@ bun run dev           # opens a development Chrome with the extension
 Open the repository in VS Code, then *Reopen in Container*. The container installs Bun, the
 dependencies and the `.env`, and has its own Docker for HomeBox (port 3100 forwarded to your
 machine). There is no browser in the container: run `bun run build` (or `bun run dev`, which
-rebuilds continuously) and load the `.output/chrome-mv3/` folder (or `.output/chrome-mv3-dev/`)
-in the Chrome on your machine.
+rebuilds continuously) and load the `.output/chrome-mv3/` folder (or `.output/chrome-mv3-dev/`), or `.output/firefox-mv3/` for Firefox,
+in the browser on your machine.
 
 Then:
 
@@ -37,6 +38,7 @@ Then:
 | [Node.js](https://nodejs.org) | LTS | used by Vite / WXT |
 | Docker + Compose | recent | local HomeBox instance |
 | Chrome or Chromium | recent | to load the extension |
+| Firefox | 140 or later (optional) | to test the Firefox build (`bun run dev:firefox`, `about:debugging`) |
 | `rsvg-convert` (librsvg) | optional | only for `bun run icons` |
 
 [mise](https://mise.jdx.dev) installs Bun and Node at the right versions thanks to `mise.toml`.
@@ -55,7 +57,8 @@ Every command is run with `bun run <script>`.
 |----------|------|
 | `bun run setup` | Prepares your machine (safe to re-run) |
 | `bun run dev` | Dev mode with automatic reload |
-| `bun run build` | Build → `.output/chrome-mv3/` |
+| `bun run dev:firefox` | Dev mode for Firefox with automatic reload |
+| `bun run build` | Build → `.output/chrome-mv3/` and `.output/firefox-mv3/` |
 | `bun run zip` | Archive ready to publish |
 | `bun run test` | Unit and contract tests (Vitest, **not** `bun test`) |
 | `bun run test:watch` | Tests in watch mode |
@@ -153,8 +156,9 @@ How a release happens:
    `chore: release X.Y.Z` (new version in `package.json`, new section in `CHANGELOG.md`).
 2. The maintainer reviews it and merges it when a release is wanted. This creates the `vX.Y.Z` tag
    and the GitHub release.
-3. The same workflow (`.github/workflows/release.yml`) then builds the Chrome archive and attaches
-   `homebox-clipper-X.Y.Z-chrome.zip` and its `.sha256` to the release.
+3. The same workflow (`.github/workflows/release.yml`) then builds the archives and attaches
+   `homebox-clipper-X.Y.Z-chrome.zip`, `homebox-clipper-X.Y.Z-firefox.zip` and
+   `homebox-clipper-X.Y.Z-sources.zip`, each with its `.sha256`, to the release.
 4. Last, the `chrome-web-store` job uploads that archive to the Chrome Web Store and submits it for
    review (skipped if the environment secrets are not set; see the wiki page "Releasing").
 

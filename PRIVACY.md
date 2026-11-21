@@ -2,7 +2,7 @@
 
 # Privacy policy
 
-**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **20 November 2026**
+**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **21 November 2026**
 
 In short: the extension has **no server, no account, no analytics and no telemetry**. The data it
 handles goes from your browser to **your own** HomeBox instance, only when you click "Add to HomeBox",
@@ -33,7 +33,7 @@ control**; you are the controller of that data. Project page:
 | Theme preference | You | Display | Stored locally |
 | Automatic lock setting (`lockSettings`: when the browser closes, after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened) | You | Decide when the passphrase is asked again | Stored locally; a choice only, no secret |
 | Last time the extension was used while unlocked (`homeboxActivity`, a technical timestamp) | The extension | Apply the inactivity lock | Browser memory only (`storage.session`), never on disk; erased when the extension locks or the browser closes; never shown or logged |
-| Version numbers: the version announced after an update (`updateNotice`) and the version Chrome has ready to install (`updateReady`) | The extension and the browser | Show "Updated to vX" and the "Update now" button | `updateNotice` stored locally; `updateReady` in browser memory only (`storage.session`) |
+| Version numbers: the version announced after an update (`updateNotice`) and the version the browser has ready to install (`updateReady`) | The extension and the browser | Show "Updated to vX" and the "Update now" button | `updateNotice` stored locally; `updateReady` in browser memory only (`storage.session`) |
 | Import history: product name, store, order number, import and purchase dates, HomeBox instance address, item identifier, result (complete, partial, failed) and what is missing (invoice, manual, warranty, delivery note, documents, photo, purchase details) | Each import you confirm | Let you find an imported item, open it in HomeBox and spot an incomplete import | Stored locally, **encrypted with your passphrase**; never sent anywhere (on by default, can be turned off) |
 
 The extension does **not** read your delivery address, your payment method, your browsing history or
@@ -73,7 +73,7 @@ settings** with a single one) erases every instance and what is attached to them
 - **In browser memory** (`storage.session`, cleared when the browser closes or the extension is
   locked, reloaded, updated or disabled): the decrypted API keys of the instances while the extension is unlocked, and
   the data of an import in progress so that it can be resumed after an error (without file contents),
-  the time of the last use of the extension (`homeboxActivity`) and the version Chrome has ready to install
+  the time of the last use of the extension (`homeboxActivity`) and the version the browser has ready to install
   (`updateReady`).
 - **On your HomeBox instance**: the items, invoices and photos you choose to import. Its retention and
   security are your responsibility.
@@ -115,8 +115,11 @@ used after the deadline, before the key can be used. The setting itself contains
 The extension makes **no network request** to check for updates: it only uses the signal the browser
 gives by itself when an update has been installed or is ready. After an update, a short notice
 ("Updated to vX") links to the release notes on GitHub; that page is opened by the browser **only if you
-click** the link. When Chrome has an update ready, an **Update now** button restarts the extension (the
-passphrase is then asked again); it is disabled while an import is running or can still be resumed.
+click** the link. When the browser (Chrome or Firefox) has an update ready, an **Update now** button restarts the extension (the
+passphrase is then asked again); it is disabled while an import is running or can still be resumed. Updates of
+an installation from the Chrome Web Store come from that store, those of an installation from Firefox Add-ons
+(addons.mozilla.org) come from Firefox Add-ons; the extension itself never contacts either of them. A Firefox
+installation loaded temporarily from a GitHub archive receives no update from the browser.
 
 ## Logs
 
@@ -139,7 +142,8 @@ a tag name, the text of a tag rule or the API key.
   "Several HomeBox instances" above). **Settings → Delete settings** (**Delete all settings** with several
   instances) erases every instance (addresses, names, encrypted keys), the in-progress imports, the last
   locations, the last instance used, the import history, and removes the access permission granted to each
-  instance. The automatic lock setting, the last update notice and the automatic-tag setting (`tagSettings`, no personal data) are kept. Uninstalling the extension removes all its browser storage.
+  instance. The automatic lock setting, the last update notice and the automatic-tag setting (`tagSettings`, no personal data) are kept. Uninstalling the extension removes all its browser storage: in Chrome from `chrome://extensions`, in Firefox
+  from `about:addons` (**Remove**).
 - You can also revoke the API key in HomeBox at any time.
 - Items already imported belong to your HomeBox instance: delete them there.
 - The author holds no copy of your data, so there is nothing to erase on their side.
@@ -158,6 +162,30 @@ The use of information received by homebox-clipper complies with the Chrome Web 
 **including the Limited Use requirements**. Data is used only to provide the single purpose of the
 extension (importing a purchase into your HomeBox instance), is not transferred to third parties, is
 not used for advertising or credit assessment, and is not read by humans.
+
+## Firefox Add-ons (addons.mozilla.org)
+
+The extension is also built for Firefox (version 140 or later, desktop) and can be published on Firefox
+Add-ons (addons.mozilla.org). **The commitment is the same as above and nothing is weakened**: the data is
+used only to provide the single purpose of the extension (importing a purchase into your HomeBox instance), is
+not transferred to third parties, is not used for advertising or credit assessment, is not read by humans, and
+the extension has no server, no account, no analytics and no telemetry.
+
+- **Data collection declaration.** Firefox asks every extension to declare, in its manifest
+  (`data_collection_permissions`), the data it collects or transmits. HomeBox Clipper declares one required
+  category: `websiteContent` (website content). It means that the text and the product photo of the
+  Amazon order page you open, and the invoice PDF, are read at your click and leave the browser **only towards
+  your own HomeBox instance**, after you confirm the import. Nothing goes to the author or to any third party,
+  and there is no telemetry; the declaration describes this single flow, not a data transfer to us.
+- **Access to websites.** No access to any website is granted at installation. The extension reads the active
+  tab only at your click, and asks for access to the **exact origin** of each HomeBox instance when you add it.
+  In Firefox you can remove that access at any time in `about:addons` › the extension › **Permissions**; the
+  effect is the same as removing it in Chrome: the extension can no longer reach that instance until you grant
+  access again (the settings then offer to request access again).
+- **Private windows.** Firefox does not run extensions in private windows unless you allow it
+  (`about:addons` › the extension › **Run in Private Windows**). The data handling is the same if you do.
+- **Uninstalling.** In `about:addons`, **Remove** deletes the extension and its local data, as `chrome://extensions`
+  does in Chrome (see "Retention and deletion").
 
 ## Security
 

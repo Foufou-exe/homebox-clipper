@@ -2,7 +2,7 @@
 
 # Politique de confidentialité
 
-**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **20 novembre 2026**
+**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **21 novembre 2026**
 
 En bref : l'extension n'a **aucun serveur, aucun compte, aucune statistique et aucune télémétrie**. Les
 données qu'elle traite vont de votre navigateur vers **votre propre** instance HomeBox, uniquement au
@@ -34,7 +34,7 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Préférence de thème | Vous | Affichage | Stockée localement |
 | Réglage du verrouillage automatique (`lockSettings` : à la fermeture du navigateur, après 15 minutes, 1 heure ou 4 heures d’inactivité, ou à chaque ouverture de l’extension) | Vous | Décider quand la phrase de passe est redemandée | Stocké localement ; un simple choix, sans secret |
 | Heure de la dernière utilisation de l'extension déverrouillée (`homeboxActivity`, horodatage technique) | L'extension | Appliquer le verrouillage après inactivité | En mémoire du navigateur uniquement (`storage.session`), jamais sur le disque ; effacée au verrouillage ou à la fermeture du navigateur ; jamais affichée ni journalisée |
-| Numéros de version : version annoncée après une mise à jour (`updateNotice`) et version prête à être installée par Chrome (`updateReady`) | L'extension et le navigateur | Afficher « Mise à jour vers vX » et le bouton « Mettre à jour maintenant » | `updateNotice` stocké localement ; `updateReady` en mémoire du navigateur uniquement (`storage.session`) |
+| Numéros de version : version annoncée après une mise à jour (`updateNotice`) et la version que le navigateur a prête à installer (`updateReady`) | L'extension et le navigateur | Afficher « Mise à jour vers vX » et le bouton « Mettre à jour maintenant » | `updateNotice` stocké localement ; `updateReady` en mémoire du navigateur uniquement (`storage.session`) |
 | Historique des imports : nom du produit, boutique, numéro de commande, dates d'import et d'achat, adresse de l'instance HomeBox, identifiant de l'objet, résultat (complet, partiel, échoué) et ce qui manque (facture, manuel, garantie, bon de livraison, documents, photo, détails d'achat) | Chaque import que vous confirmez | Retrouver un objet importé, l'ouvrir dans HomeBox et repérer un import incomplet | Stocké localement, **chiffré avec votre phrase de passe** ; jamais envoyé ailleurs (activé par défaut, désactivable) |
 
 L'extension ne lit **pas** votre adresse de livraison, votre moyen de paiement, votre historique de
@@ -78,7 +78,7 @@ instances et ce qui leur est rattaché.
   verrouillage, au rechargement, à la mise à jour ou à la désactivation de l'extension) : les clés API
   déchiffrées des instances tant que l'extension est déverrouillée, et les données d'un import en cours pour pouvoir le
   reprendre après une erreur (sans le contenu des fichiers), l'heure de la dernière utilisation de
-  l'extension (`homeboxActivity`) et la version prête à être installée par Chrome (`updateReady`).
+  l'extension (`homeboxActivity`) et la version que le navigateur a prête à installer (`updateReady`).
 - **Sur votre instance HomeBox** : les objets, factures et photos que vous choisissez d'importer. Sa
   conservation et sa sécurité relèvent de votre responsabilité.
 - Rien n'est placé dans `storage.sync`. Rien n'est stocké sur un serveur exploité par l'auteur de
@@ -121,9 +121,13 @@ aucun secret.
 L'extension ne fait **aucun appel réseau** pour vérifier les mises à jour : elle utilise seulement le
 signal que le navigateur donne de lui-même quand une mise à jour a été installée ou est prête. Après une
 mise à jour, une courte annonce (« Mise à jour vers vX ») propose un lien vers les notes de version sur
-GitHub ; cette page n'est ouverte par le navigateur **que si vous cliquez** sur le lien. Quand Chrome a une
+GitHub ; cette page n'est ouverte par le navigateur **que si vous cliquez** sur le lien. Quand le navigateur (Chrome ou Firefox) a une
 mise à jour prête, un bouton **Mettre à jour maintenant** redémarre l'extension (la phrase de passe est
-alors redemandée) ; il est désactivé tant qu'un import est en cours ou peut encore être repris.
+alors redemandée) ; il est désactivé tant qu'un import est en cours ou peut encore être repris. Les mises à
+jour d'une installation depuis le Chrome Web Store viennent de ce magasin, celles d'une installation depuis
+Firefox Add-ons (addons.mozilla.org) viennent de Firefox Add-ons ; l'extension elle-même ne contacte ni l'un
+ni l'autre. Une installation Firefox chargée temporairement depuis une archive GitHub ne reçoit aucune mise à
+jour du navigateur.
 
 ## Journaux
 
@@ -149,7 +153,8 @@ un nom de produit, un prix, un numéro de commande, un nom de tag, le texte d'un
   (adresses, noms, clés chiffrées), les imports en cours, les derniers emplacements, la dernière instance
   utilisée, l'historique des imports, et retire l'autorisation d'accès accordée à chaque instance. Le réglage du verrouillage automatique, la
   dernière annonce de mise à jour et le réglage des tags automatiques (`tagSettings`, aucune donnée personnelle) sont conservés. Désinstaller l'extension
-  supprime tout son stockage dans le navigateur.
+  supprime tout son stockage dans le navigateur : dans Chrome depuis `chrome://extensions`, dans Firefox
+  depuis `about:addons` (**Supprimer**).
 - Vous pouvez aussi révoquer la clé API dans HomeBox à tout moment.
 - Les objets déjà importés appartiennent à votre instance HomeBox : supprimez-les depuis celle-ci.
 - L'auteur ne détient aucune copie de vos données : il n'y a donc rien à effacer de son côté.
@@ -169,6 +174,33 @@ L'utilisation des informations reçues par homebox-clipper respecte la Chrome We
 **y compris les exigences de « Limited Use »**. Les données servent uniquement à la finalité unique de
 l'extension (importer un achat dans votre instance HomeBox), ne sont pas transférées à des tiers, ne
 servent ni à la publicité ni à l'évaluation de solvabilité, et ne sont pas lues par des humains.
+
+## Firefox Add-ons (addons.mozilla.org)
+
+L'extension est aussi construite pour Firefox (version 140 ou ultérieure, ordinateur) et peut être publiée sur
+Firefox Add-ons (addons.mozilla.org). **L'engagement est le même que ci-dessus et rien n'est affaibli** : les
+données servent uniquement à la finalité unique de l'extension (importer un achat dans votre instance
+HomeBox), ne sont pas transférées à des tiers, ne servent ni à la publicité ni à l'évaluation de solvabilité,
+ne sont pas lues par des humains, et l'extension n'a ni serveur, ni compte, ni statistique, ni télémétrie.
+
+- **Déclaration de collecte de données.** Firefox demande à chaque extension de déclarer, dans son manifeste
+  (`data_collection_permissions`), les données qu'elle collecte ou transmet. HomeBox Clipper déclare une
+  catégorie obligatoire : `websiteContent` (contenu de sites web). Elle signifie que le texte et l'adresse de
+  la photo du produit de la page de commande Amazon que vous ouvrez, ainsi que la facture PDF, sont lus à votre
+  clic et ne quittent le navigateur **que vers votre propre instance HomeBox**, après votre confirmation de
+  l'import. Rien ne va vers l'auteur ni vers un tiers, et il n'y a aucune télémétrie ; la déclaration décrit ce
+  seul flux, pas un transfert de données vers nous.
+- **Accès aux sites.** Aucun accès à un site n'est accordé à l'installation. L'extension lit l'onglet actif
+  uniquement à votre clic, et demande l'accès à l'**origine exacte** de chaque instance HomeBox quand vous
+  l'ajoutez. Dans Firefox, vous pouvez retirer cet accès à tout moment dans `about:addons` › l'extension ›
+  **Permissions** ; l'effet est le même que le retrait dans Chrome : l'extension ne peut plus joindre cette
+  instance tant que vous n'accordez pas de nouveau l'accès (la configuration propose alors de redemander
+  l'accès).
+- **Fenêtres privées.** Firefox n'exécute pas les extensions dans les fenêtres privées sauf si vous
+  l'autorisez (`about:addons` › l'extension › **Exécuter dans les fenêtres privées**). Le traitement des données
+  est le même si vous l'autorisez.
+- **Désinstallation.** Dans `about:addons`, **Supprimer** retire l'extension et ses données locales, comme
+  `chrome://extensions` dans Chrome (voir « Conservation et suppression »).
 
 ## Sécurité
 

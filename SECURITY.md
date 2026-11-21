@@ -16,7 +16,7 @@ Do not report a vulnerability in a public issue.
 
 ## Useful information to provide
 
-- the extension version and the Chrome version;
+- the extension version and the browser version (Chrome or Firefox);
 - a description of the problem and its impact;
 - the steps to reproduce it;
 - if possible, a suggested fix.
