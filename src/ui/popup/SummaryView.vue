@@ -13,6 +13,7 @@ import type {
   LocationOption,
   ManualFile,
   TagOption,
+  TemplateCheck,
   DefaultTemplateRef,
   TemplateDetail,
   TemplateOption,
@@ -646,44 +647,56 @@ function templateOf(line: Line) {
   return choice ? { template: choice } : {};
 }
 
+/** Distinct templates (by id) of the lines, with the fingerprint known to the screen. */
+function templateRefs(withTemplate: Line[]): { id: string; fingerprint: string }[] {
+  const refs: { id: string; fingerprint: string }[] = [];
+  for (const l of withTemplate) {
+    const d = l.template.detail;
+    if (d && !refs.some((r) => r.id === d.id)) refs.push({ id: d.id, fingerprint: d.fingerprint });
+  }
+  return refs;
+}
+
+/** Applies one re-check result to the lines concerned; returns the notice to show, if the template is gone or changed. */
+function noticeFor(r: TemplateCheck, withTemplate: Line[]): string | null {
+  const concerned = withTemplate.filter((l) => l.template.id === r.id);
+  const name = concerned[0]?.template.detail?.name ?? templateName(r.id);
+  if (r.state === 'missing') {
+    for (const l of concerned) l.template = { ...l.template, state: 'error' };
+    return t('templates.goneBeforeImport', [name, concerned.map(productName).join(', ')]);
+  }
+  if (r.state !== 'changed') return null;
+  details.set(r.id, r.template);
+  let changes: string[] = [];
+  for (const l of concerned) {
+    const merged = mergeChangedDetail(l.template, r.template);
+    l.template = merged.template;
+    changes = merged.changes;
+  }
+  return t('templates.changedList', [name, changes.length ? changes.join(', ') : '—']);
+}
+
 /**
  * Re-check of the chosen templates just before the import (FR-020, contracts/ui.md §1.6): deleted → the choice is
  * kept, marked in error; changed → the new detail replaces the old one, the values entered are kept, the changes are
  * listed. In both cases nothing is sent and a new confirmation is required (FR-021). `true`: every template is the same.
  */
 async function checkTemplates(instanceId: string, withTemplate: Line[]): Promise<boolean> {
-  const refs: { id: string; fingerprint: string }[] = [];
-  for (const l of withTemplate) {
-    const d = l.template.detail;
-    if (d && !refs.some((r) => r.id === d.id)) refs.push({ id: d.id, fingerprint: d.fingerprint });
-  }
+  const refs = templateRefs(withTemplate);
   let res;
   try {
     res = await send({ type: 'template/check', instanceId, refs });
   } catch {
     res = null;
   }
-  if (!res || !res.ok) {
+  if (!res?.ok) {
     confirmError.value = res ? res.error : 'TEMPLATES_UNAVAILABLE';
     return false;
   }
   const notices: string[] = [];
   for (const r of res.value.results) {
-    const concerned = withTemplate.filter((l) => l.template.id === r.id);
-    const name = concerned[0]?.template.detail?.name ?? templateName(r.id);
-    if (r.state === 'missing') {
-      for (const l of concerned) l.template = { ...l.template, state: 'error' };
-      notices.push(t('templates.goneBeforeImport', [name, concerned.map(productName).join(', ')]));
-    } else if (r.state === 'changed') {
-      details.set(r.id, r.template);
-      let changes: string[] = [];
-      for (const l of concerned) {
-        const merged = mergeChangedDetail(l.template, r.template);
-        l.template = merged.template;
-        changes = merged.changes;
-      }
-      notices.push(t('templates.changedList', [name, changes.length ? changes.join(', ') : '—']));
-    }
+    const notice = noticeFor(r, withTemplate);
+    if (notice) notices.push(notice);
   }
   templateNotices.value = notices;
   return notices.length === 0;
@@ -762,8 +775,8 @@ async function submit() {
       <ErrorBanner v-if="templateState === 'unavailable'" :code="templateError" tone="warning" :instance="errorInstance">
         <button type="button" :disabled="submitting || dialog.kind !== 'none'" @click="loadTemplates">{{ t('templates.retry') }}</button>
       </ErrorBanner>
-      <p v-if="defaultTpl.state === 'unavailable'" class="muted" role="status">{{ t('templates.defaultNotApplied') }}</p>
-      <p v-if="defaultTpl.state === 'missing'" class="muted" role="status">{{ t('templates.defaultMissing') }}</p>
+      <output v-if="defaultTpl.state === 'unavailable'" class="muted">{{ t('templates.defaultNotApplied') }}</output>
+      <output v-if="defaultTpl.state === 'missing'" class="muted">{{ t('templates.defaultMissing') }}</output>
       <p class="visually-hidden" aria-live="polite">{{ templateAnnounce }}</p>
       <template v-if="detectError === 'NOT_AN_ORDER_PAGE'">
         <p class="muted">{{ t('summary.supportedStores', [supportedStores]) }}</p>
@@ -808,7 +821,7 @@ async function submit() {
             :disabled="submitting || dialog.kind !== 'none'"
             @update:model-value="chooseTemplate(line, $event)"
           />
-          <p v-if="line.template.state === 'loading'" class="muted" role="status">{{ t('templates.loading') }}</p>
+          <output v-if="line.template.state === 'loading'" class="muted">{{ t('templates.loading') }}</output>
           <ErrorBanner v-if="line.template.state === 'error'" code="TEMPLATE_NOT_FOUND" />
           <TemplateSection v-if="line.template.state === 'ready'" v-model="line.template" :product-name="productName(line)" />
         </template>
@@ -988,6 +1001,10 @@ async function submit() {
 }
 .muted {
   color: var(--muted);
+}
+output.muted {
+  display: block;
+  margin: 1em 0;
 }
 .product-location {
   display: flex;

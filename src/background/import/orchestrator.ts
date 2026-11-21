@@ -159,6 +159,35 @@ function filesFrom(manualFiles: ManualFile[]): FileMap {
   return new Map(manualFiles.map((f) => [f.docId, manualBytes(f)]));
 }
 
+/** Records the outcome of the template fields (spec 018): `done` only after a conforming read-back. */
+function settleTemplateFields(p: PendingImport, matched: boolean): ErrorCode | null {
+  if (matched) {
+    p.steps.templateFields = 'done';
+    delete p.templateFieldsError;
+    return null;
+  }
+  p.steps.templateFields = 'failed';
+  p.templateFieldsError = 'TEMPLATE_FIELDS_FAILED';
+  return 'TEMPLATE_FIELDS_FAILED';
+}
+
+/** Retry (invariant 3): the location of an existing object is fixed; spec 018: no "without location" with a template. */
+function locationChangeRefused(p: PendingImport, location: LocationChoice | null | undefined): boolean {
+  if (location === undefined) return false;
+  return Boolean(p.entityId) || (location === null && Boolean(p.draft.template));
+}
+
+/** First refused manual file, if any (same order as the map). */
+function firstFileFailure(files: FileMap): Result<never> | null {
+  for (const result of files.values()) if (!result.ok) return result;
+  return null;
+}
+
+/** A manual document is missing: neither already attached nor provided. */
+function needsManualFile(p: PendingImport, files: FileMap): boolean {
+  return p.draft.documents.some((d) => d.origin === 'manual' && p.steps.attachments[d.id] !== 'done' && !files.has(d.id));
+}
+
 /** A delivery note whose name already says what it is keeps it (no double prefix); otherwise the prefix is added. */
 const EXPLICIT_DELIVERY_NOTE = /bon[-_ ]?de[-_ ]?livraison|delivery[-_ ]?note|packing[-_ ]?slip|bordereau/i;
 
@@ -338,12 +367,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     p.steps.create = 'failed';
     p.status = 'failed';
     const acceptedButUnreadable = httpStatus !== undefined && httpStatus >= 200 && httpStatus < 300;
-    p.error =
-      error === 'CREATE_FAILED' && p.draft.template && !acceptedButUnreadable
-        ? await templateCreationFailureFor(p.draft.template, p.draft.location)
-        : error === 'CREATE_FAILED'
-          ? await creationFailureFor(p.draft.location)
-          : error;
+    if (error !== 'CREATE_FAILED') p.error = error;
+    else if (p.draft.template && !acceptedButUnreadable) p.error = await templateCreationFailureFor(p.draft.template, p.draft.location);
+    else p.error = await creationFailureFor(p.draft.location);
     if (error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
     else p.createAttempted = false;
     await persist(p);
@@ -502,18 +528,6 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     await persist(p);
     if (res.ok) return { updateError: null, tagsError };
     return { updateError: res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED', tagsError };
-  }
-
-  /** Records the outcome of the template fields (spec 018): `done` only after a conforming read-back. */
-  function settleTemplateFields(p: PendingImport, matched: boolean): ErrorCode | null {
-    if (matched) {
-      p.steps.templateFields = 'done';
-      delete p.templateFieldsError;
-      return null;
-    }
-    p.steps.templateFields = 'failed';
-    p.templateFieldsError = 'TEMPLATE_FIELDS_FAILED';
-    return 'TEMPLATE_FIELDS_FAILED';
   }
 
   /** Read-back of the object after a successful PUT (FR-018): every confirmed field with its exact values. */
@@ -736,13 +750,12 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     ): Promise<Result<PendingImport>> {
       const pending = await store.get(pendingId);
       if (!pending) return fail('BAD_MESSAGE');
-      // Invariant 3: the object already exists, its location can no longer be changed here. Refused before any request.
-      if (location !== undefined && pending.entityId) return fail('BAD_MESSAGE');
-      // Spec 018: no "without location" option for a product with a template (FR-005).
-      if (location === null && pending.draft.template) return fail('BAD_MESSAGE');
+      // Refused before any request (invariant 3; spec 018 FR-005).
+      if (locationChangeRefused(pending, location)) return fail('BAD_MESSAGE');
       if (location !== undefined) pending.draft = { ...pending.draft, location };
       const files = filesFrom(manualFiles);
-      for (const result of files.values()) if (!result.ok) return result;
+      const fileFailure = firstFileFailure(files);
+      if (fileFailure) return fileFailure;
       // Uncertain creation (lost response, or service worker stopped during the POST): the object may have been
       // created without its identifier being saved. Its exact name is searched for before sending another POST;
       // the duplicate risk is only reduced, not eliminated (renamed object, lagging search index).
@@ -752,10 +765,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         if (!dup.ok) return fail('DUPLICATE_CHECK_FAILED');
         if (dup.value.length > 0) return fail('DUPLICATE_SUSPECTED');
       }
-      const needsManual = pending.draft.documents.some(
-        (d) => d.origin === 'manual' && pending.steps.attachments[d.id] !== 'done' && !files.has(d.id),
-      );
-      if (needsManual) return fail('MANUAL_FILE_REQUIRED');
+      if (needsManualFile(pending, files)) return fail('MANUAL_FILE_REQUIRED');
       // Spec 018: before any creation, the template is checked again (US6-4); once the object exists, never (US6-3).
       if (!pending.entityId && pending.draft.template) {
         if (!pending.draft.location) {

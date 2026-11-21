@@ -30,14 +30,18 @@ const optionId = (i: number) => `${uid}-option-${i}`;
 
 const short = (s: string) => (s.length > DESCRIPTION_MAX ? `${s.slice(0, DESCRIPTION_MAX - 1)}…` : s);
 /** Two templates of the same name are told apart by their description, otherwise by a number. */
+function labelFor(o: TemplateOption, same: boolean, n: number): string {
+  if (!same) return o.name;
+  if (o.description) return `${o.name} — ${short(o.description)}`;
+  return n === 1 ? o.name : `${o.name} (${n})`;
+}
 const labelled = computed(() => {
   const seen = new Map<string, number>();
   return props.options.map((o) => {
     const same = props.options.filter((x) => x.name === o.name).length > 1;
     const n = (seen.get(o.name) ?? 0) + 1;
     seen.set(o.name, n);
-    const label = !same ? o.name : o.description ? `${o.name} — ${short(o.description)}` : n === 1 ? o.name : `${o.name} (${n})`;
-    return { id: o.id, label };
+    return { id: o.id, label: labelFor(o, same, n) };
   });
 });
 const many = computed(() => props.options.length > MAX_SELECT);

@@ -101,13 +101,13 @@ watch(
     <template v-else>
       <button type="button" :aria-expanded="open ? 'true' : 'false'" @click="toggle">{{ t('templates.change') }}</button>
       <div v-if="open" class="panel">
-        <p v-if="state === 'loading'" class="muted" role="status">{{ t('templates.loading') }}</p>
+        <output v-if="state === 'loading'" class="muted">{{ t('templates.loading') }}</output>
         <ErrorBanner v-else-if="state === 'error'" :code="error" :instance="instance.name">
           <button type="button" @click="loadList">{{ t('templates.retry') }}</button>
         </ErrorBanner>
         <p v-else-if="state === 'empty'" class="muted">{{ t('templates.noneOnInstance') }}</p>
         <template v-else-if="state === 'ready'">
-          <p v-if="missing" class="muted" role="status">{{ t('templates.defaultMissing') }}</p>
+          <output v-if="missing" class="muted">{{ t('templates.defaultMissing') }}</output>
           <label :for="selectId">{{ t('templates.defaultLabel') }}</label>
           <select :id="selectId" v-model="choice">
             <option value="">{{ t('templates.none') }}</option>
@@ -140,5 +140,9 @@ watch(
 }
 .muted {
   color: var(--muted);
+}
+output.muted {
+  display: block;
+  margin: 1em 0;
 }
 </style>

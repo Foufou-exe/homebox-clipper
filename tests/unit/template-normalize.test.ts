@@ -166,6 +166,23 @@ describe('normalizeTemplate', () => {
 });
 
 describe('fingerprint (research D9)', () => {
+  it('018-sonar: tag ids sorted by code unit; hard-coded fingerprint computed before the explicit comparator', async () => {
+    const out = {
+      id: 't',
+      name: 'N',
+      updatedAt: 'u',
+      defaultTags: [
+        { id: 'b', name: '1' },
+        { id: 'B', name: '2' },
+        { id: 'é', name: '3' },
+        { id: 'a', name: '4' },
+        { id: 'Z', name: '5' },
+      ],
+      fields: [],
+    } as unknown as TemplateOut;
+    expect(await fp(out)).toBe('f1b11f733835ef4c7eea2adac38ba5804048b1ac71e584b649fc46e265d5b365');
+  });
+
   it('fixed value: SHA-256 of the canonical array of data-model', async () => {
     const canonical = [
       '2026-11-01T10:00:00Z',

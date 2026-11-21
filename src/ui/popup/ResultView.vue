@@ -83,7 +83,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 
 <template>
   <section class="result">
-    <p v-if="templateBatchError" class="muted" role="status">{{ t('templates.backToSummary') }}</p>
+    <output v-if="templateBatchError" class="muted">{{ t('templates.backToSummary') }}</output>
     <p v-if="running && pendings.length === 0" role="status">{{ t('result.running') }}</p>
     <p v-for="name in importedTo" :key="name" class="imported-to">{{ t('result.importedTo', [name]) }}</p>
 
@@ -136,6 +136,10 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 <style scoped>
 .muted {
   color: var(--muted);
+}
+output.muted {
+  display: block;
+  margin: 1em 0;
 }
 .imported-to {
   margin: 4px 0;

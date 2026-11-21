@@ -11,8 +11,8 @@ import type { TagOption, TemplateDetail, TemplateFieldKind, TemplateOption } fro
 /** Defensive bound: a template with more fields is refused. */
 export const MAX_TEMPLATE_FIELDS = 100;
 
-const KINDS: readonly TemplateFieldKind[] = ['text', 'number', 'boolean', 'time'];
-const kindOf = (type: string): TemplateFieldKind => (KINDS.includes(type as TemplateFieldKind) ? (type as TemplateFieldKind) : 'unknown');
+const KINDS: ReadonlySet<string> = new Set(['text', 'number', 'boolean', 'time']);
+const kindOf = (type: string): TemplateFieldKind => (KINDS.has(type) ? (type as TemplateFieldKind) : 'unknown');
 const str = (x: unknown): string => (typeof x === 'string' ? x : '');
 
 async function sha256Hex(text: string): Promise<string> {
@@ -29,6 +29,15 @@ function tagsOf(out: TemplateOut): TagOption[] {
     return typeof id === 'string' && typeof name === 'string' ? [{ id, name }] : [];
   });
 }
+
+/**
+ * Explicit comparison by UTF-16 code units: the order feeds the SHA-256 fingerprint, which must be identical on every
+ * browser and locale (the default `sort()` is the same, but `localeCompare` would depend on the language).
+ */
+const byCodeUnit = (a: string, b: string): number => {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+};
 
 /**
  * Fingerprint (research D9): SHA-256 of the canonical array. `updatedAt` alone is not enough (removing a default tag
@@ -48,7 +57,7 @@ function fingerprintOf(out: TemplateOut, tags: TagOption[]): Promise<string> {
     out.defaultLifetimeWarranty ?? null,
     out.defaultWarrantyDetails ?? null,
     out.defaultLocation?.id ?? null,
-    tags.map((t) => t.id).sort(),
+    tags.map((t) => t.id).sort(byCodeUnit),
     fields.map((f) => [f.id ?? null, f.type, f.name, f.textValue ?? '', f.numberValue ?? 0, f.booleanValue ?? false]),
   ];
   return sha256Hex(JSON.stringify(canonical));
@@ -84,7 +93,7 @@ export async function normalizeTemplate(out: TemplateOut): Promise<Result<Templa
   });
 }
 
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const compare = byCodeUnit;
 
 /** Options of the picker, sorted by name, then description (case and accents ignored), then id. */
 export function normalizeTemplateList(list: readonly TemplateSummary[]): TemplateOption[] {
