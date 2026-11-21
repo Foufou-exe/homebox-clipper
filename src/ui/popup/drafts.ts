@@ -262,8 +262,8 @@ export function fieldError(input: Pick<FieldInput, 'view' | 'raw'>): FieldInput[
 /** Pre-fill (research D1): never `timeValue`, which is only a creation timestamp. */
 export function fieldInputFor(view: TemplateFieldView): FieldInput {
   let raw = view.textValue;
-  if (view.kind === 'number' && !isInteger(raw)) raw = '';
-  else if (view.kind === 'time' && !isValidIsoDate(raw)) raw = '';
+  const invalid = (view.kind === 'number' && !isInteger(raw)) || (view.kind === 'time' && !isValidIsoDate(raw));
+  if (invalid) raw = '';
   return { view, raw, checked: view.booleanValue, error: null };
 }
 

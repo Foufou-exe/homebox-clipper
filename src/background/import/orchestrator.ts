@@ -340,6 +340,36 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return ok(undefined);
   }
 
+  /**
+   * Uncertain creation (lost response, or service worker stopped during the POST): the object may have been created
+   * without its identifier being saved. Its exact name is searched for before sending another POST; the duplicate risk
+   * is only reduced, not eliminated (renamed object, lagging search index). `null`: the retry may go on.
+   */
+  async function uncertainDuplicate(pending: PendingImport): Promise<Result<never> | null> {
+    const uncertain = pending.createUncertain || (pending.orphaned && pending.createAttempted);
+    if (pending.entityId || !uncertain) return null;
+    const dup = await findDuplicatesByName(client, pending.draft.name);
+    if (!dup.ok) return fail('DUPLICATE_CHECK_FAILED');
+    return dup.value.length > 0 ? fail('DUPLICATE_SUSPECTED') : null;
+  }
+
+  /**
+   * Spec 018: before any creation, the template is checked again (US6-4); once the object exists, never (US6-3).
+   * A template without location is refused and recorded as a failed creation. `null`: the retry may go on.
+   */
+  async function templateGate(pending: PendingImport): Promise<Result<never> | null> {
+    if (pending.entityId || !pending.draft.template) return null;
+    if (!pending.draft.location) {
+      pending.steps.create = 'failed';
+      pending.status = 'failed';
+      pending.error = 'BAD_MESSAGE';
+      await persist(pending);
+      return fail('BAD_MESSAGE');
+    }
+    const verified = await verifyTemplates([pending.draft]);
+    return verified.ok ? null : verified;
+  }
+
   /** Writes the last-location memory; never blocks the import. */
   async function remember(locationId: string | null | undefined, results: PendingImport[]): Promise<void> {
     if (!locationId || !deps.rememberLocation || !results.some((r) => r.entityId)) return;
@@ -759,25 +789,11 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       // Uncertain creation (lost response, or service worker stopped during the POST): the object may have been
       // created without its identifier being saved. Its exact name is searched for before sending another POST;
       // the duplicate risk is only reduced, not eliminated (renamed object, lagging search index).
-      const uncertain = pending.createUncertain || (pending.orphaned && pending.createAttempted);
-      if (!pending.entityId && uncertain) {
-        const dup = await findDuplicatesByName(client, pending.draft.name);
-        if (!dup.ok) return fail('DUPLICATE_CHECK_FAILED');
-        if (dup.value.length > 0) return fail('DUPLICATE_SUSPECTED');
-      }
+      const duplicate = await uncertainDuplicate(pending);
+      if (duplicate) return duplicate;
       if (needsManualFile(pending, files)) return fail('MANUAL_FILE_REQUIRED');
-      // Spec 018: before any creation, the template is checked again (US6-4); once the object exists, never (US6-3).
-      if (!pending.entityId && pending.draft.template) {
-        if (!pending.draft.location) {
-          pending.steps.create = 'failed';
-          pending.status = 'failed';
-          pending.error = 'BAD_MESSAGE';
-          await persist(pending);
-          return fail('BAD_MESSAGE');
-        }
-        const verified = await verifyTemplates([pending.draft]);
-        if (!verified.ok) return verified;
-      }
+      const refused = await templateGate(pending);
+      if (refused) return refused;
       // A new cache: the retry always reads the tag list again before any creation (invariant 4).
       return ok(await run(pending, files, new Map(), newTagCache()));
     },
