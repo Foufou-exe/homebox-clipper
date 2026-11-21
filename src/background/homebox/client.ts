@@ -3,6 +3,7 @@ import { log } from '@/shared/logger';
 import type {
   AttachmentUpload,
   EntityCreate,
+  EntityField,
   EntityOut,
   EntitySummary,
   EntityUpdate,
@@ -230,6 +231,18 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
   };
 }
 
+/** Only the properties `EntityUpdate.fields` accepts (Swagger `repo.EntityFieldData`). */
+function copyField(f: EntityField): EntityField {
+  return {
+    id: f.id,
+    name: f.name,
+    type: f.type,
+    textValue: f.textValue,
+    numberValue: f.numberValue,
+    booleanValue: f.booleanValue,
+  };
+}
+
 /** Builds a full PUT from the created object, so nothing gets overwritten (R1). */
 export function entityOutToUpdate(out: EntityOut, patch: Partial<EntityUpdate>): EntityUpdate {
   const base: EntityUpdate = {
@@ -255,6 +268,8 @@ export function entityOutToUpdate(out: EntityOut, patch: Partial<EntityUpdate>):
     parentId: out.parent?.id,
     entityTypeId: out.entityType?.id,
     tagIds: out.tags?.map((t) => t.id),
+    // The PUT replaces the custom fields: send the current ones back, only when there are some.
+    fields: Array.isArray(out.fields) && out.fields.length > 0 ? out.fields.map(copyField) : undefined,
   };
   const merged = { ...base, ...patch, id: out.id };
   return Object.fromEntries(

@@ -21,6 +21,18 @@ export interface TreeItem {
   children?: TreeItem[];
 }
 
+/** `repo.EntityFieldData` (Swagger v0.27.1): custom field of an object, same shape when read and when updated. */
+export interface EntityField {
+  /** Kept on update so HomeBox updates the field instead of recreating it. */
+  id?: string;
+  name: string;
+  /** `text`, `number`, `boolean` or `time`. */
+  type: string;
+  textValue?: string;
+  numberValue?: number;
+  booleanValue?: boolean;
+}
+
 export interface EntityOut {
   id: string;
   name: string;
@@ -46,6 +58,8 @@ export interface EntityOut {
   /** `null` (Go nil slice) means no tag. */
   tags?: { id: string }[] | null;
   attachments?: { id: string; type?: string; primary?: boolean }[];
+  /** Custom fields; `null` (Go nil slice) or absent means none. */
+  fields?: EntityField[] | null;
 }
 
 export interface EntityUpdate {
@@ -71,6 +85,8 @@ export interface EntityUpdate {
   parentId?: string;
   entityTypeId?: string;
   tagIds?: string[];
+  /** Custom fields: the PUT replaces them all, so the current ones must be sent back (#109). */
+  fields?: EntityField[];
 }
 
 /** Subset of `repo.TagSummary` (Swagger v0.27.1) used by the extension (spec 014). */
