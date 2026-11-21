@@ -4,6 +4,7 @@ name: CI
 # check stays `bun run ci`, which can also be run locally before a push.
 # Triggers: pull requests to main (including forks, read-only token), merges on main, on demand.
 # No `pull_request_target`, no `schedule`, no matrix.
+# bun run ci builds and checks both browsers (Chrome then Firefox) in this single job.
 on:
   pull_request:
     branches: [main]

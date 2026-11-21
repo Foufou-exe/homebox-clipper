@@ -167,7 +167,7 @@ async function submit() {
     mismatch.value = true;
     return;
   }
-  // Must stay in the click handler: Chrome requires a user gesture.
+  // Must stay in the click handler, before any await: browsers require a user gesture (Firefox loses it after an await).
   // An origin not covered by optional_host_permissions throws an exception.
   const granted = await requestOrigin(url.value.origin).catch(() => false);
   if (!granted) return refuse('PERMISSION_DENIED', prefix);
