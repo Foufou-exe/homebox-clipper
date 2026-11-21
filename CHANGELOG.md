@@ -7,6 +7,13 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.8.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.7.0...v0.8.0) (2026-11-21)
+
+
+### Features
+
+* Firefox support ([#66](https://github.com/Foufou-exe/homebox-clipper/issues/66)) ([#95](https://github.com/Foufou-exe/homebox-clipper/issues/95)) ([e89c478](https://github.com/Foufou-exe/homebox-clipper/commit/e89c47878896630b7ae1fe719830c5f41332c9a5))
+
 ## [0.7.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.6.0...v0.7.0) (2026-11-20)
 
 
