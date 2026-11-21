@@ -70,6 +70,8 @@ async function mountSummary(p: DetectedPurchase | null, tags: TagReply = [], set
       if (tags instanceof Promise) return tags;
       return Promise.resolve(typeof tags === 'string' ? fail(tags) : ok({ tags }));
     }
+    // ADAPTED (018): template/list answers an instance without templates (no picker, no banner).
+    if (msg.type === 'template/list') return Promise.resolve(ok({ templates: [], defaultTemplate: null, defaultState: 'none' }));
     return Promise.resolve(ok({ locations: [], lastUsedId: null }));
   }) as never);
   const wrapper = mount(SummaryView, { props: { tabId: 1, config }, attachTo: document.body });

@@ -86,6 +86,8 @@ async function mountSummary(p: DetectedPurchase, replies: Record<string, Reply> 
       if (r === 'reject') return Promise.reject(new Error('port closed'));
       return Promise.resolve(r ?? check());
     }
+    // ADAPTED (018): template/list answers an instance without templates (no picker, no banner).
+    if (msg.type === 'template/list') return Promise.resolve(ok({ templates: [], defaultTemplate: null, defaultState: 'none' }));
     return Promise.resolve(ok({ locations: [], lastUsedId: null }));
   }) as never);
   const wrapper = mount(SummaryView, { props: { tabId: 1, config }, attachTo: document.body });

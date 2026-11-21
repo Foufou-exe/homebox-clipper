@@ -171,7 +171,8 @@ async function abandon() {
       >
         {{ busy ? t('recovery.retrying') : retryLabel }}
       </button>
-      <button v-if="locationGone && !duplicateBlocked" type="button" :disabled="busy" @click="retry(null)">
+      <!-- Spec 018 (FR-005): never « without location » for a product with a template. -->
+      <button v-if="locationGone && !duplicateBlocked && !pending.draft.template" type="button" :disabled="busy" @click="retry(null)">
         {{ t('recovery.retryWithoutLocation') }}
       </button>
       <button type="button" :disabled="busy" @click="abandon">{{ t('recovery.abandon') }}</button>

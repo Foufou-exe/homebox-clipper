@@ -596,3 +596,58 @@ describe('object read with "tags": null (Go nil slice = no tag)', () => {
     expectNoTagRemoved(s.puts);
   });
 });
+
+describe('018: tags of a template (noCreate, FR-015, data-model §3)', () => {
+  it('a noCreate choice missing from the list is not created and fails alone (TAG_FAILED)', async () => {
+    const s = setup({ list: [ok([{ id: 't1', name: 'Amazon' }])] });
+    const [p] = await start(s, [product([{ name: 'Amazon', id: 't1' }, { name: 'Livres', id: 'tag-1', noCreate: true }])]);
+    expect(s.client.createTag).not.toHaveBeenCalled();
+    expect(s.calls).toEqual(['createEntity', 'listTags', 'updateEntity']);
+    expect(s.puts[0]!.data.tagIds).toEqual(['t1']);
+    expect(p!.failedTags).toEqual(['Livres']);
+    expect(p!.steps.tags).toBe('failed');
+    expect(p!.error).toBe('TAG_FAILED');
+  });
+
+  it('a noCreate choice present in the list is applied normally', async () => {
+    const s = setup({ list: [ok([{ id: 'tag-1', name: 'Livres' }])] });
+    const [p] = await start(s, [product([{ name: 'Livres', id: 'tag-1', noCreate: true }])]);
+    expect(s.calls).toEqual(['createEntity', 'listTags', 'updateEntity']);
+    expect(s.puts[0]!.data.tagIds).toEqual(['tag-1']);
+    expect(p!.status).toBe('success');
+  });
+
+  it('a choice without noCreate missing from the list is still created (sequence 014 unchanged)', async () => {
+    const s = setup({ list: [ok([])] });
+    await start(s, [product([{ name: 'Livres' }])]);
+    expect(s.calls).toEqual(['createEntity', 'listTags', 'createTag:Livres', 'updateEntity']);
+  });
+
+  it('same rules on the template path (createFromTemplate)', async () => {
+    const { normalizeTemplate } = await import('@/background/templates/normalize');
+    const template = { id: 'tpl-1', name: 'Livre', updatedAt: '2026-11-01T10:00:00Z', fields: [] };
+    const norm = await normalizeTemplate(template);
+    if (!norm.ok) throw new Error('fixture');
+    const s = setup({ list: [ok([{ id: 't1', name: 'Amazon' }])] });
+    Object.assign(s.client, {
+      getTemplate: vi.fn(async () => ok(template)),
+      createFromTemplate: vi.fn(async () => {
+        s.calls.push('createFromTemplate');
+        s.entities.set('e1', { id: 'e1', name: 'x', tags: [] });
+        return ok({ id: 'e1', name: 'x', tags: [], parent: { id: 'loc-1' } });
+      }),
+    });
+    const [p] = await start(s, [
+      product([{ name: 'Amazon', id: 't1' }, { name: 'Livres', id: 'tag-1', noCreate: true }], {
+        location: { id: 'loc-1', path: ['Maison'] },
+        template: { id: 'tpl-1', name: 'Livre', fingerprint: norm.value.fingerprint, insured: false, manufacturer: '', modelNumber: '', fields: [] },
+      }),
+    ]);
+    expect(s.client.createTag).not.toHaveBeenCalled();
+    expect(s.client.createEntity).not.toHaveBeenCalled();
+    expect(s.calls).toEqual(['createFromTemplate', 'listTags', 'updateEntity', 'getEntity']);
+    expect(s.puts[0]!.data.tagIds).toEqual(['t1']);
+    expect(p!.failedTags).toEqual(['Livres']);
+    expectNoTagRemoved(s.puts);
+  });
+});

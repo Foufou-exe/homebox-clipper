@@ -100,6 +100,8 @@ function serve(over: Partial<Record<string, Reply>> = {}) {
       );
     if (msg.type === 'location/list') return Promise.resolve(ok(LOCATIONS[msg.instanceId!]));
     if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: TAGS[msg.instanceId!] }));
+    // ADAPTED (018): template/list answers an instance without templates (no picker, no banner).
+    if (msg.type === 'template/list') return Promise.resolve(ok({ templates: [], defaultTemplate: null, defaultState: 'none' }));
     if (msg.type === 'duplicate/check')
       return Promise.resolve(
         ok({ matches: [], similar: [], moreSimilar: false, incomplete: false }),

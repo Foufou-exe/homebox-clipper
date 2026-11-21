@@ -383,7 +383,14 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
     const PHOTO = 'https://m.media-amazon.com/images/I/test-1._SL1000_.jpg';
     const withPhoto = (key: string): DetectedProduct => ({ ...product(key), imageUrl: found(PHOTO) });
     const mountSummary = async (products: DetectedProduct[]) => {
-      vi.mocked(send).mockResolvedValue(ok({ purchase: purchase(products), warnings: [] }) as never);
+      // ADAPTED (018): template/list answers an instance without templates (no picker, no banner).
+      vi.mocked(send).mockImplementation((msg) =>
+        Promise.resolve(
+          msg.type === 'template/list'
+            ? ok({ templates: [], defaultTemplate: null, defaultState: 'none' })
+            : ok({ purchase: purchase(products), warnings: [] }),
+        ) as never,
+      );
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
       await flushPromises();
       return wrapper;
@@ -487,7 +494,8 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       expect(wrapper.emitted('submit')).toBeUndefined();
       // Only the summary reads are sent (detection, location list): no import/start.
       // ADAPTED (014): the tag list is also read at opening (contracts/ui.md), still no import/start.
-      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'tag/list']);
+      // ADAPTED (018): the template list is also read at opening (contracts/ui.md §1.1).
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'tag/list', 'template/list']);
       expect(fetchSpy).not.toHaveBeenCalled();
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
@@ -737,6 +745,8 @@ describe('location choice (US2, US3)', () => {
       if (msg.type === 'location/list') return Promise.resolve(opts.list ?? listOk()) as never;
       // ADAPTED (014): the summary reads the tag list at opening; a readable empty list, like a real instance.
       if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: [] })) as never;
+      // ADAPTED (018): the summary reads the template list at opening; an instance without templates.
+      if (msg.type === 'template/list') return Promise.resolve(ok({ templates: [], defaultTemplate: null, defaultState: 'none' })) as never;
       if (msg.type === 'duplicate/check') {
         const matches = opts.duplicates === 'found' ? [{ id: 'x', name: DATA, url: DATA }] : [];
         // ADAPTED (015): the duplicate/check reply also carries similar, moreSimilar and incomplete.
@@ -769,7 +779,8 @@ describe('location choice (US2, US3)', () => {
       const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
       // Both calls are sent before either is resolved.
       // ADAPTED (014): the tag list is read in parallel too (contracts/ui.md).
-      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'tag/list']);
+      // ADAPTED (018): the template list is read in parallel too (contracts/ui.md §1.1).
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'tag/list', 'template/list']);
       await flushPromises();
       expect(wrapper.text()).toContain('Chargement des emplacements…');
       expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined();
@@ -2080,5 +2091,50 @@ describe('instance picker of the summary: texts from the catalog, in fr and en (
     expect(wrapper.get('[aria-live="polite"]').text()).toBe(c['summary.instanceLoaded']!.replace('$1', DATA));
     if (lang === 'fr') expectCatalogTexts(wrapper, [DATA, 'https://inventaire.example.org', 'inventaire.example.org']);
     wrapper.unmount();
+  });
+});
+
+describe('018: templates in the summary, in French then in English (T042, FR-035)', () => {
+  const two = { templates: [{ id: 'tpl-2', name: 'Jeu', description: '' }, { id: 'tpl-1', name: 'Livre', description: '' }], defaultTemplate: null, defaultState: 'none' };
+  const detail = {
+    id: 'tpl-1',
+    name: 'Livre',
+    fingerprint: 'a'.repeat(64),
+    description: '',
+    quantity: null,
+    insured: false,
+    manufacturer: '',
+    modelNumber: '',
+    lifetimeWarranty: false,
+    warrantyDetails: '',
+    locationId: null,
+    tags: [],
+    fields: [],
+  };
+  const mountWithTemplates = async () => {
+    vi.mocked(send).mockImplementation((msg) => {
+      if (msg.type === 'detect/run') return Promise.resolve(ok({ purchase: purchase([product('a')]), warnings: [] })) as never;
+      if (msg.type === 'template/list') return Promise.resolve(ok(two)) as never;
+      if (msg.type === 'template/get') return Promise.resolve(ok({ template: detail })) as never;
+      if (msg.type === 'tag/list') return Promise.resolve(ok({ tags: [] })) as never;
+      return Promise.resolve(ok({ locations: [], lastUsedId: null })) as never;
+    });
+    const wrapper = mount(SummaryView, { props: { tabId: 1, config: config() } });
+    await flushPromises();
+    wrapper.findComponent({ name: 'TemplatePicker' }).vm.$emit('update:modelValue', 'tpl-1');
+    await flushPromises();
+    return wrapper;
+  };
+
+  it.each([
+    ['fr', 'Modèle', 'Aucun', 'Un emplacement est nécessaire pour créer un objet à partir d\'un modèle.'],
+    ['en', 'Template', 'None', 'A location is required to create an item from a template.'],
+  ] as const)('%s: label, « None » option and the location-required alert', async (lang, label, none, required) => {
+    setTestLanguage(lang);
+    const wrapper = await mountWithTemplates();
+    const picker = wrapper.find('.template-picker');
+    expect(picker.find('label').text()).toBe(label);
+    expect(picker.find('option').text()).toBe(none);
+    expect(wrapper.findAll('[role="alert"]').some((a) => a.text() === required)).toBe(true);
   });
 });

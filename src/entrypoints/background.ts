@@ -7,6 +7,7 @@ import { registerHistoryHandlers } from '@/background/history/handlers';
 import { registerImportHandlers } from '@/background/import/handlers';
 import { registerLocationHandlers } from '@/background/location/handlers';
 import { registerTagHandlers } from '@/background/tags/handlers';
+import { registerTemplateHandlers } from '@/background/templates/handlers';
 import { startRouter } from '@/background/router';
 import { installedVersion, registerUpdateHandlers } from '@/background/update/handlers';
 import { updateStore } from '@/background/update/update-store';
@@ -25,6 +26,7 @@ export default defineBackground(() => {
   registerImportHandlers();
   registerLocationHandlers();
   registerTagHandlers();
+  registerTemplateHandlers();
   registerHistoryHandlers();
   registerUpdateHandlers();
   startRouter();

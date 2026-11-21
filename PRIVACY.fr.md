@@ -2,7 +2,7 @@
 
 # Politique de confidentialité
 
-**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **21 novembre 2026**
+**homebox-clipper** (l'« extension », publiée sous le nom « HomeBox Clipper ») · Date d'effet : **22 novembre 2026**
 
 En bref : l'extension n'a **aucun serveur, aucun compte, aucune statistique et aucune télémétrie**. Les
 données qu'elle traite vont de votre navigateur vers **votre propre** instance HomeBox, uniquement au
@@ -31,6 +31,7 @@ personne qui l'héberge pour vous) maîtrisez** : vous êtes responsable de ces 
 | Garantie proposée avec chaque objet (date d'expiration, garantie à vie, détails), calculée depuis la date d'achat, et réglage de la garantie par défaut (activée ou non, durée) | L'extension et vous | Remplir les champs garantie de l'objet HomeBox | La garantie est envoyée à votre instance HomeBox après votre confirmation et n'est pas conservée par l'extension une fois l'import terminé ; le réglage est stocké localement (aucune donnée personnelle) |
 | Tags HomeBox proposés (l'enseigne de la boutique, par exemple « Amazon », et les tags de vos propres règles) et tags que vous cochez dans le récapitulatif | L'extension, vos règles et vous | Classer l'objet dans HomeBox avec des tags | Lus sur **votre instance HomeBox** et, pour un tag qui n'existe pas encore, créés sur celle-ci (`GET`/`POST /api/v1/tags`) ; les tags sont créés et appliqués uniquement après votre confirmation, et seulement ceux cochés. Conservés seulement avec l'import en cours (`storage.session`), jamais dans l'historique des imports |
 | Réglage des tags automatiques (`tagSettings` : proposer ou non le nom de la boutique, et vos règles « le nom du produit contient … → tag … ») | Vous | Proposer des tags dans le récapitulatif | Stocké localement dans `storage.local`, en clair (aucun secret, aucune donnée d'achat), jamais dans `storage.sync` |
+| Modèles d'objets HomeBox choisis dans le récapitulatif (modèle, ses valeurs par défaut et les valeurs des champs personnalisés que vous confirmez) et modèle d'objet par défaut de chaque instance (identifiant et nom du modèle, `defaultTemplateByInstance`) | Votre instance HomeBox et vous | Créer l'objet à partir du modèle avec exactement les valeurs affichées | Les modèles et leurs valeurs sont lus uniquement sur l'instance HomeBox choisie et envoyés uniquement à celle-ci, après votre confirmation ; le modèle choisi et ses valeurs ne sont conservés qu'avec l'import en cours (`storage.session`), jamais dans l'historique des imports. Rien d'un modèle n'est conservé après l'import, hors ce modèle par défaut (identifiant et nom, stockés localement, effacé avec l'instance ou les réglages). Aucun nom de modèle, nom de champ ni valeur de champ n'est écrit dans les journaux |
 | Préférence de thème | Vous | Affichage | Stockée localement |
 | Réglage du verrouillage automatique (`lockSettings` : à la fermeture du navigateur, après 15 minutes, 1 heure ou 4 heures d’inactivité, ou à chaque ouverture de l’extension) | Vous | Décider quand la phrase de passe est redemandée | Stocké localement ; un simple choix, sans secret |
 | Heure de la dernière utilisation de l'extension déverrouillée (`homeboxActivity`, horodatage technique) | L'extension | Appliquer le verrouillage après inactivité | En mémoire du navigateur uniquement (`storage.session`), jamais sur le disque ; effacée au verrouillage ou à la fermeture du navigateur ; jamais affichée ni journalisée |
@@ -60,7 +61,7 @@ l'instance vers laquelle l'import a été fait, pour que son lien ouvre l'objet 
 puisse être effacée avec elle. Cet identifiant ne dit rien de l'instance par lui-même (ni adresse, ni nom).
 
 **Supprimer une instance** (Paramètres → **Supprimer cette instance**) efface son adresse, son nom, sa clé API
-chiffrée, sa clé masquée, son dernier test de connexion, son dernier emplacement, ses entrées d’historique et ses
+chiffrée, sa clé masquée, son dernier test de connexion, son dernier emplacement, son modèle d'objet par défaut, ses entrées d’historique et ses
 imports interrompus, et retire sa permission d'accès si aucune autre instance ne l’utilise. **Supprimer toute la
 configuration** (à partir de deux instances ; **Supprimer la configuration** avec une seule) efface toutes les
 instances et ce qui leur est rattaché.
@@ -70,7 +71,8 @@ instances et ce qui leur est rattaché.
 - **Dans votre navigateur** (`storage.local`) : la liste des instances (`homeboxInstances` : adresses, noms
   d'affichage, clés API chiffrées, clés masquées comme `hb_••••abcd`, résultats du dernier test de connexion),
   la dernière instance utilisée pour un import réussi (`lastInstanceId`), le dernier emplacement utilisé par
-  instance, thème, réglage de la garantie par défaut, réglage des tags automatiques (`tagSettings` : option du nom de la boutique et règles de tags), et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
+  instance, le modèle d'objet par défaut de chaque instance (identifiant et nom du modèle,
+  `defaultTemplateByInstance`, effacé avec l'instance ou les réglages), thème, réglage de la garantie par défaut, réglage des tags automatiques (`tagSettings` : option du nom de la boutique et règles de tags), et l'historique des imports (chaque entrée chiffrée en AES-GCM 256 avec une clé
   d'historique aléatoire, elle-même scellée par votre phrase de passe comme la clé API) avec son réglage
   d'activation, le réglage du verrouillage automatique (`lockSettings`) et la version de la dernière
   annonce de mise à jour (`updateNotice`).

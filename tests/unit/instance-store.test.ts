@@ -423,3 +423,39 @@ describe('instance-store: storage', () => {
     });
   });
 });
+
+describe('018: default template per instance purged with the instance (Q-U3, US4-7)', () => {
+  const C = { id: 'inst-c', name: 'Bureau', baseUrl: 'https://bureau.example.net', apiKey: 'hb_cccccccc' };
+  const DEFAULTS = {
+    'inst-a': { id: 'tpl-1', name: 'Livre' },
+    'inst-b': { id: 'tpl-2', name: 'Jeu' },
+    'inst-c': { id: 'tpl-1', name: 'Livre' },
+  };
+  beforeEach(() => fakeBrowser.reset());
+
+  it('remove(id): only the entry of this instance disappears; the others keep their default', async () => {
+    await seedStore(await buildStore({ instances: [A, B, C] }));
+    await fakeBrowser.storage.local.set({ defaultTemplateByInstance: DEFAULTS });
+    expect((await instanceStore.remove('inst-b'))?.id).toBe('inst-b');
+    expect((await fakeBrowser.storage.local.get('defaultTemplateByInstance')).defaultTemplateByInstance).toEqual({
+      'inst-a': { id: 'tpl-1', name: 'Livre' },
+      'inst-c': { id: 'tpl-1', name: 'Livre' },
+    });
+  });
+
+  it('remove(id) without a default for this instance: the table is untouched', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    await fakeBrowser.storage.local.set({ defaultTemplateByInstance: { 'inst-a': { id: 'tpl-1', name: 'Livre' } } });
+    await instanceStore.remove('inst-b');
+    expect((await fakeBrowser.storage.local.get('defaultTemplateByInstance')).defaultTemplateByInstance).toEqual({
+      'inst-a': { id: 'tpl-1', name: 'Livre' },
+    });
+  });
+
+  it('clear(): the whole defaultTemplateByInstance key is removed', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    await fakeBrowser.storage.local.set({ defaultTemplateByInstance: DEFAULTS });
+    await instanceStore.clear();
+    expect(await fakeBrowser.storage.local.get('defaultTemplateByInstance')).toEqual({});
+  });
+});

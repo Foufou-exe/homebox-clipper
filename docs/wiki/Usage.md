@@ -138,6 +138,38 @@ If a tag cannot be created or attached, the item and its data are kept: the resu
 *Tags not added: …* and **Retry** applies only the missing tags, without recreating the item or the tags
 already created. The chosen tags are never stored in the import history.
 
+## HomeBox item templates
+
+If your HomeBox instance has item templates (HomeBox v0.22.1 or later), a **Template** picker appears under each
+product of the summary. It is set to **None** by default (or to the default template of the instance, see
+[Configuration](Configuration.md#default-item-template)); with **None**, the import is exactly the same as without
+templates.
+
+When you choose a template:
+
+- its values are shown and can be edited before you confirm: manufacturer, model number, insured, and its custom
+  fields (text, number, yes/no and date), in the order of the template: all the custom fields can be edited. A field of an unknown type is shown read-only
+  and copied as is. At most 100 fields per template and 50 distinct templates per import;
+- the name of the product is never changed, and the description of the product comes first: the default
+  description of the template is only used when the product has none. The default quantity of the template is only
+  used for a manual entry. A warranty found for the product is kept; otherwise the warranty of the template is shown;
+- its default tags are added (only those that still exist in HomeBox; a tag of a template is never created) and its
+  default location is proposed when the product has none;
+- **a location is required**: HomeBox needs one to create an item from a template. **Add** stays disabled, with a
+  message, until a location is chosen;
+- numbers, yes/no and dates are **saved as text** in the custom fields (HomeBox only shows the text): a whole number
+  in digits, `true` or `false`, a date as `YYYY-MM-DD`; numbers and yes/no are also sent with their type. After the
+  import, the extension reads the item again and checks every value; a gap is shown as a failed « Template fields »
+  step that you can retry without creating the item again.
+
+Changing the template, or going back to **None**, removes what the template had set and keeps what you changed
+yourself. Changing the target instance removes the templates: templates belong to one instance.
+
+Just before the import, the templates are checked again. A template **changed or deleted** in HomeBox since you
+chose it stops the import: nothing is created, your entries are kept, and the changes (or the deleted template and
+the products concerned) are listed; confirm again, or choose another template or **None**. As always, nothing is
+created before you confirm.
+
 ## Multi-item orders
 
 The popup lists the "Detected products": check the ones to import. Each becomes a HomeBox item, with the

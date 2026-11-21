@@ -36,8 +36,8 @@ export interface PageWarranty {
   label: string;
 }
 
-/** Where a proposed warranty comes from: the legal default, the order page, or the user. */
-export type WarrantyOrigin = 'legal' | 'page' | 'user';
+/** Where a proposed warranty comes from: the legal default, the order page, the user, or a HomeBox template (spec 018). */
+export type WarrantyOrigin = 'legal' | 'page' | 'user' | 'template';
 
 /** Warranty of an object as shown on the confirmation screen and sent to HomeBox (spec 011). */
 export interface WarrantyDraft {
@@ -116,6 +116,101 @@ export interface TagChoice {
   name: string;
   /** HomeBox identifier known in the summary; absent for a "new" or "not verified" tag. */
   id?: string;
+  /** Spec 018: default tag of a template; never created if it no longer exists (FR-015). Absent otherwise. */
+  noCreate?: true;
+}
+
+/** Kind of a template field known to the extension; any other type is `unknown` (read-only, FR-008). */
+export type TemplateFieldKind = 'text' | 'number' | 'boolean' | 'time' | 'unknown';
+
+/** Custom field of a template, in the order of the template (spec 018). */
+export interface TemplateFieldView {
+  /** HomeBox `type` as is (copied for an unknown type). */
+  type: string;
+  kind: TemplateFieldKind;
+  name: string;
+  /** '' when absent. */
+  textValue: string;
+  /** 0 when absent. */
+  numberValue: number;
+  /** false when absent. */
+  booleanValue: boolean;
+}
+
+/** Entry of the template picker. */
+export interface TemplateOption {
+  id: string;
+  name: string;
+  /** Shown to tell two templates of the same name apart. */
+  description: string;
+}
+
+/** Normalised detail of a template (answer of `template/get`). Never logged. */
+export interface TemplateDetail {
+  id: string;
+  name: string;
+  /** SHA-256 hex of the canonical form (research D9). */
+  fingerprint: string;
+  /** defaultDescription ('' when absent). */
+  description: string;
+  /** defaultQuantity when an integer >= 1, otherwise null. */
+  quantity: number | null;
+  insured: boolean;
+  manufacturer: string;
+  modelNumber: string;
+  lifetimeWarranty: boolean;
+  warrantyDetails: string;
+  /** defaultLocation.id */
+  locationId: string | null;
+  tags: TagOption[];
+  fields: TemplateFieldView[];
+}
+
+/** Default template remembered for an instance (FR-024): identifier and name only. */
+export interface DefaultTemplateRef {
+  id: string;
+  /** Displayed name, <= 255 characters, updated at each read of the list. */
+  name: string;
+}
+
+/** Answer of `template/list` (contracts/runtime-messages.md §1). */
+export interface TemplateListView {
+  templates: TemplateOption[];
+  defaultTemplate: DefaultTemplateRef | null;
+  /** none: no default; ok: in the list; missing: deleted in HomeBox (US4-4). */
+  defaultState: 'none' | 'ok' | 'missing';
+}
+
+/** One result of `template/check`. */
+export type TemplateCheck =
+  | { id: string; state: 'same' }
+  | { id: string; state: 'changed'; template: TemplateDetail }
+  | { id: string; state: 'missing' };
+
+/** Template chosen for a product, with the values confirmed by the user (FR-017). Never logged. */
+export interface TemplateChoice {
+  id: string;
+  /** Name shown at confirmation: error messages only. */
+  name: string;
+  /** Fingerprint of the detail shown (FR-020). */
+  fingerprint: string;
+  insured: boolean;
+  /** <= 255 */
+  manufacturer: string;
+  /** <= 255 */
+  modelNumber: string;
+  /** In the order of the template; <= 100. */
+  fields: TemplateFieldValue[];
+}
+
+/** Confirmed value of a field, already in the shape sent (research D1). */
+export interface TemplateFieldValue {
+  type: string;
+  kind: TemplateFieldKind;
+  name: string;
+  textValue: string;
+  numberValue: number;
+  booleanValue: boolean;
 }
 
 export interface ImportDraft {
@@ -141,6 +236,8 @@ export interface ImportDraft {
    * (no tag request, no `tagIds` key in the PUT). Absent from a state persisted by a previous version.
    */
   tags?: TagChoice[];
+  /** Spec 018: template chosen and confirmed values. Absent (never null): created exactly as before (FR-016). */
+  template?: TemplateChoice;
 }
 
 export type PhotoStep = 'not_requested' | 'unavailable' | 'pending' | 'sending' | 'done' | 'failed';
@@ -161,7 +258,11 @@ export interface PendingImport {
     photo: PhotoStep;
     /** Present only if `draft.tags` is non-empty (spec 014): without tags, nothing changes. */
     tags?: StepState;
+    /** Present only if `draft.template` (spec 018, invariant 1). */
+    templateFields?: StepState;
   };
+  /** Code of the last failed check of the template fields (spec 018); absent until a failure. */
+  templateFieldsError?: ErrorCode;
   /** Names (`draft.tags[].name`) not applied during the last run (spec 014). Absent until a tag failure happens. */
   failedTags?: string[];
   /**

@@ -2,7 +2,7 @@
 
 # Privacy policy
 
-**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **21 November 2026**
+**homebox-clipper** (the "extension", published as "HomeBox Clipper") · Effective date: **22 November 2026**
 
 In short: the extension has **no server, no account, no analytics and no telemetry**. The data it
 handles goes from your browser to **your own** HomeBox instance, only when you click "Add to HomeBox",
@@ -30,6 +30,7 @@ control**; you are the controller of that data. Project page:
 | Warranty proposed with each item (expiry date, lifetime flag, details), calculated from the purchase date, and the default-warranty setting (on/off, duration) | The extension and you | Fill the warranty fields of the HomeBox item | The warranty is sent to your HomeBox instance after you confirm and is never kept by the extension once the import is done; the setting is stored locally (no personal data) |
 | Suggested HomeBox tags (the store brand, for example "Amazon", and the tags of your own rules) and the tags you check in the summary | The extension, your rules and you | Tag the item in HomeBox | Read from and, for a tag that does not exist yet, created on **your HomeBox instance** (`GET`/`POST /api/v1/tags`); tags are created and applied only after your confirmation, and only the checked ones. Kept only with the import in progress (`storage.session`), never in the import history |
 | Automatic-tag setting (`tagSettings`: whether to suggest the store name, and your rules "the product name contains … → tag …") | You | Suggest tags in the summary | Stored locally in `storage.local`, in clear (no secret, no purchase data), never in `storage.sync` |
+| HomeBox item templates chosen in the summary (template, its default values and the custom field values you confirm) and the default item template of each instance (identifier and name of the template, `defaultTemplateByInstance`) | Your HomeBox instance and you | Create the item from the template with exactly the values shown | The templates and their values are read only from the HomeBox instance you chose and sent only to it, after your confirmation; the template chosen and its values are kept only with the import in progress (`storage.session`), never in the import history. Nothing of a template is kept after the import except this default (identifier and name, stored locally, erased with the instance or the settings). No template name, field name or field value is written to the logs |
 | Theme preference | You | Display | Stored locally |
 | Automatic lock setting (`lockSettings`: when the browser closes, after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened) | You | Decide when the passphrase is asked again | Stored locally; a choice only, no secret |
 | Last time the extension was used while unlocked (`homeboxActivity`, a technical timestamp) | The extension | Apply the inactivity lock | Browser memory only (`storage.session`), never on disk; erased when the extension locks or the browser closes; never shown or logged |
@@ -58,7 +59,7 @@ instance it was made to, so that its link opens the item in that instance and so
 This identifier says nothing about the instance by itself (no address, no name).
 
 **Deleting an instance** (Settings → **Delete this instance**) erases its address, name, encrypted API key,
-masked key, last connection test, last location, its history entries and its interrupted imports, and removes its
+masked key, last connection test, last location, default item template, its history entries and its interrupted imports, and removes its
 access permission if no other instance uses it. **Delete all settings** (from two instances on; **Delete
 settings** with a single one) erases every instance and what is attached to them.
 
@@ -66,7 +67,7 @@ settings** with a single one) erases every instance and what is attached to them
 
 - **In your browser** (`storage.local`): the list of instances (`homeboxInstances`: addresses, display names,
   encrypted API keys, masked keys such as `hb_••••abcd`, results of the last connection test), the last instance
-  used for a successful import (`lastInstanceId`), the last location used per instance, theme, the default-warranty setting, the automatic-tag setting (`tagSettings`: store-name option and tag rules), and the
+  used for a successful import (`lastInstanceId`), the last location used per instance, the default item template of each instance (identifier and name of the template, `defaultTemplateByInstance`, erased with the instance or the settings), theme, the default-warranty setting, the automatic-tag setting (`tagSettings`: store-name option and tag rules), and the
   import history (each entry encrypted with AES-GCM 256 under a random history key, itself sealed with
   your passphrase like the API key) with its on/off setting, the automatic lock setting
   (`lockSettings`) and the version of the last update notice (`updateNotice`).
