@@ -92,18 +92,20 @@ interface Part {
   filled: CompletionKey[];
 }
 
-/** Records one key the draft provides: a change when applicable on the item, otherwise "already set". */
-function decide(
-  part: Part,
-  category: CompletionCategory,
-  key: CompletionKey,
-  applicable: boolean,
-): void {
-  if (applicable) part.changes.push({ key, category });
-  else part.filled.push(key);
-}
-
 const emptyPart = (): Part => ({ changes: [], filled: [] });
+
+/** One key the draft provides, and whether it still applies to the item (otherwise the item's value is already set). */
+type Entry = readonly [CompletionKey, boolean];
+
+/** Sorts the keys the draft provides: changes when applicable on the item, otherwise "already set". */
+function record(category: CompletionCategory, entries: readonly Entry[]): Part {
+  const part = emptyPart();
+  for (const [key, applicable] of entries) {
+    if (applicable) part.changes.push({ key, category });
+    else part.filled.push(key);
+  }
+  return part;
+}
 
 /** Warranty details of the draft, trimmed; `''` when absent or too long. */
 function draftDetails(draft: ImportDraft): string {
@@ -113,17 +115,18 @@ function draftDetails(draft: ImportDraft): string {
 
 /** Purchase and warranty (research D1): each value of the draft only when the item's is empty. */
 export function purchaseChanges(e: EntityOut, draft: ImportDraft): Part {
-  const part = emptyPart();
-  const add = (key: CompletionKey, applicable: boolean) =>
-    decide(part, 'purchase', key, applicable);
-  if (draft.purchasePrice !== null) add('purchasePrice', isEmptyPrice(e.purchasePrice));
-  if (isValidIsoDate(draft.purchaseDate)) add('purchaseDate', isEmptyValue(e.purchaseDate));
-  if (draft.purchaseFrom.trim() !== '') add('purchaseFrom', isEmptyValue(e.purchaseFrom));
+  const entries: Entry[] = [];
+  if (draft.purchasePrice !== null) entries.push(['purchasePrice', isEmptyPrice(e.purchasePrice)]);
+  if (isValidIsoDate(draft.purchaseDate))
+    entries.push(['purchaseDate', isEmptyValue(e.purchaseDate)]);
+  if (draft.purchaseFrom.trim() !== '')
+    entries.push(['purchaseFrom', isEmptyValue(e.purchaseFrom)]);
   const w = draft.warranty;
-  if (w?.lifetime) add('lifetimeWarranty', !hasWarranty(e));
-  else if (w && isValidIsoDate(w.expires)) add('warrantyExpires', !hasWarranty(e));
-  if (draftDetails(draft) !== '') add('warrantyDetails', isEmptyValue(e.warrantyDetails));
-  return part;
+  if (w?.lifetime) entries.push(['lifetimeWarranty', !hasWarranty(e)]);
+  else if (w && isValidIsoDate(w.expires)) entries.push(['warrantyExpires', !hasWarranty(e)]);
+  if (draftDetails(draft) !== '')
+    entries.push(['warrantyDetails', isEmptyValue(e.warrantyDetails)]);
+  return record('purchase', entries);
 }
 
 /** A custom field of the same name exists (edge spaces removed, exact case, any type: rule of spec 019). */
@@ -133,12 +136,12 @@ const hasField = (e: EntityOut, name: string): boolean =>
 
 /** Order fields absent from the item, then the notes line. */
 export function orderChanges(e: EntityOut, draft: ImportDraft, note: string | null): Part {
-  const part = emptyPart();
-  for (const o of draft.orderFields ?? [])
-    decide(part, 'order', `field:${o.role}`, !hasField(e, o.name));
-  if (draft.orderNumber?.trim() && note)
-    decide(part, 'order', 'notes', orderLine(e, draft, note).add);
-  return part;
+  const entries: Entry[] = (draft.orderFields ?? []).map((o) => [
+    `field:${o.role}`,
+    !hasField(e, o.name),
+  ]);
+  if (draft.orderNumber?.trim() && note) entries.push(['notes', orderLine(e, draft, note).add]);
+  return record('order', entries);
 }
 
 /** A checked tag already on the item: same identifier, otherwise same key (case, accents and spacing ignored). */
@@ -153,10 +156,10 @@ export function tagPresent(e: EntityOut, choice: { name: string; id?: string }):
 
 /** Checked tags missing from the item; no tag is ever removed. */
 export function tagChanges(e: EntityOut, draft: ImportDraft): Part {
-  const part = emptyPart();
-  for (const choice of draft.tags ?? [])
-    decide(part, 'tags', `tag:${tagKey(choice.name)}`, !tagPresent(e, choice));
-  return part;
+  return record(
+    'tags',
+    (draft.tags ?? []).map((choice) => [`tag:${tagKey(choice.name)}`, !tagPresent(e, choice)]),
+  );
 }
 
 /** Titles of the attachments of the item. */
@@ -177,9 +180,10 @@ export const hasPrimaryPhoto = (e: EntityOut): boolean =>
 
 /** Documents whose title is not on the item yet; the photo (always added when checked), primary only without one. */
 export function attachmentChanges(e: EntityOut, draft: ImportDraft): Part {
-  const part = emptyPart();
-  for (const doc of draft.documents)
-    decide(part, 'attachments', `doc:${doc.id}`, !attachmentPresent(e, doc));
+  const part = record(
+    'attachments',
+    draft.documents.map((doc) => [`doc:${doc.id}`, !attachmentPresent(e, doc)]),
+  );
   if (draft.photo?.include)
     part.changes.push({ key: 'photo', category: 'attachments', primary: !hasPrimaryPhoto(e) });
   return part;

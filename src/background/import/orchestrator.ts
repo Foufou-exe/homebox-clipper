@@ -312,17 +312,37 @@ function reconcileCompletionPhoto(p: PendingImport, read: EntityOut): void {
   if (p.steps.photo === 'done') p.photoError = null;
 }
 
+/** Completion state of an import (spec 021), created empty on first use. */
+function completionState(p: PendingImport): NonNullable<PendingImport['completion']> {
+  p.completion ??= { skipped: [], present: [] };
+  return p.completion;
+}
+
 /** A document found on the item: done; reported as "already present" unless our own earlier attempt sent it. */
 function markAttached(p: PendingImport, docId: string, ownAttempt: boolean): void {
   p.steps.attachments[docId] = 'done';
-  const c = (p.completion ??= { skipped: [], present: [] });
+  const c = completionState(p);
   if (!ownAttempt && !c.present.includes(docId)) c.present.push(docId);
 }
 
 /** Adds keys to `completion.skipped`, without duplicates (FR-009). */
 function addSkipped(p: PendingImport, keys: readonly CompletionKey[]): void {
-  const c = (p.completion ??= { skipped: [], present: [] });
+  const c = completionState(p);
   for (const k of keys) if (!c.skipped.includes(k)) c.skipped.push(k);
+}
+
+/**
+ * Spec 021 (FR-016, research R5): quantity to send, from the base and target remembered across resumes; written to the
+ * state (persisted before the PUT). Only on the first PUT, and only when the box was checked.
+ */
+function completionQuantity(p: PendingImport, choice: CompletionChoice, read: EntityOut): number | undefined {
+  if (choice.quantityIncrease === undefined || p.steps.update === 'done') return undefined;
+  const c = completionState(p);
+  const plan = quantityPlan(typeof read.quantity === 'number' ? read.quantity : 0, choice.quantityIncrease, c);
+  c.quantityBase = plan.base;
+  c.quantityTarget = plan.target;
+  if (plan.skipped) addSkipped(p, ['quantity']);
+  return plan.send;
 }
 
 /** The PUT of a completion still has something to do: first attempt, or tags / order fields left. */
@@ -970,20 +990,6 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return resolveTags({ ...p, draft: { ...p.draft, tags: wanted } }, cache);
   }
 
-  /**
-   * Spec 021 (FR-016, research R5): quantity to send, from the base and target remembered across resumes; written to the
-   * state (persisted before the PUT). Only on the first PUT, and only when the box was checked.
-   */
-  function completionQuantity(p: PendingImport, choice: CompletionChoice, read: EntityOut): number | undefined {
-    if (choice.quantityIncrease === undefined || p.steps.update === 'done') return undefined;
-    const c = (p.completion ??= { skipped: [], present: [] });
-    const plan = quantityPlan(typeof read.quantity === 'number' ? read.quantity : 0, choice.quantityIncrease, c);
-    c.quantityBase = plan.base;
-    c.quantityTarget = plan.target;
-    if (plan.skipped) addSkipped(p, ['quantity']);
-    return plan.send;
-  }
-
   /** Spec 021 (FR-014): the order fields added are checked on a new read; skipped ones close the step. */
   async function settleCompletionFields(p: PendingImport, entityId: string, added: OrderFieldValue[], putOk: boolean): Promise<ErrorCode | null> {
     if (p.steps.orderFields === undefined || p.steps.orderFields === 'done') return null;
@@ -995,7 +1001,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
 
   /** Spec 021 (C5, FR-017): nothing left to write, no PUT; the tags that could not be resolved are reported. */
   async function completionNoPut(p: PendingImport, tags: ResolvedTags | null): Promise<UpdateErrors> {
-    if (p.steps.update === 'pending') (p.completion ??= { skipped: [], present: [] }).noChange = true;
+    if (p.steps.update === 'pending') completionState(p).noChange = true;
     p.steps.update = 'done';
     const tagsError = tags ? settleTags(p, tags, false) : null;
     const orderFieldsError = p.steps.orderFields && p.steps.orderFields !== 'done' ? settleOrderFields(p, true) : null;
@@ -1052,10 +1058,10 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       if (p.steps.attachments[doc.id] === 'done') continue;
       if (attachmentPresent(read, doc)) {
         markAttached(p, doc.id, p.steps.attachments[doc.id] === 'failed');
-        await persist(p);
+        await persist(p); // NOSONAR: sequential on purpose (state saved after each document)
         continue;
       }
-      const error = await attachDocument(p, entityId, doc, files);
+      const error = await attachDocument(p, entityId, doc, files); // NOSONAR: sequential on purpose (one instance, resume state per document)
       firstError ??= error;
     }
     return firstError;
@@ -1074,7 +1080,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       p.photoError = fetched.error;
       return;
     }
-    (p.completion ??= { skipped: [], present: [] }).photoCountBefore = photoCount(read);
+    completionState(p).photoCountBefore = photoCount(read);
     p.steps.photo = 'sending';
     p.photoAttempted = true;
     await persist(p);
