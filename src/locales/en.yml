@@ -506,4 +506,4 @@ templates:
   errors:
     notInteger: "Enter a whole number, or leave the field empty."
     invalidDate: "Enter a valid date, or leave the field empty."
-    tooLong: "$1 characters at most."
+    tooLong: "$1 bytes at most."

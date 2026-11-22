@@ -1072,7 +1072,7 @@ describe('018 US2: the 9 keys (T053)', () => {
     ["templates.readOnlyType", "Unsupported field type: copied as is", "Type de champ non pris en charge : recopié tel quel"],
     ["templates.errors.notInteger", "Enter a whole number, or leave the field empty.", "Saisissez un nombre entier, ou laissez le champ vide."],
     ["templates.errors.invalidDate", "Enter a valid date, or leave the field empty.", "Saisissez une date valide, ou laissez le champ vide."],
-    ["templates.errors.tooLong", "$1 characters at most.", "$1 caractères au maximum."],
+    ["templates.errors.tooLong", "$1 bytes at most.", "$1 octets au maximum."],
     ["result.stepTemplateFields", "Template fields: $1", "Champs du modèle : $1"],
   ];
 

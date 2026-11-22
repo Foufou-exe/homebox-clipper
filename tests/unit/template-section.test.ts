@@ -106,7 +106,7 @@ describe('TemplateSection', () => {
     expect(last(w).values.fields[1]!.error).toBeNull();
   });
 
-  it('text over 500 characters → tooLong', async () => {
+  it('text over 500 bytes → tooLong', async () => {
     const w = mountSection();
     await inputFor(w, 'Auteur').setValue('x'.repeat(501));
     expect(last(w).values.fields[0]!.error).toBe('tooLong');
