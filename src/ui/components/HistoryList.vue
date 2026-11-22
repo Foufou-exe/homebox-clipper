@@ -5,7 +5,9 @@ import { groupByOrder } from '@/background/history/entry';
 import { MERCHANT_CATALOG } from '@/content/merchants/catalog';
 import { send } from '@/shared/messages';
 import type { HistoryEntryView, HistoryListView, InstanceView } from '@/shared/types';
+import type { ErrorCode } from '@/shared/errors';
 import { errorMessage, formatDate, formatDateTime, t, type MessageKey } from '@/ui/i18n';
+import { completionErrorMessage } from '@/ui/popup/completion';
 
 /**
  * Local import history (spec 012, contracts/ui.md). Read-only towards HomeBox: no request, no re-import.
@@ -108,6 +110,8 @@ function storeName(entry: HistoryEntryView): string {
   return MERCHANT_CATALOG.find((m) => m.id === entry.merchantId)?.displayName ?? entry.merchantId;
 }
 
+/** Spec 021: the reason of a completed item never says "the item was created". */
+const reasonText = (code: ErrorCode, completed: boolean): string => (completed ? completionErrorMessage(code) : errorMessage(code));
 const statusKey = (entry: HistoryEntryView) => `history.status.${entry.status}` as MessageKey;
 /** "Missing: invoice not sent, photo not sent" — only for a partial import (contracts/ui.md, item 4). */
 function missingText(entry: HistoryEntryView): string | null {
@@ -199,7 +203,8 @@ const instanceName = (entry: HistoryEntryView): string | null =>
               </p>
               <p v-if="instanceName(entry)" class="instance-name">{{ t('history.instanceName', [instanceName(entry) ?? '']) }}</p>
               <p v-if="missingText(entry)" class="missing">{{ missingText(entry) }}</p>
-              <p v-if="entry.reason" class="reason">{{ t('history.reason', [errorMessage(entry.reason)]) }}</p>
+              <p v-if="entry.reason" class="reason">{{ t('history.reason', [reasonText(entry.reason, entry.completed === true)]) }}</p>
+              <p v-if="entry.completed" class="completed">{{ t('completion.historyCompleted') }}</p>
               <p v-if="entry.interrupted" class="interrupted">{{ t('recovery.interrupted') }}</p>
               <p v-if="entry.resumable" class="resumable">{{ t('history.resumable') }}</p>
               <p class="actions">
@@ -298,6 +303,7 @@ h3 {
 .instance-name,
 .missing,
 .reason,
+.completed,
 .interrupted,
 .resumable {
   margin: 4px 0 0;

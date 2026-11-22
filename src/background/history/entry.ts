@@ -29,7 +29,8 @@ function cut(value: string, max: number): string {
 export function statusOf(p: PendingImport): HistoryStatus {
   if (p.status === 'success') return 'complete';
   // Invariants 3 and 4 by construction: an object that exists is never "failed", and "partial" needs an object.
-  if (p.status === 'failed' && p.entityId) return 'partial';
+  // Spec 021: an existing item chosen for a completion that no longer exists is "failed" (nothing to resume).
+  if (p.status === 'failed' && p.entityId && p.error !== 'ITEM_NOT_FOUND') return 'partial';
   if (p.status === 'partial' && !p.entityId) return 'failed';
   return p.status;
 }
@@ -82,6 +83,8 @@ export function toEntry(
     status,
     missing: status === 'complete' || status === 'failed' ? [] : missingOf(p),
     reason: finished ? (p.error ?? null) : null,
+    // Spec 021 (FR-024): an existing item completed instead of created; nothing of the item read is recorded.
+    ...(p.draft.complete ? { completed: true as const } : {}),
   };
 }
 

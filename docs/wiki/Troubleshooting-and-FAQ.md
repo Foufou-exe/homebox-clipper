@@ -60,6 +60,7 @@ If you are using HTTPS to connect to homebox, the certificate needs to be set up
 | Creating the item in HomeBox failed. | `CREATE_FAILED` | HomeBox refused or could not process the creation. Nothing was created. | Check the state of the instance, then "Retry the import". |
 | The item was created but its purchase details were not saved. | `UPDATE_FAILED` | The update (price, date, seller, notes) failed after the creation. | "Retry the import": the existing item is completed, never recreated. |
 | The item was created but sending a document failed. | `ATTACHMENT_FAILED` | Instance unreachable or HomeBox error while uploading the attachment. The popup also names the document ("The manual could not be sent."). | "Retry the document upload": a single item, with its documents. |
+| The chosen HomeBox item no longer exists. Nothing was changed. | `ITEM_NOT_FOUND` | You chose **Complete** an existing item, and it was deleted in HomeBox (or is no longer readable with this key) before the preview or before the update. Nothing was written and no item was created instead. | Go back to the summary, run the duplicate check again, then choose **Create a new item** or another item. |
 
 ## Product photo
 

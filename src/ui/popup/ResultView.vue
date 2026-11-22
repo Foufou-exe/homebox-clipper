@@ -6,6 +6,7 @@ import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import { instanceById } from '@/ui/instances';
 import RecoveryView from './RecoveryView.vue';
+import { doneMessage, keyNames } from './completion';
 
 /** `instances`: the configured instances; the links of an import use ITS instance (spec 016), never the default one. */
 const props = defineProps<{
@@ -78,6 +79,19 @@ const importedTo = computed(() =>
     ? [...new Set(props.pendings.flatMap((p) => instanceOf(p)?.name ?? []))]
     : [],
 );
+/**
+ * Spec 021 (contracts/ui-completion.md §4): what a completion did not write, each on its own line: no change at all,
+ * values filled in HomeBox meanwhile (never overwritten), documents already attached.
+ */
+const completionNotes = (p: PendingImport): string[] => {
+  const c = p.completion;
+  if (!p.draft.complete || !c) return [];
+  const notes: string[] = [];
+  if (c.noChange) notes.push(t('result.noChange'));
+  if (c.skipped.length) notes.push(t('result.skipped', [keyNames(c.skipped, p.draft)]));
+  if (c.present.length) notes.push(t('result.present', [keyNames(c.present.map((id) => `doc:${id}` as const), p.draft)]));
+  return notes;
+};
 const allDone = computed(() => !props.running && props.pendings.every((p) => p.status === 'success'));
 </script>
 
@@ -88,15 +102,19 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
     <p v-for="name in importedTo" :key="name" class="imported-to">{{ t('result.importedTo', [name]) }}</p>
 
     <p v-if="allDone && pendings.length" class="success" role="status">
-      {{ pendings.length > 1 ? t('result.addedMany', [String(pendings.length)]) : t('result.addedOne') }}
+      {{ doneMessage(pendings.filter((p) => !p.draft.complete).length, pendings.filter((p) => p.draft.complete).length) }}
     </p>
 
     <article v-for="p in pendings" :key="p.id" class="item card">
       <template v-if="p.status === 'running'">
         <p role="status"><strong>{{ p.draft.name }}</strong> {{ t('result.itemRunning') }}</p>
         <ul class="steps">
-          <li>{{ t('result.stepCreate', [stepLabel(p.steps.create)]) }}</li>
-          <li>{{ t('result.stepUpdate', [stepLabel(p.steps.update)]) }}</li>
+          <!-- Spec 021: a completed item is never created; one step updates it. -->
+          <li v-if="p.draft.complete">{{ t('result.stepComplete', [stepLabel(p.steps.update)]) }}</li>
+          <template v-else>
+            <li>{{ t('result.stepCreate', [stepLabel(p.steps.create)]) }}</li>
+            <li>{{ t('result.stepUpdate', [stepLabel(p.steps.update)]) }}</li>
+          </template>
           <li v-for="d in p.draft.documents" :key="d.id">
             {{ t('result.stepDocument', [d.label, t(kindKeys(d).label), stepLabel(p.steps.attachments[d.id] ?? 'pending')]) }}
           </li>
@@ -110,12 +128,14 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
 
       <p v-else-if="p.status === 'success'">
         ✓ <strong>{{ p.draft.name }}</strong>
-        <template v-if="p.draft.documents.length">{{ ' ' }}{{ withDocuments(p) }}</template>
+        <template v-if="p.draft.complete">{{ ' ' }}— {{ t('result.completed') }}</template>
+        <template v-else-if="p.draft.documents.length">{{ ' ' }}{{ withDocuments(p) }}</template>
         —
         <a v-if="itemLink(p)" :href="itemLink(p) ?? undefined" target="_blank" rel="noopener">{{ t('result.openInHomebox') }}</a>
         <small v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</small>
         <small v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</small>
         <small v-for="note in fallbackNotes(p)" :key="note" class="photo-result">{{ note }}</small>
+        <small v-for="note in completionNotes(p)" :key="note" class="photo-result">{{ note }}</small>
         <!-- Spec 019 (US1-6): the order fields step is shown done for the product. -->
         <small v-if="p.steps.orderFields" class="photo-result">{{ t('result.stepOrderFields', [stepLabel(p.steps.orderFields)]) }}</small>
       </p>
@@ -131,6 +151,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         <p v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</p>
         <p v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</p>
         <p v-if="tagsFailed(p)" class="photo-result">{{ tagsFailed(p) }}</p>
+        <p v-for="note in completionNotes(p)" :key="note" class="photo-result">{{ note }}</p>
         <p v-if="p.steps.templateFields" class="photo-result">{{ t('result.stepTemplateFields', [stepLabel(p.steps.templateFields)]) }}</p>
         <p v-if="p.steps.orderFields" class="photo-result">{{ t('result.stepOrderFields', [stepLabel(p.steps.orderFields)]) }}</p>
       </template>

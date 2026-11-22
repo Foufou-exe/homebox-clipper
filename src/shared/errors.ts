@@ -48,6 +48,8 @@ export const ERROR_CODES = [
   // Spec 019 (order details as HomeBox custom fields).
   'ORDER_FIELDS_FAILED',
   'FIELD_NAMES_UNAVAILABLE',
+  // Spec 021 (complete an existing item).
+  'ITEM_NOT_FOUND',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

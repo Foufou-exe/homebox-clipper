@@ -62,6 +62,9 @@ watch(
   { immediate: true },
 );
 
+/** Spec 021: a completion of an existing item (never "created"); `itemGone`: the item was deleted, only abandon. */
+const completion = computed(() => props.pending.draft.complete ?? null);
+const itemGone = computed(() => completion.value !== null && props.pending.error === 'ITEM_NOT_FOUND');
 const link = computed(() =>
   props.pending.entityId && props.instance ? `${props.instance.baseUrl}/item/${props.pending.entityId}` : null,
 );
@@ -138,16 +141,21 @@ async function abandon() {
 <template>
   <div class="recovery">
     <p v-if="named && instance" class="recovery-instance">{{ t('recovery.instance', [instance.name]) }}</p>
-    <p v-if="pending.entityId">
+    <p v-if="completion && itemGone">{{ t('completion.recoveryGone', [completion.itemName]) }}</p>
+    <p v-else-if="completion">
+      {{ t('completion.recoveryPartial', [completion.itemName]) }}
+      <a v-if="link" :href="link" target="_blank" rel="noopener">{{ t('recovery.openLink') }}</a>
+    </p>
+    <p v-else-if="pending.entityId">
       {{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ t('recovery.created') }}
       <a v-if="link" :href="link" target="_blank" rel="noopener">{{ t('recovery.openLink') }}</a>{{ t('recovery.incomplete') }}
     </p>
     <p v-else>{{ t('recovery.objectPrefix') }} <strong>{{ pending.draft.name }}</strong> {{ pending.createUncertain || (pending.orphaned && pending.createAttempted) ? t('recovery.maybeCreated') : t('recovery.notCreated') }}</p>
 
     <p v-if="pending.orphaned" class="muted">{{ t('recovery.interrupted') }}</p>
-    <ErrorBanner v-if="pending.error" :code="pending.error" :instance="errorPrefix" />
-    <ErrorBanner v-if="photoError" :code="photoError" :instance="errorPrefix" />
-    <ErrorBanner v-if="error" :code="error" :instance="errorPrefix" />
+    <ErrorBanner v-if="pending.error" :code="pending.error" :instance="errorPrefix" :completion="completion !== null" />
+    <ErrorBanner v-if="photoError" :code="photoError" :instance="errorPrefix" :completion="completion !== null" />
+    <ErrorBanner v-if="error" :code="error" :instance="errorPrefix" :completion="completion !== null" />
     <p v-if="duplicateBlocked" class="muted">{{ t('recovery.duplicateHint') }}</p>
 
     <ul v-if="pending.draft.documents.length" class="docs" role="status" aria-live="polite">
@@ -170,7 +178,7 @@ async function abandon() {
 
     <div class="actions">
       <button
-        v-if="!duplicateBlocked"
+        v-if="!duplicateBlocked && !itemGone"
         class="primary"
         type="button"
         :disabled="busy || manualToReselect.length > 0 || (locationGone && !newLocation)"

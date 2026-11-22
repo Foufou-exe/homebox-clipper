@@ -51,13 +51,20 @@ export interface EntityOut {
   purchaseDate?: string;
   warrantyDetails?: string;
   warrantyExpires?: string;
+  /** Sale details (spec 021): never written by the extension, but a PUT must send them back. */
+  soldDate?: string;
+  soldTo?: string;
+  soldPrice?: number;
+  soldNotes?: string;
+  syncChildEntityLocations?: boolean;
   locationId?: string;
   location?: { id: string } | null;
   parent?: { id: string } | null;
   entityType?: { id: string } | null;
   /** `null` (Go nil slice) means no tag. */
-  tags?: { id: string }[] | null;
-  attachments?: { id: string; type?: string; primary?: boolean }[];
+  tags?: { id: string; name?: string }[] | null;
+  /** `title`: attachment name as normalised by HomeBox (spec 021: documents already present). */
+  attachments?: { id: string; type?: string; primary?: boolean; title?: string }[];
   /** Custom fields; `null` (Go nil slice) or absent means none. */
   fields?: EntityField[] | null;
 }
@@ -81,6 +88,12 @@ export interface EntityUpdate {
   archived?: boolean;
   warrantyDetails?: string;
   warrantyExpires?: string;
+  /** Spec 021: copied from the read item by `preservingUpdate` only (a PUT would otherwise erase them). */
+  soldDate?: string;
+  soldTo?: string;
+  soldPrice?: number;
+  soldNotes?: string;
+  syncChildEntityLocations?: boolean;
   locationId?: string;
   parentId?: string;
   entityTypeId?: string;

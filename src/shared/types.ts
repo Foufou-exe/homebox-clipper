@@ -244,6 +244,62 @@ export interface ImportDraft {
    * for the target or no field is to be created: the import sequence is unchanged (FR-025).
    */
   orderFields?: OrderFieldValue[];
+  /**
+   * Spec 021: complete this EXISTING HomeBox item instead of creating one. Absent (never `null`): the item is created
+   * exactly as before (FR-025). With it, the draft has no template and `location: null`.
+   */
+  complete?: CompletionChoice;
+}
+
+/** Categories of the completion confirmation (spec 021, U1). */
+export type CompletionCategory = 'attachments' | 'tags' | 'purchase' | 'order';
+
+/** Key of one change of a completion (spec 021, data-model §1). `quantity` only ever appears in `skipped`. */
+export type CompletionKey =
+  | 'photo'
+  | 'notes'
+  | 'purchasePrice'
+  | 'purchaseDate'
+  | 'purchaseFrom'
+  | 'warrantyExpires'
+  | 'lifetimeWarranty'
+  | 'warrantyDetails'
+  | 'quantity'
+  | `doc:${string}`
+  | `tag:${string}`
+  | `field:${OrderFieldRole}`;
+
+/** One possible change, computed by the service worker on a fresh read of the item (FR-004). */
+export interface CompletionChange {
+  key: CompletionKey;
+  category: CompletionCategory;
+  /** Photo only: it will become the primary photo (the item read has none). */
+  primary?: boolean;
+}
+
+/** Answer of `import/complete-preview`: never stored, never logged; no other value of the item read. */
+export interface CompletionPreview {
+  entityId: string;
+  /** Name of the HomeBox item (display only). */
+  itemName: string;
+  /** Quantity read (display of the "increase the quantity" box). */
+  quantity: number;
+  /** Possible changes, in the order of the categories, then of the draft. */
+  changes: CompletionChange[];
+  /** Keys the draft could provide but already set on the item (or documents already attached). */
+  filled: CompletionKey[];
+}
+
+/** Confirmed completion choice, carried by the draft (FR-007). Never logged. */
+export interface CompletionChoice {
+  /** 1 to 64 characters; item of the target instance. */
+  entityId: string;
+  /** 1 to 255 characters; display of the result. */
+  itemName: string;
+  /** Confirmed changes (checked categories), distinct, at most 200; never `quantity`. */
+  keys: CompletionKey[];
+  /** Present only when the box is checked; equal to `draft.quantity`. */
+  quantityIncrease?: number;
 }
 
 /** Confirmed order field (spec 019): already in the sent shape. Never logged. */
@@ -309,6 +365,20 @@ export interface PendingImport {
    * read by `import/retry`. Absent only from a state written by a previous version.
    */
   instanceId?: string;
+  /** Spec 021: state of a completion (draft with `complete`); absent otherwise. Never logged. */
+  completion?: {
+    /** Confirmed keys not written because the item was filled meanwhile (FR-009). */
+    skipped: CompletionKey[];
+    /** Documents (`DocumentRef.id`) not sent again because already attached (FR-018). */
+    present: string[];
+    /** Quantity read before the PUT and quantity aimed at (FR-016): a resume never applies it twice. */
+    quantityBase?: number;
+    quantityTarget?: number;
+    /** Number of photos of the item before the photo upload (resume guard, FR-019). */
+    photoCountBefore?: number;
+    /** No PUT was needed (C5). */
+    noChange?: true;
+  };
 }
 
 export interface LastCheck {
@@ -447,6 +517,8 @@ export interface ImportHistoryEntry {
   reason: ErrorCode | null;
   /** Present only when the import was interrupted and reconciled. */
   interrupted?: true;
+  /** Spec 021: present only when an existing item was completed instead of created. */
+  completed?: true;
 }
 
 /**

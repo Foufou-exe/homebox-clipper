@@ -250,6 +250,32 @@ it. You choose **Create anyway** or **Cancel**: nothing is created, skipped or m
 Cancel brings you back to the summary with your choices intact. Variants of a product (for example "1 To" and
 "2 To") can be flagged: open the item to compare.
 
+### Complete the existing item
+
+For each product listed in the window, you can also choose, instead of **Create a new item** (checked by
+default), **Complete** one of the items found, a certain duplicate or a similar item. The choice is made per
+product: the other products of the order are created as usual, in the same import. As soon as one product is set
+to **Complete**, the main button becomes **Review the changes**: the extension reads each chosen item again in
+HomeBox and shows what completing it would add, in four categories that you can uncheck:
+
+- **Attachments**: the invoice and the other selected documents, and the photo. A document whose name is already
+  among the attachments of the item is not sent again ("Already attached"). The photo becomes the primary photo
+  only when the item has none;
+- **Missing tags**: the checked tags that the item does not have yet. No tag is ever removed;
+- **Purchase and warranty, only if empty**: price, purchase date, seller and warranty, each one only when it is
+  empty in HomeBox;
+- **Order details, only if absent**: the order custom fields (when the option is on for the instance) that do not
+  exist yet on the item, and a line with the order at the end of the notes, unless the notes already contain the
+  order number.
+
+The extension never overwrites a value already set in HomeBox: what is already filled is listed as "Already set
+in HomeBox, unchanged", without its value. The name, the description and the location of the item never change;
+the template and the location chosen in the summary do not apply to an existing item. The quantity is only
+increased when you check **Increase the quantity by N**, unchecked by default. **Back** returns to the window with
+your choices intact; nothing is sent before **Confirm**. Just before writing, the item is read once more: a value
+filled in HomeBox in the meantime is not changed, and the result says so ("Filled in HomeBox meanwhile, not
+changed"). The history shows such an import as "Existing item completed".
+
 The detection is an aid, **not a guarantee**: it only sees what your HomeBox instance returns for the searched
 words, and a duplicate under a very different name is not found.
 
