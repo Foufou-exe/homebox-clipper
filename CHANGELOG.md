@@ -7,6 +7,13 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.10.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.9.1...v0.10.0) (2026-11-22)
+
+
+### Features
+
+* store order details as HomeBox custom fields ([#104](https://github.com/Foufou-exe/homebox-clipper/issues/104)) ([#120](https://github.com/Foufou-exe/homebox-clipper/issues/120)) ([648ff0c](https://github.com/Foufou-exe/homebox-clipper/commit/648ff0c4c9c8b13ac73706679e30bcd0434a645b))
+
 ## [0.9.1](https://github.com/Foufou-exe/homebox-clipper/compare/v0.9.0...v0.9.1) (2026-11-22)
 
 
