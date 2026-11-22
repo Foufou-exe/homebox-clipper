@@ -50,7 +50,10 @@ export function attachmentName(doc: DocumentRef): string {
 
 /** Title HomeBox gives an attachment (`sanitizeAttachmentName`: base name, then `..`, `/` and `\` removed). */
 export function attachmentTitle(name: string): string {
-  const trimmed = name.replace(/\/+$/, '');
+  // Trailing slashes removed without a regular expression (no backtracking, Sonar S8786).
+  let end = name.length;
+  while (end > 0 && name[end - 1] === '/') end--;
+  const trimmed = name.slice(0, end);
   const base = trimmed.slice(trimmed.lastIndexOf('/') + 1);
   return base.replaceAll('..', '').replaceAll('/', '').replaceAll('\\', '');
 }
