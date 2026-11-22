@@ -67,6 +67,8 @@ const KEYS = new Set([
   'missing',
   'reason',
   'interrupted',
+  // Spec 021: an existing item completed instead of created.
+  'completed',
 ]);
 const isObj = (x: unknown): x is Record<string, unknown> =>
   typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -106,7 +108,8 @@ export function isValidEntry(x: unknown, id: string): x is ImportHistoryEntry {
     missing.every((m) => MISSING.includes(m as HistoryMissing)) &&
     new Set(missing).size === missing.length &&
     (reason === null || (ERROR_CODES as readonly unknown[]).includes(reason)) &&
-    (x.interrupted === undefined || x.interrupted === true)
+    (x.interrupted === undefined || x.interrupted === true) &&
+    (x.completed === undefined || x.completed === true)
   );
 }
 

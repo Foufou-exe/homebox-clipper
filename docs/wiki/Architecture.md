@@ -96,6 +96,31 @@ The names of the existing custom fields are read for the suggestions of the sett
 (`GET /api/v1/entities/fields`, unlocked, the instance of the message only; never the values); unreadable gives
 `FIELD_NAMES_UNAVAILABLE`.
 
+### Completing an existing item (spec 021)
+
+In the duplicate window, a product can be set to **Complete** an item found (certain duplicate or similar item)
+instead of creating one. The popup then sends `import/complete-preview` (`{ instanceId, entityId, draft }`) for each
+chosen product: the service worker reads the item on the target instance (`GET /api/v1/entities/{id}`; 404 →
+`ITEM_NOT_FOUND`) and the pure module `src/background/import/completion.ts` computes the possible changes
+(`planCompletion`: documents whose title is not on the item yet, the photo, missing tags, empty purchase and warranty
+values, absent order custom fields, the notes line). The answer holds only keys, the item name and its quantity:
+nothing else of the item reaches the popup, and nothing is stored or logged.
+
+After the confirmation, the same `import/start` carries every product; a completed product carries
+`ImportDraft.complete` (`entityId`, `itemName`, confirmed `keys`, optional `quantityIncrease`), never a template, and
+`location: null`. The orchestrator never creates it: its import starts with `entityId` set and the creation step
+done. At each run (first one and resumes), it reads the item again, intersects the confirmed keys with what is still
+applicable (`completionPatch`; the others go to `completion.skipped`), then sends **a single PUT** built by
+`preservingUpdate` in `src/background/homebox/client.ts`: every property of the item read, including the tags, the
+location, the custom fields and the sale details (`soldDate`, `soldTo`, `soldPrice`, `soldNotes`) and
+`syncChildEntityLocations` that `entityOutToUpdate` (creation path, unchanged) does not copy, plus the additions
+only. No PUT is sent when nothing is left to write (`completion.noChange`). Documents are attached by the existing
+step, except those whose title is already on the item (`completion.present`); the photo is sent with `primary=true`
+only when the item has no primary photo. Resume guards: the number of photos is remembered before the photo POST
+(`completion.photoCountBefore`), and the quantity base and target are remembered before the PUT
+(`completion.quantityBase`, `completion.quantityTarget`), so a resume never sends a document, the photo or the
+quantity increase twice. The history entry gets `completed: true`.
+
 ### Photo step (`photo-fetch.ts`)
 
 `src/background/import/photo-fetch.ts` retrieves the image with an anonymous `fetch`, in a module

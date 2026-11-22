@@ -38,7 +38,7 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **Automatic detection** of an Amazon order on its detail page, in the language of the page; prices in
   pounds or dollars are kept as is, with a warning before confirmation (no currency conversion).
 - **Editable summary** before anything is sent, with undetected fields flagged.
-- **3-step import** (item, invoice PDF, photo); multi-item orders, manual PDF attachment and **duplicate detection**, including similar names.
+- **3-step import** (item, invoice PDF, photo); multi-item orders, manual PDF attachment and **duplicate detection**, including similar names, and completing the existing item instead (attachments, missing tags, empty fields only, after a confirmation listing the changes).
 - **Error recovery**: if a document could not be sent, retry without creating a duplicate.
 - **Document types**: attached PDFs can be typed as manual, warranty, delivery note, invoice or order document, and are filed in the matching section of HomeBox.
 - **Warranty**: the item's warranty (expiry date, lifetime, details) is proposed in the summary and sent to HomeBox: the legal guarantee where the duration is verified and the item is sold by the store itself, or the warranty shown on the order page. Indicative value, no legal force.

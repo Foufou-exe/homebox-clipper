@@ -8,6 +8,7 @@ import { isVersion } from './version';
 import { MAX_TAGS_PER_PRODUCT, normalizeTagName, tagKey, tagNameError } from './tags';
 import { ORDER_FIELD_ROLES, fieldNameError, isOrderFieldSettings, orderValueError, type OrderFieldSettings } from './order-fields';
 import type {
+  CompletionPreview,
   ConfigView,
   DetectedPurchase,
   DuplicateCheck,
@@ -91,6 +92,8 @@ export type Message =
       location?: LocationChoice | null;
     }
   | { type: 'import/abandon'; pendingId: string }
+  // Spec 021: read the chosen item and list what completing it would add. Read-only, extension pages only.
+  | { type: 'import/complete-preview'; instanceId: string; entityId: string; draft: ImportDraft }
   | { type: 'import/pending'; tabId: number }
   // Local import history (012): never the history key, the address or the API key.
   | { type: 'history/list' }
@@ -153,6 +156,7 @@ export interface ResponseMap {
   'import/start': Result<PendingImport[]>;
   'import/retry': Result<PendingImport>;
   'import/abandon': Result<void>;
+  'import/complete-preview': Result<CompletionPreview>;
   'import/pending': PendingImport[];
   'history/list': Result<HistoryListView>;
   'history/delete': Result<void>;
@@ -287,11 +291,51 @@ const isTemplateRefs = (x: unknown): boolean =>
   x.length <= 50 &&
   x.every((r) => isObj(r) && isTemplateId(r.id) && isFingerprint(r.fingerprint)) &&
   new Set(x.map((r) => (r as { id: string }).id)).size === x.length;
+/** Fixed keys of a completion (spec 021); `quantity` is never a confirmed key. */
+const COMPLETION_KEYS: ReadonlySet<unknown> = new Set([
+  'photo',
+  'notes',
+  'purchasePrice',
+  'purchaseDate',
+  'purchaseFrom',
+  'warrantyExpires',
+  'lifetimeWarranty',
+  'warrantyDetails',
+]);
+const MAX_COMPLETION_KEYS = 200;
+/** Values a prefixed key may designate in the draft: document ids, keys of the checked tags, order roles. */
+function completionTargets(d: Record<string, unknown>): Set<string> {
+  const objects = (x: unknown): Record<string, unknown>[] => (isArr(x) ? x.filter(isObj) : []);
+  const docs = objects(d.documents).filter((x) => isStr(x.id)).map((x) => `doc:${String(x.id)}`);
+  const tags = objects(d.tags).filter((x) => isStr(x.name)).map((x) => `tag:${tagKey(String(x.name))}`);
+  const fields = objects(d.orderFields).filter((x) => ORDER_ROLES.has(x.role)).map((x) => `field:${String(x.role)}`);
+  return new Set([...docs, ...tags, ...fields]);
+}
+/** One confirmed key (contracts/runtime-messages.md §2): fixed, or a prefixed key designating something of the draft. */
+const isCompletionKey = (k: unknown, targets: ReadonlySet<string>): boolean =>
+  isStr(k) && (COMPLETION_KEYS.has(k) || (/^(doc|tag|field):./.test(k) && targets.has(k)));
+/** `quantityIncrease`: absent, or the integer quantity of the draft (>= 1). */
+const isQuantityIncrease = (x: unknown, d: Record<string, unknown>): boolean =>
+  x === undefined || (isInt(x) && x >= 1 && x === d.quantity);
+/**
+ * `ImportDraft.complete` (spec 021, contracts/runtime-messages.md §2): absent (never `null`), or a valid choice on a
+ * draft without template and with `location: null`.
+ */
+const isCompletionChoice = (x: unknown, d: Record<string, unknown>): boolean => {
+  if (x === undefined) return true;
+  if (!isObj(x) || isArr(x) || d.template !== undefined || d.location !== null) return false;
+  if (!strLen(x.entityId, 1, 64) || !strLen(x.itemName, 1, 255) || !isQuantityIncrease(x.quantityIncrease, d)) return false;
+  const keys = x.keys;
+  if (!isArr(keys) || keys.length > MAX_COMPLETION_KEYS || new Set(keys).size !== keys.length) return false;
+  const targets = completionTargets(d);
+  return keys.every((k) => isCompletionKey(k, targets));
+};
 const areDrafts = (x: unknown): boolean =>
   isArr(x) &&
   x.every(
     (d) =>
       isObj(d) &&
+      isCompletionChoice(d.complete, d) &&
       isDraftPhoto(d.photo) &&
       isOptionalLocation(d.location) &&
       isTemplateChoice(d.template) &&
@@ -348,6 +392,14 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'import/retry': (m) =>
     isStr(m.pendingId) && (m.manualFiles === undefined || isArr(m.manualFiles)) && isOptionalLocation(m.location),
   'import/abandon': (m) => isStr(m.pendingId),
+  // Spec 021: the previewed draft never carries a completion nor a template (contracts/runtime-messages.md §1).
+  'import/complete-preview': (m) =>
+    isInstanceId(m.instanceId) &&
+    strLen(m.entityId, 1, 64) &&
+    areDrafts([m.draft]) &&
+    isObj(m.draft) &&
+    m.draft.complete === undefined &&
+    m.draft.template === undefined,
   'import/pending': (m) => isInt(m.tabId),
   'history/list': () => true,
   'history/delete': (m) => isStr(m.id),

@@ -13,6 +13,7 @@ import { fail, ok, type Result } from '@/shared/errors';
 import { logError } from '@/shared/logger';
 import type { PendingImport } from '@/shared/types';
 import { sendToTab } from '@/shared/messages';
+import { orderNoteLine, planCompletion } from './completion';
 import { checkDuplicates } from './duplicates';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { fetchPhoto } from './photo-fetch';
@@ -203,6 +204,20 @@ export function registerImportHandlers(): void {
       name,
       settings.enabled ? { name: settings.names.orderNumber, client } : undefined,
     );
+  });
+
+  /**
+   * Spec 021 (contracts/runtime-messages.md §1): a fresh read of the chosen item on the target instance only, and the
+   * changes completing it would make. Read-only; the answer carries no other value of the item (FR-004).
+   */
+  register('import/complete-preview', async ({ instanceId, entityId, draft }) => {
+    const creds = await configStore.getCredentials(instanceId);
+    if (!creds.ok) return creds;
+    const read = await createHomeBoxClient(creds.value).getEntity(entityId);
+    if (!read.ok) return read.httpStatus === 404 ? fail('ITEM_NOT_FOUND', 404) : read;
+    const plan = planCompletion(read.value, draft, orderNoteLine(draft));
+    const itemName = typeof read.value.name === 'string' ? read.value.name : '';
+    return ok({ entityId, itemName, quantity: plan.quantity, changes: plan.changes, filled: plan.filled });
   });
 
   register('import/pending', async ({ tabId }) =>

@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
 import type { ErrorCode } from '@/shared/errors';
 import { send } from '@/shared/messages';
 import type {
+  CompletionChoice,
   ConfigView,
   DetectedProduct,
   DetectedPurchase,
@@ -19,6 +20,7 @@ import type {
   TemplateDetail,
   TemplateOption,
 } from '@/shared/types';
+import CompletionDialog, { type CompletionItem } from '@/ui/components/CompletionDialog.vue';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
@@ -32,6 +34,7 @@ import TemplatePicker from '@/ui/components/TemplatePicker.vue';
 import TemplateSection from '@/ui/components/TemplateSection.vue';
 import WarrantyField from '@/ui/components/WarrantyField.vue';
 import OrderLocationField from './OrderLocationField.vue';
+import { completedDraft, previewDraft, primaryLabel, type LineChoice } from './completion';
 import { DOCUMENT_KIND_KEYS, DOCUMENT_KIND_OPTIONS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import type { PickedDocument } from '@/ui/read-pdf';
@@ -506,12 +509,33 @@ type Dialog =
   | { kind: 'none' }
   | { kind: 'no-invoice' }
   | { kind: 'checking' }
-  | { kind: 'duplicates'; groups: DuplicateGroup[]; unchecked: string[] };
+  | { kind: 'duplicates'; groups: DuplicateGroup[]; unchecked: string[] }
+  // Spec 021: confirmation of the completions; keeps the duplicate dialog to go back to it, choices intact.
+  | { kind: 'completion'; groups: DuplicateGroup[]; unchecked: string[]; items: CompletionItem[] };
 const dialog = ref<Dialog>({ kind: 'none' });
 /** Set at the first `submit()`: the screen is replaced by the result, a second click must emit nothing. */
 const submitting = ref(false);
 const duplicateCheckFailed = ref(false);
 const cancelDuplicates = ref<HTMLButtonElement | null>(null);
+
+/**
+ * Spec 021 (contracts/ui-completion.md §1): choice of each product of the duplicate dialog, by line key; `create` when
+ * absent (FR-001). Reset at each duplicate check; kept when coming back from the confirmation (FR-006).
+ */
+const lineChoices = reactive(new Map<string, LineChoice>());
+const choiceOf = (key: string): LineChoice => lineChoices.get(key) ?? { kind: 'create' };
+const chosenValue = (key: string): string => {
+  const choice = choiceOf(key);
+  return choice.kind === 'complete' ? choice.entityId : 'create';
+};
+function setChoice(key: string, match: DuplicateMatch | null) {
+  lineChoices.set(key, match ? { kind: 'complete', entityId: match.id, itemName: match.name, url: match.url } : { kind: 'create' });
+}
+/** Identifier of the radio of one item of one group (the same item may be listed under several products). */
+const radioId = (group: number, list: 'm' | 's', index: number) => `${uid}-complete-${group}-${list}-${index}`;
+const duplicatesLabel = (groups: DuplicateGroup[]) => primaryLabel(groups.map((g) => choiceOf(g.key)));
+/** Previews in flight: the primary button is disabled, a second click does nothing. */
+const previewing = ref(false);
 const addButton = ref<HTMLButtonElement | null>(null);
 
 onMounted(async () => {
@@ -640,6 +664,7 @@ async function checkDuplicates() {
   dialog.value = { kind: 'checking' };
   duplicateCheckFailed.value = false;
   confirmError.value = null;
+  lineChoices.clear();
   const groups: DuplicateGroup[] = [];
   const unchecked: string[] = [];
   for (const line of selectedLines.value) {
@@ -685,9 +710,75 @@ async function checkDuplicates() {
 
 /** "Cancel": back to the summary, every choice intact (US1-3). */
 async function cancelDuplicateDialog() {
+  if (previewing.value) return; // spec 021: the previews in flight would reopen a dialog
   dialog.value = { kind: 'none' };
   await nextTick();
   addButton.value?.focus();
+}
+
+/** Primary button of the duplicate dialog: "Create anyway", or the preview of the completions (spec 021, FR-003). */
+async function onDuplicatesPrimary() {
+  if (dialog.value.kind !== 'duplicates') return;
+  if (dialog.value.groups.some((g) => choiceOf(g.key).kind === 'complete')) await previewCompletions();
+  else await submit();
+}
+
+/** One `import/complete-preview` on the target instance; a failure is shown in the confirmation (FR-003, FR-004). */
+async function previewItem(instanceId: string, line: Line, choice: Extract<LineChoice, { kind: 'complete' }>, docs: DocumentRef[]): Promise<CompletionItem> {
+  const draft = previewDraft(draftOf(line, docs));
+  const item = {
+    key: line.key,
+    product: productName(line),
+    entityId: choice.entityId,
+    itemName: choice.itemName,
+    url: choice.url,
+    draft,
+    hasTemplate: line.template.id !== null,
+    hasLocation: effectiveLocation(line) !== null,
+  };
+  try {
+    const res = await send({ type: 'import/complete-preview', instanceId, entityId: choice.entityId, draft });
+    if (res?.ok) return { ...item, preview: res.value, error: null };
+    return { ...item, preview: null, error: res?.error ?? 'HOMEBOX_UNREACHABLE' };
+  } catch {
+    return { ...item, preview: null, error: 'HOMEBOX_UNREACHABLE' };
+  }
+}
+
+/** "Review the changes": reads each chosen item again, then opens the confirmation (spec 021, US1-2). */
+async function previewCompletions() {
+  const current = dialog.value;
+  if (submitting.value || previewing.value || current.kind !== 'duplicates') return;
+  const instanceId = target.value;
+  if (!instanceId) {
+    confirmError.value = 'NOT_CONFIGURED';
+    dialog.value = { kind: 'none' };
+    return;
+  }
+  previewing.value = true;
+  const docs = selectedDocs.value;
+  const items: CompletionItem[] = [];
+  for (const line of selectedLines.value) {
+    const choice = choiceOf(line.key);
+    if (choice.kind === 'complete') items.push(await previewItem(instanceId, line, choice, docs)); // NOSONAR: sequential on purpose (one instance)
+  }
+  previewing.value = false;
+  // The dialog changed meanwhile (closed, target changed): the answers are dropped, nothing is opened.
+  if (dialog.value !== current) return;
+  dialog.value = { kind: 'completion', groups: current.groups, unchecked: current.unchecked, items };
+}
+
+/** "Back": the duplicate dialog again, every choice intact; nothing is sent (FR-006). */
+async function backToDuplicates() {
+  const current = dialog.value;
+  if (current.kind !== 'completion') return;
+  dialog.value = { kind: 'duplicates', groups: current.groups, unchecked: current.unchecked };
+  await nextTick();
+  cancelDuplicates.value?.focus();
+}
+
+async function confirmCompletions(choices: Record<string, CompletionChoice>) {
+  await submit(new Map(Object.entries(choices)));
 }
 
 const copyOf = (loc: LocationChoice | null): LocationChoice | null => (loc ? { id: loc.id, path: [...loc.path] } : null);
@@ -773,7 +864,29 @@ async function checkTemplates(instanceId: string, withTemplate: Line[]): Promise
   return notices.length === 0;
 }
 
-async function submit() {
+/** Draft of a line as the import sends it (specs 014, 018, 019: unchanged). */
+function draftOf(l: Line, docs: DocumentRef[]): ImportDraft {
+  return {
+    ...l.draft,
+    documents: docs,
+    // Preview failed: the photo is "unavailable" (FR-009), not "not requested".
+    photo: l.draft.photo && !photoErrors.has(l.key) ? { ...l.draft.photo } : null,
+    location: copyOf(effectiveLocation(l)),
+    // Deep copy: the reactive object of the screen is never shared with the message.
+    // A lifetime warranty carries no date (the remembered one only serves to uncheck the box).
+    warranty: l.draft.warranty ? { ...l.draft.warranty, expires: l.draft.warranty.lifetime ? null : l.draft.warranty.expires } : null,
+    // Only the checked tags, as plain copies; no key at all without a checked tag (sequence unchanged).
+    ...checkedTags(l),
+    ...templateOf(l),
+    ...orderFieldsOf(l),
+  };
+}
+
+/**
+ * `completions` (spec 021): the confirmed choice of each product completed instead of created, by line key. Without
+ * it, or for the other lines, the drafts are exactly those of before (FR-025).
+ */
+async function submit(completions?: ReadonlyMap<string, CompletionChoice>) {
   if (submitting.value) return; // a second click must not start a second import
   const instanceId = target.value;
   if (!instanceId) {
@@ -782,7 +895,8 @@ async function submit() {
     dialog.value = { kind: 'none' };
     return;
   }
-  const withTemplate = selectedLines.value.filter((l) => l.template.id !== null);
+  // Spec 021: a completed product never uses its template; it is not checked again.
+  const withTemplate = selectedLines.value.filter((l) => l.template.id !== null && !completions?.has(l.key));
   if (withTemplate.length) {
     dialog.value = { kind: 'checking' };
     templateNotices.value = [];
@@ -797,20 +911,11 @@ async function submit() {
   const docs = selectedDocs.value;
   emit('submit', {
     instanceId,
-    drafts: selectedLines.value.map((l) => ({
-      ...l.draft,
-      documents: docs,
-      // Preview failed: the photo is "unavailable" (FR-009), not "not requested".
-      photo: l.draft.photo && !photoErrors.has(l.key) ? { ...l.draft.photo } : null,
-      location: copyOf(effectiveLocation(l)),
-      // Deep copy: the reactive object of the screen is never shared with the message.
-      // A lifetime warranty carries no date (the remembered one only serves to uncheck the box).
-      warranty: l.draft.warranty ? { ...l.draft.warranty, expires: l.draft.warranty.lifetime ? null : l.draft.warranty.expires } : null,
-      // Only the checked tags, as plain copies; no key at all without a checked tag (sequence unchanged).
-      ...checkedTags(l),
-      ...templateOf(l),
-      ...orderFieldsOf(l),
-    })),
+    drafts: selectedLines.value.map((l) => {
+      const draft = draftOf(l, docs);
+      const choice = completions?.get(l.key);
+      return choice ? completedDraft(draft, choice) : draft;
+    }),
     manualFiles: docs.flatMap((d) => {
       const f = manualFiles.get(d.id);
       return f ? [f] : [];
@@ -1031,27 +1136,64 @@ async function submit() {
       >
         <ErrorBanner id="dup" code="DUPLICATE_SUSPECTED" tone="warning" />
         <p id="dup-help">{{ t('duplicates.help') }}</p>
-        <section v-for="g in dialog.groups" :key="g.key" class="dup-group">
+        <section v-for="(g, gi) in dialog.groups" :key="g.key" class="dup-group">
           <h3>{{ g.product }}</h3>
-          <template v-if="g.matches.length">
-            <h4>{{ t('duplicates.safeTitle') }}</h4>
-            <p class="muted">{{ t('duplicates.safeHelp') }}</p>
-            <ul>
-              <li v-for="m in g.matches" :key="m.id">
-                <a :href="m.url" target="_blank" rel="noopener">{{ m.name }}</a>
-              </li>
-            </ul>
-          </template>
-          <template v-if="g.similar.length">
-            <h4>{{ t('duplicates.similarTitle') }}</h4>
-            <p class="muted">{{ t('duplicates.similarHelp') }}</p>
-            <ul>
-              <li v-for="m in g.similar" :key="m.id">
-                <a :href="m.url" target="_blank" rel="noopener">{{ m.name }}</a>
-              </li>
-            </ul>
-            <p v-if="g.moreSimilar" class="muted">{{ t('duplicates.moreSimilar') }}</p>
-          </template>
+          <!-- Spec 021: native radios, « Create a new item » checked by default; no link nor button added. -->
+          <fieldset class="dup-choice">
+            <legend>{{ t('completion.choiceLegend', [g.product]) }}</legend>
+            <label class="pick">
+              <input
+                type="radio"
+                :name="`${uid}-choice-${gi}`"
+                value="create"
+                :checked="chosenValue(g.key) === 'create'"
+                :disabled="previewing"
+                @change="setChoice(g.key, null)"
+              />
+              <span>{{ t('completion.createNew') }}</span>
+            </label>
+            <template v-if="g.matches.length">
+              <h4>{{ t('duplicates.safeTitle') }}</h4>
+              <p class="muted">{{ t('duplicates.safeHelp') }}</p>
+              <ul>
+                <li v-for="(m, mi) in g.matches" :key="m.id">
+                  <input
+                    :id="radioId(gi, 'm', mi)"
+                    type="radio"
+                    :name="`${uid}-choice-${gi}`"
+                    :value="m.id"
+                    :checked="chosenValue(g.key) === m.id"
+                    :disabled="previewing"
+                    :aria-labelledby="`${radioId(gi, 'm', mi)}-txt ${radioId(gi, 'm', mi)}-link`"
+                    @change="setChoice(g.key, m)"
+                  />
+                  <span :id="`${radioId(gi, 'm', mi)}-txt`" class="complete-text">{{ t('completion.completeItem') }}</span>
+                  <a :id="`${radioId(gi, 'm', mi)}-link`" :href="m.url" target="_blank" rel="noopener">{{ m.name }}</a>
+                </li>
+              </ul>
+            </template>
+            <template v-if="g.similar.length">
+              <h4>{{ t('duplicates.similarTitle') }}</h4>
+              <p class="muted">{{ t('duplicates.similarHelp') }}</p>
+              <ul>
+                <li v-for="(m, mi) in g.similar" :key="m.id">
+                  <input
+                    :id="radioId(gi, 's', mi)"
+                    type="radio"
+                    :name="`${uid}-choice-${gi}`"
+                    :value="m.id"
+                    :checked="chosenValue(g.key) === m.id"
+                    :disabled="previewing"
+                    :aria-labelledby="`${radioId(gi, 's', mi)}-txt ${radioId(gi, 's', mi)}-link`"
+                    @change="setChoice(g.key, m)"
+                  />
+                  <span :id="`${radioId(gi, 's', mi)}-txt`" class="complete-text">{{ t('completion.completeItem') }}</span>
+                  <a :id="`${radioId(gi, 's', mi)}-link`" :href="m.url" target="_blank" rel="noopener">{{ m.name }}</a>
+                </li>
+              </ul>
+              <p v-if="g.moreSimilar" class="muted">{{ t('duplicates.moreSimilar') }}</p>
+            </template>
+          </fieldset>
         </section>
         <template v-if="dialog.unchecked.length">
           <p>{{ t('duplicates.unchecked') }}</p>
@@ -1060,10 +1202,20 @@ async function submit() {
           </ul>
         </template>
         <div class="actions">
-          <button ref="cancelDuplicates" type="button" @click="cancelDuplicateDialog">{{ t('summary.cancel') }}</button>
-          <button class="primary" type="button" :disabled="submitting" @click="submit">{{ t('summary.createAnyway') }}</button>
+          <button ref="cancelDuplicates" type="button" :disabled="previewing" @click="cancelDuplicateDialog">{{ t('summary.cancel') }}</button>
+          <button class="primary" type="button" :disabled="submitting || previewing" @click="onDuplicatesPrimary">
+            {{ duplicatesLabel(dialog.groups) }}
+          </button>
         </div>
       </div>
+      <CompletionDialog
+        v-if="dialog.kind === 'completion'"
+        :items="dialog.items"
+        :instance-name="errorInstance"
+        :busy="submitting"
+        @back="backToDuplicates"
+        @confirm="confirmCompletions"
+      />
       <ErrorBanner v-if="duplicateCheckFailed" code="DUPLICATE_CHECK_FAILED" tone="warning" />
       <p v-for="(notice, i) in templateNotices" :key="i" class="required" role="alert">{{ notice }}</p>
       <ErrorBanner v-if="confirmError" :code="confirmError" :instance="errorInstance" />
@@ -1183,6 +1335,22 @@ output.muted {
 }
 .dup-group ul {
   margin: 0 0 6px;
+}
+.dup-choice {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.dup-choice legend {
+  padding: 0;
+  font-size: 13px;
+}
+.dup-choice li input {
+  width: auto;
+  margin: 0 4px 0 0;
+}
+.complete-text {
+  margin-right: 4px;
 }
 .actions {
   display: flex;

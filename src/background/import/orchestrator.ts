@@ -1,10 +1,20 @@
-import { entityOutToUpdate, type HomeBoxClient } from '@/background/homebox/client';
+import { entityOutToUpdate, preservingUpdate, type HomeBoxClient } from '@/background/homebox/client';
 import type { EntityOut, EntityUpdate, TagSummary } from '@/background/homebox/types';
 import { storeForPageUrl } from '@/content/merchants/catalog';
 import { getMessage } from '@/platform/i18n';
 import { homeboxTypeOf, isOptionalHomeboxType } from '@/shared/document-kinds';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { logError } from '@/shared/logger';
+import {
+  attachmentName,
+  attachmentPresent,
+  completionPatch,
+  hasPrimaryPhoto,
+  orderNoteLine,
+  photoCount,
+  quantityPlan,
+  tagPresent,
+} from './completion';
 import { findDuplicatesByName } from './duplicates';
 import { fieldsFor, fieldsMatch, templatePatch } from './template-patch';
 import { applyOrderFields, currentFields, orderFieldsMatch } from './order-fields';
@@ -14,6 +24,8 @@ import { flattenTree } from '@/shared/locations';
 import { warrantyPatch } from '@/shared/warranty';
 import { findExisting, normalizeTagName, tagKey, unionIds } from '@/shared/tags';
 import type {
+  CompletionChoice,
+  CompletionKey,
   DocumentRef,
   DraftPhoto,
   ImportDraft,
@@ -236,22 +248,98 @@ function needsManualFile(p: PendingImport, files: FileMap): boolean {
   return p.draft.documents.some((d) => d.origin === 'manual' && p.steps.attachments[d.id] !== 'done' && !files.has(d.id));
 }
 
-/** A delivery note whose name already says what it is keeps it (no double prefix); otherwise the prefix is added. */
-const EXPLICIT_DELIVERY_NOTE = /bon[-_ ]?de[-_ ]?livraison|delivery[-_ ]?note|packing[-_ ]?slip|bordereau/i;
-
-function attachmentName(doc: DocumentRef): string {
-  const base =
-    doc.kind === 'delivery_note' && !EXPLICIT_DELIVERY_NOTE.test(doc.label)
-      ? `${getMessage('documents.deliveryNotePrefix')}${doc.label}`
-      : doc.label;
-  return /\.pdf$/i.test(base) ? base : `${base}.pdf`;
-}
+/** Name of the attachment of a document: moved to the pure completion module (spec 021), unchanged. */
+export { attachmentName };
 
 /** Error reported for a failed document: HomeBox-side failures are grouped under `ATTACHMENT_FAILED`. */
 function attachmentError(error: ErrorCode): ErrorCode {
   return error === 'UNAUTHORIZED' || error === 'HOMEBOX_UNREACHABLE' || error === 'ATTACHMENT_FAILED'
     ? 'ATTACHMENT_FAILED'
     : error;
+}
+
+/** Spec 021: tags checked in the summary whose `tag:<key>` was confirmed for the completion. */
+function confirmedTags(draft: ImportDraft, keys: ReadonlySet<CompletionKey>): TagChoice[] {
+  return (draft.tags ?? []).filter((c) => keys.has(`tag:${tagKey(c.name)}`));
+}
+
+/** Spec 021: photo step of a completion; only a confirmed, checked photo is sent. */
+function completionPhotoInit(photo: DraftPhoto | null, confirmed: boolean): PhotoStep {
+  if (!photo) return 'unavailable';
+  return confirmed && photo.include ? 'pending' : 'not_requested';
+}
+
+/**
+ * Spec 021 (data-model §5, invariant 2): import state of a product completed instead of created. The item exists:
+ * `entityId` is set and the creation step is done from the start, so nothing can ever create it. Only the confirmed
+ * documents are kept in the draft; the tag and order-fields steps exist only when such keys were confirmed.
+ */
+function completionPending(id: string, tabId: number, draft: ImportDraft, choice: CompletionChoice): PendingImport {
+  const keys = new Set(choice.keys);
+  const documents = draft.documents.filter((d) => keys.has(`doc:${d.id}`));
+  const withTags = confirmedTags(draft, keys).length > 0;
+  const withFields = choice.keys.some((k) => k.startsWith('field:'));
+  return {
+    id,
+    tabId,
+    pageUrl: draft.pageUrl,
+    draft: { ...draft, documents },
+    entityId: choice.entityId,
+    steps: {
+      create: 'done',
+      update: 'pending',
+      attachments: Object.fromEntries(documents.map((d) => [d.id, 'pending'])),
+      photo: completionPhotoInit(draft.photo, keys.has('photo')),
+      ...(withTags ? { tags: 'pending' as const } : {}),
+      ...(withFields ? { orderFields: 'pending' as const } : {}),
+    },
+    status: 'running',
+    error: null,
+    photoError: null,
+    photoAttempted: false,
+    completion: { skipped: [], present: [] },
+  };
+}
+
+/**
+ * Resume guard of the completion photo (spec 021, research D3): after an attempt with an unknown outcome, more photos
+ * on the item read than before the POST means it was attached; otherwise it is sent again.
+ */
+function reconcileCompletionPhoto(p: PendingImport, read: EntityOut): void {
+  if (p.steps.photo !== 'sending' && p.steps.photo !== 'failed') return;
+  const before = p.completion?.photoCountBefore;
+  p.steps.photo = before !== undefined && photoCount(read) > before ? 'done' : 'pending';
+  if (p.steps.photo === 'done') p.photoError = null;
+}
+
+/** A document found on the item: done; reported as "already present" unless our own earlier attempt sent it. */
+function markAttached(p: PendingImport, docId: string, ownAttempt: boolean): void {
+  p.steps.attachments[docId] = 'done';
+  const c = (p.completion ??= { skipped: [], present: [] });
+  if (!ownAttempt && !c.present.includes(docId)) c.present.push(docId);
+}
+
+/** Adds keys to `completion.skipped`, without duplicates (FR-009). */
+function addSkipped(p: PendingImport, keys: readonly CompletionKey[]): void {
+  const c = (p.completion ??= { skipped: [], present: [] });
+  for (const k of keys) if (!c.skipped.includes(k)) c.skipped.push(k);
+}
+
+/** The PUT of a completion still has something to do: first attempt, or tags / order fields left. */
+function completionPutRemains(p: PendingImport): boolean {
+  const { update, tags, orderFields } = p.steps;
+  return update !== 'done' || (tags !== undefined && tags !== 'done') || (orderFields !== undefined && orderFields !== 'done');
+}
+
+/**
+ * Keys still to write on a resume once the PUT succeeded: only the order fields, when their step remains. Purchase,
+ * notes and quantity are never computed again (they would look "filled meanwhile").
+ */
+function remainingChoice(p: PendingImport, choice: CompletionChoice): CompletionChoice {
+  if (p.steps.update !== 'done') return choice;
+  const fieldsLeft = p.steps.orderFields !== undefined && p.steps.orderFields !== 'done';
+  const keys = choice.keys.filter((k) => fieldsLeft && k.startsWith('field:'));
+  return { entityId: choice.entityId, itemName: choice.itemName, keys };
 }
 
 export function createOrchestrator(deps: OrchestratorDeps) {
@@ -420,7 +508,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
 
   /** Writes the last-location memory; never blocks the import. */
   async function remember(locationId: string | null | undefined, results: PendingImport[]): Promise<void> {
-    if (!locationId || !deps.rememberLocation || !results.some((r) => r.entityId)) return;
+    // Spec 021: only a product CREATED with this location counts; a completed item keeps its own location.
+    if (!locationId || !deps.rememberLocation || !results.some((r) => r.entityId && !r.draft.complete)) return;
     try {
       await deps.rememberLocation(locationId);
     } catch {
@@ -867,10 +956,184 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   }
 
   /**
+   * Spec 021: tags confirmed for the completion and still missing from the item read. `null`: nothing to add (the step
+   * is then done). Only called when the tags of the item are known (`completionTagsUnknown` otherwise).
+   */
+  async function completionTags(p: PendingImport, choice: CompletionChoice, read: EntityOut, cache: TagCache): Promise<ResolvedTags | null> {
+    if (p.steps.tags === undefined || p.steps.tags === 'done') return null;
+    const wanted = confirmedTags(p.draft, new Set(choice.keys)).filter((c) => !tagPresent(read, c));
+    if (wanted.length === 0) {
+      p.steps.tags = 'done';
+      delete p.failedTags;
+      return null;
+    }
+    return resolveTags({ ...p, draft: { ...p.draft, tags: wanted } }, cache);
+  }
+
+  /**
+   * Spec 021 (FR-016, research R5): quantity to send, from the base and target remembered across resumes; written to the
+   * state (persisted before the PUT). Only on the first PUT, and only when the box was checked.
+   */
+  function completionQuantity(p: PendingImport, choice: CompletionChoice, read: EntityOut): number | undefined {
+    if (choice.quantityIncrease === undefined || p.steps.update === 'done') return undefined;
+    const c = (p.completion ??= { skipped: [], present: [] });
+    const plan = quantityPlan(typeof read.quantity === 'number' ? read.quantity : 0, choice.quantityIncrease, c);
+    c.quantityBase = plan.base;
+    c.quantityTarget = plan.target;
+    if (plan.skipped) addSkipped(p, ['quantity']);
+    return plan.send;
+  }
+
+  /** Spec 021 (FR-014): the order fields added are checked on a new read; skipped ones close the step. */
+  async function settleCompletionFields(p: PendingImport, entityId: string, added: OrderFieldValue[], putOk: boolean): Promise<ErrorCode | null> {
+    if (p.steps.orderFields === undefined || p.steps.orderFields === 'done') return null;
+    if (added.length === 0) return settleOrderFields(p, true);
+    if (!putOk) return settleOrderFields(p, false);
+    const again = await client.getEntity(entityId);
+    return settleOrderFields(p, again.ok && orderFieldsMatch(again.value.fields, added));
+  }
+
+  /** Spec 021 (C5, FR-017): nothing left to write, no PUT; the tags that could not be resolved are reported. */
+  async function completionNoPut(p: PendingImport, tags: ResolvedTags | null): Promise<UpdateErrors> {
+    if (p.steps.update === 'pending') (p.completion ??= { skipped: [], present: [] }).noChange = true;
+    p.steps.update = 'done';
+    const tagsError = tags ? settleTags(p, tags, false) : null;
+    const orderFieldsError = p.steps.orderFields && p.steps.orderFields !== 'done' ? settleOrderFields(p, true) : null;
+    await persist(p);
+    return { updateError: null, tagsError, templateFieldsError: null, orderFieldsError };
+  }
+
+  /**
+   * Spec 021 (contracts/homebox-completion.md §2): one PUT built by `preservingUpdate` on the item read just before,
+   * carrying only the confirmed changes still applicable (the others are `skipped`), the union of the tags, and the
+   * quantity when checked. Never a second PUT without the added parts (unlike the creation): a refusal fails the step.
+   */
+  async function completionUpdateStep(p: PendingImport, choice: CompletionChoice, read: EntityOut, cache: TagCache): Promise<UpdateErrors> {
+    if (!completionPutRemains(p)) return { updateError: null, tagsError: null, templateFieldsError: null, orderFieldsError: null };
+    // A PUT without `tagIds` would remove every tag of the item: tags unknown ⇒ no PUT at all, retryable (FR-013).
+    if (!knowsTags(read)) return completionTagsUnknown(p, choice);
+    const entityId = choice.entityId;
+    const tags = await completionTags(p, choice, read, cache);
+    const quantity = completionQuantity(p, choice, read);
+    const plan = completionPatch(read, p.draft, remainingChoice(p, choice), orderNoteLine(p.draft), quantity);
+    addSkipped(p, plan.skipped);
+    const tagIds = tags && tags.resolved.length > 0 ? tagIdsFor(read, tags) : null;
+    if (Object.keys(plan.patch).length === 0 && !tagIds) return completionNoPut(p, tags);
+    // Early write (R5): base and target of the quantity, and the skipped keys, are known before the PUT.
+    await persist(p);
+    const res = await client.updateEntity(entityId, preservingUpdate(read, { ...plan.patch, ...(tagIds ? { tagIds } : {}) }));
+    p.steps.update = res.ok ? 'done' : 'failed';
+    const tagsError = tags ? settleTags(p, tags, res.ok && tagIds !== null) : null;
+    const orderFieldsError = await settleCompletionFields(p, entityId, plan.fields, res.ok);
+    await persist(p);
+    return { updateError: updateFailure(res), tagsError, templateFieldsError: null, orderFieldsError };
+  }
+
+  /**
+   * Spec 021 (FR-013): the tags of the item read are unknown, so no PUT can keep them. Nothing is written; the update
+   * step fails (retryable), and so do the tags and the order fields still to write.
+   */
+  async function completionTagsUnknown(p: PendingImport, choice: CompletionChoice): Promise<UpdateErrors> {
+    p.steps.update = 'failed';
+    const wanted = confirmedTags(p.draft, new Set(choice.keys)).map((c) => c.name);
+    const tagsError = p.steps.tags && p.steps.tags !== 'done' ? settleTags(p, { resolved: [], failed: wanted, error: 'TAG_FAILED' }, false) : null;
+    const orderFieldsError = p.steps.orderFields && p.steps.orderFields !== 'done' ? settleOrderFields(p, false) : null;
+    await persist(p);
+    return { updateError: 'UPDATE_FAILED', tagsError, templateFieldsError: null, orderFieldsError };
+  }
+
+  /**
+   * Spec 021 (FR-018): confirmed documents whose title is not on the item read; the others are "already present". A
+   * document whose own earlier POST failed (answer lost) and whose title is now there is simply done, not "present".
+   */
+  async function completionAttachmentsStep(p: PendingImport, entityId: string, read: EntityOut, files: FileMap): Promise<ErrorCode | null> {
+    let firstError: ErrorCode | null = null;
+    for (const doc of p.draft.documents) {
+      if (p.steps.attachments[doc.id] === 'done') continue;
+      if (attachmentPresent(read, doc)) {
+        markAttached(p, doc.id, p.steps.attachments[doc.id] === 'failed');
+        await persist(p);
+        continue;
+      }
+      const error = await attachDocument(p, entityId, doc, files);
+      firstError ??= error;
+    }
+    return firstError;
+  }
+
+  /**
+   * Spec 021 (FR-019, research D3): photo of a completion. Primary only when the item has no primary photo; the
+   * number of photos is remembered before the POST, and a resume that reads more photos does not send it again.
+   */
+  async function sendCompletionPhoto(p: PendingImport, entityId: string, read: EntityOut, photos: PhotoMap): Promise<void> {
+    const photo = p.draft.photo;
+    if (!photo) return;
+    const fetched = await photoFor(photo, photos);
+    if (!fetched.ok) {
+      p.steps.photo = 'failed';
+      p.photoError = fetched.error;
+      return;
+    }
+    (p.completion ??= { skipped: [], present: [] }).photoCountBefore = photoCount(read);
+    p.steps.photo = 'sending';
+    p.photoAttempted = true;
+    await persist(p);
+    const res = await client.addAttachment(entityId, {
+      bytes: fetched.value.bytes,
+      filename: fetched.value.filename,
+      type: 'photo',
+      mimeType: fetched.value.mimeType,
+      primary: !hasPrimaryPhoto(read),
+    });
+    p.steps.photo = res.ok ? 'done' : 'failed';
+    p.photoError = res.ok ? null : 'PHOTO_UPLOAD_FAILED';
+  }
+
+  /** Photo step of a completion: guard by number of photos (never `reconcilePhoto`, kept for the creation). */
+  async function completionPhotoStep(p: PendingImport, entityId: string, read: EntityOut, photos: PhotoMap): Promise<ErrorCode | null> {
+    p.steps.photo ??= 'not_requested';
+    p.photoError ??= null;
+    reconcileCompletionPhoto(p, read);
+    if (p.steps.photo === 'pending') {
+      await sendCompletionPhoto(p, entityId, read, photos);
+      await persist(p);
+    }
+    if (p.steps.photo === 'failed') return p.photoError;
+    p.photoError = null;
+    return null;
+  }
+
+  /** The item could not be read again: deleted (404) → `ITEM_NOT_FOUND`, nothing written; otherwise retryable. */
+  async function completionReadFailed(p: PendingImport, read: { error: ErrorCode; httpStatus?: number }): Promise<PendingImport> {
+    if (p.steps.update !== 'done') p.steps.update = 'failed';
+    if (read.httpStatus !== 404) return finish(p, read.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED');
+    p.status = 'failed';
+    p.error = 'ITEM_NOT_FOUND';
+    await persist(p);
+    return p;
+  }
+
+  /**
+   * Spec 021: runs the steps of a product completed instead of created. The item is read again at every run (first
+   * one and resumes): every write is computed on that read, and each step is idempotent (FR-021).
+   */
+  async function runCompletion(p: PendingImport, choice: CompletionChoice, files: FileMap, photos: PhotoMap, tagCache: TagCache): Promise<PendingImport> {
+    await begin(p);
+    const read = await client.getEntity(choice.entityId);
+    if (!read.ok) return completionReadFailed(p, read);
+    const { updateError, tagsError, orderFieldsError } = await completionUpdateStep(p, choice, read.value, tagCache);
+    const attachmentsError = await completionAttachmentsStep(p, choice.entityId, read.value, files);
+    const photoError = await completionPhotoStep(p, choice.entityId, read.value, photos);
+    return finish(p, updateError ?? orderFieldsError ?? attachmentsError ?? photoError ?? tagsError);
+  }
+
+  /**
    * Runs the remaining steps of an import. Invariant (FR-021): once `entityId`
    * is set, the object is never created again.
    */
   async function run(p: PendingImport, files: FileMap, photos: PhotoMap, tagCache: TagCache): Promise<PendingImport> {
+    // Spec 021: a product completed instead of created has its own steps; the creation path below is unchanged.
+    if (p.draft.complete) return runCompletion(p, p.draft.complete, files, photos, tagCache);
     await begin(p);
     const entity = await ensureEntity(p);
     if (!entity) return p;
@@ -892,6 +1155,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       orderLocationId: string | null = null,
     ): Promise<Result<PendingImport[]>> {
       if (drafts.some((d) => d.name.trim() === '')) return fail('PRODUCT_NOT_FOUND');
+      // Spec 021 (defense, C4): a completed item never gets a template nor a location; refused before any request.
+      if (drafts.some((d) => d.complete && (d.template || d.location))) return fail('BAD_MESSAGE');
       const files = filesFrom(manualFiles);
       const photos: PhotoMap = new Map();
       // Invalid manual files are rejected before any HomeBox call.
@@ -906,7 +1171,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
 
       // All imports of the batch are persisted before the first POST: if the service worker stops during
       // the first one, the following ones remain visible and retryable.
-      const pendings: PendingImport[] = drafts.map((draft) => ({
+      // Spec 021: a product completed instead of created gets its own initial state (`completionPending`).
+      const pendings: PendingImport[] = drafts.map((draft) => draft.complete ? completionPending(deps.newId(), tabId, draft, draft.complete) : ({
         id: deps.newId(),
         tabId,
         pageUrl: draft.pageUrl,

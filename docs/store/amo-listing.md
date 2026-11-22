@@ -58,7 +58,7 @@ HOW IT WORKS
 
 FEATURES
 - Editable summary before anything is sent; undetected fields are flagged.
-- Multi-item orders, manual PDF attachment, duplicate detection.
+- Multi-item orders, manual PDF attachment, duplicate detection and completing the existing item instead.
 - Recovery after an error without creating a duplicate.
 - Product photo attached as the item's main image (can be unticked).
 - Location picker with search.
@@ -97,7 +97,7 @@ FONCTIONNEMENT
 
 FONCTIONNALITÉS
 - Récapitulatif modifiable avant tout envoi ; les champs non détectés sont signalés.
-- Commandes de plusieurs produits, ajout manuel d'un PDF, détection des doublons.
+- Commandes de plusieurs produits, ajout manuel d'un PDF, détection des doublons et complément de l'objet existant.
 - Reprise après une erreur sans créer de doublon.
 - Photo du produit jointe comme image principale de l'objet (décochable).
 - Choix de l'emplacement avec recherche.

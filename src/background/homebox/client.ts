@@ -390,3 +390,19 @@ export function entityOutToUpdate(out: EntityOut, patch: Partial<EntityUpdate>):
     Object.entries(merged).filter(([, v]) => v !== undefined && v !== null && v !== ''),
   ) as unknown as EntityUpdate;
 }
+
+/**
+ * Full PUT of an EXISTING item chosen by the user (spec 021, contracts/homebox-completion.md §3): every property of
+ * the item read just before, including the sale details and the location sync that `entityOutToUpdate` (creation
+ * path, unchanged) does not copy, plus `patch`. The caller only puts additions in `patch`.
+ */
+export function preservingUpdate(out: EntityOut, patch: Partial<EntityUpdate>): EntityUpdate {
+  return entityOutToUpdate(out, {
+    soldDate: out.soldDate,
+    soldTo: out.soldTo,
+    soldPrice: out.soldPrice,
+    soldNotes: out.soldNotes,
+    syncChildEntityLocations: out.syncChildEntityLocations,
+    ...patch,
+  });
+}

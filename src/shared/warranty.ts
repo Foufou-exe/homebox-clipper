@@ -216,7 +216,7 @@ export function reconcileWarranty(w: WarrantyDraft, purchaseDate: string | null)
 }
 
 /** HomeBox empty values: absent, `null`, empty string or the zero date. */
-const isEmptyHomeBox = (value: unknown): boolean =>
+export const isEmptyHomeBox = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (typeof value === 'string' && value.startsWith('0001-01-01'));
 
 /**
