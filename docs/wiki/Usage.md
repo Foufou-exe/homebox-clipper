@@ -230,7 +230,11 @@ the service worker before any call to HomeBox, even if the interface already che
 After you confirm and before anything is sent, the extension checks each selected product in HomeBox for:
 
 - a **certain duplicate**: an item whose notes contain the same order number and that has the same name
-  (comparison is case- and whitespace-insensitive), as before;
+  (comparison is case- and whitespace-insensitive), as before. When the option **Save the order as custom
+  fields** is on for the target instance, HomeBox is also asked for the items whose **order number custom field**
+  holds exactly this number (exact search on the server), in addition to the search in the text, which is still
+  used for the items imported before. The window does not change. If this extra search fails, the check is
+  reported as incomplete;
 - **similar items**: items of your **whole inventory**, whatever their origin (another order, another store,
   added by hand without any note), whose name is close to the product name. Case, accents, punctuation, word
   order and a few extra or missing words are ignored: two names are close when at least 80 % of the significant

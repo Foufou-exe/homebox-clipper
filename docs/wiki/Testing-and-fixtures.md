@@ -88,6 +88,10 @@ A selector fix without a fixture reproducing the new structure is not accepted.
   used in `src/` exist in the catalog, each error code has its message, no catalog value is empty.
 - The rendering of the "Unencrypted HTTP" warning matches the catalog exactly.
 - The duplicate search looks for the order number in quotes and compares normalized names.
+- The duplicate search can also use the HomeBox custom-field filter (`fields`) when the order-fields option is on:
+  a candidate found only by the filter is confirmed by reading it (5 reads at most). Covered by
+  `tests/contract/homebox-client-field-search.test.ts`, `tests/unit/duplicates-field-filter.test.ts` and
+  `tests/contract/duplicate-check-field-filter.test.ts`.
 - The URL rule is tested, including against public names that imitate a private IP.
 - The production manifest is compared with the exact list of allowed permissions.
 
