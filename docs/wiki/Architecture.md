@@ -129,7 +129,11 @@ same name, unchanged) and at most 3 significant words of the name (`pageSize=50`
 (FR-004 of spec 015) is computed in the service worker by the pure module `src/shared/similarity.ts`; HomeBox
 only supplies candidates. `similar` holds at most 5 items, never a certain duplicate; `incomplete` means some
 searches failed (product not checked). The recovery of an uncertain creation keeps `findDuplicatesByName`
-(exact name). Nothing is stored and nothing personal is logged.
+(exact name). When the order-fields option is on for the target instance (read from the instance setting by the
+service worker; the `duplicate/check` message is unchanged), and the order number is not empty, a fifth request
+runs in parallel: `GET /api/v1/entities?fields=<name>=<number>` (exact match on the order-number custom field). An
+item found only by this filter, with the same name, is confirmed by `GET /api/v1/entities/{id}` (at most 5 reads,
+otherwise `incomplete`), because a server may ignore the filter. Nothing is stored and nothing personal is logged.
 
 ## Location
 

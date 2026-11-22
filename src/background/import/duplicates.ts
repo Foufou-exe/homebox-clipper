@@ -1,5 +1,5 @@
 import { itemUrl, type HomeBoxClient } from '@/background/homebox/client';
-import type { EntitySummary } from '@/background/homebox/types';
+import type { EntityOut, EntitySummary } from '@/background/homebox/types';
 import { fail, ok, type Result } from '@/shared/errors';
 import { queryWords, rankSimilar, SIMILAR_PAGE_SIZE } from '@/shared/similarity';
 import type { DuplicateCheck, DuplicateMatch } from '@/shared/types';
@@ -51,34 +51,95 @@ export async function findDuplicatesByName(
   return ok(sameName(client, res.value, name));
 }
 
+/** Confirmation reads at most per check (spec 020, R2): bounds the extra requests to the instance. */
+export const MAX_CONFIRM_READS = 5;
+
+/** Custom-field filter, present only when the "order details as custom fields" option is on for the target instance. */
+export interface FieldFilter {
+  /** Name configured for the `orderNumber` role of the target instance. */
+  name: string;
+  client: Pick<HomeBoxClient, 'searchEntitiesByField' | 'getEntity'>;
+}
+
+/** True when the entity has a text field named `fieldName` whose value is exactly `number`. */
+export const confirmsOrderNumber = (entity: EntityOut, fieldName: string, number: string): boolean =>
+  (entity.fields ?? []).some((f) => f.type === 'text' && f.name.trim() === fieldName && f.textValue === number);
+
 /**
- * Summary check (spec 015): certain duplicates (same order number in the notes and same name, computed as in
- * `findDuplicates`) and similar items (close name, FR-004) of the whole instance, whatever their origin.
- * At most 1 order-number search + MAX_QUERY_WORDS word searches, in parallel, to the HomeBox instance only.
- * Every search failed → DUPLICATE_CHECK_FAILED; some failed → `incomplete` (product not checked, FR-013).
+ * Confirms by reading the candidates found only by the filter: the server may ignore `fields` and return an unfiltered
+ * list (R1), so a candidate counts only if its own field equals the number. A failed read is not counted and makes the
+ * check incomplete; so do the candidates beyond MAX_CONFIRM_READS. Nothing read is logged or stored.
+ */
+async function confirmByRead(
+  filter: FieldFilter,
+  number: string,
+  candidates: EntitySummary[],
+): Promise<{ confirmed: EntitySummary[]; incomplete: boolean }> {
+  const read = candidates.slice(0, MAX_CONFIRM_READS);
+  const entities = await Promise.all(read.map((c) => filter.client.getEntity(c.id)));
+  const confirmed = read.filter((_, i) => {
+    const e = entities[i];
+    return e?.ok === true && confirmsOrderNumber(e.value, filter.name, number);
+  });
+  return {
+    confirmed,
+    incomplete: candidates.length > MAX_CONFIRM_READS || entities.some((e) => !e.ok),
+  };
+}
+
+/**
+ * Certain duplicates: same name and the number found by the text search (no read), then same name found by the filter
+ * only and confirmed by a read. Deduplicated by id.
+ */
+async function certainMatches(
+  client: SearchClient,
+  name: string,
+  number: string,
+  textResult: Result<EntitySummary[]> | undefined,
+  fieldResult: Result<EntitySummary[]> | undefined,
+  filter: FieldFilter | undefined,
+): Promise<{ matches: DuplicateMatch[]; incomplete: boolean }> {
+  const matches = textResult?.ok ? sameName(client, textResult.value, name) : [];
+  if (!filter || !fieldResult?.ok) return { matches, incomplete: false };
+  const known = new Set(matches.map((m) => m.id));
+  const target = normalize(name);
+  const candidates = fieldResult.value.filter((e) => !known.has(e.id) && normalize(e.name) === target);
+  const { confirmed, incomplete } = await confirmByRead(filter, number, candidates);
+  return { matches: [...matches, ...confirmed.map((e) => toMatch(client, e))], incomplete };
+}
+
+/**
+ * Summary check (spec 015, 020): certain duplicates (same order number in the notes, or in the order-number custom
+ * field when `fieldFilter` is given, and same name) and similar items (close name, FR-004) of the whole instance.
+ * At most 1 order-number search + 1 field search + MAX_QUERY_WORDS word searches, in parallel, then at most
+ * MAX_CONFIRM_READS reads, to the HomeBox instance only. Every search failed → DUPLICATE_CHECK_FAILED; some failed
+ * (or a read failed, or too many candidates) → `incomplete` (product not fully checked, FR-013).
  * Nothing is logged here (FR-018): the client only logs endpoint templates.
  */
 export async function checkDuplicates(
   client: SearchClient,
   orderNumber: string,
   name: string,
+  fieldFilter?: FieldFilter,
 ): Promise<Result<DuplicateCheck>> {
-  const byNumber = orderNumber.trim() !== '';
-  const searches: Promise<Result<EntitySummary[]>>[] = [
-    ...(byNumber ? [client.searchEntities(`"${orderNumber.trim()}"`)] : []),
+  const number = orderNumber.trim();
+  const filter = fieldFilter !== undefined && number !== '' ? fieldFilter : undefined;
+  const [textResult, fieldResult, ...wordResults] = await Promise.all([
+    number === '' ? undefined : client.searchEntities(`"${number}"`),
+    filter?.client.searchEntitiesByField(filter.name, number),
     ...queryWords(name).map((w) => client.searchEntities(w, SIMILAR_PAGE_SIZE)),
-  ];
-  if (searches.length === 0) return ok({ matches: [], similar: [], moreSimilar: false, incomplete: false });
-  const results = await Promise.all(searches);
+  ]);
+  const results = [textResult, fieldResult, ...wordResults].filter((r) => r !== undefined);
+  if (results.length === 0) return ok({ matches: [], similar: [], moreSimilar: false, incomplete: false });
   if (results.every((r) => !r.ok)) return fail('DUPLICATE_CHECK_FAILED');
-  const numberResult = byNumber ? results[0] : undefined;
-  const matches = numberResult?.ok ? sameName(client, numberResult.value, name) : [];
-  const candidates = results.flatMap((r) => (r.ok ? r.value : []));
-  const { items, more } = rankSimilar(name, candidates, new Set(matches.map((m) => m.id)));
+  const certain = await certainMatches(client, name, number, textResult, fieldResult, filter);
+  // Similar items come from the text and word searches only; the filter results never enter here.
+  const candidates = [textResult, ...wordResults].flatMap((r) => (r?.ok ? r.value : []));
+  const { items, more } = rankSimilar(name, candidates, new Set(certain.matches.map((m) => m.id)));
   return ok({
-    matches,
+    matches: certain.matches,
     similar: items.map((e) => toMatch(client, e)),
     moreSimilar: more,
-    incomplete: results.some((r) => !r.ok),
+    incomplete: results.some((r) => !r.ok) || certain.incomplete,
   });
 }

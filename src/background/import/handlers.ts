@@ -195,7 +195,14 @@ export function registerImportHandlers(): void {
     const creds = await configStore.getCredentials(instanceId);
     if (!creds.ok) return creds;
     const client = createHomeBoxClient(creds.value);
-    return checkDuplicates(client, orderNumber, name);
+    // Spec 020: the order-number custom field is also queried when the option is on for this instance only.
+    const settings = await orderFieldSettings.get(instanceId);
+    return checkDuplicates(
+      client,
+      orderNumber,
+      name,
+      settings.enabled ? { name: settings.names.orderNumber, client } : undefined,
+    );
   });
 
   register('import/pending', async ({ tabId }) =>

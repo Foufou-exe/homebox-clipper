@@ -236,6 +236,23 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
     },
 
     /**
+     * Exact server-side filter on a custom field (spec 020): `GET /entities?fields=<name>=<value>`. HomeBox matches
+     * the name and the text value exactly (case-sensitive). The field name and the value are never logged: only the
+     * endpoint template is.
+     */
+    async searchEntitiesByField(name: string, value: string, pageSize = 20): Promise<Result<EntitySummary[]>> {
+      const params = new URLSearchParams({ fields: `${name}=${value}`, pageSize: String(pageSize) });
+      const res = await request('GET', `/entities?${params.toString()}`, {
+        auth: true,
+        endpoint: 'GET /entities?fields',
+        onHttpError: 'DUPLICATE_CHECK_FAILED',
+      });
+      const json = await readJson<{ items?: EntitySummary[] }>(res, 'DUPLICATE_CHECK_FAILED');
+      if (!json.ok) return json;
+      return ok(Array.isArray(json.value.items) ? json.value.items : []);
+    },
+
+    /**
      * GET /templates (spec 018): read-only. Entries without textual `id` and `name` are ignored; 404 means an
      * instance without templates (`TEMPLATES_UNSUPPORTED`). No template name is logged.
      */
