@@ -74,6 +74,28 @@ A retry before creation re-checks the template the same way; once the item exist
 again. The template list is unavailable (`TEMPLATES_UNAVAILABLE`) or unsupported by the instance
 (`TEMPLATES_UNSUPPORTED`, 404): an import without template stays possible.
 
+### Order fields as HomeBox custom fields (spec 019)
+
+When the option « Save the order as custom fields » is on for the target instance, each confirmed draft carries
+`ImportDraft.orderFields` (1 to 3 text fields: order number, merchant, order page address, with the names of the
+settings of that instance). The orchestrator follows the order-fields path only when this key exists (option off:
+no new code runs, the requests and the persisted states are unchanged, the `orchestrator-call-sequence` snapshot is
+never regenerated):
+
+1. the existing purchase `PUT /api/v1/entities/{id}` also carries the order fields in `fields` (no extra write): a
+   text field of the same name already on the item (from a template, or a previous attempt) is updated in place,
+   every other custom field is sent back as it is (#109); the notes stay exactly those of today;
+2. a definite refusal of this PUT (known HTTP status other than 401/403) is sent again once without the order
+   fields, from the same state read before, so the purchase data, notes, tags and template fields are never lost;
+3. after a PUT carrying the order fields, the extension reads the item again (`GET /api/v1/entities/{id}`, the same
+   read as the template check when there is a template) and checks that each order field is present exactly once
+   with its value: a gap or a refusal fails the « order fields » step (`steps.orderFields`, `ORDER_FIELDS_FAILED`),
+   the item is kept and the step can be retried alone, with the names and values confirmed at the start.
+
+The names of the existing custom fields are read for the suggestions of the settings only
+(`GET /api/v1/entities/fields`, unlocked, the instance of the message only; never the values); unreadable gives
+`FIELD_NAMES_UNAVAILABLE`.
+
 ### Photo step (`photo-fetch.ts`)
 
 `src/background/import/photo-fetch.ts` retrieves the image with an anonymous `fetch`, in a module
@@ -139,7 +161,10 @@ Message families: configuration (`config/get|delete`), HomeBox instances
 detection (`detect/run`), locations (`location/list`), HomeBox tags (`tag/list`, read-only, `src/background/tags/`),
 HomeBox item templates (`template/list`, `template/get`, `template/check`, `template/get-default`,
 `template/set-default`, `src/background/templates/`: read-only on the templates, never a template write;
-`template/get-default` needs neither the network nor the key), duplicates (`duplicate/check`), import
+`template/get-default` needs neither the network nor the key), order fields as HomeBox custom fields
+(`order-fields/get`, `order-fields/set`: the setting of one instance, readable and writable while locked, neither the
+network nor the key; `order-fields/names`: the names of the existing custom fields, unlocked,
+`src/background/order-fields/`), duplicates (`duplicate/check`), import
 (`import/start|retry|abandon|pending`), extraction in the tab (`amazon/extract`, `amazon/download`) and
 progress (`import/progress`). Responses are `Result` values: either a value or an error code from the
 catalog (`src/shared/errors.ts`).
@@ -157,7 +182,7 @@ instances and stays unchanged (`src/background/import/orchestrator.ts`); its con
 
 | Where | What |
 |-------|------|
-| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). Default item template per instance (`defaultTemplateByInstance`: `{ [instanceId]: { id, name } }`, erased with the instance or the settings, spec 018). |
+| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). Default item template per instance (`defaultTemplateByInstance`: `{ [instanceId]: { id, name } }`, erased with the instance or the settings, spec 018). Order-fields setting per instance (`orderFieldsByInstance`: `{ [instanceId]: { enabled, names: { orderNumber, merchant, orderUrl } } }`, erased with the instance or the settings, spec 019). |
 | `storage.session` | Decrypted keys by instance and open history key (`homeboxUnlocked`, `{ v: 2, keys, historyKey }`; a former `{ apiKey }` is read as the key of the single instance), last activity (`homeboxActivity`, for the inactivity lock), version ready to install (`updateReady`) and in-progress imports (`pendingImport:<tab>:<id>`). Memory, cleared when the browser closes. |
 
 The vault and the instances live in `src/background/config/instance-store.ts` (validated reads, a single write

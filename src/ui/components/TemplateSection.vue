@@ -7,7 +7,15 @@ import { t } from '@/ui/i18n';
  * Values of the template chosen for one product (spec 018, contracts/ui.md §1.4): everything that will be saved is
  * shown and editable (principle II). Text by interpolation only; nothing is logged.
  */
-const props = defineProps<{ modelValue: LineTemplate; productName: string }>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: LineTemplate;
+    productName: string;
+    /** Spec 019: names (trimmed) of the fields merged with an order field, shown in « Order fields » instead. */
+    mergedNames?: readonly string[];
+  }>(),
+  { mergedNames: () => [] },
+);
 const emit = defineEmits<{ 'update:modelValue': [value: LineTemplate] }>();
 
 const uid = useId();
@@ -31,6 +39,7 @@ function updateField(index: number, change: Partial<FieldInput>) {
   });
   update({ fields });
 }
+const isMerged = (f: FieldInput) => props.mergedNames.includes(f.view.name.trim());
 const text = (e: Event) => (e.target as HTMLInputElement).value;
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 </script>
@@ -55,7 +64,8 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 
     <div v-if="modelValue.values.fields.length" class="fields">
       <div v-for="(f, i) in modelValue.values.fields" :key="i" class="field">
-        <template v-if="f.view.kind === 'boolean'">
+        <p v-if="isMerged(f)" class="muted merged">{{ t('orderFields.mergedInTemplate', [f.view.name]) }}</p>
+        <template v-else-if="f.view.kind === 'boolean'">
           <div class="check">
             <input :id="fieldId(i)" type="checkbox" :checked="f.checked" @change="updateField(i, { checked: checked($event) })" />
             <label :for="fieldId(i)">{{ f.view.name }}</label>
@@ -144,6 +154,10 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 .help {
   margin: 2px 0 0;
   font-size: 12px;
+}
+.merged {
+  margin: 6px 0 0;
+  font-size: 13px;
 }
 .error {
   margin: 2px 0 0;

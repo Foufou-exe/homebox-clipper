@@ -250,6 +250,25 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       return ok(json.value.flatMap((x) => toTemplateSummary(x) ?? []));
     },
 
+    /**
+     * GET /entities/fields (spec 019, contracts/homebox-fields.md §1): the custom field names of the instance, for the
+     * suggestions; never their values (the route of the values is never called). Non-textual entries are ignored;
+     * `null` (Go nil slice) is an empty list; another shape, 404 (version without the route) or another error is
+     * `FIELD_NAMES_UNAVAILABLE`. No name is logged.
+     */
+    async listFieldNames(): Promise<Result<string[]>> {
+      const res = await request('GET', '/entities/fields', {
+        auth: true,
+        endpoint: 'GET /entities/fields',
+        onHttpError: 'FIELD_NAMES_UNAVAILABLE',
+      });
+      const json = await readJson<unknown>(res, 'FIELD_NAMES_UNAVAILABLE');
+      if (!json.ok) return json;
+      if (json.value === null) return ok([]);
+      if (!Array.isArray(json.value)) return fail('FIELD_NAMES_UNAVAILABLE', res.ok ? res.value.status : undefined);
+      return ok(json.value.filter((x): x is string => typeof x === 'string'));
+    },
+
     /** GET /templates/{id} (spec 018): read-only; 404 → `TEMPLATE_NOT_FOUND`. The id is never logged. */
     async getTemplate(id: string): Promise<Result<TemplateOut>> {
       const res = on404(

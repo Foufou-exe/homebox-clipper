@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import type { TemplateDetail, TemplateFieldView } from '@/shared/types';
 import TemplateSection from '@/ui/components/TemplateSection.vue';
-import { fieldInputFor, type LineTemplate } from '@/ui/popup/drafts';
+import { fieldInputFor, templateBlocks, type LineTemplate } from '@/ui/popup/drafts';
 import { loadCatalog } from './i18n-harness';
 
 /** Values of a template under a product (spec 018, Q-U4, contracts/ui.md §1.4). Fictitious values only. */
@@ -138,5 +138,33 @@ describe('TemplateSection', () => {
     const w = mountSection(template([]));
     expect(w.find('.fields').exists()).toBe(false);
     expect(w.findAll('label').map((l) => l.text())).toEqual([fr['templates.manufacturer'], fr['templates.modelNumber'], fr['templates.insured']]);
+  });
+});
+
+describe('TemplateSection: fields merged with an order field (019, US4, T065)', () => {
+  const MERGED = [view('text', 'Order number'), view('text', 'Auteur')];
+
+  it('without mergedNames: unchanged rendering (an input per field)', () => {
+    const w = mountSection(template(MERGED));
+    expect(w.findAll('label').map((l) => l.text())).toContain('Order number');
+    expect(w.text()).not.toContain(fr['orderFields.mergedInTemplate']!.replace('$1', 'Order number'));
+  });
+
+  it('a merged field shows « « X » : voir Champs de commande » instead of its input', () => {
+    const w = mount(TemplateSection, {
+      props: { modelValue: template(MERGED), productName: 'Roman exemple', mergedNames: ['Order number'] },
+      attachTo: document.body,
+    });
+    expect(w.findAll('label').map((l) => l.text())).not.toContain('Order number');
+    expect(w.findAll('label').map((l) => l.text())).toContain('Auteur');
+    expect(w.text()).toContain(fr['orderFields.mergedInTemplate']!.replace('$1', 'Order number'));
+  });
+
+  it('the error of a merged field no longer blocks (templateBlocks with the merged names)', () => {
+    const t = template([view('text', 'Order number'), view('text', 'Auteur')]);
+    t.values.fields[0] = { ...t.values.fields[0]!, raw: 'é'.repeat(251), error: 'tooLong' };
+    expect(templateBlocks(t)).toBe(true);
+    expect(templateBlocks(t, ['Order number'])).toBe(false);
+    expect(templateBlocks(t, [])).toBe(true);
   });
 });

@@ -520,3 +520,112 @@ describe('messages: template/* and drafts[].template on import/start (018, Q-U2,
     expect(isMessage(withTemplate(choice(), { location: LOC, warranty }))).toBe(true);
   });
 });
+
+describe('messages: order-fields/* and drafts[].orderFields on import/start (019, Q-U2, T010)', () => {
+  const NAMES = { orderNumber: 'Order number', merchant: 'Merchant', orderUrl: 'Order URL' };
+  const ORDER_URL = 'https://www.amazon.fr/gp/your-account/order-details';
+  const NUMBER = '000-0000000-0000000';
+  const fields = () => [
+    { role: 'orderNumber', name: 'Order number', value: NUMBER },
+    { role: 'merchant', name: 'Merchant', value: 'Amazon.fr' },
+    { role: 'orderUrl', name: 'Order URL', value: ORDER_URL },
+  ];
+  const startWithFields = (orderFields: unknown, extra: Record<string, unknown> = {}) => ({
+    type: 'import/start',
+    instanceId: 'inst-a',
+    tabId: 1,
+    manualFiles: [],
+    drafts: [{ ...draft(), orderNumber: NUMBER, ...extra, orderFields }],
+  });
+  const withField = (index: number, over: Record<string, unknown>) =>
+    startWithFields(fields().map((f, i) => (i === index ? { ...f, ...over } : f)));
+
+  it.each(['order-fields/get', 'order-fields/names'])('%s requires a valid instanceId', (type) => {
+    expect(isMessage({ type, instanceId: 'inst-a' })).toBe(true);
+    expect(isMessage({ type })).toBe(false);
+    expect(isMessage({ type, instanceId: '' })).toBe(false);
+    expect(isMessage({ type, instanceId: 'x'.repeat(65) })).toBe(false);
+  });
+
+  it('order-fields/set requires a valid instanceId and valid settings', () => {
+    const set = (settings: unknown, instanceId: unknown = 'inst-a') => isMessage({ type: 'order-fields/set', instanceId, settings });
+    expect(set({ enabled: true, names: NAMES })).toBe(true);
+    expect(set({ enabled: true, names: NAMES }, '')).toBe(false);
+    expect(set({ enabled: true, names: { ...NAMES, merchant: 'a=b' } })).toBe(false);
+    expect(set({ enabled: true, names: { ...NAMES, merchant: 'order number' } })).toBe(false);
+    expect(set({ enabled: true, names: { ...NAMES, orderUrl: 'Order URL ' } })).toBe(false);
+    expect(set({ enabled: 'true', names: NAMES })).toBe(false);
+    expect(set(undefined)).toBe(false);
+  });
+
+  it('import/start without the key: validated exactly as before', () => {
+    expect(isMessage({ type: 'import/start', instanceId: 'inst-a', tabId: 1, manualFiles: [], drafts: [draft()] })).toBe(true);
+  });
+
+  it('import/start: a valid draft with 3 fields → accepted; 1 field → accepted', () => {
+    expect(isMessage(startWithFields(fields()))).toBe(true);
+    expect(isMessage(startWithFields([fields()[1]]))).toBe(true);
+  });
+
+  it.each([
+    ['[]', []],
+    ['null', null],
+    ['4 entries', [...fields(), { role: 'merchant', name: 'Boutique', value: 'Amazon.fr' }]],
+    ['duplicate roles', [fields()[1], { role: 'merchant', name: 'Boutique', value: 'Amazon.fr' }]],
+    ['unknown role', [{ role: 'seller', name: 'Seller', value: 'Amazon.fr' }]],
+    ['not an array', { role: 'merchant', name: 'Merchant', value: 'Amazon.fr' }],
+    ['an entry not an object', ['Merchant']],
+  ])('import/start: orderFields %s → refused', (_label, value) => {
+    expect(isMessage(startWithFields(value))).toBe(false);
+  });
+
+  it.each([
+    ['with =', 'a=b'],
+    ['with a control character', 'a\u0001b'],
+    ['of 256 bytes', 'é'.repeat(128)],
+    ['empty', ''],
+    ['not trimmed', ' Merchant'],
+    ['duplicate (case ignored)', 'order number'],
+    ['not a string', 3],
+  ])('import/start: name %s → refused', (_label, name) => {
+    expect(isMessage(withField(1, { name }))).toBe(false);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['with edge spaces', ' Amazon.fr '],
+    ['of 502 bytes', 'é'.repeat(251)],
+    ['not a string', 3],
+  ])('import/start: value %s → refused', (_label, value) => {
+    expect(isMessage(withField(1, { value }))).toBe(false);
+  });
+
+  it.each(['ftp://x.example', 'javascript:alert(1)'])('import/start: orderUrl %s → refused', (value) => {
+    expect(isMessage(withField(2, { value }))).toBe(false);
+  });
+
+  it('import/start: the order number value must be exactly d.orderNumber (FR-010, SC-006)', () => {
+    expect(isMessage(startWithFields(fields(), { orderNumber: null }))).toBe(false);
+    expect(isMessage(startWithFields(fields(), { orderNumber: '111-1111111-1111111' }))).toBe(false);
+    expect(isMessage(startWithFields(fields(), { orderNumber: NUMBER }))).toBe(true);
+  });
+
+  it('import/start: a name shared with template.fields (edge spaces ignored) → refused (FR-016)', () => {
+    const template = (name: string) => ({
+      id: 'tpl-1',
+      name: 'Livre',
+      fingerprint: 'a'.repeat(64),
+      insured: true,
+      manufacturer: '',
+      modelNumber: '',
+      fields: [{ type: 'text', kind: 'text', name, textValue: '', numberValue: 0, booleanValue: false }],
+    });
+    const LOC = { id: 'loc-1', path: ['Maison'] };
+    expect(isMessage(startWithFields(fields(), { location: LOC, template: template('Order number ') }))).toBe(false);
+    expect(isMessage(startWithFields(fields(), { location: LOC, template: template('Auteur') }))).toBe(true);
+  });
+
+  it("'order-fields/names' is a validated message type", () => {
+    expect(isMessage({ type: 'order-fields/names', instanceId: 'inst-a' })).toBe(true);
+  });
+});

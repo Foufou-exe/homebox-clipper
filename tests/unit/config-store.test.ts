@@ -734,3 +734,21 @@ describe('018: « Delete the settings » also erases the default templates (Q-U3
     expect(await fakeBrowser.storage.local.get('defaultTemplateByInstance')).toEqual({});
   });
 });
+
+describe('019: « Delete the settings » also erases the order-fields settings (Q-U3, FR-008)', () => {
+  it('configStore.delete(): the orderFieldsByInstance key is removed with every instance', async () => {
+    fakeBrowser.reset();
+    await save();
+    vi.spyOn(fakeBrowser.permissions, 'remove').mockResolvedValue(undefined);
+    await fakeBrowser.storage.local.set({
+      orderFieldsByInstance: { 'inst-a': { enabled: true, names: { orderNumber: 'Order number', merchant: 'Merchant', orderUrl: 'Order URL' } } },
+    });
+    await configStore.delete();
+    expect(await fakeBrowser.storage.local.get('orderFieldsByInstance')).toEqual({});
+  });
+
+  it('ORDER_FIELDS_KEY is re-exported by the configuration store', async () => {
+    const { ORDER_FIELDS_KEY } = await import('@/background/config/config-store');
+    expect(ORDER_FIELDS_KEY).toBe('orderFieldsByInstance');
+  });
+});

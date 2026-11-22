@@ -6,6 +6,7 @@ import { isValidIsoDate } from './warranty';
 import { isLockPolicy, type LockPolicy, type LockSettings } from './lock-policy';
 import { isVersion } from './version';
 import { MAX_TAGS_PER_PRODUCT, normalizeTagName, tagKey, tagNameError } from './tags';
+import { ORDER_FIELD_ROLES, fieldNameError, isOrderFieldSettings, orderValueError, type OrderFieldSettings } from './order-fields';
 import type {
   ConfigView,
   DetectedPurchase,
@@ -69,6 +70,10 @@ export type Message =
   | { type: 'template/check'; instanceId: string; refs: { id: string; fingerprint: string }[] }
   | { type: 'template/get-default'; instanceId: string }
   | { type: 'template/set-default'; instanceId: string; templateId: string | null }
+  // Order fields (019): extension pages only (`order-fields/` prefix); get/set without key nor network.
+  | { type: 'order-fields/get'; instanceId: string }
+  | { type: 'order-fields/set'; instanceId: string; settings: OrderFieldSettings }
+  | { type: 'order-fields/names'; instanceId: string }
   | {
       type: 'import/start';
       instanceId: string;
@@ -142,6 +147,9 @@ export interface ResponseMap {
   'template/check': Result<{ results: TemplateCheck[] }>;
   'template/get-default': Result<{ defaultTemplate: DefaultTemplateRef | null }>;
   'template/set-default': Result<{ defaultTemplate: DefaultTemplateRef | null }>;
+  'order-fields/get': Result<{ settings: OrderFieldSettings }>;
+  'order-fields/set': Result<{ settings: OrderFieldSettings }>;
+  'order-fields/names': Result<{ names: string[] }>;
   'import/start': Result<PendingImport[]>;
   'import/retry': Result<PendingImport>;
   'import/abandon': Result<void>;
@@ -248,6 +256,30 @@ const isTemplateChoice = (x: unknown): boolean =>
     isArr(x.fields) &&
     x.fields.length <= 100 &&
     x.fields.every(isTemplateFieldValue));
+const ORDER_ROLES: ReadonlySet<unknown> = new Set(ORDER_FIELD_ROLES);
+/** One confirmed order field (data-model §3, rules 2 to 4): trimmed, valid name and value; the number is the draft's. */
+const isOrderFieldValue = (f: unknown, others: readonly string[], d: Record<string, unknown>): boolean => {
+  if (!isObj(f) || !ORDER_ROLES.has(f.role) || !isStr(f.name) || !isStr(f.value)) return false;
+  const { role, name, value } = f as { role: (typeof ORDER_FIELD_ROLES)[number]; name: string; value: string };
+  if (name !== name.trim() || fieldNameError(name, others) !== null) return false;
+  if (value !== value.trim() || value === '' || orderValueError(role, value) !== null) return false;
+  return role !== 'orderNumber' || (isStr(d.orderNumber) && value === d.orderNumber);
+};
+/** Names of the template fields of the draft (trimmed), never shared with an order field (FR-016, invariant 3). */
+const templateFieldNames = (d: Record<string, unknown>): string[] => {
+  const t = d.template;
+  if (!isObj(t) || !isArr(t.fields)) return [];
+  return t.fields.flatMap((f) => (isObj(f) && isStr(f.name) ? [f.name.trim()] : []));
+};
+/** `ImportDraft.orderFields` (spec 019): absent (never `[]` nor `null`), or 1 to 3 valid entries of distinct roles. */
+const isOrderFields = (x: unknown, d: Record<string, unknown>): boolean => {
+  if (x === undefined) return true;
+  if (!isArr(x) || x.length < 1 || x.length > ORDER_FIELD_ROLES.length || !x.every(isObj)) return false;
+  if (new Set(x.map((f) => f.role)).size !== x.length) return false;
+  const names = x.map((f) => (isStr(f.name) ? f.name : ''));
+  const shared = new Set(templateFieldNames(d));
+  return x.every((f, i) => isOrderFieldValue(f, names.filter((_, j) => j !== i), d)) && !names.some((n) => shared.has(n));
+};
 /** `template/check` refs: 1 to 50, distinct ids, 64-hex fingerprints. */
 const isTemplateRefs = (x: unknown): boolean =>
   isArr(x) &&
@@ -263,6 +295,7 @@ const areDrafts = (x: unknown): boolean =>
       isDraftPhoto(d.photo) &&
       isOptionalLocation(d.location) &&
       isTemplateChoice(d.template) &&
+      isOrderFields(d.orderFields, d) &&
       // A template requires a location (FR-005).
       (d.template === undefined || isLocationChoice(d.location)) &&
       isWarrantyDraft(d.warranty) &&
@@ -303,6 +336,9 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'template/check': (m) => isInstanceId(m.instanceId) && isTemplateRefs(m.refs),
   'template/get-default': (m) => isInstanceId(m.instanceId),
   'template/set-default': (m) => isInstanceId(m.instanceId) && (m.templateId === null || isTemplateId(m.templateId)),
+  'order-fields/get': (m) => isInstanceId(m.instanceId),
+  'order-fields/set': (m) => isInstanceId(m.instanceId) && isOrderFieldSettings(m.settings),
+  'order-fields/names': (m) => isInstanceId(m.instanceId),
   'import/start': (m) =>
     isInstanceId(m.instanceId) &&
     isInt(m.tabId) &&

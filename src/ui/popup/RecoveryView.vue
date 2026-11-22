@@ -76,12 +76,19 @@ const manualToReselect = computed(() =>
 const photoRemaining = computed(() => ['pending', 'sending', 'failed'].includes(props.pending.steps.photo ?? 'not_requested'));
 /** Photo error, displayed separately unless it is already the main error. */
 const photoError = computed(() => (props.pending.photoError !== props.pending.error ? props.pending.photoError : null));
+/** Spec 019: the order fields are the only step left (no other field, tag, document or photo to redo). */
+const onlyOrderFieldsRemain = computed(() => {
+  const { steps } = props.pending;
+  const otherFieldStep = steps.tags === 'failed' || steps.templateFields === 'failed';
+  return steps.orderFields === 'failed' && !otherFieldStep && failedDocs.value.length === 0 && !photoRemaining.value;
+});
 const retryLabel = computed(() => {
   if (!props.pending.entityId) return t('recovery.retryImport');
   const updateRemaining = props.pending.steps.update !== 'done';
   const docsRemaining = failedDocs.value.length > 0;
   if (photoRemaining.value && !updateRemaining && !docsRemaining) return t('recovery.retryPhoto');
   if (docsRemaining && !updateRemaining && !photoRemaining.value) return t('recovery.retryInvoice');
+  if (!updateRemaining && onlyOrderFieldsRemain.value) return t('recovery.retryOrderFields');
   return t('recovery.retry');
 });
 

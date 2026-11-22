@@ -130,6 +130,26 @@ Only the identifier and the name of the template are stored (`defaultTemplateByI
 are erased with the instance or with **Delete settings**. If the template is renamed in HomeBox, the name is
 updated at the next summary; if it is deleted, the summary says so and the products stay on **None**.
 
+## Order fields as custom fields
+
+Each HomeBox instance has an option **Save the order as custom fields**, off by default (also for the instances
+configured before this version). When it is on, each imported item also gets three HomeBox text custom fields:
+the order number, the merchant and the order page address (see [Usage](Usage.md#order-fields-homebox-custom-fields)).
+The notes stay the same.
+
+- Under the option, the three field names can be edited; they are `Order number`, `Merchant` and `Order URL` by
+  default (HomeBox data names, the same in every language). **Restore default names** puts them back.
+- While the extension is unlocked, each name input suggests the names of the custom fields already used in **this
+  instance only** (names only, never their values; they are not kept). While it is locked, the option and the
+  names can still be read and changed: the suggestions appear after unlocking. If the names cannot be read, a
+  message offers **Try again**, and you can still type a name.
+- A name is refused if it is empty, longer than 255 bytes, the same as one of the two others (case ignored), or
+  contains `=` or a control character. A name that differs from an existing field only by case shows a warning with
+  a button to use the existing name.
+
+Only the option and the three field names are stored (`orderFieldsByInstance`, `storage.local`). They are erased
+with the instance or with **Delete settings**. Items imported before are never changed.
+
 ## Appearance
 
 The theme (**Automatic (system)**, **Light** or **Dark**) is chosen in the *Appearance* section of the

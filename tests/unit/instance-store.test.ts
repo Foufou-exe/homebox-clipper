@@ -1,5 +1,6 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
+  ORDER_FIELDS_KEY,
   defaultName,
   fromLegacy,
   instanceStore,
@@ -457,5 +458,62 @@ describe('018: default template per instance purged with the instance (Q-U3, US4
     await fakeBrowser.storage.local.set({ defaultTemplateByInstance: DEFAULTS });
     await instanceStore.clear();
     expect(await fakeBrowser.storage.local.get('defaultTemplateByInstance')).toEqual({});
+  });
+});
+
+describe('019: order-fields setting per instance purged with the instance (Q-U3, FR-008, US5-3)', () => {
+  const C = { id: 'inst-c', name: 'Bureau', baseUrl: 'https://bureau.example.net', apiKey: 'hb_cccccccc' };
+  const NAMES = { orderNumber: 'Order number', merchant: 'Merchant', orderUrl: 'Order URL' };
+  const SETTINGS = {
+    'inst-a': { enabled: true, names: NAMES },
+    'inst-b': { enabled: true, names: { orderNumber: 'N° commande', merchant: 'Boutique', orderUrl: 'Lien' } },
+    'inst-c': { enabled: false, names: NAMES },
+  };
+  const read = async () => (await fakeBrowser.storage.local.get('orderFieldsByInstance')).orderFieldsByInstance;
+  beforeEach(() => fakeBrowser.reset());
+
+  it('ORDER_FIELDS_KEY is orderFieldsByInstance', () => {
+    expect(ORDER_FIELDS_KEY).toBe('orderFieldsByInstance');
+  });
+
+  it('remove(id): only the entry of this instance disappears; the others keep their setting', async () => {
+    await seedStore(await buildStore({ instances: [A, B, C] }));
+    await fakeBrowser.storage.local.set({ orderFieldsByInstance: SETTINGS });
+    expect((await instanceStore.remove('inst-b'))?.id).toBe('inst-b');
+    expect(await read()).toEqual({ 'inst-a': SETTINGS['inst-a'], 'inst-c': SETTINGS['inst-c'] });
+  });
+
+  it('remove(id) in the same write queue as the last location and the default template', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    await fakeBrowser.storage.local.set({
+      orderFieldsByInstance: { 'inst-a': SETTINGS['inst-a'], 'inst-b': SETTINGS['inst-b'] },
+      lastLocationByInstance: { 'inst-a': 'loc-1', 'inst-b': 'loc-2' },
+      defaultTemplateByInstance: { 'inst-b': { id: 'tpl-1', name: 'Livre' } },
+    });
+    await Promise.all([instanceStore.remove('inst-b'), instanceStore.remove('inst-a')]);
+    const left = await fakeBrowser.storage.local.get(['orderFieldsByInstance', 'lastLocationByInstance', 'defaultTemplateByInstance']);
+    expect(left.orderFieldsByInstance).toEqual({ 'inst-a': SETTINGS['inst-a'] });
+    expect(left.lastLocationByInstance).toEqual({ 'inst-a': 'loc-1' });
+    expect(left.defaultTemplateByInstance).toEqual({});
+  });
+
+  it('remove(id) without a setting for this instance: the table is untouched', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    await fakeBrowser.storage.local.set({ orderFieldsByInstance: { 'inst-a': SETTINGS['inst-a'] } });
+    await instanceStore.remove('inst-b');
+    expect(await read()).toEqual({ 'inst-a': SETTINGS['inst-a'] });
+  });
+
+  it('clear(): the whole orderFieldsByInstance key is removed', async () => {
+    await seedStore(await buildStore({ instances: [A, B] }));
+    await fakeBrowser.storage.local.set({ orderFieldsByInstance: SETTINGS });
+    await instanceStore.clear();
+    expect(await fakeBrowser.storage.local.get('orderFieldsByInstance')).toEqual({});
+  });
+
+  it('disabling the option keeps the entry (enabled false, names kept)', async () => {
+    const { orderFieldSettings } = await import('@/background/order-fields/settings');
+    await orderFieldSettings.set('inst-b', { ...SETTINGS['inst-b'], enabled: false });
+    expect(await read()).toEqual({ 'inst-b': { ...SETTINGS['inst-b'], enabled: false } });
   });
 });

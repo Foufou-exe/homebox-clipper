@@ -284,3 +284,30 @@ describe('fieldError (contracts/ui.md §1.4)', () => {
     expect(fieldError({ view: v(kind), raw })).toBe(expected);
   });
 });
+
+describe('templateChoiceFor with excluded names (019, US4, T066)', () => {
+  const ready = () => {
+    const state: TemplateLineState = { draft: emptyDraft(), tags: [], template: emptyLineTemplate() };
+    const res = applyTemplate(state, { ...DETAIL, fields: [...DETAIL.fields, { type: 'text', kind: 'text', name: 'Order number ', textValue: '', numberValue: 0, booleanValue: false }] }, {
+      manual: true,
+      tagState: 'ready',
+      tagOptions: [],
+      locations: [],
+      currentLocation: null,
+    });
+    return res.line.template;
+  };
+
+  it('without second parameter, or with [], the result of spec 018', () => {
+    const t = ready();
+    const base = templateChoiceFor(t)!;
+    expect(base.fields.map((f) => f.name)).toEqual([...DETAIL.fields.map((f) => f.name), 'Order number ']);
+    expect(templateChoiceFor(t, [])).toEqual(base);
+  });
+
+  it('the fields whose trimmed name is excluded are not sent; the others unchanged, in order', () => {
+    const t = ready();
+    const base = templateChoiceFor(t)!;
+    expect(templateChoiceFor(t, ['Order number'])).toEqual({ ...base, fields: base.fields.filter((f) => f.name !== 'Order number ') });
+  });
+});

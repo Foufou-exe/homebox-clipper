@@ -290,11 +290,12 @@ describe('router — session/* and update/* reserved to extension pages, activit
   // ADAPTED (spec 014, T009 a): 'tag/' added last; only expectation of this file that changes.
   // ADAPTED (016, T051): 'instance/' added last (instance management, extension pages only).
   // ADAPTED (018): 'template/' added last (HomeBox item templates, extension pages only).
-  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/', 'tag/', 'instance/' and 'template/'", () => {
+  // ADAPTED (019): 'order-fields/' added last (order fields as HomeBox custom fields, extension pages only).
+  it("source: UI_ONLY_PREFIXES is exactly the expected list, with 'update/', 'tag/', 'instance/', 'template/' and 'order-fields/'", () => {
     const source = readFileSync(resolve(__dirname, '../../src/background/router.ts'), 'utf8');
     const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='))!;
     const list = [...line.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/', 'instance/', 'template/']);
+    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/', 'instance/', 'template/', 'order-fields/']);
   });
 
   it.each(MESSAGES)('$type from an extension page: the hook runs before the handler', async (msg) => {
@@ -421,6 +422,33 @@ describe('router — template/* reserved to extension pages (018, Q-U2, T012)', 
     expect(await dispatch({ type: 'template/list', instanceId: 'inst-a' }, { id: id(), url: `${BASE}popup.html` })).toEqual({
       ok: true,
       value: { templates: [], defaultTemplate: null, defaultState: 'none' },
+    });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('router — order-fields/* reserved to extension pages (019, Q-U2, T011)', () => {
+  const settings = { enabled: false, names: { orderNumber: 'Order number', merchant: 'Merchant', orderUrl: 'Order URL' } };
+  const handler = vi.fn(async () => ({ ok: true, value: { settings } }));
+  const id = () => fakeBrowser.runtime.id;
+
+  beforeEach(() => {
+    fakeBrowser.reset();
+    handler.mockClear();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((path: string) => BASE + path.replace(/^\//, ''));
+    register('order-fields/get', handler as never);
+  });
+
+  it('order-fields/get from a script injected in a web page: BAD_MESSAGE, handler not called', async () => {
+    const sender = { id: id(), url: 'https://www.amazon.fr/your-orders/order-details', tab: { id: 12 } };
+    expect(await dispatch({ type: 'order-fields/get', instanceId: 'inst-a' }, sender)).toEqual({ ok: false, error: 'BAD_MESSAGE' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('order-fields/get from an extension page: accepted', async () => {
+    expect(await dispatch({ type: 'order-fields/get', instanceId: 'inst-a' }, { id: id(), url: `${BASE}options.html` })).toEqual({
+      ok: true,
+      value: { settings },
     });
     expect(handler).toHaveBeenCalledTimes(1);
   });

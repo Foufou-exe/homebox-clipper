@@ -45,6 +45,9 @@ export const ERROR_CODES = [
   'TEMPLATE_NOT_FOUND',
   'TEMPLATE_CHANGED',
   'TEMPLATE_FIELDS_FAILED',
+  // Spec 019 (order details as HomeBox custom fields).
+  'ORDER_FIELDS_FAILED',
+  'FIELD_NAMES_UNAVAILABLE',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

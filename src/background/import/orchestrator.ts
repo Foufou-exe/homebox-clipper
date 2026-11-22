@@ -7,6 +7,7 @@ import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { logError } from '@/shared/logger';
 import { findDuplicatesByName } from './duplicates';
 import { fieldsFor, fieldsMatch, templatePatch } from './template-patch';
+import { applyOrderFields, currentFields, orderFieldsMatch } from './order-fields';
 import { normalizeTemplate } from '@/background/templates/normalize';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
 import { flattenTree } from '@/shared/locations';
@@ -18,6 +19,7 @@ import type {
   ImportDraft,
   LocationChoice,
   ManualFile,
+  OrderFieldValue,
   PendingImport,
   PhotoStep,
   TagChoice,
@@ -148,6 +150,24 @@ function purchasePatch(draft: ImportDraft, current: EntityOut): Partial<EntityUp
 type TemplateDraft = ImportDraft & { template: TemplateChoice };
 const hasTemplate = (d: ImportDraft): d is TemplateDraft => d.template !== undefined;
 
+type OrderDraft = ImportDraft & { orderFields: OrderFieldValue[] };
+/** Spec 019: order fields to write. Without them (option off), no new code runs (invariant 1, FR-025). */
+const hasOrderFields = (d: ImportDraft): d is OrderDraft => Boolean(d.orderFields?.length);
+
+/** Errors of the PUT step and of the field steps that ride on it. */
+interface UpdateErrors {
+  updateError: ErrorCode | null;
+  tagsError: ErrorCode | null;
+  templateFieldsError: ErrorCode | null;
+  orderFieldsError: ErrorCode | null;
+}
+
+/** Error reported for a failed purchase PUT (unchanged mapping). */
+function updateFailure(res: Result<unknown>): ErrorCode | null {
+  if (res.ok) return null;
+  return res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED';
+}
+
 function manualBytes(file: ManualFile): Result<Uint8Array> {
   if (base64Size(file.base64) > MAX_DOCUMENT_BYTES) return fail('FILE_TOO_LARGE');
   const bytes = base64ToBytes(file.base64);
@@ -169,6 +189,34 @@ function settleTemplateFields(p: PendingImport, matched: boolean): ErrorCode | n
   p.steps.templateFields = 'failed';
   p.templateFieldsError = 'TEMPLATE_FIELDS_FAILED';
   return 'TEMPLATE_FIELDS_FAILED';
+}
+
+/** Records the outcome of the order fields (spec 019): `done` only after a conforming read-back (FR-023). */
+function settleOrderFields(p: PendingImport, matched: boolean): ErrorCode | null {
+  if (matched) {
+    p.steps.orderFields = 'done';
+    delete p.orderFieldsError;
+    return null;
+  }
+  p.steps.orderFields = 'failed';
+  p.orderFieldsError = 'ORDER_FIELDS_FAILED';
+  return 'ORDER_FIELDS_FAILED';
+}
+
+/** Purchase patch of the order-fields PUT, without (fallback) and with the order fields (contracts §2, §3). */
+function orderPatches(draft: OrderDraft, current: EntityOut): { without: Partial<EntityUpdate>; withOrder: Partial<EntityUpdate> } {
+  if (hasTemplate(draft)) {
+    const fields = fieldsFor(current.fields, draft.template.fields);
+    const without = { ...purchaseBase(draft, current), ...templatePatch(draft), fields };
+    return { without, withOrder: { ...without, fields: applyOrderFields(fields, draft.orderFields) } };
+  }
+  const without = purchasePatch(draft, current);
+  return { without, withOrder: { ...without, fields: applyOrderFields(currentFields(current.fields), draft.orderFields) } };
+}
+
+/** Template whose fields still remain to be written (spec 018), or `null`. */
+function remainingTemplate(p: PendingImport, draft: ImportDraft): TemplateDraft | null {
+  return hasTemplate(draft) && p.steps.templateFields !== 'done' ? draft : null;
 }
 
 /** Retry (invariant 3): the location of an existing object is fixed; spec 018: no "without location" with a template. */
@@ -630,6 +678,126 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return { tagsError, templateFieldsError };
   }
 
+  /**
+   * PUT carrying the order fields (spec 019, research D3.5). A definite refusal (known HTTP status, not 401/403) is sent
+   * again once without them, from the same state read before the first PUT (`purchasePut`, which keeps its own fallback
+   * without tags). A lost answer or a refused key: no fallback (unknown outcome). `orderSent`: the order fields were
+   * accepted.
+   */
+  async function orderFieldsPut(
+    entityId: string,
+    current: EntityOut,
+    patches: { without: Partial<EntityUpdate>; withOrder: Partial<EntityUpdate> },
+    tags: ResolvedTags | null,
+  ): Promise<{ res: Result<unknown>; applied: boolean; orderSent: boolean }> {
+    const withTags = tags !== null && tags.resolved.length > 0 && knowsTags(current);
+    const tagIds = withTags ? { tagIds: tagIdsFor(current, tags) } : {};
+    const res = await client.updateEntity(entityId, entityOutToUpdate(current, { ...patches.withOrder, ...tagIds }));
+    if (res.ok || res.httpStatus === undefined || res.error === 'UNAUTHORIZED') {
+      return { res, applied: res.ok && withTags, orderSent: res.ok };
+    }
+    return { ...(await purchasePut(entityId, current, patches.without, tags)), orderSent: false };
+  }
+
+  /**
+   * One read-back for both field checks (spec 018 and 019): only after a PUT carrying fields to check. Settles the
+   * template fields (when they remain) and the order fields; returns their errors.
+   */
+  async function settleFieldSteps(
+    p: PendingImport,
+    draft: OrderDraft,
+    entityId: string,
+    template: TemplateDraft | null,
+    outcome: { putOk: boolean; orderSent: boolean },
+  ): Promise<{ templateFieldsError: ErrorCode | null; orderFieldsError: ErrorCode | null }> {
+    const needed = outcome.orderSent || (template !== null && outcome.putOk);
+    const read = needed ? await client.getEntity(entityId) : null;
+    const fields = read?.ok ? read.value.fields : null;
+    const templateFieldsError = template
+      ? settleTemplateFields(p, outcome.putOk && fields !== null && fieldsMatch(fields, template.template.fields))
+      : null;
+    const orderFieldsError = settleOrderFields(p, outcome.orderSent && fields !== null && orderFieldsMatch(fields, draft.orderFields));
+    return { templateFieldsError, orderFieldsError };
+  }
+
+  /**
+   * Order-fields path (spec 019, contracts/import-order-fields.md §2, §3): the existing purchase PUT also carries the
+   * order fields (no extra write), then the object is read again once. Purchase already saved: resume (§4).
+   */
+  async function orderFieldsUpdateStep(
+    p: PendingImport,
+    draft: OrderDraft,
+    entityId: string,
+    created: EntityOut | null,
+    tags: ResolvedTags | null,
+  ): Promise<UpdateErrors> {
+    if (p.steps.update === 'done') return { updateError: null, ...(await orderFieldsResumeStep(p, draft, entityId, tags)) };
+    const current = created ? ok(created) : await client.getEntity(entityId);
+    const put = current.ok
+      ? await orderFieldsPut(entityId, current.value, orderPatches(draft, current.value), tags)
+      : { res: current, applied: false, orderSent: false };
+    p.steps.update = put.res.ok ? 'done' : 'failed';
+    const tagsError = tags ? settleTags(p, tags, put.applied) : null;
+    const template = hasTemplate(draft) ? draft : null;
+    const fieldErrors = await settleFieldSteps(p, draft, entityId, template, { putOk: put.res.ok, orderSent: put.orderSent });
+    await persist(p);
+    return { updateError: updateFailure(put.res), tagsError, ...fieldErrors };
+  }
+
+  /**
+   * Fields-only PUT of a resume (contracts §4): never touches the purchase data. The order fields, the template fields
+   * when they remain, and the tags when they remain too, on the object read again. Returns the PUT outcome.
+   */
+  async function fieldsOnlyPut(
+    draft: OrderDraft,
+    entityId: string,
+    template: TemplateDraft | null,
+    tags: ResolvedTags | null,
+  ): Promise<{ putOk: boolean; applied: boolean }> {
+    const current = await client.getEntity(entityId);
+    if (!current.ok) return { putOk: false, applied: false };
+    const withTags = tags !== null && tags.resolved.length > 0 && knowsTags(current.value);
+    const base = template ? fieldsFor(current.value.fields, template.template.fields) : currentFields(current.value.fields);
+    const patch: Partial<EntityUpdate> = {
+      ...(template ? templatePatch(template) : {}),
+      fields: applyOrderFields(base, draft.orderFields),
+      ...(withTags ? { tagIds: tagIdsFor(current.value, tags) } : {}),
+    };
+    const res = await client.updateEntity(entityId, entityOutToUpdate(current.value, patch));
+    return { putOk: res.ok, applied: res.ok && withTags };
+  }
+
+  /** Resume once the purchase is saved (contracts §4): the confirmed names and values of `draft.orderFields` only. */
+  async function orderFieldsResumeStep(
+    p: PendingImport,
+    draft: OrderDraft,
+    entityId: string,
+    tags: ResolvedTags | null,
+  ): Promise<Omit<UpdateErrors, 'updateError'>> {
+    const template = remainingTemplate(p, draft);
+    if (p.steps.orderFields === 'done') {
+      if (template) return { ...(await templateFieldsOnlyStep(p, template, entityId, tags)), orderFieldsError: null };
+      return { tagsError: tags ? await tagsOnlyStep(p, entityId, tags) : null, templateFieldsError: null, orderFieldsError: null };
+    }
+    const { putOk, applied } = await fieldsOnlyPut(draft, entityId, template, tags);
+    const tagsError = tags ? settleTags(p, tags, applied) : null;
+    const fieldErrors = await settleFieldSteps(p, draft, entityId, template, { putOk, orderSent: putOk });
+    await persist(p);
+    return { tagsError, ...fieldErrors };
+  }
+
+  /** PUT step of a product: the order-fields path only when the draft carries some (invariant 1). */
+  async function updateSteps(
+    p: PendingImport,
+    entity: { entityId: string; created: EntityOut | null },
+    tags: ResolvedTags | null,
+  ): Promise<UpdateErrors> {
+    const draft = p.draft;
+    if (hasOrderFields(draft)) return orderFieldsUpdateStep(p, draft, entity.entityId, entity.created, tags);
+    if (hasTemplate(draft)) return { ...(await templateUpdateStep(p, draft, entity.entityId, entity.created, tags)), orderFieldsError: null };
+    return { ...(await updateStep(p, entity.entityId, entity.created, tags)), templateFieldsError: null, orderFieldsError: null };
+  }
+
   /** Sends one document; returns the error to report, if any. */
   async function attachDocument(
     p: PendingImport,
@@ -709,13 +877,10 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     // Tags (spec 014): only once the object exists; `null` without tags to apply (nothing else runs).
     const tags = await resolveTags(p, tagCache);
     // Each step runs even if a previous one failed; the first error is the one reported.
-    const draft = p.draft;
-    const { updateError, tagsError, templateFieldsError } = hasTemplate(draft)
-      ? await templateUpdateStep(p, draft, entity.entityId, entity.created, tags)
-      : { ...(await updateStep(p, entity.entityId, entity.created, tags)), templateFieldsError: null };
+    const { updateError, tagsError, templateFieldsError, orderFieldsError } = await updateSteps(p, entity, tags);
     const attachmentsError = await attachmentsStep(p, entity.entityId, files);
     const photoError = await photoStep(p, entity.entityId, photos);
-    return finish(p, updateError ?? templateFieldsError ?? attachmentsError ?? photoError ?? tagsError);
+    return finish(p, updateError ?? templateFieldsError ?? orderFieldsError ?? attachmentsError ?? photoError ?? tagsError);
   }
 
   return {
@@ -756,6 +921,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
           ...(draft.tags?.length ? { tags: 'pending' as const } : {}),
           // Only with a template (spec 018, invariant 1).
           ...(draft.template ? { templateFields: 'pending' as const } : {}),
+          // Only with order fields (spec 019, invariant 1).
+          ...(hasOrderFields(draft) ? { orderFields: 'pending' as const } : {}),
         },
         status: 'running',
         error: null,

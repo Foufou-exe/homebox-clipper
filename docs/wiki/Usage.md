@@ -170,6 +170,33 @@ chose it stops the import: nothing is created, your entries are kept, and the ch
 the products concerned) are listed; confirm again, or choose another template or **None**. As always, nothing is
 created before you confirm.
 
+## Order fields (HomeBox custom fields)
+
+When the option **Save the order as custom fields** is on for the target instance (see
+[Configuration](Configuration.md#order-fields-as-custom-fields)), an **Order fields** section appears under each
+product of the summary. It shows, before you confirm, the name and the value of each custom field that will be
+created on the item:
+
+- the **order number**: its single entry is the existing « Order number » field of the product (the same value
+  feeds the notes, the duplicate check and the custom field); the section shows it read-only;
+- the **merchant** (the store of origin, for example `Amazon.fr`) and the **order URL** (the address of the order
+  page): you can edit the merchant and the order URL in the section without changing the notes;
+- an empty value means the field is not created for this product (« Not set »); an order URL must be an `http` or
+  `https` web address. HomeBox limits a field name to 255 bytes and a value to 500 bytes (UTF-8 bytes, so an
+  accented letter counts twice): a longer value blocks **Add** until you shorten or clear it; nothing is cut
+  silently.
+
+With a template whose text field has the same name as an order field, the two are merged: a single field is shown
+(in **Order fields**) and created. A template field of the same name of another type (number, yes/no, date) is
+kept: the order field is not created for this product and a message says so; the information stays in the notes.
+Changing the template keeps the values you typed.
+
+The notes of the item stay exactly the same as without the option. After the import, the extension reads the item
+again and checks every order field; a gap or a refusal from HomeBox is shown as a failed « Order fields » step,
+with a link to the item and a retry of this step alone (the item is never created again, the purchase data is
+kept). Changing the target instance shows, renames or removes the section according to the settings of the new
+instance. With the option off, the summary and the import are exactly the same as before.
+
 ## Multi-item orders
 
 The popup lists the "Detected products": check the ones to import. Each becomes a HomeBox item, with the

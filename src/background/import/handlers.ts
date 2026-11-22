@@ -6,6 +6,7 @@ import { injectExtractor } from '@/background/detect';
 import { createHomeBoxClient } from '@/background/homebox/client';
 import { importHistoryKey } from '@/background/history/history-crypto';
 import { historyStore } from '@/background/history/history-store';
+import { orderFieldSettings } from '@/background/order-fields/settings';
 import { register } from '@/background/router';
 import { browser } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
@@ -129,6 +130,10 @@ async function lockAfterImport(): Promise<void> {
 
 export function registerImportHandlers(): void {
   register('import/start', async ({ instanceId, tabId, drafts, manualFiles, orderLocationId }) => {
+    // Defense in depth (spec 019): order fields are refused, before any request, if the option is off for the target.
+    if (drafts.some((d) => d.orderFields !== undefined) && !(await orderFieldSettings.get(instanceId)).enabled) {
+      return fail('BAD_MESSAGE');
+    }
     const started: string[] = [];
     // The target instance cannot be deleted while this import runs (US4-8).
     const endTarget = beginTarget(instanceId);

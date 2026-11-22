@@ -1,4 +1,5 @@
 import { DEFAULT_TEMPLATE_KEY } from '@/background/config/config-store';
+import { enqueueConfigWrite } from '@/background/config/instance-store';
 import { browser } from '@/platform';
 import type { DefaultTemplateRef, TemplateOption } from '@/shared/types';
 
@@ -31,13 +32,18 @@ export const defaultTemplate = {
     return (await read())[instanceId] ?? null;
   },
 
-  async set(instanceId: string, ref: DefaultTemplateRef): Promise<void> {
-    await browser.storage.local.set({ [DEFAULT_TEMPLATE_KEY]: { ...(await read()), [instanceId]: { id: ref.id, name: ref.name } } });
+  /** Read-modify-write in the configuration write queue: ordered with `instanceStore.remove` (no orphan entry). */
+  set(instanceId: string, ref: DefaultTemplateRef): Promise<void> {
+    return enqueueConfigWrite(async () => {
+      await browser.storage.local.set({ [DEFAULT_TEMPLATE_KEY]: { ...(await read()), [instanceId]: { id: ref.id, name: ref.name } } });
+    });
   },
 
-  async remove(instanceId: string): Promise<void> {
-    const kept = Object.entries(await read()).filter(([k]) => k !== instanceId);
-    await browser.storage.local.set({ [DEFAULT_TEMPLATE_KEY]: Object.fromEntries(kept) });
+  remove(instanceId: string): Promise<void> {
+    return enqueueConfigWrite(async () => {
+      const kept = Object.entries(await read()).filter(([k]) => k !== instanceId);
+      await browser.storage.local.set({ [DEFAULT_TEMPLATE_KEY]: Object.fromEntries(kept) });
+    });
   },
 
   /** Updates the name if the id is in the list; returns the state. Never erases the entry. */
