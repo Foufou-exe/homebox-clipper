@@ -7,6 +7,13 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.9.1](https://github.com/Foufou-exe/homebox-clipper/compare/v0.9.0...v0.9.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* count template field limits in bytes, not characters ([#116](https://github.com/Foufou-exe/homebox-clipper/issues/116)) ([#117](https://github.com/Foufou-exe/homebox-clipper/issues/117)) ([fbf433f](https://github.com/Foufou-exe/homebox-clipper/commit/fbf433f3c6ab2601c462141bcf7e71374f207469))
+
 ## [0.9.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.8.2...v0.9.0) (2026-11-21)
 
 
