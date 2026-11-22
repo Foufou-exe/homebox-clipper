@@ -1,6 +1,7 @@
 import type { MerchantId } from './merchant-ids';
 import type { ErrorCode } from './errors';
 import type { DocumentKind } from './document-kinds';
+import type { OrderFieldRole } from './order-fields';
 
 /** Value extracted from a page, or an explicit absence (principle III). */
 export type Field<T> =
@@ -238,6 +239,20 @@ export interface ImportDraft {
   tags?: TagChoice[];
   /** Spec 018: template chosen and confirmed values. Absent (never null): created exactly as before (FR-016). */
   template?: TemplateChoice;
+  /**
+   * Spec 019: confirmed order fields, 1 to 3, distinct roles. Absent (never `[]` nor `null`) when the option is off
+   * for the target or no field is to be created: the import sequence is unchanged (FR-025).
+   */
+  orderFields?: OrderFieldValue[];
+}
+
+/** Confirmed order field (spec 019): already in the sent shape. Never logged. */
+export interface OrderFieldValue {
+  role: OrderFieldRole;
+  /** Confirmed name, without edge spaces, 1 to 255 bytes, without `=` or control character. */
+  name: string;
+  /** Confirmed value, without edge spaces, 1 to 500 bytes. */
+  value: string;
 }
 
 export type PhotoStep = 'not_requested' | 'unavailable' | 'pending' | 'sending' | 'done' | 'failed';
@@ -260,9 +275,13 @@ export interface PendingImport {
     tags?: StepState;
     /** Present only if `draft.template` (spec 018, invariant 1). */
     templateFields?: StepState;
+    /** Present only if `draft.orderFields` (spec 019, invariant 1). */
+    orderFields?: StepState;
   };
   /** Code of the last failed check of the template fields (spec 018); absent until a failure. */
   templateFieldsError?: ErrorCode;
+  /** Code of the last failure of the order fields step (spec 019); absent until a failure. */
+  orderFieldsError?: ErrorCode;
   /** Names (`draft.tags[].name`) not applied during the last run (spec 014). Absent until a tag failure happens. */
   failedTags?: string[];
   /**

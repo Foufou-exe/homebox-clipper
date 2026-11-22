@@ -807,3 +807,128 @@ describe('template privacy (018, FR-032)', () => {
     }
   });
 });
+
+describe('order fields privacy (019, FR-033)', () => {
+  const BASE = 'https://homebox.example.com';
+  const FIELD_KEY = 'hb_xxxxxxxx';
+  const NUMBER = '000-0000000-0000000';
+  const ORDER_URL = 'https://www.amazon.fr/gp/your-account/order-details';
+  const ORDER_FIELDS = [
+    { role: 'orderNumber' as const, name: 'Order number', value: NUMBER },
+    { role: 'merchant' as const, name: 'Merchant', value: 'Amazon.fr' },
+    { role: 'orderUrl' as const, name: 'Order URL', value: ORDER_URL },
+  ];
+  const SECRETS = ['Order number', 'Merchant', 'Order URL', NUMBER, 'Amazon.fr', ORDER_URL, 'amazon.fr/gp', FIELD_KEY, BASE, 'homebox.example.com'];
+  const ALLOWED = ['POST /entities', 'PUT /entities/{id}', 'GET /entities/{id}', 'GET /entities/fields', 'GET /entities?q'];
+  const spyConsole = () =>
+    (['log', 'debug', 'info', 'warn', 'error'] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => undefined));
+  const jsonReply = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const field = (name: string, textValue: string) => ({ id: `id-${name}`, type: 'text', name, textValue, numberValue: 0, booleanValue: false });
+  const READ = ORDER_FIELDS.map((f) => field(f.name, f.value));
+
+  function router(mode: 'success' | 'put-failure' | 'mismatch') {
+    let reads = 0;
+    return (async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input);
+      const method = init.method ?? 'GET';
+      if (method === 'POST' && url.endsWith('/entities')) return jsonReply(201, { id: 'e1', name: 'x' });
+      if (method === 'PUT') {
+        const body = String(init.body);
+        if (mode === 'put-failure' && body.includes('Order number')) return jsonReply(500, { error: `bad field Order number ${NUMBER}` });
+        return jsonReply(200, { id: 'e1', name: 'x' });
+      }
+      if (method === 'GET' && url.endsWith('/entities/e1')) {
+        reads += 1;
+        const fields = mode === 'mismatch' && reads === 1 ? [field('Order number', NUMBER)] : READ;
+        return jsonReply(200, { id: 'e1', name: 'x', notes: `Commande Amazon.fr : ${NUMBER}`, fields });
+      }
+      return jsonReply(200, {});
+    }) as typeof fetch;
+  }
+
+  function check(spies: ReturnType<typeof spyConsole>) {
+    const calls = spies.flatMap((s) => s.mock.calls);
+    const output = JSON.stringify(calls);
+    for (const v of SECRETS) expect(output).not.toContain(v);
+    for (const [, meta] of calls) {
+      const endpoint = (meta as { endpoint?: string } | undefined)?.endpoint;
+      if (endpoint && endpoint.includes('/entities')) expect(ALLOWED).toContain(endpoint);
+    }
+    return calls;
+  }
+
+  it.each(['success', 'put-failure', 'mismatch'] as const)('import with order fields, %s (O1, O4, O7): no field name or value in the logs', async (mode) => {
+    fakeBrowser.reset();
+    const spies = spyConsole();
+    try {
+      const client = createHomeBoxClient({ baseUrl: BASE, apiKey: FIELD_KEY, fetchImpl: router(mode) });
+      const orchestrator = createOrchestrator({
+        client,
+        store: pendingStore,
+        downloadDetected: async () => ok({ base64: PDF_B64 }),
+        fetchPhoto: async () => ok({ bytes: new Uint8Array([1]), mimeType: 'image/jpeg', filename: 'p.jpg' }),
+        notify: () => undefined,
+        newId: () => 'p1',
+      });
+      const res = await orchestrator.startImport(1, [draft({ orderNumber: NUMBER, pageUrl: ORDER_URL, documents: [], orderFields: ORDER_FIELDS })], []);
+      if (mode === 'mismatch' && res.ok) await orchestrator.retryImport(res.value[0]!.id);
+      const endpoints = check(spies).map(([, meta]) => (meta as { endpoint?: string }).endpoint);
+      expect(endpoints).toContain('PUT /entities/{id}');
+    } finally {
+      for (const s of spies) s.mockRestore();
+    }
+  });
+
+  it('order-fields/names handler (success, network failure, locked): no field name, key or address in the logs', async () => {
+    const EXT = 'chrome-extension://abcdefghijklmnop/';
+    const { registerOrderFieldHandlers } = await import('@/background/order-fields/handlers');
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    const creds = vi.spyOn(configStore, 'getCredentials').mockResolvedValue(ok({ id: 'inst-a', baseUrl: BASE, apiKey: FIELD_KEY }));
+    registerOrderFieldHandlers();
+    const spies = spyConsole();
+    try {
+      const sender = { id: fakeBrowser.runtime.id, url: `${EXT}options.html` };
+      vi.stubGlobal('fetch', vi.fn(async () => jsonReply(200, ['N° commande', 'Order number'])));
+      await dispatch({ type: 'order-fields/names', instanceId: 'inst-a' }, sender);
+      vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+      await dispatch({ type: 'order-fields/names', instanceId: 'inst-a' }, sender);
+      vi.unstubAllGlobals();
+      creds.mockResolvedValue({ ok: false, error: 'LOCKED' });
+      await dispatch({ type: 'order-fields/names', instanceId: 'inst-a' }, sender);
+      const calls = spies.flatMap((s) => s.mock.calls);
+      const output = JSON.stringify(calls);
+      for (const v of [...SECRETS, 'N° commande', 'inst-a']) expect(output).not.toContain(v);
+      const endpoints = calls.map(([, meta]) => (meta as { endpoint?: string } | undefined)?.endpoint).filter(Boolean);
+      expect(endpoints).toEqual(['GET /entities/fields', 'GET /entities/fields']);
+    } finally {
+      for (const s of spies) s.mockRestore();
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('order-fields/get and order-fields/set handlers: nothing of the setting in the logs', async () => {
+    const EXT = 'chrome-extension://abcdefghijklmnop/';
+    const { registerOrderFieldHandlers } = await import('@/background/order-fields/handlers');
+    const { instanceStore } = await import('@/background/config/instance-store');
+    fakeBrowser.reset();
+    vi.spyOn(fakeBrowser.runtime, 'getURL').mockImplementation((p: string) => EXT + p.replace(/^\//, ''));
+    vi.spyOn(instanceStore, 'byId').mockResolvedValue({ id: 'inst-a' } as never);
+    registerOrderFieldHandlers();
+    const spies = spyConsole();
+    try {
+      const sender = { id: fakeBrowser.runtime.id, url: `${EXT}options.html` };
+      const names = { orderNumber: 'Order number', merchant: 'Merchant', orderUrl: 'Order URL' };
+      await dispatch({ type: 'order-fields/set', instanceId: 'inst-a', settings: { enabled: true, names } }, sender);
+      await dispatch({ type: 'order-fields/get', instanceId: 'inst-a' }, sender);
+      await dispatch({ type: 'order-fields/set', instanceId: 'inst-a', settings: { enabled: true, names: { ...names, merchant: 'a=b' } } }, sender);
+      const output = JSON.stringify(spies.flatMap((s) => s.mock.calls));
+      for (const v of [...SECRETS, 'inst-a', 'a=b']) expect(output).not.toContain(v);
+    } finally {
+      for (const s of spies) s.mockRestore();
+      vi.restoreAllMocks();
+    }
+  });
+});

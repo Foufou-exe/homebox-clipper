@@ -58,6 +58,7 @@ entry, which works even while locked) and its interrupted imports.
 | Photo URL of an in-progress import | `storage.session` (memory) | Erased with the import (success or abandon); **never the image bytes** |
 | Last location used, per instance (`lastLocationByInstance`): **identifiers only**, never a location name | `storage.local` | Until "Delete settings" (erased with it) or uninstallation |
 | Default item template per instance (`defaultTemplateByInstance`): identifier and name of the template only | `storage.local` | Erased with the instance ("Delete this instance") or with "Delete settings", or at uninstallation |
+| Order-fields setting per instance (`orderFieldsByInstance`): the option and the three field names only, never a value | `storage.local` | Erased with the instance ("Delete this instance") or with "Delete settings", or at uninstallation |
 | Chosen theme | `storage.local` | Display preference |
 | Automatic lock setting (`lockSettings`: `{ v: 1, policy }`, a choice, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
 | Last time the extension was used while unlocked (`homeboxActivity`: `{ at }`, a technical timestamp, never shown or logged) | `storage.session` (memory) | Written with the decrypted key, erased with it (lock, browser close, "Delete settings") |

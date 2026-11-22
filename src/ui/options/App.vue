@@ -14,6 +14,7 @@ import TagsCard from './TagsCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { defaultInstance } from '@/ui/instances';
 import DefaultTemplateField from './DefaultTemplateField.vue';
+import OrderFieldsSettings from './OrderFieldsSettings.vue';
 import InstanceForm from './InstanceForm.vue';
 import InstancesCard from './InstancesCard.vue';
 import PassphraseCard from './PassphraseCard.vue';
@@ -173,6 +174,12 @@ async function remove() {
       </InstanceForm>
       <!-- Spec 018: default template of the single instance (FR-024). -->
       <DefaultTemplateField
+        v-if="view.configured && !multi && current"
+        :instance="current"
+        :locked="view.locked !== false || view.needsPassphrase === true"
+      />
+      <!-- Spec 019: order fields setting of the single instance (FR-001). -->
+      <OrderFieldsSettings
         v-if="view.configured && !multi && current"
         :instance="current"
         :locked="view.locked !== false || view.needsPassphrase === true"

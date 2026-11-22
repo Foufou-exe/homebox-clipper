@@ -103,6 +103,8 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
           <li v-if="photoStepLabel(p)">{{ t('result.stepPhoto', [photoStepLabel(p) ?? '']) }}</li>
           <!-- Spec 018: only for an import with a template (absent otherwise, invariant 1). -->
           <li v-if="p.steps.templateFields">{{ t('result.stepTemplateFields', [stepLabel(p.steps.templateFields)]) }}</li>
+          <!-- Spec 019: only for an import with order fields (absent otherwise, invariant 1). -->
+          <li v-if="p.steps.orderFields">{{ t('result.stepOrderFields', [stepLabel(p.steps.orderFields)]) }}</li>
         </ul>
       </template>
 
@@ -114,6 +116,8 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         <small v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</small>
         <small v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</small>
         <small v-for="note in fallbackNotes(p)" :key="note" class="photo-result">{{ note }}</small>
+        <!-- Spec 019 (US1-6): the order fields step is shown done for the product. -->
+        <small v-if="p.steps.orderFields" class="photo-result">{{ t('result.stepOrderFields', [stepLabel(p.steps.orderFields)]) }}</small>
       </p>
 
       <template v-else>
@@ -128,6 +132,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         <p v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</p>
         <p v-if="tagsFailed(p)" class="photo-result">{{ tagsFailed(p) }}</p>
         <p v-if="p.steps.templateFields" class="photo-result">{{ t('result.stepTemplateFields', [stepLabel(p.steps.templateFields)]) }}</p>
+        <p v-if="p.steps.orderFields" class="photo-result">{{ t('result.stepOrderFields', [stepLabel(p.steps.orderFields)]) }}</p>
       </template>
     </article>
   </section>

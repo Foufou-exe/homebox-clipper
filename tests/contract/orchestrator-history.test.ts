@@ -287,3 +287,32 @@ describe('history of an import with a template (018, Q-R3, FR-029)', () => {
     expect(ERROR_CODES).toContain('TEMPLATE_FIELDS_FAILED');
   });
 });
+
+describe('history of an import with order fields (019, Q-C4, FR-028)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const NUMBER = '000-0000000-0000000';
+  const ORDER_URL = 'https://www.amazon.fr/gp/your-account/order-details';
+  const orderFields = [
+    { role: 'orderNumber' as const, name: 'Order number', value: NUMBER },
+    { role: 'merchant' as const, name: 'Merchant', value: 'Amazon.fr' },
+    { role: 'orderUrl' as const, name: 'Order URL', value: ORDER_URL },
+  ];
+  const field = (name: string, textValue: string) => ({ type: 'text', name, textValue, numberValue: 0, booleanValue: false });
+
+  it.each([
+    ['success', [field('Order number', NUMBER), field('Merchant', 'Amazon.fr'), field('Order URL', ORDER_URL)], 'success'],
+    ['read-back mismatch', [field('Order number', NUMBER)], 'partial'],
+  ])('%s: the entry holds no field name, no orderFields key, no step of the order fields', async (_label, readFields, status) => {
+    const { orchestrator, client, read } = await setupHistory();
+    client.getEntity.mockImplementation(async (id: string) => ok({ id, name: 'x', fields: readFields } as never));
+    const r = await orchestrator.startImport(1, [draft({ orderNumber: NUMBER, pageUrl: ORDER_URL, documents: [], orderFields })], []);
+    expect(r.ok && r.value[0]?.status).toBe(status);
+    const text = JSON.stringify(await read('p1'));
+    for (const s of ['Order number', 'Merchant', 'Order URL', 'orderFields', 'orderFieldsError']) expect(text).not.toContain(s);
+  });
+
+  it('ORDER_FIELDS_FAILED is a member of ERROR_CODES (accepted history reason)', async () => {
+    const { ERROR_CODES } = await import('@/shared/errors');
+    expect(ERROR_CODES).toContain('ORDER_FIELDS_FAILED');
+  });
+});

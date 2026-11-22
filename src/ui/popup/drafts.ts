@@ -288,15 +288,26 @@ export function fieldValue(input: FieldInput): TemplateFieldValue {
   }
 }
 
-/** True when the template of the line blocks the confirmation: loading, deleted, or a field in error. */
-export function templateBlocks(t: LineTemplate): boolean {
+/** Spec 019: a field merged with an order field (name trimmed in `exclude`) is neither sent nor checked here. */
+const notExcluded = (exclude: ReadonlySet<string>) => (f: FieldInput) => !exclude.has(f.view.name.trim());
+
+/**
+ * True when the template of the line blocks the confirmation: loading, deleted, or a field in error. `exclude`
+ * (spec 019): names of the fields merged with an order field; without it, the behavior of spec 018.
+ */
+export function templateBlocks(t: LineTemplate, exclude: readonly string[] = []): boolean {
   if (t.id === null) return false;
   if (t.state !== 'ready' || !t.detail) return true;
-  return t.values.fields.some((f) => fieldError(f) !== null) || t.values.manufacturer.length > 255 || t.values.modelNumber.length > 255;
+  const kept = notExcluded(new Set(exclude));
+  const fieldInError = t.values.fields.some((f) => kept(f) && fieldError(f) !== null);
+  return fieldInError || t.values.manufacturer.length > 255 || t.values.modelNumber.length > 255;
 }
 
-/** Choice sent with the import (data-model §3), built from the values shown; `null` without a ready template. */
-export function templateChoiceFor(t: LineTemplate): TemplateChoice | null {
+/**
+ * Choice sent with the import (data-model §3), built from the values shown; `null` without a ready template.
+ * `exclude` (spec 019): the fields merged with an order field are not sent; without it, the behavior of spec 018.
+ */
+export function templateChoiceFor(t: LineTemplate, exclude: readonly string[] = []): TemplateChoice | null {
   if (t.id === null || t.state !== 'ready' || !t.detail) return null;
   return {
     id: t.detail.id,
@@ -305,7 +316,7 @@ export function templateChoiceFor(t: LineTemplate): TemplateChoice | null {
     insured: t.values.insured,
     manufacturer: t.values.manufacturer,
     modelNumber: t.values.modelNumber,
-    fields: t.values.fields.map(fieldValue),
+    fields: t.values.fields.filter(notExcluded(new Set(exclude))).map(fieldValue),
   };
 }
 

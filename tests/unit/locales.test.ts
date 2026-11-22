@@ -1136,3 +1136,108 @@ describe('018: 35 keys added in all (T102, FR-035)', () => {
     expect(IDENTICAL_OK.some((k) => k.startsWith('templates.'))).toBe(false);
   });
 });
+
+/** Spec 019: each added key exists in en and fr with the exact texts, different, no accent in en. */
+function expectOrderFieldKeys(keys: Record<string, [string, string]>) {
+  for (const [key, [enText, frText]] of Object.entries(keys)) {
+    expect(en[key], key).toBe(enText);
+    expect(catalog[key], key).toBe(frText);
+    expect(enText, key).not.toBe(frText);
+    expect(enText, key).not.toMatch(/[À-ÖØ-öø-ÿ]/);
+    expect(IDENTICAL_OK).not.toContain(key);
+  }
+}
+
+describe('order fields keys, foundation (019, FR-036)', () => {
+  it('the 2 error codes', () => {
+    expectOrderFieldKeys({
+      'error.ORDER_FIELDS_FAILED': [
+        'The item was created but the order fields could not be saved.',
+        "L'objet a été créé, mais les champs de commande n'ont pas pu être enregistrés.",
+      ],
+      'error.FIELD_NAMES_UNAVAILABLE': [
+        'The custom field names of this HomeBox instance could not be read.',
+        'Impossible de lire les noms des champs personnalisés de cette instance HomeBox.',
+      ],
+    });
+  });
+});
+
+describe('order fields keys, US1 (019, FR-036)', () => {
+  it('the 10 keys of the option, the section and the result', () => {
+    expectOrderFieldKeys({
+      'orderFields.optionLabel': ['Save the order as custom fields', 'Enregistrer la commande en champs personnalisés'],
+      'orderFields.optionHelp': [
+        'Adds the order number, merchant and order page address to each imported item as HomeBox custom fields. The notes stay the same.',
+        "Ajoute à chaque objet importé le numéro de commande, le marchand et l'adresse de la page de commande en champs personnalisés HomeBox. Les notes ne changent pas.",
+      ],
+      'orderFields.save': ['Save', 'Enregistrer'],
+      'orderFields.saved': ['Setting saved.', 'Réglage enregistré.'],
+      'orderFields.section': ['Order fields', 'Champs de commande'],
+      'orderFields.editAbove': ['Editable in "Order number"', 'Modifiable dans « N° de commande »'],
+      'orderFields.notSet': ['Not set: this field will not be created.', 'Non renseigné : ce champ ne sera pas créé.'],
+      'orderFields.valueTooLong': ['Too long for HomeBox (500 bytes at most).', 'Trop long pour HomeBox (500 octets au plus).'],
+      'orderFields.invalidUrl': ['Enter an http or https web address.', 'Saisissez une adresse web http ou https.'],
+      'result.stepOrderFields': ['Order fields: $1', 'Champs de commande : $1'],
+    });
+  });
+});
+
+describe('order fields keys, US3 (019, FR-036)', () => {
+  it('the 14 keys of the names and suggestions', () => {
+    expectOrderFieldKeys({
+      'orderFields.nameOrderNumber': ['Order number field name', 'Nom du champ numéro de commande'],
+      'orderFields.nameMerchant': ['Merchant field name', 'Nom du champ marchand'],
+      'orderFields.nameOrderUrl': ['Order URL field name', 'Nom du champ URL de la commande'],
+      'orderFields.resetNames': ['Restore default names', 'Rétablir les noms par défaut'],
+      'orderFields.unlockForSuggestions': ['Suggestions appear after unlocking.', 'Les suggestions apparaissent après le déverrouillage.'],
+      'orderFields.suggestionsLoading': ['Loading field names…', 'Chargement des noms de champs…'],
+      // ADAPTED (019): contracts/ui.md gives « $1 suggestions » in both languages (identical, refused by this file):
+      // the texts are differentiated.
+      'orderFields.suggestionsCount': ['$1 suggestions available', '$1 suggestions disponibles'],
+      'orderFields.retry': ['Try again', 'Réessayer'],
+      'orderFields.errors.empty': ['Enter a field name.', 'Saisissez un nom de champ.'],
+      'orderFields.errors.tooLong': ['This name is too long for HomeBox.', 'Ce nom est trop long pour HomeBox.'],
+      'orderFields.errors.duplicate': ['Each field needs a different name.', 'Chaque champ doit avoir un nom différent.'],
+      'orderFields.errors.forbiddenChar': [
+        'The name cannot contain "=" or control characters.',
+        'Le nom ne peut pas contenir « = » ni de caractère de contrôle.',
+      ],
+      'orderFields.caseWarning': ['A field "$1" already exists in this instance.', 'Un champ « $1 » existe déjà dans cette instance.'],
+      'orderFields.useExisting': ['Use "$1"', 'Utiliser « $1 »'],
+    });
+  });
+});
+
+describe('order fields keys, US4 (019, FR-036)', () => {
+  it('the 7 keys of the merge and of the type conflict', () => {
+    expectOrderFieldKeys({
+      'orderFields.merged': ['Replaces the template field "$1".', 'Remplace le champ « $1 » du modèle.'],
+      'orderFields.mergedInTemplate': ['"$1": see Order fields', '« $1 » : voir Champs de commande'],
+      'orderFields.typeConflict': [
+        'The template already has a "$1" field of type $2: this order field will not be created, the information stays in the notes.',
+        "Le modèle a déjà un champ « $1 » de type $2 : ce champ de commande ne sera pas créé, l'information reste dans les notes.",
+      ],
+      // ADAPTED (019): type labels absent from contracts/ui.md (TemplateSection has none).
+      'orderFields.type.number': ['number', 'nombre'],
+      'orderFields.type.boolean': ['yes/no', 'oui/non'],
+      'orderFields.type.time': ['date/time', 'date'],
+      'orderFields.type.unknown': ['unknown', 'inconnu'],
+    });
+  });
+});
+
+describe('order fields keys, US5 (019, FR-036)', () => {
+  it('the 2 announcements of the change of instance', () => {
+    expectOrderFieldKeys({
+      'orderFields.shown': ['Order fields shown for this instance.', 'Champs de commande affichés pour cette instance.'],
+      'orderFields.hidden': ['Order fields removed for this instance.', 'Champs de commande retirés pour cette instance.'],
+    });
+  });
+});
+
+describe('order fields keys, US6 (019, FR-036)', () => {
+  it('the retry of the order fields alone', () => {
+    expectOrderFieldKeys({ 'recovery.retryOrderFields': ['Retry the order fields', 'Réessayer les champs de commande'] });
+  });
+});

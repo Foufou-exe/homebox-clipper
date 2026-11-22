@@ -12,6 +12,7 @@ import type {
   LocationChoice,
   LocationOption,
   ManualFile,
+  OrderFieldValue,
   TagOption,
   TemplateCheck,
   DefaultTemplateRef,
@@ -25,6 +26,7 @@ import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import InstancePicker from '@/ui/components/InstancePicker.vue';
 import { defaultInstance } from '@/ui/instances';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
+import OrderFieldsSection from '@/ui/components/OrderFieldsSection.vue';
 import TagPicker from '@/ui/components/TagPicker.vue';
 import TemplatePicker from '@/ui/components/TemplatePicker.vue';
 import TemplateSection from '@/ui/components/TemplateSection.vue';
@@ -50,6 +52,16 @@ import {
   templateChoiceFor,
   type LineTemplate,
 } from './drafts';
+import {
+  initialOrderFields,
+  orderFieldRows,
+  orderFieldsBlock,
+  orderFieldsFor,
+  mergedTemplateNames,
+  type LineOrderFields,
+  type OrderFieldRow,
+} from './order-fields';
+import { isOrderFieldSettings, type OrderFieldSettings } from '@/shared/order-fields';
 import { loadWarrantySettings } from '@/ui/warranty-settings';
 import { loadTagSettings } from '@/ui/tag-settings';
 import { DEFAULT_TAG_SETTINGS, findExisting, normalizeTagName, tagKey, tagNameError, type TagLine, type TagSettings } from '@/shared/tags';
@@ -110,6 +122,11 @@ interface Line {
   tags: TagLine[];
   /** HomeBox template of the product (spec 018): in memory only; sent as `template` only when chosen. */
   template: LineTemplate;
+  /**
+   * Merchant and URL of the order fields (spec 019): created at opening even with the option off, never reset on a
+   * change of target or template (FR-015, FR-018); gone with the popup.
+   */
+  orderFields: LineOrderFields;
 }
 
 const loading = ref(true);
@@ -300,6 +317,43 @@ async function loadTemplates() {
   }
 }
 
+/**
+ * Order-fields setting of the target instance (spec 019, contracts/ui.md §2.1): a local read, no HomeBox request
+ * (FR-014). Absent, failed, thrown or malformed answer ⇒ `null`: no section, the option is considered off.
+ */
+const orderSettings = ref<OrderFieldSettings | null>(null);
+const orderOn = computed(() => orderSettings.value?.enabled === true);
+
+async function loadOrderSettings() {
+  const instanceId = target.value;
+  const gen = generation;
+  if (!instanceId) {
+    orderSettings.value = null;
+    return;
+  }
+  try {
+    const res = await send({ type: 'order-fields/get', instanceId });
+    if (gen !== generation) return; // answer for a former target
+    orderSettings.value = res?.ok && isOrderFieldSettings(res.value?.settings) ? res.value.settings : null;
+  } catch {
+    if (gen === generation) orderSettings.value = null;
+  }
+}
+
+/** Rows of the order fields of a line, with the settings of the target (only called with the option on). */
+const rowsOf = (line: Line): OrderFieldRow[] =>
+  orderSettings.value ? orderFieldRows(orderSettings.value, line.draft, line.orderFields, line.template) : [];
+/** What the section shows (hidden, or the names it creates): a change at a change of target is announced (FR-037). */
+const orderShape = () => (orderOn.value && orderSettings.value ? JSON.stringify(orderSettings.value.names) : null);
+function orderNotice(before: string | null): string {
+  const after = orderShape();
+  if (after === before) return '';
+  return after === null ? t('orderFields.hidden') : t('orderFields.shown');
+}
+
+/** Template fields merged with an order field (FR-016), option on only; `undefined`: the behavior of spec 018. */
+const mergedOf = (line: Line): string[] | undefined => (orderOn.value ? mergedTemplateNames(rowsOf(line)) : undefined);
+
 /** Existing tags take the HomeBox name and identifier (FR-004, US1-5); also when the list arrives late. */
 function reconcileTags(target: Line[]) {
   if (tagState.value !== 'ready') return;
@@ -383,6 +437,9 @@ async function changeTarget(id: string) {
   if (submitting.value || dialog.value.kind !== 'none' || id === target.value || !instances.value.some((i) => i.id === id)) return;
   // Spec 018 (US5-1): the template of each product and what it set are removed; templates belong to one instance.
   for (const line of lines.value) if (line.template.id !== null) dropTemplate(line);
+  // Spec 019: the section follows the settings of the new target; the values typed are kept (FR-015).
+  const orderBefore = orderShape();
+  orderSettings.value = null;
   target.value = id;
   const gen = ++generation;
   details.clear();
@@ -406,9 +463,9 @@ async function changeTarget(id: string) {
     line.location = 'inherit';
     for (const tag of line.tags) tag.id = null;
   }
-  await Promise.all([loadLocations(), loadTags(), loadTemplates()]);
+  await Promise.all([loadLocations(), loadTags(), loadTemplates(), loadOrderSettings()]);
   if (gen === generation && targetInstance.value) {
-    announce.value = t('summary.instanceLoaded', [targetInstance.value.name]);
+    announce.value = [t('summary.instanceLoaded', [targetInstance.value.name]), orderNotice(orderBefore)].filter(Boolean).join(' ');
   }
 }
 
@@ -461,6 +518,7 @@ onMounted(async () => {
   void loadLocations();
   void loadTags();
   void loadTemplates();
+  void loadOrderSettings();
   // Read at each opening (never cached); an unreadable storage gives the defaults, never a blocked popup.
   const [res, settings, tagSettings] = await Promise.all([
     send({ type: 'detect/run', tabId: props.tabId }),
@@ -482,6 +540,7 @@ onMounted(async () => {
         warrantyReason: null,
         tags: [],
         template: emptyLineTemplate(),
+        orderFields: initialOrderFields(emptyDraft()),
       },
     ];
     linesReady = true;
@@ -494,16 +553,18 @@ onMounted(async () => {
   const products = res.value.purchase.products.filter((p) => p.name.value !== null);
   const lineFor = (key: string, p: DetectedProduct | null): Line => {
     const ctx = { settings: warrantySettings.value };
+    const draft = draftFrom(res.value.purchase, p, ctx);
     return {
       key,
       product: p,
       selected: true,
-      draft: draftFrom(res.value.purchase, p, ctx),
+      draft,
       location: 'inherit',
       warrantyReason: proposalFor(res.value.purchase, p, ctx).reason,
       // Evaluated once, on the detected name (E3): editing the name does not recompute them.
       tags: tagLinesFor(store?.tagName ?? null, p?.name.value ?? null, tagSettings),
       template: emptyLineTemplate(),
+      orderFields: initialOrderFields(draft),
     };
   };
   const built = products.length ? products.map((p) => lineFor(p.key, p)) : [lineFor('manual', null)];
@@ -534,7 +595,9 @@ const canSubmit = computed(
     selectedLines.value.length > 0 &&
     selectedLines.value.every((l) => draftErrors(l.draft).length === 0) &&
     // Spec 018: template loaded, fields valid, location chosen (contracts/ui.md §1.6).
-    selectedLines.value.every((l) => !templateBlocks(l.template) && !needsLocation(l)) &&
+    selectedLines.value.every((l) => !templateBlocks(l.template, mergedOf(l)) && !needsLocation(l)) &&
+    // Spec 019 (FR-013): an order field to create with an invalid value blocks; an empty one never does.
+    selectedLines.value.every((l) => !orderOn.value || !orderFieldsBlock(rowsOf(l))) &&
     dialog.value.kind === 'none',
 );
 
@@ -643,8 +706,16 @@ function checkedTags(line: Line): { tags?: { name: string; id?: string; noCreate
 
 /** Spec 018: `template` only for a product with a template; no key at all otherwise (invariant 1). */
 function templateOf(line: Line) {
-  const choice = templateChoiceFor(line.template);
+  // Spec 019: the fields merged with an order field are not sent (never two fields of the same name, invariant 3).
+  const choice = templateChoiceFor(line.template, mergedOf(line));
   return choice ? { template: choice } : {};
+}
+
+/** Spec 019: `orderFields` only with the option on and a field to create; no key at all otherwise (FR-025). */
+function orderFieldsOf(line: Line): { orderFields?: OrderFieldValue[] } {
+  if (!orderOn.value) return {};
+  const fields = orderFieldsFor(rowsOf(line));
+  return fields ? { orderFields: fields } : {};
 }
 
 /** Distinct templates (by id) of the lines, with the fingerprint known to the screen. */
@@ -738,6 +809,7 @@ async function submit() {
       // Only the checked tags, as plain copies; no key at all without a checked tag (sequence unchanged).
       ...checkedTags(l),
       ...templateOf(l),
+      ...orderFieldsOf(l),
     })),
     manualFiles: docs.flatMap((d) => {
       const f = manualFiles.get(d.id);
@@ -823,8 +895,19 @@ async function submit() {
           />
           <output v-if="line.template.state === 'loading'" class="muted">{{ t('templates.loading') }}</output>
           <ErrorBanner v-if="line.template.state === 'error'" code="TEMPLATE_NOT_FOUND" />
-          <TemplateSection v-if="line.template.state === 'ready'" v-model="line.template" :product-name="productName(line)" />
+          <TemplateSection
+            v-if="line.template.state === 'ready'"
+            v-model="line.template"
+            :product-name="productName(line)"
+            :merged-names="mergedOf(line)"
+          />
         </template>
+        <OrderFieldsSection
+          v-if="line.selected && orderOn"
+          v-model="line.orderFields"
+          :rows="rowsOf(line)"
+          :id-prefix="`${uid}-${line.key}-orderfields`"
+        />
         <ErrorBanner v-if="line.selected && loadFailed.has(line.key)" :code="loadFailed.get(line.key)!.code" tone="warning">
           <p class="failed-name">{{ t('templates.loadFailed', [loadFailed.get(line.key)!.name]) }}</p>
           <button type="button" :disabled="submitting || dialog.kind !== 'none'" @click="chooseTemplate(line, loadFailed.get(line.key)!.id)">
