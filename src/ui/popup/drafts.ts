@@ -22,6 +22,7 @@ import {
   type WarrantySettings,
   type WarrantyTexts,
 } from '@/shared/warranty';
+import { MAX_FIELD_NAME_BYTES, MAX_FIELD_TEXT_BYTES, utf8ByteLength } from '@/shared/utf8';
 import { MAX_TAGS_PER_PRODUCT, findExisting, normalizeTagName, proposeTags, tagKey, tagNameError, type TagLine, type TagSettings } from '@/shared/tags';
 
 export function formatSize(bytes: number | undefined): string {
@@ -186,8 +187,8 @@ export function tagLinesFor(merchantTagName: string | null, productName: string 
  * component keeps the state in memory only; nothing is logged nor persisted.
  */
 
-/** Maximum length of a text field value (HomeBox `MaxLen(500)`). */
-export const MAX_FIELD_TEXT = 500;
+/** Maximum size of a text field value (HomeBox `MaxLen(500)`), in UTF-8 bytes (#116). */
+export const MAX_FIELD_TEXT = MAX_FIELD_TEXT_BYTES;
 
 /** Edited value of one custom field: `raw` for text, number and date; `checked` for a boolean. */
 export interface FieldInput {
@@ -249,7 +250,7 @@ export function fieldError(input: Pick<FieldInput, 'view' | 'raw'>): FieldInput[
   const raw = input.raw;
   switch (input.view.kind) {
     case 'text':
-      return raw.length > MAX_FIELD_TEXT ? 'tooLong' : null;
+      return utf8ByteLength(raw) > MAX_FIELD_TEXT ? 'tooLong' : null;
     case 'number':
       return raw.trim() === '' || isInteger(raw.trim()) ? null : 'notInteger';
     case 'time':
@@ -309,6 +310,8 @@ export function templateChoiceFor(t: LineTemplate): TemplateChoice | null {
 }
 
 const bounded = (x: unknown, max: number, min = 0) => typeof x === 'string' && x.length >= min && x.length <= max;
+const boundedBytes = (x: unknown, max: number, min = 0) =>
+  typeof x === 'string' && x.length <= max && utf8ByteLength(x) >= min && utf8ByteLength(x) <= max;
 
 /** Defense of the interface (data-model §2): a detail out of bounds is treated as unreadable. */
 export function isTemplateDetail(x: unknown): x is TemplateDetail {
@@ -335,8 +338,8 @@ export function isTemplateDetail(x: unknown): x is TemplateDetail {
       return (
         bounded(v.type, 32, 1) &&
         ['text', 'number', 'boolean', 'time', 'unknown'].includes(String(v.kind)) &&
-        bounded(v.name, 255, 1) &&
-        bounded(v.textValue, MAX_FIELD_TEXT) &&
+        boundedBytes(v.name, MAX_FIELD_NAME_BYTES, 1) &&
+        boundedBytes(v.textValue, MAX_FIELD_TEXT) &&
         Number.isSafeInteger(v.numberValue) &&
         typeof v.booleanValue === 'boolean'
       );

@@ -506,4 +506,4 @@ templates:
   errors:
     notInteger: "Saisissez un nombre entier, ou laissez le champ vide."
     invalidDate: "Saisissez une date valide, ou laissez le champ vide."
-    tooLong: "$1 caractères au maximum."
+    tooLong: "$1 octets au maximum."

@@ -1,3 +1,4 @@
+import { MAX_FIELD_NAME_BYTES, MAX_FIELD_TEXT_BYTES, utf8ByteLength } from './utf8';
 import { browser } from '@/platform';
 import type { ErrorCode, Result } from './errors';
 import { isDocumentKind } from './document-kinds';
@@ -211,12 +212,18 @@ const strLen = (x: unknown, min: number, max: number): x is string => isStr(x) &
 /** Template identifier (spec 018): 1 to 64 characters. */
 export const isTemplateId = (x: unknown): x is string => strLen(x, 1, 64);
 const isFingerprint = (x: unknown): x is string => isStr(x) && /^[0-9a-f]{64}$/.test(x);
+/** Like `strLen`, but the bounds are in UTF-8 bytes (HomeBox custom field name and value, #116). */
+const byteLen = (x: unknown, min: number, max: number): x is string => {
+  if (!isStr(x) || x.length > max) return false;
+  const n = utf8ByteLength(x);
+  return n >= min && n <= max;
+};
 const FIELD_KINDS: ReadonlySet<string> = new Set(['text', 'number', 'boolean', 'time', 'unknown']);
 /** One confirmed field (data-model §3): bounds, then the consistency of the kind with the values (research D1). */
 const isTemplateFieldValue = (f: unknown): boolean => {
   if (!isObj(f)) return false;
-  if (!strLen(f.type, 1, 32) || !isStr(f.kind) || !FIELD_KINDS.has(f.kind) || !strLen(f.name, 1, 255)) return false;
-  if (!strLen(f.textValue, 0, 500) || !Number.isSafeInteger(f.numberValue) || typeof f.booleanValue !== 'boolean') return false;
+  if (!strLen(f.type, 1, 32) || !isStr(f.kind) || !FIELD_KINDS.has(f.kind) || !byteLen(f.name, 1, MAX_FIELD_NAME_BYTES)) return false;
+  if (!byteLen(f.textValue, 0, MAX_FIELD_TEXT_BYTES) || !Number.isSafeInteger(f.numberValue) || typeof f.booleanValue !== 'boolean') return false;
   switch (f.kind) {
     case 'number':
       return f.textValue === '' ? f.numberValue === 0 : f.textValue === String(f.numberValue);

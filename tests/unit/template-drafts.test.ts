@@ -4,6 +4,7 @@ import {
   applyTemplate,
   emptyDraft,
   fieldError,
+  isTemplateDetail,
   emptyLineTemplate,
   removeTemplate,
   templateChoiceFor,
@@ -242,6 +243,21 @@ describe('templateChoiceFor', () => {
   });
 });
 
+describe('isTemplateDetail: limits in UTF-8 bytes (#116)', () => {
+  const withField = (over: Record<string, unknown>) => ({
+    ...DETAIL,
+    fields: [{ type: 'text', kind: 'text', name: 'Auteur', textValue: '', numberValue: 0, booleanValue: false, ...over }],
+  });
+  it.each([
+    [{ textValue: 'é'.repeat(250) }, true],
+    [{ textValue: 'é'.repeat(251) }, false],
+    [{ name: 'é'.repeat(127) }, true],
+    [{ name: 'é'.repeat(128) }, false],
+  ])('%j → %s', (over, ok) => {
+    expect(isTemplateDetail(withField(over))).toBe(ok);
+  });
+});
+
 describe('fieldError (contracts/ui.md §1.4)', () => {
   const v = (kind: 'text' | 'number' | 'time') => ({
     type: kind,
@@ -262,6 +278,8 @@ describe('fieldError (contracts/ui.md §1.4)', () => {
     ['number', '', null],
     ['text', 'x'.repeat(501), 'tooLong'],
     ['text', 'x'.repeat(500), null],
+    ['text', 'é'.repeat(250), null],
+    ['text', 'é'.repeat(251), 'tooLong'],
   ] as const)('%s « %s » → %s', (kind, raw, expected) => {
     expect(fieldError({ view: v(kind), raw })).toBe(expected);
   });
