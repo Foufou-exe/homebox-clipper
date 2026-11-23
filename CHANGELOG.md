@@ -7,6 +7,13 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.14.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.13.1...v0.14.0) (2026-11-23)
+
+
+### Features
+
+* import manufacturer, model and serial number when the page provides them ([#140](https://github.com/Foufou-exe/homebox-clipper/issues/140)) ([a14a2b1](https://github.com/Foufou-exe/homebox-clipper/commit/a14a2b197d5b439975f8f6f0a2155e68cd181985))
+
 ## [0.13.1](https://github.com/Foufou-exe/homebox-clipper/compare/v0.13.0...v0.13.1) (2026-11-23)
 
 
