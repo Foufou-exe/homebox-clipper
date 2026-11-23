@@ -54,6 +54,8 @@ error:
   ENTITY_TYPES_UNAVAILABLE: "HomeBox item types could not be retrieved."
   ENTITY_TYPES_UNSUPPORTED: "This HomeBox version does not support item types."
   ENTITY_TYPE_NOT_FOUND: "The chosen item type no longer exists in HomeBox. Nothing was created: abandon this import and start again with another type."
+  COLLECTION_UNAVAILABLE: "The HomeBox collection chosen for this instance can no longer be reached with this key. Choose another collection in the instance settings: nothing is sent elsewhere."
+  COLLECTIONS_UNAVAILABLE: "The collections of this HomeBox instance could not be read."
 
 common:
   instanceAria: "HomeBox instance in use"
@@ -638,3 +640,20 @@ completion:
     PHOTO_UPLOAD_FAILED: "The existing item was completed, but uploading the photo failed."
     TAG_FAILED: "The existing item was completed, but some tags could not be added."
     ORDER_FIELDS_FAILED: "The existing item was completed, but the order fields could not be saved."
+
+collections:
+  label: "Target collection"
+  defaultOfKey: "Default collection of the key"
+  defaultOfKeyNamed: "Default collection of the key ($1)"
+  onlyOne: "$1 (the only collection this key can reach)"
+  unlockToChange: "Unlock to change the target collection."
+  change: "Change the collection"
+  loading: "Reading the collections…"
+  retry: "Retry"
+  onlyOneOnInstance: "This key can only reach one collection: $1."
+  help: "Imports to this instance will go to this collection: locations, tags, templates and duplicates are read from it."
+  save: "Save"
+  saved: "Target collection saved."
+  testTarget: "Target collection: $1."
+  summaryLine: "Collection: $1"
+  resultLine: "In the collection $1: if the link does not open, open this collection in HomeBox."

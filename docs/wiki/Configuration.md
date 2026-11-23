@@ -163,6 +163,30 @@ The notes stay the same.
 Only the option and the three field names are stored (`orderFieldsByInstance`, `storage.local`). They are erased
 with the instance or with **Delete settings**. Items imported before are never changed.
 
+## Target collection
+
+HomeBox stores the inventory in **collections**. An API key acts for its user and, by default, goes to the
+**default collection of that account**, which may not be the collection open in your browser: the import then works,
+but **Open in HomeBox** fails until you open that collection in HomeBox.
+
+- After a successful **Test the connection**, the settings show **Target collection: <name>**.
+- Each instance has a **Target collection** setting, **Default collection of the key** by default (also for the
+  instances configured before this version): nothing changes for them. **Change the collection** (unlocked) reads the
+  collections your key can reach on **this instance only** and lets you choose one. With a single collection, there
+  is nothing to choose.
+- With a chosen collection, every request to this instance names it (`X-Tenant` header): locations, tags, templates,
+  duplicates and the created item are those of that collection. The summary and the result name the collection.
+- If the chosen collection can no longer be reached (you left it, it was deleted), the extension shows **The HomeBox
+  collection chosen for this instance can no longer be reached** and never imports elsewhere: choose another
+  collection, or the default one.
+- Changing the address of the instance puts the setting back to the default; changing only the key keeps it.
+- An import keeps the collection it started in: a retry goes there even if you changed the setting meanwhile.
+- If the stored setting cannot be read, the instance refuses imports with the same message until you choose a
+  collection again.
+
+Only the identifier and the name of the chosen collection and of the last read one are stored
+(`collectionByInstance`, `storage.local`); they are erased with the instance or with **Delete settings**.
+
 ## Appearance
 
 The theme (**Automatic (system)**, **Light** or **Dark**) is chosen in the *Appearance* section of the

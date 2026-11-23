@@ -23,8 +23,10 @@ export const ORDER_FIELDS_KEY = 'orderFieldsByInstance';
 export const ENTITY_TYPE_KEY = 'lastEntityTypeByInstance';
 /** Order-page link setting per instance (spec 025, storage.local): the option only, cleared with the instance. */
 export const ORDER_LINK_KEY = 'orderLinkByInstance';
+/** Target collection per instance (spec 024, storage.local): `{ chosen, seen }`, `{ id, name }` only, cleared with the instance. */
+export const COLLECTION_KEY = 'collectionByInstance';
 /** Tables keyed by instance id, purged with the instance (`remove`), in this order. */
-const PER_INSTANCE_KEYS = [LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY] as const;
+const PER_INSTANCE_KEYS = [LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY, COLLECTION_KEY] as const;
 export const MAX_INSTANCES = 10;
 export const MAX_NAME_LENGTH = 50;
 export const MIGRATED_ID = 'migrated';
@@ -349,13 +351,13 @@ export const instanceStore = {
 
   /**
    * Removes one instance (spec 016, contracts/storage-migration.md, step 4), in the write queue: a single set of
-   * `homeboxInstances` without it, then its last location, its default template (spec 018) and its order-fields setting
-   * (spec 019), then `lastInstanceId` if it named it. Returns the removed
+   * `homeboxInstances` without it, then its last location, its default template (spec 018), its order-fields setting
+   * (spec 019) and its collection setting (spec 024), then `lastInstanceId` if it named it. Returns the removed
    * instance, or null if it no longer exists (nothing written). Never the last one: the caller deletes everything then.
    */
   remove(id: string): Promise<StoredInstance | null> {
     return enqueueConfigWrite(async () => {
-      const stored = await local().get([INSTANCES_KEY, LAST_LOCATION_KEY, LAST_INSTANCE_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY]);
+      const stored = await local().get([INSTANCES_KEY, LAST_INSTANCE_KEY, ...PER_INSTANCE_KEYS]);
       const store = stored[INSTANCES_KEY];
       if (!isValidStore(store)) return null;
       const removed = store.instances.find((i) => i.id === id);
@@ -377,7 +379,7 @@ export const instanceStore = {
   /** Removes every instance key (global deletion), in the write queue. */
   clear(): Promise<void> {
     return enqueueConfigWrite(() =>
-      local().remove([INSTANCES_KEY, LEGACY_KEY, LAST_INSTANCE_KEY, LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY]),
+      local().remove([INSTANCES_KEY, LEGACY_KEY, LAST_INSTANCE_KEY, ...PER_INSTANCE_KEYS]),
     );
   },
 

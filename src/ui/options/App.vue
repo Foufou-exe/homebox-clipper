@@ -13,6 +13,8 @@ import WarrantyCard from './WarrantyCard.vue';
 import TagsCard from './TagsCard.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { defaultInstance } from '@/ui/instances';
+import { readTargetCollection } from '@/ui/collections';
+import CollectionField from './CollectionField.vue';
 import DefaultTemplateField from './DefaultTemplateField.vue';
 import OrderFieldsSettings from './OrderFieldsSettings.vue';
 import OrderLinkSettings from './OrderLinkSettings.vue';
@@ -29,6 +31,8 @@ const view = ref<ConfigView>({ configured: false });
 const busy = ref(false);
 const error = ref<ErrorCode | null>(null);
 const success = ref<string | null>(null);
+/** Spec 024 (FR-007): the collection named after a successful test, or why it could not be read. */
+const collectionNote = ref<string | null>(null);
 const historyCard = ref<InstanceType<typeof HistoryCard> | null>(null);
 /**
  * Spec 016: from two instances on, one card per instance (InstancesCard). With a single instance, the page keeps
@@ -92,15 +96,24 @@ async function test() {
   if (!instance) return;
   error.value = null;
   success.value = null;
+  collectionNote.value = null;
   busy.value = true;
   try {
     const result = await send({ type: 'instance/test', instanceId: instance.id });
-    if (result.ok) success.value = t('options.connected');
-    else error.value = result.error;
+    if (result.ok) {
+      success.value = t('options.connected');
+      collectionNote.value = noteOf(await readTargetCollection(instance.id));
+    } else error.value = result.error;
   } finally {
     busy.value = false;
     await refresh();
   }
+}
+
+/** Text of the target collection after a test: its name, or the message of the error that prevented reading it. */
+function noteOf(target: Awaited<ReturnType<typeof readTargetCollection>>): string | null {
+  if (!target) return null;
+  return 'name' in target ? t('collections.testTarget', [target.name]) : t(`error.${target.error}`);
 }
 
 /** The origin permission was withdrawn from the browser settings: asked again in the click (user gesture). */
@@ -165,6 +178,7 @@ async function remove() {
         </button>
       </ErrorBanner>
       <p v-if="success" class="success" role="status">{{ success }}</p>
+      <p v-if="success && collectionNote" class="collection-note">{{ collectionNote }}</p>
 
       <InstanceForm v-if="!view.configured" :view="view" @done="onFirstInstance" />
 
@@ -173,6 +187,13 @@ async function remove() {
           <button type="button" :disabled="saving || busy" @click="remove">{{ t('options.deleteConfig') }}</button>
         </template>
       </InstanceForm>
+      <!-- Spec 024: target collection of the single instance (FR-001). -->
+      <CollectionField
+        v-if="view.configured && !multi && current"
+        :instance="current"
+        :locked="view.locked !== false || view.needsPassphrase === true"
+        @changed="refresh"
+      />
       <!-- Spec 018: default template of the single instance (FR-024). -->
       <DefaultTemplateField
         v-if="view.configured && !multi && current"
@@ -304,5 +325,10 @@ h2 {
   color: var(--success-fg);
   border-radius: var(--radius);
   padding: 8px 10px;
+}
+.collection-note {
+  font-size: 13px;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
 }
 </style>

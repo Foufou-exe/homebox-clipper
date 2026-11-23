@@ -1,6 +1,6 @@
 import { itemUrl, type HomeBoxClient } from '@/background/homebox/client';
 import type { EntityOut, EntitySummary } from '@/background/homebox/types';
-import { fail, ok, type Result } from '@/shared/errors';
+import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { queryWords, rankSimilar, SIMILAR_PAGE_SIZE } from '@/shared/similarity';
 import type { DuplicateCheck, DuplicateMatch } from '@/shared/types';
 
@@ -21,6 +21,14 @@ const sameName = (client: SearchClient, items: EntitySummary[], name: string): D
 };
 
 /**
+ * Failure of a search: non-blocking `DUPLICATE_CHECK_FAILED`, except a chosen collection no longer reachable (spec 024),
+ * which keeps its own message (FR-010).
+ */
+function searchFailure(error: ErrorCode): ErrorCode {
+  return error === 'COLLECTION_UNAVAILABLE' ? error : 'DUPLICATE_CHECK_FAILED';
+}
+
+/**
  * Probable duplicate = same order number (searched in the notes, R3) and same product name.
  * Any error is non-blocking: DUPLICATE_CHECK_FAILED.
  */
@@ -31,7 +39,7 @@ export async function findDuplicates(
 ): Promise<Result<DuplicateMatch[]>> {
   if (orderNumber.trim() === '') return ok([]);
   const res = await client.searchEntities(`"${orderNumber.trim()}"`);
-  if (!res.ok) return fail('DUPLICATE_CHECK_FAILED');
+  if (!res.ok) return fail(searchFailure(res.error));
   return ok(sameName(client, res.value, name));
 }
 
@@ -47,7 +55,7 @@ export async function findDuplicatesByName(
   const target = normalize(name);
   if (target === '') return ok([]);
   const res = await client.searchEntities(`"${name.replaceAll('"', ' ').trim()}"`);
-  if (!res.ok) return fail('DUPLICATE_CHECK_FAILED');
+  if (!res.ok) return fail(searchFailure(res.error));
   return ok(sameName(client, res.value, name));
 }
 
@@ -131,7 +139,10 @@ export async function checkDuplicates(
   ]);
   const results = [textResult, fieldResult, ...wordResults].filter((r) => r !== undefined);
   if (results.length === 0) return ok({ matches: [], similar: [], moreSimilar: false, incomplete: false });
-  if (results.every((r) => !r.ok)) return fail('DUPLICATE_CHECK_FAILED');
+  if (results.every((r) => !r.ok)) {
+    const lost = results.some((r) => !r.ok && r.error === 'COLLECTION_UNAVAILABLE');
+    return fail(lost ? 'COLLECTION_UNAVAILABLE' : 'DUPLICATE_CHECK_FAILED');
+  }
   const certain = await certainMatches(client, name, number, textResult, fieldResult, filter);
   // Similar items come from the text and word searches only; the filter results never enter here.
   const candidates = [textResult, ...wordResults].flatMap((r) => (r?.ok ? r.value : []));

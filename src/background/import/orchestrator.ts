@@ -195,10 +195,23 @@ interface UpdateErrors {
   orderFieldsError: ErrorCode | null;
 }
 
-/** Error reported for a failed purchase PUT (unchanged mapping). */
+/**
+ * Errors that keep their own code instead of `UPDATE_FAILED`: a refused key, and (spec 024) a chosen collection that
+ * can no longer be reached. Neither is sent again in another form (no fallback PUT).
+ */
+function isAccessError(error: ErrorCode): boolean {
+  return error === 'UNAUTHORIZED' || error === 'COLLECTION_UNAVAILABLE';
+}
+
+/** `UNAUTHORIZED` and `COLLECTION_UNAVAILABLE` pass through; every other failure of an update is `UPDATE_FAILED`. */
+function keepAccessError(error: ErrorCode): ErrorCode {
+  return isAccessError(error) ? error : 'UPDATE_FAILED';
+}
+
+/** Error reported for a failed purchase PUT (unchanged mapping, plus spec 024). */
 function updateFailure(res: Result<unknown>): ErrorCode | null {
   if (res.ok) return null;
-  return res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED';
+  return keepAccessError(res.error);
 }
 
 function manualBytes(file: ManualFile): Result<Uint8Array> {
@@ -545,7 +558,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     const uncertain = pending.createUncertain || (pending.orphaned && pending.createAttempted);
     if (pending.entityId || !uncertain) return null;
     const dup = await findDuplicatesByName(client, pending.draft.name);
-    if (!dup.ok) return fail('DUPLICATE_CHECK_FAILED');
+    if (!dup.ok) return fail(dup.error);
     return dup.value.length > 0 ? fail('DUPLICATE_SUSPECTED') : null;
   }
 
@@ -744,7 +757,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       return { res: await client.updateEntity(entityId, entityOutToUpdate(current, purchase)), applied: false };
     }
     const res = await client.updateEntity(entityId, entityOutToUpdate(current, { ...purchase, tagIds: tagIdsFor(current, tags) }));
-    if (res.ok || res.httpStatus === undefined || res.error === 'UNAUTHORIZED') return { res, applied: res.ok };
+    if (res.ok || res.httpStatus === undefined || isAccessError(res.error)) return { res, applied: res.ok };
     return { res: await client.updateEntity(entityId, entityOutToUpdate(current, purchase)), applied: false };
   }
 
@@ -770,7 +783,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     const tagsError = tags ? settleTags(p, tags, applied) : null;
     await persist(p);
     if (res.ok) return { updateError: null, tagsError };
-    return { updateError: res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED', tagsError };
+    return { updateError: keepAccessError(res.error), tagsError };
   }
 
   /** Read-back of the object after a successful PUT (FR-018): every confirmed field with its exact values. */
@@ -812,7 +825,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     const templateFieldsError = settleTemplateFields(p, res.ok && (await readBack(entityId, confirmed)));
     await persist(p);
     if (res.ok) return { updateError: null, tagsError, templateFieldsError };
-    return { updateError: res.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED', tagsError, templateFieldsError };
+    return { updateError: keepAccessError(res.error), tagsError, templateFieldsError };
   }
 
   /** Fields step alone (resume): never touches the purchase data; the tags join the same PUT when they remain too. */
@@ -858,7 +871,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     const withTags = tags !== null && tags.resolved.length > 0 && knowsTags(current);
     const tagIds = withTags ? { tagIds: tagIdsFor(current, tags) } : {};
     const res = await client.updateEntity(entityId, entityOutToUpdate(current, { ...patches.withOrder, ...tagIds }));
-    if (res.ok || res.httpStatus === undefined || res.error === 'UNAUTHORIZED') {
+    if (res.ok || res.httpStatus === undefined || isAccessError(res.error)) {
       return { res, applied: res.ok && withTags, orderSent: res.ok };
     }
     return { ...(await purchasePut(entityId, current, patches.without, tags)), orderSent: false };
@@ -1213,7 +1226,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   /** The item could not be read again: deleted (404) → `ITEM_NOT_FOUND`, nothing written; otherwise retryable. */
   async function completionReadFailed(p: PendingImport, read: { error: ErrorCode; httpStatus?: number }): Promise<PendingImport> {
     if (p.steps.update !== 'done') p.steps.update = 'failed';
-    if (read.httpStatus !== 404) return finish(p, read.error === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'UPDATE_FAILED');
+    if (read.httpStatus !== 404) return finish(p, keepAccessError(read.error));
     p.status = 'failed';
     p.error = 'ITEM_NOT_FOUND';
     await persist(p);

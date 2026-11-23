@@ -9,6 +9,8 @@ import type { ConfigView, InstanceView } from '@/shared/types';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { t } from '@/ui/i18n';
+import { readTargetCollection } from '@/ui/collections';
+import CollectionField from './CollectionField.vue';
 import DefaultTemplateField from './DefaultTemplateField.vue';
 import OrderFieldsSettings from './OrderFieldsSettings.vue';
 import OrderLinkSettings from './OrderLinkSettings.vue';
@@ -121,8 +123,13 @@ async function test(i: InstanceView) {
   busy.value = i.id;
   try {
     const res = await send({ type: 'instance/test', instanceId: i.id });
-    if (res.ok) announce.value = t('common.instanceError', [i.name, t('options.connected')]);
-    else setError(i.id, res.error);
+    if (res.ok) {
+      announce.value = t('common.instanceError', [i.name, t('options.connected')]);
+      // Spec 024 (FR-007): the collection the imports go to, named after the test.
+      const target = await readTargetCollection(i.id);
+      if (target && 'name' in target) announce.value += ` ${t('collections.testTarget', [target.name])}`;
+      else if (target) setError(i.id, target.error);
+    } else setError(i.id, res.error);
     emit('changed');
   } catch {
     setError(i.id, 'BAD_MESSAGE');
@@ -193,6 +200,8 @@ const isOpen = (i: InstanceView, kind: 'rename' | 'edit') => panel.value?.id ===
           </button>
           <button type="button" :disabled="busy === i.id" @click="remove(i)">{{ t('instances.delete') }}</button>
         </div>
+        <!-- Spec 024: target collection of this instance only (FR-001). -->
+        <CollectionField :instance="i" :locked="!canTest" @changed="emit('changed')" />
         <!-- Spec 018: default template of this instance only (FR-024). -->
         <DefaultTemplateField :instance="i" :locked="!canTest" />
         <!-- Spec 019: order fields as HomeBox custom fields, setting of this instance only (FR-001). -->

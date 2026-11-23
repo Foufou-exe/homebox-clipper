@@ -133,6 +133,23 @@ settings), read and written by `order-link/get` and `order-link/set`. The comple
 step. Neither the address, nor the title, nor the item identifier is logged (endpoint template, status and duration
 only).
 
+### Target collection (spec 024)
+
+`collectionByInstance` (`storage.local`) holds, per instance, the chosen collection (`chosen`, or none: the default
+collection of the key) and the one last read (`seen`, with `several`). `configStore.getCredentials` adds `tenant` only
+when a collection is chosen; the client then sends `X-Tenant: <id>` on every authenticated request of this instance
+(never on the public `GET /status`, never in the URL). Without a chosen collection no header is sent and the requests
+are unchanged (`orchestrator-call-sequence` and its snapshot untouched). The messages `instance/collections` and
+`instance/set-collection` read `GET /api/v1/groups/all` and `GET /api/v1/groups` **without** `X-Tenant` (a lost
+collection must not prevent choosing another one). A 403 with the header is `COLLECTION_UNAVAILABLE`, never retried
+without it (no fallback PUT in the orchestrator either; duplicates report it too); an unreadable list is
+`COLLECTIONS_UNAVAILABLE`. Each entry stores the address it was read on: after an address change it no longer applies
+(no second write). Writes are compare-and-write inside the configuration write queue. An unreadable entry makes
+`getCredentials` fail with `COLLECTION_UNAVAILABLE` (never the default collection); the discovery reads use
+`getKeyCredentials`. An import keeps the collection it started with (`PendingImport.collection`): every resume uses it,
+whatever the current setting, and the result names it. The summary names the collection from the view
+(`InstanceView.collection`), without any request.
+
 ### Completing an existing item (spec 021)
 
 In the duplicate window, a product can be set to **Complete** an item found (certain duplicate or similar item)
@@ -230,7 +247,8 @@ HomeBox item templates (`template/list`, `template/get`, `template/check`, `temp
 `template/get-default` needs neither the network nor the key), order fields as HomeBox custom fields
 (`order-fields/get`, `order-fields/set`: the setting of one instance, readable and writable while locked, neither the
 network nor the key; `order-fields/names`: the names of the existing custom fields, unlocked,
-`src/background/order-fields/`), the order page link (`order-link/get`, `order-link/set`: the setting of one instance, readable and writable while locked, neither the network nor the key; `src/background/order-link/`), duplicates (`duplicate/check`), import
+`src/background/order-fields/`), the order page link (`order-link/get`, `order-link/set`: the setting of one instance, readable and writable while locked, neither the network nor the key; `src/background/order-link/`), the target collection (`instance/collections`, `instance/set-collection`,
+unlocked, `src/background/collections/`), duplicates (`duplicate/check`), import
 (`import/start|retry|abandon|pending`), extraction in the tab (`amazon/extract`, `amazon/download`) and
 progress (`import/progress`). Responses are `Result` values: either a value or an error code from the
 catalog (`src/shared/errors.ts`).

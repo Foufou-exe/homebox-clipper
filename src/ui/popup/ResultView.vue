@@ -5,6 +5,7 @@ import type { DocumentRef, InstanceView, PendingImport, PhotoStep } from '@/shar
 import { DOCUMENT_KIND_KEYS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
 import { instanceById } from '@/ui/instances';
+import { displayedCollection } from '@/shared/collections';
 import RecoveryView from './RecoveryView.vue';
 import { doneMessage, keyNames } from './completion';
 
@@ -49,6 +50,15 @@ const PHOTO_RESULTS = {
 const photoResult = (p: PendingImport) => {
   const step = photoStep(p);
   return p.entityId && step in PHOTO_RESULTS ? t(PHOTO_RESULTS[step as keyof typeof PHOTO_RESULTS]) : null;
+};
+/**
+ * Spec 024 (FR-009, M2): the collection the import was made in (kept with it), and how to open the item. An import made
+ * in the default collection of the key names it only while the setting is still the default one.
+ */
+const collectionResult = (p: PendingImport) => {
+  const setting = instanceOf(p)?.collection;
+  const name = p.collection?.name ?? (setting?.chosen ? null : displayedCollection(setting));
+  return name && itemLink(p) ? t('collections.resultLine', [name]) : null;
 };
 /** Location retained for the object, once created (US2-5). Absent from a state persisted by a previous version. */
 const locationResult = (p: PendingImport) =>
@@ -136,6 +146,7 @@ const allDone = computed(() => !props.running && props.pendings.every((p) => p.s
         <a v-if="itemLink(p)" :href="itemLink(p) ?? undefined" target="_blank" rel="noopener">{{ t('result.openInHomebox') }}</a>
         <small v-if="photoResult(p)" class="photo-result">{{ photoResult(p) }}</small>
         <small v-if="locationResult(p)" class="photo-result">{{ locationResult(p) }}</small>
+        <small v-if="collectionResult(p)" class="photo-result">{{ collectionResult(p) }}</small>
         <small v-for="note in fallbackNotes(p)" :key="note" class="photo-result">{{ note }}</small>
         <small v-for="note in completionNotes(p)" :key="note" class="photo-result">{{ note }}</small>
         <!-- Spec 019 (US1-6): the order fields step is shown done for the product. -->

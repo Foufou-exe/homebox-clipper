@@ -54,6 +54,8 @@ error:
   ENTITY_TYPES_UNAVAILABLE: "Les types d'objets HomeBox n'ont pas pu être obtenus."
   ENTITY_TYPES_UNSUPPORTED: "Cette version de HomeBox ne prend pas en charge les types d'objets."
   ENTITY_TYPE_NOT_FOUND: "Le type d'objet choisi n'existe plus dans HomeBox. Rien n'a été créé : abandonnez cet import et recommencez en choisissant un autre type."
+  COLLECTION_UNAVAILABLE: "La collection HomeBox choisie pour cette instance n'est plus accessible avec cette clé. Choisissez une autre collection dans les réglages de l'instance : rien n'est envoyé ailleurs."
+  COLLECTIONS_UNAVAILABLE: "La liste des collections de cette instance HomeBox n'a pas pu être obtenue."
 
 common:
   instanceAria: "Instance HomeBox utilisée"
@@ -638,3 +640,20 @@ completion:
     PHOTO_UPLOAD_FAILED: "L'objet existant a été complété, mais l'envoi de la photo a échoué."
     TAG_FAILED: "L'objet existant a été complété, mais certains tags n'ont pas pu être ajoutés."
     ORDER_FIELDS_FAILED: "L'objet existant a été complété, mais les champs de commande n'ont pas pu être enregistrés."
+
+collections:
+  label: "Collection cible"
+  defaultOfKey: "Collection par défaut de la clé"
+  defaultOfKeyNamed: "Collection par défaut de la clé ($1)"
+  onlyOne: "$1 (seule collection accessible avec cette clé)"
+  unlockToChange: "Déverrouillez pour changer la collection cible."
+  change: "Changer la collection"
+  loading: "Lecture des collections…"
+  retry: "Réessayer"
+  onlyOneOnInstance: "Cette clé n'a accès qu'à une collection : $1."
+  help: "Les imports vers cette instance iront dans cette collection : les emplacements, tags, modèles et doublons y sont lus."
+  save: "Enregistrer"
+  saved: "Collection cible enregistrée."
+  testTarget: "Collection visée : $1."
+  summaryLine: "Collection : $1"
+  resultLine: "Dans la collection $1 : si le lien ne s'ouvre pas, ouvrez cette collection dans HomeBox."

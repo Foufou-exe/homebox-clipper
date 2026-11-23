@@ -277,3 +277,25 @@ describe('import/pending: an orphaned completion (021, US7)', () => {
     expect(list[0]).not.toHaveProperty('createUncertain');
   });
 });
+
+describe('spec 024: chosen collection no longer reachable while completing', () => {
+  it('the read of the item refused (403) → COLLECTION_UNAVAILABLE, not UPDATE_FAILED; nothing written', async () => {
+    const { orchestrator, client, puts } = completionSetup({ items: [existing()], tags: TAGS });
+    client.getEntity.mockImplementationOnce(async () => fail('COLLECTION_UNAVAILABLE', 403));
+    const p = firstOf(await orchestrator.startImport(5, [completeDraft(['purchasePrice'])], []));
+    expect(puts).toEqual([]);
+    expect(p.steps.update).toBe('failed');
+    expect(p.error).toBe('COLLECTION_UNAVAILABLE');
+  });
+
+  it('the PUT refused (403) → COLLECTION_UNAVAILABLE, a single PUT', async () => {
+    const { orchestrator, puts } = completionSetup({
+      items: [existing()],
+      tags: TAGS,
+      update: [fail('COLLECTION_UNAVAILABLE', 403)],
+    });
+    const p = firstOf(await orchestrator.startImport(5, [completeDraft(['purchasePrice'])], []));
+    expect(puts).toHaveLength(1);
+    expect(p.error).toBe('COLLECTION_UNAVAILABLE');
+  });
+});

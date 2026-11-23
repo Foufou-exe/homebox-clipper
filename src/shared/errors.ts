@@ -57,6 +57,9 @@ export const ERROR_CODES = [
   'ENTITY_TYPES_UNAVAILABLE',
   'ENTITY_TYPES_UNSUPPORTED',
   'ENTITY_TYPE_NOT_FOUND',
+  // Spec 024 (target HomeBox collection).
+  'COLLECTION_UNAVAILABLE',
+  'COLLECTIONS_UNAVAILABLE',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

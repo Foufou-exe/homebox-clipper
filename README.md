@@ -48,6 +48,7 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **Product photo** attached to the item as its main image (can be unticked per product).
 - **Link to the order page** (optional, off by default): an external link to the merchant's order page is added to the item, one click away in HomeBox; it points to the merchant's website and is stored in HomeBox.
 - **Several HomeBox instances** (up to 10, one passphrase for all): choose the target in the summary; each instance keeps its own encrypted key and exact-origin permission.
+- **Target collection**: for each instance, import into the HomeBox collection of your choice (by default, the one of the key); the connection test, the summary and the result name it.
 - **Location choice** among your HomeBox locations, with search; the last one used is suggested.
 - **Suggested tags**: the store brand and the tags of your own local rules are suggested per product, editable in the summary; missing tags are created in HomeBox only after your confirmation, and existing tags are never removed.
 - **HomeBox-colored interface**, in light, dark or automatic theme, in **English or French** depending on your browser language.

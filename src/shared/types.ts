@@ -2,6 +2,7 @@ import type { MerchantId } from './merchant-ids';
 import type { ErrorCode } from './errors';
 import type { DocumentKind } from './document-kinds';
 import type { OrderFieldRole } from './order-fields';
+import type { CollectionRef, CollectionSetting } from './collections';
 
 /** Value extracted from a page, or an explicit absence (principle III). */
 export type Field<T> =
@@ -343,6 +344,8 @@ export type StepState = 'pending' | 'done' | 'failed';
 
 export interface PendingImport {
   id: string;
+  /** Spec 024 (M2): collection chosen when the import started; every request of it and of its resumes goes there. */
+  collection?: CollectionRef;
   tabId: number;
   pageUrl: string | null;
   draft: ImportDraft;
@@ -471,6 +474,10 @@ export interface InstanceView {
   maskedKey: string;
   lastCheck: LastCheck | null;
   keyState: 'ready' | 'locked' | 'unreadable' | 'missing';
+  /** Collection setting (spec 024), only when the instance has one: the chosen collection and the one last read. */
+  collection?: CollectionSetting;
+  /** Spec 024 (M3): the stored collection setting cannot be read; the instance refuses imports until it is chosen again. */
+  collectionInvalid?: true;
 }
 
 /** View of the configuration exposed to the UI: never contains the key (principle I). */
