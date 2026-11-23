@@ -3,6 +3,7 @@ import { log } from '@/shared/logger';
 import type {
   AttachmentUpload,
   EntityCreate,
+  ExternalLink,
   EntityField,
   EntityOut,
   EntitySummary,
@@ -376,6 +377,22 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
         endpoint: 'POST /entities/{id}/attachments',
         onHttpError: 'ATTACHMENT_FAILED',
         form,
+      });
+      return res.ok ? ok(undefined) : res;
+    },
+
+    /**
+     * POST /entities/{id}/attachments/external (spec 025, research R1): an external link attachment. The body is exactly
+     * `{ source_type: 'link', external_id, title, attachment_type: 'attachment' }`; HomeBox does not de-duplicate links.
+     * A 404 keeps its status: the orchestrator tells an instance without the route from a deleted item. Neither the
+     * address nor the title nor the identifier is logged (only the endpoint template).
+     */
+    async addExternalLink(id: string, link: ExternalLink): Promise<Result<void>> {
+      const res = await request('POST', `/entities/${encodeURIComponent(id)}/attachments/external`, {
+        auth: true,
+        endpoint: 'POST /entities/{id}/attachments/external',
+        onHttpError: 'ORDER_LINK_FAILED',
+        json: { source_type: 'link', external_id: link.url, title: link.title, attachment_type: 'attachment' },
       });
       return res.ok ? ok(undefined) : res;
     },

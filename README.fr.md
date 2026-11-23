@@ -48,6 +48,7 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
 - **Annonce de mise à jour et version** : une courte annonce après chaque mise à jour, un bouton « Mettre à jour maintenant » quand le navigateur en a une prête, et le numéro de version affiché à côté du lien GitHub ; aucune requête n'est faite pour vérifier les mises à jour.
 - **Historique des imports** : vos derniers imports avec leur résultat et un lien vers l'objet, conservés uniquement dans votre navigateur et chiffrés avec votre phrase de passe (200 entrées, 12 mois ; effaçable ou désactivable).
 - **Photo du produit** jointe à l'objet comme image principale (décochable par produit).
+- **Lien vers la page de commande** (facultatif, désactivé par défaut) : un lien externe vers la page de commande du marchand est ajouté à l'objet, à un clic dans HomeBox ; il pointe vers le site du marchand et est enregistré dans HomeBox.
 - **Plusieurs instances HomeBox** (jusqu'à 10, une seule phrase de passe) : choisissez la cible au récapitulatif ; chaque instance garde sa propre clé chiffrée et sa permission d'origine exacte.
 - **Choix de l'emplacement** parmi vos emplacements HomeBox, avec recherche ; le dernier utilisé est proposé.
 - **Tags proposés** : l'enseigne de la boutique et les tags de vos propres règles locales sont proposés pour chaque produit, modifiables au récapitulatif ; les tags absents sont créés dans HomeBox uniquement après votre confirmation, et les tags existants ne sont jamais retirés.

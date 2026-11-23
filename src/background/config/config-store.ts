@@ -34,7 +34,7 @@ const KEY = LEGACY_KEY;
 /** Decrypted API keys: storage.session only (in memory, cleared when the browser closes). */
 const SESSION_KEY = 'homeboxUnlocked';
 export const PENDING_PREFIX = 'pendingImport:';
-export { LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY } from './instance-store';
+export { LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY } from './instance-store';
 /** Encrypted import history (spec 012): one `importHistory:<id>` key per entry, in storage.local. */
 export const HISTORY_PREFIX = 'importHistory:';
 /** History setting `{ v: 1, enabled }`, in clear (not purchase data); kept when the configuration is deleted. */

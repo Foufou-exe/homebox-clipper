@@ -11,6 +11,7 @@ import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { t } from '@/ui/i18n';
 import DefaultTemplateField from './DefaultTemplateField.vue';
 import OrderFieldsSettings from './OrderFieldsSettings.vue';
+import OrderLinkSettings from './OrderLinkSettings.vue';
 import InstanceForm from './InstanceForm.vue';
 
 /**
@@ -196,6 +197,8 @@ const isOpen = (i: InstanceView, kind: 'rename' | 'edit') => panel.value?.id ===
         <DefaultTemplateField :instance="i" :locked="!canTest" />
         <!-- Spec 019: order fields as HomeBox custom fields, setting of this instance only (FR-001). -->
         <OrderFieldsSettings :instance="i" :locked="!canTest" />
+        <!-- Spec 025: link to the order page, setting of this instance only (FR-001). -->
+        <OrderLinkSettings :instance="i" :locked="!canTest" />
 
         <form v-if="isOpen(i, 'rename')" class="rename" @submit.prevent="saveName(i)" @keydown.esc="panel = null">
           <label :for="`${uid}-rename-${i.id}`">{{ t('instances.rename') }}</label>

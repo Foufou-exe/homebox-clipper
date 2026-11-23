@@ -70,6 +70,8 @@ entry, which works even while locked) and its interrupted imports.
 | Warranty of an in-progress import (expiry date, details) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs |
 | Automatic-tag setting (`tagSettings`: store-name option and rules "contains … → tag …", in clear: preferences, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
 | Chosen tags and tags not added of an in-progress import (`draft.tags`, `failedTags`) | `storage.session` (memory), inside the in-progress import | Erased with the import; tags are never stored in the import history |
+| Link to the order page setting of each instance (`orderLinkByInstance`: the option, in clear, no secret) | `storage.local` | Erased with the instance or with **Delete settings** |
+| Link to the order page of an in-progress import (`draft.orderLink`, the address is the page address already in the import) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs. Once added, the link to the order page is stored in HomeBox (it points to the merchant's website), not in the extension |
 
 No data is placed in `storage.sync`.
 

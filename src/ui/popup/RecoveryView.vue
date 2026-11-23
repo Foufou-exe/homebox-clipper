@@ -85,8 +85,14 @@ const photoError = computed(() => (props.pending.photoError !== props.pending.er
 /** Spec 019: the order fields are the only step left (no other field, tag, document or photo to redo). */
 const onlyOrderFieldsRemain = computed(() => {
   const { steps } = props.pending;
-  const otherFieldStep = steps.tags === 'failed' || steps.templateFields === 'failed';
+  const otherFieldStep = steps.tags === 'failed' || steps.templateFields === 'failed' || steps.orderLink === 'failed';
   return steps.orderFields === 'failed' && !otherFieldStep && failedDocs.value.length === 0 && !photoRemaining.value;
+});
+/** Spec 025: the order page link is the only step left (no field, tag, document or photo to redo). */
+const onlyOrderLinkRemains = computed(() => {
+  const { steps } = props.pending;
+  const otherStep = steps.tags === 'failed' || steps.templateFields === 'failed' || steps.orderFields === 'failed';
+  return steps.orderLink === 'failed' && !otherStep && failedDocs.value.length === 0 && !photoRemaining.value;
 });
 const retryLabel = computed(() => {
   if (!props.pending.entityId) return t('recovery.retryImport');
@@ -95,6 +101,7 @@ const retryLabel = computed(() => {
   if (photoRemaining.value && !updateRemaining && !docsRemaining) return t('recovery.retryPhoto');
   if (docsRemaining && !updateRemaining && !photoRemaining.value) return t('recovery.retryInvoice');
   if (!updateRemaining && onlyOrderFieldsRemain.value) return t('recovery.retryOrderFields');
+  if (!updateRemaining && onlyOrderLinkRemains.value) return t('recovery.retryOrderLink');
   return t('recovery.retry');
 });
 

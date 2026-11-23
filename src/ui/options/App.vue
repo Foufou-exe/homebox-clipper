@@ -15,6 +15,7 @@ import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import { defaultInstance } from '@/ui/instances';
 import DefaultTemplateField from './DefaultTemplateField.vue';
 import OrderFieldsSettings from './OrderFieldsSettings.vue';
+import OrderLinkSettings from './OrderLinkSettings.vue';
 import InstanceForm from './InstanceForm.vue';
 import InstancesCard from './InstancesCard.vue';
 import PassphraseCard from './PassphraseCard.vue';
@@ -180,6 +181,13 @@ async function remove() {
       />
       <!-- Spec 019: order fields setting of the single instance (FR-001). -->
       <OrderFieldsSettings
+        v-if="view.configured && !multi && current"
+        :instance="current"
+        :locked="view.locked !== false || view.needsPassphrase === true"
+      />
+
+      <!-- Spec 025: link to the order page, setting of the single instance (FR-001). -->
+      <OrderLinkSettings
         v-if="view.configured && !multi && current"
         :instance="current"
         :locked="view.locked !== false || view.needsPassphrase === true"

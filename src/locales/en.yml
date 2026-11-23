@@ -47,6 +47,8 @@ error:
   TEMPLATE_CHANGED: "This item template was changed in HomeBox. Check the values, then confirm again."
   TEMPLATE_FIELDS_FAILED: "The item was created but some template fields could not be saved."
   ORDER_FIELDS_FAILED: "The item was created but the order fields could not be saved."
+  ORDER_LINK_FAILED: "The item was created but the link to the order page could not be added."
+  ORDER_LINK_UNSUPPORTED: "The item was created, but this HomeBox instance does not accept external links. Update HomeBox or turn off the link option for this instance."
   FIELD_NAMES_UNAVAILABLE: "The custom field names of this HomeBox instance could not be read."
   ITEM_NOT_FOUND: "The chosen HomeBox item no longer exists. Nothing was changed."
   ENTITY_TYPES_UNAVAILABLE: "HomeBox item types could not be retrieved."
@@ -217,6 +219,7 @@ result:
   tagsFailed: "Tags not added: $1"
   stepTemplateFields: "Template fields: $1"
   stepOrderFields: "Order fields: $1"
+  stepOrderLink: "Link to the order page: $1"
   stepComplete: "Updating the existing item: $1"
   completed: "existing item completed"
   noChange: "No change: the item already had everything."
@@ -241,6 +244,7 @@ recovery:
   abandon: "Abandon"
   retryPhoto: "Retry the photo upload"
   retryOrderFields: "Retry the order fields"
+  retryOrderLink: "Retry the order link"
   retryWithoutLocation: "Import without a location"
   interrupted: "The import was interrupted before it finished."
   duplicateHint: "An item with the same name already exists: it may be the one from this import, still incomplete. Check in HomeBox before continuing. If you abandon and then restart this import, a second item may be created without a new confirmation."
@@ -565,6 +569,17 @@ orderFields:
     tooLong: "This name is too long for HomeBox."
     duplicate: "Each field needs a different name."
     forbiddenChar: "The name cannot contain \"=\" or control characters."
+
+orderLink:
+  optionLabel: "Add a link to the order page"
+  optionHelp: "Adds a link to the order page to each imported item. The link points to the merchant's website and is stored in HomeBox. Off by default."
+  save: "Save"
+  saved: "Setting saved."
+  fieldLabel: "Add a link to the order page"
+  fieldHelp: "This web address is stored in HomeBox: $1"
+  shown: "Order page link shown for this instance."
+  hidden: "Order page link removed for this instance."
+  title: "Order page - $1"
 
 completion:
   choiceLegend: "What to do for \"$1\"?"
