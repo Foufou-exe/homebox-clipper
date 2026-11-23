@@ -1,0 +1,83 @@
+---
+title: HomeBox Clipper
+description: Import your online purchases into your HomeBox inventory, invoice included, after your confirmation.
+template: splash
+hero:
+  tagline: Turn an online purchase into a HomeBox inventory item, PDF invoice included, after your confirmation.
+  image:
+    file: ../../assets/logo.svg
+    alt: HomeBox Clipper logo
+  actions:
+    - text: Get started
+      link: /homebox-clipper/getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/Foufou-exe/homebox-clipper
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+**HomeBox Clipper** is a browser extension for Chrome and Firefox (Manifest V3) that turns an online purchase into an
+[HomeBox](https://github.com/sysadminsmedia/homebox) inventory item, PDF invoice included, after your
+confirmation. It currently works with **Amazon** (the "Order Details" page): Amazon.fr, plus Amazon.de,
+.es, .it, .com.be, .nl, .co.uk and .com in testing (see [Supported merchants](/homebox-clipper/supported-merchants/)), and
+talks only to **your** self-hosted HomeBox instance (API tested with v0.27).
+
+> [!NOTE]
+> The project is an MVP. It is independent: it has no affiliation with Amazon or the HomeBox team.
+
+<CardGrid>
+  <Card title="Your data stays yours" icon="approve-check">
+    The extension talks only to the merchant page you are on and to your own HomeBox instance. No
+    analytics, no third-party server.
+  </Card>
+  <Card title="Nothing is written without you" icon="pencil">
+    Every import shows a confirmation screen: you review, change or untick each value before anything is
+    created in HomeBox.
+  </Card>
+  <Card title="Invoice included" icon="document">
+    The PDF invoice, the product photo and the warranty are attached to the item when the merchant
+    provides them.
+  </Card>
+  <Card title="Chrome and Firefox" icon="puzzle">
+    One extension, Manifest V3, for Chrome (and Chromium browsers) and Firefox 140 or later.
+  </Card>
+</CardGrid>
+
+## Where to start
+
+<CardGrid>
+  <LinkCard title="Install the extension" href="/homebox-clipper/getting-started/installation/" />
+  <LinkCard title="Connect it to your HomeBox instance" href="/homebox-clipper/configuration/" />
+  <LinkCard title="Import a purchase" href="/homebox-clipper/usage/" />
+  <LinkCard title="See which sites are supported" href="/homebox-clipper/supported-merchants/" />
+  <LinkCard title="Understand what is stored and sent" href="/homebox-clipper/security-and-privacy/" />
+  <LinkCard title="Fix an error message" href="/homebox-clipper/troubleshooting-and-faq/" />
+</CardGrid>
+
+## Contribute
+
+| You want to... | Page |
+|----------------|------|
+| Understand the code | [Architecture](/homebox-clipper/contributing/architecture/) |
+| Add a merchant | [Adding a merchant](/homebox-clipper/contributing/adding-a-merchant/) |
+| Run or write tests | [Tests and fixtures](/homebox-clipper/contributing/testing-and-fixtures/) |
+| Set up a test HomeBox instance | [Local HomeBox instance](/homebox-clipper/contributing/local-homebox-instance/) |
+| Change or add an interface text | [Translations](/homebox-clipper/contributing/translations/) |
+| Publish a release | [Releasing](/homebox-clipper/maintaining/releasing/) |
+| Maintain the development environment | [Development environment](/homebox-clipper/maintaining/dev-environment/) |
+| Moderate the Discussions | [Moderating Discussions](/homebox-clipper/maintaining/moderating-discussions/) |
+
+## Useful links
+
+- [Repository README](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.md)
+- [Contributing guide](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
+- [Changelog](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md)
+- [Supported merchants](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md)
+- [Privacy policy](https://github.com/Foufou-exe/homebox-clipper/blob/main/PRIVACY.md)
+- [Security policy](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md)
+
+This site is built from the `docs/site/` folder of the repository: to fix a page, use the "Edit page" link
+at the bottom of it, or open a pull request.

@@ -58,12 +58,12 @@ describe('import history documentation (FR-013)', () => {
   });
 
   it('wiki: Security-and-privacy.md and Usage.md have an "Import history" section', () => {
-    expect(read('docs/wiki/Security-and-privacy.md')).toMatch(/^#{2,3} Import history/m);
-    expect(read('docs/wiki/Usage.md')).toMatch(/^#{2,3} Import history/m);
+    expect(read('docs/site/src/content/docs/security-and-privacy.md')).toMatch(/^#{2,3} Import history/m); // ADAPTED (028): path moved to the documentation site
+    expect(read('docs/site/src/content/docs/usage.md')).toMatch(/^#{2,3} Import history/m); // ADAPTED (028): path moved to the documentation site
   });
 
   it('Usage.md: the history section comes before "Recovery after an error"', () => {
-    const usage = read('docs/wiki/Usage.md');
+    const usage = read('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
     const history = usage.search(/^#{2,3} Import history/m);
     const recovery = usage.search(/^#{2,3} Recovery after an error/m);
     expect(history).toBeGreaterThan(-1);
@@ -71,8 +71,8 @@ describe('import history documentation (FR-013)', () => {
   });
 
   it('pruning is described as it really runs (history opened or import, unlocked), never "at the next unlock"', () => {
-    expect(prose('docs/wiki/Security-and-privacy.md')).not.toMatch(/next unlock/i);
-    expect(prose('docs/wiki/Security-and-privacy.md')).toMatch(/when the history is opened and at each new import/);
+    expect(prose('docs/site/src/content/docs/security-and-privacy.md')).not.toMatch(/next unlock/i); // ADAPTED (028): path moved to the documentation site
+    expect(prose('docs/site/src/content/docs/security-and-privacy.md')).toMatch(/when the history is opened and at each new import/); // ADAPTED (028): path moved to the documentation site
     expect(prose('PRIVACY.md')).not.toMatch(/deleted automatically/i);
     expect(prose('PRIVACY.md')).toMatch(/when you open the history or import a purchase/);
     expect(prose('PRIVACY.fr.md')).not.toMatch(/supprimées automatiquement/i);

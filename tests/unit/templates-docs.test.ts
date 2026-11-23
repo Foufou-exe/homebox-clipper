@@ -34,7 +34,7 @@ describe('PRIVACY.md and PRIVACY.fr.md', () => {
 });
 
 describe('docs/wiki/Architecture.md', () => {
-  const doc = prose('docs/wiki/Architecture.md');
+  const doc = prose('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
   it('storage.local table, messages, create-item, read-back, unchanged call sequence, error codes', () => {
     const storageRow = doc.slice(doc.indexOf('| `storage.local` |'));
     expect(storageRow.slice(0, 3000)).toContain('defaultTemplateByInstance');
@@ -63,7 +63,7 @@ describe('docs/wiki/Architecture.md', () => {
 
 describe('docs/wiki/Security-and-privacy.md', () => {
   it('a row defaultTemplateByInstance (identifier and name, erased with the instance)', () => {
-    const row = read('docs/wiki/Security-and-privacy.md')
+    const row = read('docs/site/src/content/docs/security-and-privacy.md') // ADAPTED (028): path moved to the documentation site
       .split('\n')
       .find((l) => l.startsWith('|') && l.includes('defaultTemplateByInstance'));
     expect(row).toBeDefined();
@@ -73,7 +73,7 @@ describe('docs/wiki/Security-and-privacy.md', () => {
 });
 
 describe('docs/wiki/Usage.md', () => {
-  const doc = prose('docs/wiki/Usage.md');
+  const doc = prose('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
   it('template per product, None by default, location required, editable fields, values saved as text, confirmation', () => {
     expect(doc).toMatch(/template/i);
     expect(doc).toContain('None');
@@ -89,7 +89,7 @@ describe('docs/wiki/Usage.md', () => {
 
 describe('docs/wiki/Configuration.md', () => {
   it('default template per instance; the extension must be unlocked to change it', () => {
-    const doc = prose('docs/wiki/Configuration.md');
+    const doc = prose('docs/site/src/content/docs/configuration.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toMatch(/default template/i);
     expect(doc).toMatch(/unlocked/i);
   });
@@ -99,10 +99,10 @@ describe('no real address nor key-like value in the template documentation', () 
   it.each([
     'PRIVACY.md',
     'PRIVACY.fr.md',
-    'docs/wiki/Architecture.md',
-    'docs/wiki/Security-and-privacy.md',
-    'docs/wiki/Usage.md',
-    'docs/wiki/Configuration.md',
+    'docs/site/src/content/docs/contributing/architecture.md', // ADAPTED (028): path moved to the documentation site
+    'docs/site/src/content/docs/security-and-privacy.md', // ADAPTED (028): path moved to the documentation site
+    'docs/site/src/content/docs/usage.md', // ADAPTED (028): path moved to the documentation site
+    'docs/site/src/content/docs/configuration.md', // ADAPTED (028): path moved to the documentation site
   ])('%s', (path) => {
     const doc = read(path);
     expect(doc).not.toMatch(/hb_[A-Za-z0-9]{12,}/);

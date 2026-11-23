@@ -1,59 +1,8 @@
 # Maintaining the development environment
 
-This page lists the files to update when a project tool changes, so that the local machine, the
-development container and the CI stay consistent. An automatic check, `bun run check:config`, catches a
-large part of the omissions.
+> [!IMPORTANT]
+> This page has moved to the documentation site: **[Maintaining the development environment](https://foufou-exe.github.io/homebox-clipper/maintaining/dev-environment/)**
+> ([version française](https://foufou-exe.github.io/homebox-clipper/fr/maintaining/dev-environment/)).
 
-## When X changes, what to update?
-
-| If... | Files to update | Note |
-|-------|-----------------|------|
-| The **Bun** version changes | `package.json` (`packageManager`), `mise.toml`, `.devcontainer/post-create.sh` | The `.github/workflows/ci.yml` workflow installs Bun with `oven-sh/setup-bun`: check that it follows the same version. `check:config` verifies that the major.minor version is the same everywhere. |
-| The **Node** version changes | `mise.toml`, `.devcontainer/devcontainer.json` (tag of the `typescript-node` image), `.github/workflows/ci.yml` (`node-version`) | The project follows the LTS version. |
-| The **HomeBox** version changes | `compose.yaml` (`HOMEBOX_VERSION` variable), `.env.example`, `docs/local-homebox.md`, [Local-HomeBox-instance](Local-HomeBox-instance.md), the tested version in [Installation](Installation.md) | Rerun the local test scenarios after the update. |
-| A **VS Code extension** is added or removed | `.vscode/extensions.json` and `.devcontainer/devcontainer.json` (`customizations.vscode.extensions`) | The two lists must stay consistent for the extensions useful to the project. |
-| **WXT** or **Vite** changes | `package.json` (dependencies), `wxt.config.ts`, `vitest.config.ts`, `vitest.build.config.ts` | Run `bun run ci`: the build and the manifest test catch breakage. |
-| A `package.json` **script** is added or renamed | `CONTRIBUTING.md` ("Commands" section), `.vscode/tasks.json`, `scripts/setup.sh` (final message) | Each script must appear in `CONTRIBUTING.md` in the form `bun run <script>`. |
-| An **issue template** or a **label** changes | `.github/ISSUE_TEMPLATE/*.yml`, `.github/labels.yml`, `REQUIRED_FIELDS` in `scripts/check-config.ts` | Then apply the labels with `scripts/sync-labels.sh` (manual action). |
-| An **interface text** is added or changed | `src/locales/en.yml` **and** `src/locales/fr.yml` | Same contribution (rule FR-004c); `check:config` verifies the parity. See [Translations](Translations.md). |
-
-## Check the settings
-
-```bash
-bun run check:config
-```
-
-This check, run at the head of `bun run ci` (so by the `pre-push` hook), verifies:
-
-- the syntax of JSON-with-comments files (`.vscode/*.json`, `.devcontainer/devcontainer.json`,
-  `tsconfig.json`) and YAML files (`.github/**/*.yml`, `compose.yaml`, `src/locales/*.yml`);
-- that `src/locales/en.yml` and `src/locales/fr.yml` have the same keys and the same `$n` substitutions;
-- that `package.json`, `mise.toml` and `.devcontainer/post-create.sh` pin the same Bun version;
-- that the labels cited by the issue templates exist in `.github/labels.yml`, and that this file is
-  well formed (unique names, 6-digit hexadecimal color, description of at most 100 characters);
-- that the required fields of the issue templates are really required, and that blank issues are
-  disabled (`config.yml`).
-
-The files of `.github/ISSUE_TEMPLATE/` and `.github/labels.yml` do not trigger the GitHub CI:
-`check:config`, run locally, is their only guard. Remember to run `bun run ci` before pushing.
-
-The script is tested by `tests/unit/check-config.test.ts`, on dummy repositories in
-`tests/fixtures/config/`.
-
-## SonarQube analysis
-
-The `.github/workflows/sonarqube.yml` workflow and `sonar-project.properties` configure the
-SonarQube Cloud analysis. Keep `sonar.sources` and `sonar.tests` in line with the directory layout
-(`src`, `scripts`, `tests`) when it changes, and extend the exclusions for new generated or fixture
-directories. The `SONAR_TOKEN` repository secret must exist; pull requests from forks skip the job
-because they cannot read it. The workflow runs `bun run test:coverage` before the scan and
-`sonar.javascript.lcov.reportPaths` points to `coverage/lcov.info`; the coverage is then visible on the
-SonarQube Cloud project page. Locally, run `bun run test:coverage` (the `coverage/` folder is ignored
-by git). Coverage uses the `@vitest/coverage-v8` dev dependency, which must stay at the same version as
-`vitest`; its `coverage` block in `vitest.config.ts` lists the included and excluded files. `bun run check:config` validates the YAML syntax of the workflow only.
-
-## See also
-
-- [Contributing guide](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
-- [Local-HomeBox-instance](Local-HomeBox-instance.md)
-- [Releasing](Releasing.md)
+The wiki is no longer updated. The documentation is maintained in the repository, in `docs/site/`, and
+published at https://foufou-exe.github.io/homebox-clipper/.

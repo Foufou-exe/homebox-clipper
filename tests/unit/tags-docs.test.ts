@@ -42,7 +42,7 @@ describe('store listing (docs/store/listing.md)', () => {
 
 describe('wiki', () => {
   it('Usage.md: suggested tags in the summary, « new » / « not verified », tags not added and Retry, the options card', () => {
-    const doc = prose('docs/wiki/Usage.md');
+    const doc = prose('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toMatch(/tags/i);
     expect(doc).toMatch(/new/);
     expect(doc).toMatch(/not verified/i);
@@ -51,7 +51,7 @@ describe('wiki', () => {
   });
 
   it('Configuration.md: rules (contains, no regular expression), store-name option, kept when settings are deleted', () => {
-    const doc = prose('docs/wiki/Configuration.md');
+    const doc = prose('docs/site/src/content/docs/configuration.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toMatch(/Automatic tags/);
     expect(doc).toMatch(/contains/i);
     expect(doc).toMatch(/regular expression/i);
@@ -60,7 +60,7 @@ describe('wiki', () => {
   });
 
   it('Security-and-privacy.md: tagSettings in the storage table, tags never in the history, no tag name logged', () => {
-    const doc = read('docs/wiki/Security-and-privacy.md');
+    const doc = read('docs/site/src/content/docs/security-and-privacy.md'); // ADAPTED (028): path moved to the documentation site
     const table = doc.slice(doc.indexOf('Where data is stored'));
     expect(table).toContain('tagSettings');
     const text = doc.replace(/\s+/g, ' ');

@@ -1,0 +1,65 @@
+name: Docs
+
+# Builds the documentation website (docs/site/, Astro Starlight, English and French) and publishes it on
+# GitHub Pages: https://foufou-exe.github.io/homebox-clipper/ (spec 028). Local equivalent of the build
+# job: `bun run docs:build` (same frozen install, same build, same link validation).
+#
+# One-time setup by the maintainer: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+#
+# Triggers: push on main touching the site (or this workflow) and on demand. No pull_request run (the
+# local `bun run docs:build` is the check), no `schedule`, no matrix. A newer run cancels the one in
+# progress: only the latest state of main matters.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/site/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Full history: the "Last updated" date of each page comes from git.
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      # Lifecycle scripts are skipped (supply-chain hardening); the site needs none.
+      - name: Install the site dependencies
+        run: bun install --cwd docs/site --frozen-lockfile --ignore-scripts
+      - name: Build the site (fails on a broken internal link)
+        run: bun run --cwd docs/site build
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs/site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

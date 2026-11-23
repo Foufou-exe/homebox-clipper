@@ -1,0 +1,83 @@
+---
+title: HomeBox Clipper
+description: Importez vos achats en ligne dans votre inventaire HomeBox, facture comprise, après votre confirmation.
+template: splash
+hero:
+  tagline: Transformez un achat en ligne en objet d'inventaire HomeBox, facture PDF comprise, après votre confirmation.
+  image:
+    file: ../../../assets/logo.svg
+    alt: Logo de HomeBox Clipper
+  actions:
+    - text: Commencer
+      link: /homebox-clipper/fr/getting-started/installation/
+      icon: right-arrow
+    - text: Voir sur GitHub
+      link: https://github.com/Foufou-exe/homebox-clipper
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+**HomeBox Clipper** est une extension de navigateur pour Chrome et Firefox (Manifest V3) qui transforme un achat en
+ligne en objet d'inventaire [HomeBox](https://github.com/sysadminsmedia/homebox), facture PDF comprise, après votre
+confirmation. Elle fonctionne actuellement avec **Amazon** (la page « Détails de la commande ») : Amazon.fr, ainsi que
+Amazon.de, .es, .it, .com.be, .nl, .co.uk et .com en test (voir [Marchands pris en charge](/homebox-clipper/fr/supported-merchants/)), et
+ne communique qu'avec **votre** instance HomeBox auto-hébergée (API testée avec la v0.27).
+
+> [!NOTE]
+> Le projet est un MVP. Il est indépendant : il n'a aucun lien avec Amazon ni avec l'équipe de HomeBox.
+
+<CardGrid>
+  <Card title="Vos données restent les vôtres" icon="approve-check">
+    L'extension ne communique qu'avec la page du marchand que vous consultez et avec votre propre instance HomeBox.
+    Aucune analyse d'usage, aucun serveur tiers.
+  </Card>
+  <Card title="Rien n'est écrit sans vous" icon="pencil">
+    Chaque import affiche un écran de confirmation : vous vérifiez, modifiez ou décochez chaque valeur avant que
+    quoi que ce soit ne soit créé dans HomeBox.
+  </Card>
+  <Card title="Facture comprise" icon="document">
+    La facture PDF, la photo du produit et la garantie sont jointes à l'objet lorsque le marchand les
+    fournit.
+  </Card>
+  <Card title="Chrome et Firefox" icon="puzzle">
+    Une seule extension, Manifest V3, pour Chrome (et les navigateurs Chromium) et Firefox 140 ou ultérieur.
+  </Card>
+</CardGrid>
+
+## Par où commencer
+
+<CardGrid>
+  <LinkCard title="Installer l'extension" href="/homebox-clipper/fr/getting-started/installation/" />
+  <LinkCard title="La connecter à votre instance HomeBox" href="/homebox-clipper/fr/configuration/" />
+  <LinkCard title="Importer un achat" href="/homebox-clipper/fr/usage/" />
+  <LinkCard title="Voir quels sites sont pris en charge" href="/homebox-clipper/fr/supported-merchants/" />
+  <LinkCard title="Comprendre ce qui est stocké et envoyé" href="/homebox-clipper/fr/security-and-privacy/" />
+  <LinkCard title="Résoudre un message d'erreur" href="/homebox-clipper/fr/troubleshooting-and-faq/" />
+</CardGrid>
+
+## Contribuer
+
+| Vous voulez... | Page |
+|----------------|------|
+| Comprendre le code | [Architecture](/homebox-clipper/fr/contributing/architecture/) |
+| Ajouter un marchand | [Ajouter un marchand](/homebox-clipper/fr/contributing/adding-a-merchant/) |
+| Lancer ou écrire des tests | [Tests et fixtures](/homebox-clipper/fr/contributing/testing-and-fixtures/) |
+| Mettre en place une instance HomeBox de test | [Instance HomeBox locale](/homebox-clipper/fr/contributing/local-homebox-instance/) |
+| Modifier ou ajouter un texte de l'interface | [Traductions](/homebox-clipper/fr/contributing/translations/) |
+| Publier une version | [Publication](/homebox-clipper/fr/maintaining/releasing/) |
+| Maintenir l'environnement de développement | [Environnement de développement](/homebox-clipper/fr/maintaining/dev-environment/) |
+| Modérer les Discussions | [Modérer les Discussions](/homebox-clipper/fr/maintaining/moderating-discussions/) |
+
+## Liens utiles
+
+- [README du dépôt](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.fr.md)
+- [Guide de contribution](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
+- [Journal des modifications](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md)
+- [Marchands pris en charge](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.fr.md)
+- [Politique de confidentialité](https://github.com/Foufou-exe/homebox-clipper/blob/main/PRIVACY.fr.md)
+- [Politique de sécurité](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md)
+
+Ce site est construit à partir du dossier `docs/site/` du dépôt : pour corriger une page, utilisez le lien « Modifier la page »
+en bas de celle-ci, ou ouvrez une pull request.

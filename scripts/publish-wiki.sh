@@ -1,5 +1,6 @@
 #!/bin/sh
 # Publishes docs/wiki/ to the repository's GitHub wiki (contract: specs/002-project-documentation/contracts/wiki.md).
+# Since spec 028 the documentation lives on the site (docs/site/); docs/wiki/ only holds redirect pages.
 #
 #   sh scripts/publish-wiki.sh --dry-run   checks + list + link rewriting, 100% local
 #   sh scripts/publish-wiki.sh             wiki clone, sync, confirmation, commit, push
@@ -16,6 +17,8 @@ set -eu
 REPO_URL="https://github.com/Foufou-exe/homebox-clipper"
 WIKI_REMOTE="git@github.com:Foufou-exe/homebox-clipper.wiki.git"
 WIKI_REMOTE_HTTPS="https://github.com/Foufou-exe/homebox-clipper.wiki.git"
+# Spec 028: the documentation lives on this site; the wiki pages only point to it.
+SITE_URL="https://foufou-exe.github.io/homebox-clipper/"
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 WIKI="$ROOT/docs/wiki"
@@ -52,11 +55,11 @@ report() { echo "  ✗ $1" >&2; ERRORS=$((ERRORS + 1)); }
 
 echo "1. Local checks of docs/wiki/"
 
-# Every page (except _*.md) must appear in the sidebar.
+# Spec 028: the wiki only holds redirect pages. Every page (except _*.md) must link to the documentation site.
 for file in "$WIKI"/*.md; do
   name=$(basename "$file" .md)
   case "$name" in _*) continue ;; *) ;; esac
-  grep -qF "]($name.md)" "$WIKI/_Sidebar.md" || report "$name.md is not listed in _Sidebar.md"
+  grep -qF "]($SITE_URL" "$file" || report "$name.md does not link to the documentation site ($SITE_URL)"
 done
 
 # Links: valid internal ones, no relative link leaving docs/wiki/.
@@ -83,7 +86,7 @@ fi
 if [ "$ERRORS" -gt 0 ]; then
   die "$ERRORS problem(s) detected: nothing is published."
 fi
-echo "  ✓ complete sidebar, valid internal links, no outgoing relative link"
+echo "  ✓ every page links to the documentation site, valid internal links, no outgoing relative link"
 
 # Copy to a temporary folder and rewrite the links ](Page.md) -> ](Page), ](Page.md#x) -> ](Page#x).
 OUT="$TMP/out"

@@ -1,1 +1,1 @@
-This guide is now in the wiki: [Local HomeBox instance](https://github.com/Foufou-exe/homebox-clipper/wiki/Local-HomeBox-instance) (source: `docs/wiki/Local-HomeBox-instance.md`).
+This guide is now on the documentation site: [Local HomeBox instance](https://foufou-exe.github.io/homebox-clipper/contributing/local-homebox-instance/) (source: `docs/site/src/content/docs/contributing/local-homebox-instance.md`).

@@ -41,7 +41,7 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
   });
 
   it('Architecture: storage, session v2, targeted messages, inst, no downgrade, orchestrator and snapshot unchanged', () => {
-    const doc = prose('docs/wiki/Architecture.md');
+    const doc = prose('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
     for (const term of [
       'homeboxInstances',
       'lastInstanceId',
@@ -59,7 +59,7 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
   });
 
   it('Configuration: add, rename, test, change, delete an instance; limit 10; passphrase asked at every add; change it', () => {
-    const doc = prose('docs/wiki/Configuration.md');
+    const doc = prose('docs/site/src/content/docs/configuration.md'); // ADAPTED (028): path moved to the documentation site
     for (const term of [
       'Add an instance',
       'Rename',
@@ -76,7 +76,7 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
   });
 
   it('Usage: instance selector from two instances, last successful import proposed, resume to the instance of origin', () => {
-    const doc = prose('docs/wiki/Usage.md');
+    const doc = prose('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toMatch(/HomeBox instance selector/i);
     expect(doc).toMatch(/two instances or more/i);
     expect(doc).toMatch(/last successful import/i);
@@ -84,7 +84,7 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
   });
 
   it('Security and privacy: one key per instance, address as associated data, permission removed when unused, nothing to another instance', () => {
-    const doc = prose('docs/wiki/Security-and-privacy.md');
+    const doc = prose('docs/site/src/content/docs/security-and-privacy.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toMatch(/each instance has its own API key/i);
     expect(doc).toMatch(/associated data/i);
     expect(doc).toMatch(/removed as soon as no instance uses it/i);
@@ -92,7 +92,7 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
   });
 
   it('Troubleshooting and FAQ: the instance codes and the forgotten passphrase with several instances', () => {
-    const doc = prose('docs/wiki/Troubleshooting-and-FAQ.md');
+    const doc = prose('docs/site/src/content/docs/troubleshooting-and-faq.md'); // ADAPTED (028): path moved to the documentation site
     for (const code of [
       'INSTANCE_NOT_FOUND',
       'INSTANCE_LIMIT',
@@ -116,11 +116,11 @@ describe('documentation of several HomeBox instances (016, FR-031, Q-U9, T101)',
     for (const path of [
       'PRIVACY.md',
       'PRIVACY.fr.md',
-      'docs/wiki/Architecture.md',
-      'docs/wiki/Configuration.md',
-      'docs/wiki/Usage.md',
-      'docs/wiki/Security-and-privacy.md',
-      'docs/wiki/Troubleshooting-and-FAQ.md',
+      'docs/site/src/content/docs/contributing/architecture.md', // ADAPTED (028): path moved to the documentation site
+      'docs/site/src/content/docs/configuration.md', // ADAPTED (028): path moved to the documentation site
+      'docs/site/src/content/docs/usage.md', // ADAPTED (028): path moved to the documentation site
+      'docs/site/src/content/docs/security-and-privacy.md', // ADAPTED (028): path moved to the documentation site
+      'docs/site/src/content/docs/troubleshooting-and-faq.md', // ADAPTED (028): path moved to the documentation site
     ]) {
       const doc = prose(path);
       expect(doc, path).not.toMatch(/hb_[A-Za-z0-9]{12,}/);

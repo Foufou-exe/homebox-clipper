@@ -1,12 +1,15 @@
 name: Wiki
 
+# Since spec 028 the documentation is the website built from docs/site/ (workflow docs.yml); docs/wiki/ only
+# holds redirect pages (one per former wiki page) that send readers to https://foufou-exe.github.io/homebox-clipper/.
+#
 # Publishes docs/wiki/ to the GitHub wiki (https://github.com/Foufou-exe/homebox-clipper/wiki) with the
 # same script as the manual `bun run wiki:publish` (scripts/publish-wiki.sh): local checks, link
 # rewriting, copy, commit "docs: sync wiki from <sha>", push. If the wiki is already up to date nothing
 # is pushed and the job succeeds.
 #
 # GITHUB_TOKEN is not used to write to the wiki: the job authenticates with a fine-grained personal
-# access token stored in the secret `WIKI_TOKEN` of the GitHub environment `wiki` (procedure: wiki page
+# access token stored in the secret `WIKI_TOKEN` of the GitHub environment `wiki` (procedure: documentation page
 # "Releasing", section "Automatic wiki publication"). Without that secret (fork, token not created yet)
 # the job ends successfully with a notice, like `chrome-web-store` in release.yml.
 #

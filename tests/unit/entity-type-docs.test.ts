@@ -27,7 +27,7 @@ describe('PRIVACY.md and PRIVACY.fr.md', () => {
 
 describe('wiki and store listing', () => {
   it('Usage: an « Item type » section with the default, the single-type case and the older versions', () => {
-    const usage = prose('docs/wiki/Usage.md');
+    const usage = prose('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
     expect(usage).toMatch(/## Item type/);
     expect(usage).toMatch(/at least two item types/i);
     expect(usage).toMatch(/server default/i);
@@ -36,14 +36,14 @@ describe('wiki and store listing', () => {
   });
 
   it('Architecture: entity-type/list, the body of the creation and the memory', () => {
-    const arch = prose('docs/wiki/Architecture.md');
+    const arch = prose('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
     expect(arch).toContain('entity-type/list');
     expect(arch).toContain('ENTITY_TYPE_NOT_FOUND');
     expect(arch).toContain('lastEntityTypeByInstance');
   });
 
   it('Security and privacy: the table lists the memory (identifier only) and its erasure', () => {
-    const sec = prose('docs/wiki/Security-and-privacy.md');
+    const sec = prose('docs/site/src/content/docs/security-and-privacy.md'); // ADAPTED (028): path moved to the documentation site
     expect(sec).toMatch(/Last item type used, per instance \(`lastEntityTypeByInstance`\)/);
   });
 

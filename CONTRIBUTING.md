@@ -73,7 +73,10 @@ Every command is run with `bun run <script>`.
 | `bun run homebox:logs` | Follows the HomeBox logs |
 | `bun run icons` | Regenerates `public/icon/*.png` from `src/assets/logo.svg` |
 | `bun run release:notes` | Prints a version's section of `CHANGELOG.md` (see "Changelog and releases") |
-| `bun run wiki:publish` | Publishes `docs/wiki/` to the GitHub wiki (manual action; also automatic on `main`, see "Documentation and wiki") |
+| `bun run wiki:publish` | Publishes the redirect pages of `docs/wiki/` to the GitHub wiki (manual action; also automatic on `main`, see "Documentation site") |
+| `bun run docs:install` | Installs the documentation site dependencies (`docs/site/`, frozen lockfile) |
+| `bun run docs:dev` | Previews the documentation site with live reload |
+| `bun run docs:build` | Builds the documentation site and checks its internal links (local equivalent of the `docs.yml` workflow) |
 
 `bun run dev` can be customized with a local `web-ext.config.ts` file: another browser, no
 browser, start page. See `web-ext.config.example.ts`.
@@ -179,13 +182,19 @@ All visible texts go through `t()` (keys of the `src/locales/en.yml` and `src/lo
 catalogs): no hard-coded text in components. English is the reference catalog; French must have
 the same keys and substitutions, and `bun run check:config` fails otherwise. Details: [Translations](https://github.com/Foufou-exe/homebox-clipper/wiki/Translations).
 
-## Documentation and wiki
+## Documentation site
 
-Wiki pages live in `docs/wiki/` (in English) and are reviewed like the rest of the code.
-They are published to the GitHub wiki automatically on every push to `main` that changes
-`docs/wiki/` (workflow `wiki.yml`, secret `WIKI_TOKEN`; skipped if the secret is absent, see the wiki page
-"Releasing"). `bun run wiki:publish` remains available as a manual action, to be run only
-with the maintainer's approval. Wiki links to repository files are absolute URLs (`blob/main`).
+The documentation is a website built from `docs/site/` (Astro Starlight, its own `package.json` and
+`bun.lock`), in English (`docs/site/src/content/docs/`) and French (`docs/site/src/content/docs/fr/`, same
+file names): change both languages in the same pull request. It is reviewed like the rest of the code and
+published on GitHub Pages by the `docs.yml` workflow on every push to `main` that changes `docs/site/`.
+Before pushing a documentation change, run `bun run docs:build`: it fails on a broken internal link or
+anchor. The site is not part of `bun run ci` (separate install, no effect on the extension).
+
+The GitHub wiki is no longer a source: `docs/wiki/` only holds redirect pages to the site, published by
+`wiki.yml` (secret `WIKI_TOKEN`; skipped if the secret is absent). `bun run wiki:publish` remains available
+as a manual action, to be run only with the maintainer's approval. Details: the "Releasing" page of the
+documentation.
 
 ## Maintaining the dev environment
 

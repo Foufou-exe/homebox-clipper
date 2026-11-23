@@ -15,8 +15,8 @@ Welcome, and thank you for using homebox-clipper! Here is where to go for what.
 
 ## Before you ask
 
-- The [Troubleshooting and FAQ](https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ) wiki page lists every error message of the extension with its fix.
-- The [wiki](https://github.com/Foufou-exe/homebox-clipper/wiki/Home) covers installation, configuration and usage.
+- The [Troubleshooting and FAQ](https://foufou-exe.github.io/homebox-clipper/troubleshooting-and-faq/) page of the documentation lists every error message of the extension with its fix.
+- The [documentation site](https://foufou-exe.github.io/homebox-clipper/) covers installation, configuration and usage.
 - Search the existing discussions and issues: your question may already have an answer.
 
 ## Privacy
