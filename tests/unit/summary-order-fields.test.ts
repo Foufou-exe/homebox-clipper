@@ -322,9 +322,11 @@ describe('US1: order fields section of the summary (option on)', () => {
 });
 
 describe('US2: option off — strictly unchanged (FR-014, FR-025, SC-002)', () => {
+  // ADAPTED (023): the item types are read at opening too.
   const HOMEBOX_TYPES = [
     'detect/run',
     'duplicate/check',
+    'entity-type/list',
     'location/list',
     'order-fields/get',
     'tag/list',

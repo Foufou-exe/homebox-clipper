@@ -174,6 +174,8 @@ export function previewDraft(base: ImportDraft): ImportDraft {
   const draft: ImportDraft = { ...base, location: null };
   delete draft.template;
   delete draft.complete;
+  // Spec 023: a completed or previewed item is never given a type.
+  delete draft.entityTypeId;
   return draft;
 }
 

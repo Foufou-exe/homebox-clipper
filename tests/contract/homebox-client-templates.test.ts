@@ -197,8 +197,8 @@ describe('client HomeBox — createFromTemplate (POST /api/v1/templates/{id}/cre
       parentId: 'loc-1',
       locationId: 'l',
       tagIds: ['t'],
-      entityTypeId: 'e',
     };
+    // ADAPTED (023): entityTypeId is now sent when given (covered in homebox-client-entity-types.test.ts).
     await client(m.fetch).createFromTemplate('tpl-1', extra as never);
     const sent = JSON.parse(m.calls[0]?.body as string) as Record<string, unknown>;
     expect(Object.keys(sent)).toEqual(['name', 'quantity', 'parentId']);

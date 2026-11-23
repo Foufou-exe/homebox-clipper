@@ -52,6 +52,18 @@ The orchestrator (`src/background/import/orchestrator.ts`) keeps the state of ea
 step is never replayed and, once the item's identifier is known, the item is never recreated**: a recovery
 only performs the remaining steps. On success, the kept purchase data is purged.
 
+### Entity type of the imported items (spec 023)
+
+The summary reads the item types of the target instance once (`entity-type/list`, `GET /api/v1/entity-types`,
+read-only, extension pages only) and shows a native « Type » select per product when there are at least two
+non-location types. The service worker works out the server default (the oldest non-location type, the one HomeBox
+applies when none is sent) and the last type used on the instance (`lastEntityTypeByInstance`, erased when the type
+is gone). `ImportDraft.entityTypeId` is present only for a type other than the server default, never with
+`complete`; `createEntity` and `createFromTemplate` add `entityTypeId` to the body only when it is present, so a draft
+without it produces exactly the requests of before. After a definite creation failure with a type, the types are read
+once more: a type that is gone gives `ENTITY_TYPE_NOT_FOUND`. After a batch that created an item, the type of the last
+created product is remembered (`null` erases the memory). A 404, an error or a single type hides the select.
+
 ### Import with a HomeBox item template (spec 018)
 
 When a template is chosen for a product (`ImportDraft.template`), the orchestrator follows a template path,
@@ -178,7 +190,7 @@ reception (`isMessage`). The router (`src/background/router.ts`):
 - answers `BAD_MESSAGE` to any invalid message or one coming from another extension, without running a
   handler;
 - reserves the `config/`, `session/`, `detect/`, `duplicate/`, `import/`, `location/`, `history/`,
-  `update/`, `tag/`, `instance/` and `template/` prefixes for the extension's pages (popup, options), never for injected scripts;
+  `update/`, `tag/`, `instance/`, `entity-type/` and `template/` prefixes for the extension's pages (popup, options), never for injected scripts;
 - calls the activity hook of the automatic lock (`src/background/config/auto-lock.ts`) for each accepted
   message from an extension page, before the handler;
 - converts any handler exception into a visible error, without detail.
@@ -187,7 +199,7 @@ Message families: configuration (`config/get|delete`), HomeBox instances
 (`instance/add|update|rename|test|delete`), session
 (`session/unlock|lock|open|get-policy|set-policy|change-passphrase`), updates (`update/state|dismiss|apply`, handled in
 `src/background/update/`),
-detection (`detect/run`), locations (`location/list`), HomeBox tags (`tag/list`, read-only, `src/background/tags/`),
+detection (`detect/run`), locations (`location/list`), HomeBox item types (`entity-type/list`, read-only, `src/background/entity-types/`), HomeBox tags (`tag/list`, read-only, `src/background/tags/`),
 HomeBox item templates (`template/list`, `template/get`, `template/check`, `template/get-default`,
 `template/set-default`, `src/background/templates/`: read-only on the templates, never a template write;
 `template/get-default` needs neither the network nor the key), order fields as HomeBox custom fields
@@ -211,7 +223,7 @@ instances and stays unchanged (`src/background/import/orchestrator.ts`); its con
 
 | Where | What |
 |-------|------|
-| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). Default item template per instance (`defaultTemplateByInstance`: `{ [instanceId]: { id, name } }`, erased with the instance or the settings, spec 018). Order-fields setting per instance (`orderFieldsByInstance`: `{ [instanceId]: { enabled, names: { orderNumber, merchant, orderUrl } } }`, erased with the instance or the settings, spec 019). |
+| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). Default item template per instance (`defaultTemplateByInstance`: `{ [instanceId]: { id, name } }`, erased with the instance or the settings, spec 018). Order-fields setting per instance (`orderFieldsByInstance`: `{ [instanceId]: { enabled, names: { orderNumber, merchant, orderUrl } } }`, erased with the instance or the settings, spec 019). Last item type used per instance (`lastEntityTypeByInstance`: `{ [instanceId]: typeId }`, identifiers only, erased with the instance or the settings, spec 023). |
 | `storage.session` | Decrypted keys by instance and open history key (`homeboxUnlocked`, `{ v: 2, keys, historyKey }`; a former `{ apiKey }` is read as the key of the single instance), last activity (`homeboxActivity`, for the inactivity lock), version ready to install (`updateReady`) and in-progress imports (`pendingImport:<tab>:<id>`). Memory, cleared when the browser closes. |
 
 The vault and the instances live in `src/background/config/instance-store.ts` (validated reads, a single write

@@ -12,6 +12,7 @@ import type {
   ConfigView,
   DetectedPurchase,
   DuplicateCheck,
+  EntityTypeListView,
   HistoryListView,
   ImportDraft,
   LocationChoice,
@@ -63,6 +64,8 @@ export type Message =
   // Spec 016: every message that contacts HomeBox names its target instance; no fallback to a default one.
   | { type: 'duplicate/check'; instanceId: string; orderNumber: string; name: string }
   | { type: 'location/list'; instanceId: string }
+  // Spec 023: item types of the target instance, read-only, extension pages only (`entity-type/` prefix).
+  | { type: 'entity-type/list'; instanceId: string }
   // Automatic tags (014): read-only, extension pages only; never the address or the key.
   | { type: 'tag/list'; instanceId: string }
   // HomeBox item templates (018): extension pages only (`template/` prefix); never the address or the key.
@@ -83,6 +86,8 @@ export type Message =
       manualFiles: ManualFile[];
       /** Order-level choice: only used to remember the last location (R10). */
       orderLocationId?: string | null;
+      /** Spec 023: the item types were read at opening; only then may a default-type import erase the remembered type. */
+      entityTypesRead?: boolean;
     }
   | {
       type: 'import/retry';
@@ -144,6 +149,7 @@ export interface ResponseMap {
   'detect/run': Result<DetectResult>;
   'duplicate/check': Result<DuplicateCheck>;
   'location/list': Result<{ locations: LocationOption[]; lastUsedId: string | null }>;
+  'entity-type/list': Result<EntityTypeListView>;
   'tag/list': Result<{ tags: TagOption[] }>;
   'template/list': Result<TemplateListView>;
   'template/get': Result<{ template: TemplateDetail }>;
@@ -330,12 +336,16 @@ const isCompletionChoice = (x: unknown, d: Record<string, unknown>): boolean => 
   const targets = completionTargets(d);
   return keys.every((k) => isCompletionKey(k, targets));
 };
+/** `ImportDraft.entityTypeId` (spec 023): absent (never `null`), or a string of 1 to 64 characters, never with `complete`. */
+const isEntityTypeChoice = (d: Record<string, unknown>): boolean =>
+  d.entityTypeId === undefined || (strLen(d.entityTypeId, 1, 64) && d.complete === undefined);
 const areDrafts = (x: unknown): boolean =>
   isArr(x) &&
   x.every(
     (d) =>
       isObj(d) &&
       isCompletionChoice(d.complete, d) &&
+      isEntityTypeChoice(d) &&
       isDraftPhoto(d.photo) &&
       isOptionalLocation(d.location) &&
       isTemplateChoice(d.template) &&
@@ -374,6 +384,7 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'detect/run': (m) => isInt(m.tabId),
   'duplicate/check': (m) => isInstanceId(m.instanceId) && isStr(m.orderNumber) && isStr(m.name),
   'location/list': (m) => isInstanceId(m.instanceId),
+  'entity-type/list': (m) => isInstanceId(m.instanceId),
   'tag/list': (m) => isInstanceId(m.instanceId),
   'template/list': (m) => isInstanceId(m.instanceId),
   'template/get': (m) => isInstanceId(m.instanceId) && isTemplateId(m.templateId),
@@ -388,7 +399,8 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
     isInt(m.tabId) &&
     areDrafts(m.drafts) &&
     isArr(m.manualFiles) &&
-    (m.orderLocationId === undefined || m.orderLocationId === null || isStr(m.orderLocationId)),
+    (m.orderLocationId === undefined || m.orderLocationId === null || isStr(m.orderLocationId)) &&
+    (m.entityTypesRead === undefined || typeof m.entityTypesRead === 'boolean'),
   'import/retry': (m) =>
     isStr(m.pendingId) && (m.manualFiles === undefined || isArr(m.manualFiles)) && isOptionalLocation(m.location),
   'import/abandon': (m) => isStr(m.pendingId),
@@ -399,6 +411,7 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
     areDrafts([m.draft]) &&
     isObj(m.draft) &&
     m.draft.complete === undefined &&
+    m.draft.entityTypeId === undefined &&
     m.draft.template === undefined,
   'import/pending': (m) => isInt(m.tabId),
   'history/list': () => true,

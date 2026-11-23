@@ -295,7 +295,8 @@ describe('router — session/* and update/* reserved to extension pages, activit
     const source = readFileSync(resolve(__dirname, '../../src/background/router.ts'), 'utf8');
     const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='))!;
     const list = [...line.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'history/', 'update/', 'tag/', 'instance/', 'template/', 'order-fields/']);
+    // ADAPTED (023): 'entity-type/' is reserved to extension pages too.
+    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'entity-type/', 'history/', 'update/', 'tag/', 'instance/', 'template/', 'order-fields/']);
   });
 
   it.each(MESSAGES)('$type from an extension page: the hook runs before the handler', async (msg) => {

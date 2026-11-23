@@ -50,6 +50,10 @@ export const ERROR_CODES = [
   'FIELD_NAMES_UNAVAILABLE',
   // Spec 021 (complete an existing item).
   'ITEM_NOT_FOUND',
+  // Spec 023 (entity type of the imported items).
+  'ENTITY_TYPES_UNAVAILABLE',
+  'ENTITY_TYPES_UNSUPPORTED',
+  'ENTITY_TYPE_NOT_FOUND',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

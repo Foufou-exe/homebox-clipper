@@ -62,6 +62,9 @@ watch(
   { immediate: true },
 );
 
+/** Spec 023: the chosen item type disappeared and nothing was created: a retry would fail again, only abandon is offered. */
+const typeGone = computed(() => props.pending.error === 'ENTITY_TYPE_NOT_FOUND' && !props.pending.entityId);
+
 /** Spec 021: a completion of an existing item (never "created"); `itemGone`: the item was deleted, only abandon. */
 const completion = computed(() => props.pending.draft.complete ?? null);
 const itemGone = computed(() => completion.value !== null && props.pending.error === 'ITEM_NOT_FOUND');
@@ -178,7 +181,7 @@ async function abandon() {
 
     <div class="actions">
       <button
-        v-if="!duplicateBlocked && !itemGone"
+        v-if="!duplicateBlocked && !itemGone && !typeGone"
         class="primary"
         type="button"
         :disabled="busy || manualToReselect.length > 0 || (locationGone && !newLocation)"

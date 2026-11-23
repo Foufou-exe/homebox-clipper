@@ -138,6 +138,20 @@ If a tag cannot be created or attached, the item and its data are kept: the resu
 *Tags not added: …* and **Retry** applies only the missing tags, without recreating the item or the tags
 already created. The chosen tags are never stored in the import history.
 
+## Item type
+
+If your HomeBox instance has at least two item types (HomeBox v0.26.0 or later), a **Type** select appears under
+each product of the summary. It lists the item types of the instance (never the location types), set to the last
+type you used on this instance, or else to the **server default** (the type HomeBox gives an item when none is
+sent). With the default type, no type is sent and the import is exactly the same as without this choice.
+
+- The type is chosen **per product**; changing the target instance resets the choices, because a type belongs to one
+  instance.
+- With a single item type, or on an instance that does not offer types, no select is shown and nothing changes.
+- If the type you chose was deleted in HomeBox meanwhile, nothing is created and the message says so: abandon the
+  import and start again with another type.
+- The extension only reads the types (`GET /api/v1/entity-types`); it never creates, changes or deletes one.
+
 ## HomeBox item templates
 
 If your HomeBox instance has item templates (HomeBox v0.22.1 or later), a **Template** picker appears under each

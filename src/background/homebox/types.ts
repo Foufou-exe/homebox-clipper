@@ -10,6 +10,18 @@ export interface EntityCreate {
   quantity?: number;
   /** Location identifier; never `locationId` (unknown = 422, R2). Absent when none is chosen: body unchanged (SC-006). */
   parentId?: string;
+  /** Spec 023: only when the user chose a type other than the server default; absent keeps the body unchanged. */
+  entityTypeId?: string;
+}
+
+/** `repo.EntityTypeSummary` (Swagger v0.27.1, spec 023): entry of `GET /entity-types`, reduced to what is used. */
+export interface EntityTypeSummaryOut {
+  id: string;
+  name: string;
+  /** Location types are never offered nor sent. */
+  isLocation: boolean;
+  /** Oldest non-location type = type applied by HomeBox when none is sent. */
+  createdAt?: string;
 }
 
 export interface TreeItem {
@@ -181,4 +193,6 @@ export interface TemplateCreateItem {
   quantity: number;
   /** Required by HomeBox: identifier of the effective location. */
   parentId: string;
+  /** Spec 023: only when the user chose a type other than the server default. */
+  entityTypeId?: string;
 }

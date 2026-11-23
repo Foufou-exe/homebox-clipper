@@ -2,6 +2,7 @@ import * as autoLock from '@/background/config/auto-lock';
 import { configStore } from '@/background/config/config-store';
 import { instanceStore } from '@/background/config/instance-store';
 import { lastLocation } from '@/background/location/last-location';
+import { lastEntityType } from '@/background/entity-types/last-entity-type';
 import { injectExtractor } from '@/background/detect';
 import { createHomeBoxClient } from '@/background/homebox/client';
 import { importHistoryKey } from '@/background/history/history-crypto';
@@ -80,6 +81,8 @@ async function orchestrator(instanceId: string, started: string[] = []): Promise
     fetchPhoto,
     // Last location used, specific to this instance (R10, indexed by id since spec 016): identifier only.
     rememberLocation: (id) => lastLocation.set(target, id),
+    // Last entity type used with this instance (spec 023): identifier only; `null` erases it.
+    rememberEntityType: (id) => lastEntityType.set(target, id),
     ...(writer
       ? { history: { start: (p: PendingImport) => writer.start(p, config.baseUrl), update: (p: PendingImport) => writer.update(p) } }
       : {}),
@@ -130,7 +133,7 @@ async function lockAfterImport(): Promise<void> {
 }
 
 export function registerImportHandlers(): void {
-  register('import/start', async ({ instanceId, tabId, drafts, manualFiles, orderLocationId }) => {
+  register('import/start', async ({ instanceId, tabId, drafts, manualFiles, orderLocationId, entityTypesRead }) => {
     // Defense in depth (spec 019): order fields are refused, before any request, if the option is off for the target.
     if (drafts.some((d) => d.orderFields !== undefined) && !(await orderFieldSettings.get(instanceId)).enabled) {
       return fail('BAD_MESSAGE');
@@ -141,7 +144,7 @@ export function registerImportHandlers(): void {
     try {
       const o = await orchestrator(instanceId, started);
       if (!o.ok) return o;
-      const res = await o.value.startImport(tabId, drafts, manualFiles, orderLocationId ?? null);
+      const res = await o.value.startImport(tabId, drafts, manualFiles, orderLocationId ?? null, entityTypesRead === true);
       if (!res.ok) return res;
       await rememberInstance(instanceId, res.value);
       return ok(res.value.map((p) => ({ ...p, instanceId })));
