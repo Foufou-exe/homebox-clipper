@@ -496,7 +496,7 @@ describe('interface texts: everything comes from fr.yml (FR-004)', () => {
       // ADAPTED (014): the tag list is also read at opening (contracts/ui.md), still no import/start.
       // ADAPTED (018): the template list is also read at opening (contracts/ui.md §1.1).
       // ADAPTED (019): the order-fields setting is also read at opening (local, no HomeBox request; contracts/ui.md §2.1).
-      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'order-fields/get', 'tag/list', 'template/list']);
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'entity-type/list', 'location/list', 'order-fields/get', 'tag/list', 'template/list']); // ADAPTED (023): item types read at opening
       expect(fetchSpy).not.toHaveBeenCalled();
       await wrapper.find('button.primary').trigger('click');
       await flushPromises();
@@ -782,7 +782,7 @@ describe('location choice (US2, US3)', () => {
       // ADAPTED (014): the tag list is read in parallel too (contracts/ui.md).
       // ADAPTED (018): the template list is read in parallel too (contracts/ui.md §1.1).
       // ADAPTED (019): the order-fields setting is read in parallel too (local, no HomeBox request; contracts/ui.md §2.1).
-      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'location/list', 'order-fields/get', 'tag/list', 'template/list']);
+      expect(vi.mocked(send).mock.calls.map(([m]) => m.type).sort()).toEqual(['detect/run', 'entity-type/list', 'location/list', 'order-fields/get', 'tag/list', 'template/list']); // ADAPTED (023): item types read at opening
       await flushPromises();
       expect(wrapper.text()).toContain('Chargement des emplacements…');
       expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined();

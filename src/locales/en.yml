@@ -49,6 +49,9 @@ error:
   ORDER_FIELDS_FAILED: "The item was created but the order fields could not be saved."
   FIELD_NAMES_UNAVAILABLE: "The custom field names of this HomeBox instance could not be read."
   ITEM_NOT_FOUND: "The chosen HomeBox item no longer exists. Nothing was changed."
+  ENTITY_TYPES_UNAVAILABLE: "HomeBox item types could not be retrieved."
+  ENTITY_TYPES_UNSUPPORTED: "This HomeBox version does not support item types."
+  ENTITY_TYPE_NOT_FOUND: "The chosen item type no longer exists in HomeBox. Nothing was created: abandon this import and start again with another type."
 
 common:
   instanceAria: "HomeBox instance in use"
@@ -488,6 +491,12 @@ tags:
       containsTooLong: "The text is too long (100 characters at most)."
       tagEmpty: "Enter the tag name."
       tagTooLong: "The tag name is too long."
+
+entityType:
+  label: "Type"
+  pickerFor: "Type for $1"
+  serverDefault: "Server default"
+  defaultSuffix: "$1 (default)"
 
 templates:
   label: "Template"

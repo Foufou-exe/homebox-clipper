@@ -49,6 +49,9 @@ error:
   ORDER_FIELDS_FAILED: "L'objet a été créé, mais les champs de commande n'ont pas pu être enregistrés."
   FIELD_NAMES_UNAVAILABLE: "Impossible de lire les noms des champs personnalisés de cette instance HomeBox."
   ITEM_NOT_FOUND: "L'objet HomeBox choisi n'existe plus. Rien n'a été modifié."
+  ENTITY_TYPES_UNAVAILABLE: "Les types d'objets HomeBox n'ont pas pu être obtenus."
+  ENTITY_TYPES_UNSUPPORTED: "Cette version de HomeBox ne prend pas en charge les types d'objets."
+  ENTITY_TYPE_NOT_FOUND: "Le type d'objet choisi n'existe plus dans HomeBox. Rien n'a été créé : abandonnez cet import et recommencez en choisissant un autre type."
 
 common:
   instanceAria: "Instance HomeBox utilisée"
@@ -488,6 +491,12 @@ tags:
       containsTooLong: "Le texte est trop long (100 caractères au maximum)."
       tagEmpty: "Saisissez le nom du tag."
       tagTooLong: "Le nom du tag est trop long."
+
+entityType:
+  label: "Type d'objet"
+  pickerFor: "Type d'objet pour $1"
+  serverDefault: "Type par défaut du serveur"
+  defaultSuffix: "$1 (par défaut)"
 
 templates:
   label: "Modèle"

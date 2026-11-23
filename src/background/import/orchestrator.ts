@@ -56,6 +56,11 @@ export interface OrchestratorDeps {
    */
   rememberLocation?(locationId: string): Promise<void>;
   /**
+   * Remembers the last entity type used with this instance (spec 023): a type identifier, or `null` when the server
+   * default was used (the memory is erased). Optional, and a write error never interrupts the import.
+   */
+  rememberEntityType?(entityTypeId: string | null): Promise<void>;
+  /**
    * Local import history (spec 012), bound to the history key and to the instance by the caller. Optional:
    * without it, the import behaves exactly as before. A write error never interrupts the import.
    */
@@ -160,6 +165,8 @@ function purchasePatch(draft: ImportDraft, current: EntityOut): Partial<EntityUp
 }
 
 type TemplateDraft = ImportDraft & { template: TemplateChoice };
+/** Spec 023: `entityTypeId` only when the draft carries one; the creation body is otherwise unchanged. */
+const entityTypeOf = (d: ImportDraft): { entityTypeId?: string } => (d.entityTypeId ? { entityTypeId: d.entityTypeId } : {});
 const hasTemplate = (d: ImportDraft): d is TemplateDraft => d.template !== undefined;
 
 type OrderDraft = ImportDraft & { orderFields: OrderFieldValue[] };
@@ -474,6 +481,25 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   }
 
   /**
+   * Spec 023: after a definite creation failure with a chosen type, the list of types is read again once: a type that
+   * is gone (or is a location type) is `ENTITY_TYPE_NOT_FOUND`; otherwise, or if the list cannot be read, `code`.
+   */
+  async function entityTypeFailureFor(entityTypeId: string | undefined, code: ErrorCode): Promise<ErrorCode> {
+    if (!entityTypeId || code !== 'CREATE_FAILED') return code;
+    const list = await client.listEntityTypes();
+    if (!list.ok) return code;
+    return list.value.some((t) => t.id === entityTypeId && !t.isLocation) ? code : 'ENTITY_TYPE_NOT_FOUND';
+  }
+
+  /** Code of a definite creation failure: the location, the template (spec 018), then the entity type (spec 023). */
+  async function definiteFailureFor(p: PendingImport): Promise<ErrorCode> {
+    const code = p.draft.template
+      ? await templateCreationFailureFor(p.draft.template, p.draft.location)
+      : await creationFailureFor(p.draft.location);
+    return entityTypeFailureFor(p.draft.entityTypeId, code);
+  }
+
+  /**
    * Re-check of the templates of a batch (spec 018, FR-020, invariant 2): one read per distinct template, before any
    * persistence or creation. Deleted → `TEMPLATE_NOT_FOUND`; fingerprint different from the one confirmed →
    * `TEMPLATE_CHANGED`; another failure → its code. Never called for a batch without template.
@@ -537,6 +563,20 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     }
   }
 
+  /** Writes the last-entity-type memory (spec 023): the type of the last product created; never blocks the import. */
+  async function rememberType(results: PendingImport[], typesRead: boolean): Promise<void> {
+    const last = results.filter((r) => r.entityId && !r.draft.complete).at(-1);
+    if (!last || !deps.rememberEntityType) return;
+    const id = last.draft.entityTypeId ?? null;
+    // Without a type list read at opening, « no type » says nothing: the remembered type is kept.
+    if (id === null && !typesRead) return;
+    try {
+      await deps.rememberEntityType(id);
+    } catch {
+      // memory not written: no consequence for the import
+    }
+  }
+
   /** Start of a run: the import becomes `running` again and is no longer orphaned. */
   async function begin(p: PendingImport): Promise<void> {
     delete p.orphaned;
@@ -555,8 +595,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     p.status = 'failed';
     const acceptedButUnreadable = httpStatus !== undefined && httpStatus >= 200 && httpStatus < 300;
     if (error !== 'CREATE_FAILED') p.error = error;
-    else if (p.draft.template && !acceptedButUnreadable) p.error = await templateCreationFailureFor(p.draft.template, p.draft.location);
-    else p.error = await creationFailureFor(p.draft.location);
+    else if (acceptedButUnreadable) p.error = await creationFailureFor(p.draft.location);
+    else p.error = await definiteFailureFor(p);
     if (error === 'HOMEBOX_UNREACHABLE' || acceptedButUnreadable) p.createUncertain = true;
     else p.createAttempted = false;
     await persist(p);
@@ -586,6 +626,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
           description: draft.description || undefined,
           quantity: draft.quantity,
           parentId: location.id,
+          ...entityTypeOf(draft),
         })
       : await client.createEntity({
           name: draft.name,
@@ -593,6 +634,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
           quantity: draft.quantity,
           // `parentId` only when a location is chosen: with no choice, the body stays that of spec 001.
           ...(location ? { parentId: location.id } : {}),
+          ...entityTypeOf(draft),
         });
     if (!res.ok) {
       await createFailed(p, res.error, res.httpStatus);
@@ -1159,10 +1201,12 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       manualFiles: ManualFile[],
       /** Order-level choice, for the last-location memory (R10). */
       orderLocationId: string | null = null,
+      /** Spec 023: the type list was read at opening (otherwise the remembered type is never erased). */
+      entityTypesRead = false,
     ): Promise<Result<PendingImport[]>> {
       if (drafts.some((d) => d.name.trim() === '')) return fail('PRODUCT_NOT_FOUND');
       // Spec 021 (defense, C4): a completed item never gets a template nor a location; refused before any request.
-      if (drafts.some((d) => d.complete && (d.template || d.location))) return fail('BAD_MESSAGE');
+      if (drafts.some((d) => d.complete && (d.template || d.location || d.entityTypeId))) return fail('BAD_MESSAGE');
       const files = filesFrom(manualFiles);
       const photos: PhotoMap = new Map();
       // Invalid manual files are rejected before any HomeBox call.
@@ -1208,6 +1252,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       const results: PendingImport[] = [];
       for (const pending of pendings) results.push(await run(pending, files, photos, tagCache)); // NOSONAR: sequential on purpose (imports share the photo and tag caches)
       await remember(orderLocationId, results);
+      await rememberType(results, entityTypesRead);
       return ok(results);
     },
 

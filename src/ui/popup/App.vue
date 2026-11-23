@@ -122,12 +122,14 @@ async function onSubmit({
   drafts,
   manualFiles,
   orderLocationId,
+  entityTypesRead,
   duplicateCheckFailed: failed,
 }: {
   instanceId: string;
   drafts: ImportDraft[];
   manualFiles: ManualFile[];
   orderLocationId: string | null;
+  entityTypesRead?: boolean;
   duplicateCheckFailed?: boolean;
 }) {
   if (tabId.value === null) return;
@@ -142,7 +144,7 @@ async function onSubmit({
       error.value = 'NOT_CONFIGURED';
       return;
     }
-    const res = await send({ type: 'import/start', instanceId, tabId: tabId.value, drafts, manualFiles, orderLocationId });
+    const res = await send({ type: 'import/start', instanceId, tabId: tabId.value, drafts, manualFiles, orderLocationId, ...(entityTypesRead ? { entityTypesRead } : {}) });
     if (res.ok) res.value.forEach(upsert);
     else error.value = res.error;
   } finally {

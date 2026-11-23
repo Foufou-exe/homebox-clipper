@@ -3,6 +3,7 @@ import { configStore } from '@/background/config/config-store';
 import { instanceStore } from '@/background/config/instance-store';
 import { registerConfigHandlers } from '@/background/config/handlers';
 import { registerDetectHandlers } from '@/background/detect';
+import { registerEntityTypeHandlers } from '@/background/entity-types/handlers';
 import { registerHistoryHandlers } from '@/background/history/handlers';
 import { registerImportHandlers } from '@/background/import/handlers';
 import { registerLocationHandlers } from '@/background/location/handlers';
@@ -26,6 +27,7 @@ export default defineBackground(() => {
   registerDetectHandlers();
   registerImportHandlers();
   registerLocationHandlers();
+  registerEntityTypeHandlers();
   registerTagHandlers();
   registerTemplateHandlers();
   registerOrderFieldHandlers();

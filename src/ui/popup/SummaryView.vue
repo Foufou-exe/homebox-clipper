@@ -22,6 +22,7 @@ import type {
 } from '@/shared/types';
 import CompletionDialog, { type CompletionItem } from '@/ui/components/CompletionDialog.vue';
 import DocumentPicker from '@/ui/components/DocumentPicker.vue';
+import EntityTypePicker from '@/ui/components/EntityTypePicker.vue';
 import ErrorBanner from '@/ui/components/ErrorBanner.vue';
 import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
@@ -34,6 +35,7 @@ import TemplatePicker from '@/ui/components/TemplatePicker.vue';
 import TemplateSection from '@/ui/components/TemplateSection.vue';
 import WarrantyField from '@/ui/components/WarrantyField.vue';
 import OrderLocationField from './OrderLocationField.vue';
+import { useEntityTypes } from './entity-types';
 import { completedDraft, previewDraft, primaryLabel, type LineChoice } from './completion';
 import { DOCUMENT_KIND_KEYS, DOCUMENT_KIND_OPTIONS } from '@/ui/document-kind-keys';
 import { t } from '@/ui/i18n';
@@ -85,6 +87,8 @@ const emit = defineEmits<{
       drafts: ImportDraft[];
       manualFiles: ManualFile[];
       orderLocationId: string | null;
+      /** Spec 023: the item type list was read (selector shown): only then may a default-type import erase the memory. */
+      entityTypesRead: boolean;
       duplicateCheckFailed: boolean;
     },
   ];
@@ -321,6 +325,21 @@ async function loadTemplates() {
 }
 
 /**
+ * Entity type of each product (spec 023, contracts/ui.md §1): read in parallel with the locations and tags, by
+ * generation (an answer for a former target is ignored). No selector and no banner when the instance has no types or a
+ * single one, or when the read fails: the screen and the import are then exactly those of before.
+ */
+const entityTypes = useEntityTypes();
+const entityTypeView = entityTypes.view;
+
+function loadEntityTypes(): Promise<void> {
+  const instanceId = target.value;
+  const gen = generation;
+  if (!instanceId) return Promise.resolve();
+  return entityTypes.load(() => send({ type: 'entity-type/list', instanceId }), () => gen === generation);
+}
+
+/**
  * Order-fields setting of the target instance (spec 019, contracts/ui.md §2.1): a local read, no HomeBox request
  * (FR-014). Absent, failed, thrown or malformed answer ⇒ `null`: no section, the option is considered off.
  */
@@ -462,11 +481,13 @@ async function changeTarget(id: string) {
   editingLines.clear();
   tagOptions.value = [];
   tagState.value = 'loading';
+  // Spec 023: a type belongs to one instance; the choices are reset and the types of the new target are read.
+  entityTypes.reset();
   for (const line of lines.value) {
     line.location = 'inherit';
     for (const tag of line.tags) tag.id = null;
   }
-  await Promise.all([loadLocations(), loadTags(), loadTemplates(), loadOrderSettings()]);
+  await Promise.all([loadLocations(), loadTags(), loadTemplates(), loadEntityTypes(), loadOrderSettings()]);
   if (gen === generation && targetInstance.value) {
     announce.value = [t('summary.instanceLoaded', [targetInstance.value.name]), orderNotice(orderBefore)].filter(Boolean).join(' ');
   }
@@ -542,6 +563,7 @@ onMounted(async () => {
   void loadLocations();
   void loadTags();
   void loadTemplates();
+  void loadEntityTypes();
   void loadOrderSettings();
   // Read at each opening (never cached); an unreadable storage gives the defaults, never a blocked popup.
   const [res, settings, tagSettings] = await Promise.all([
@@ -877,6 +899,8 @@ function draftOf(l: Line, docs: DocumentRef[]): ImportDraft {
     warranty: l.draft.warranty ? { ...l.draft.warranty, expires: l.draft.warranty.lifetime ? null : l.draft.warranty.expires } : null,
     // Only the checked tags, as plain copies; no key at all without a checked tag (sequence unchanged).
     ...checkedTags(l),
+    // Spec 023: `entityTypeId` only for a type other than the server default; no key at all otherwise.
+    ...entityTypes.draftFor(l.key),
     ...templateOf(l),
     ...orderFieldsOf(l),
   };
@@ -922,6 +946,7 @@ async function submit(completions?: ReadonlyMap<string, CompletionChoice>) {
     }),
     // Order choice alone: the service worker uses it to remember the last location (R10).
     orderLocationId: orderLocation.value?.id ?? null,
+    entityTypesRead: entityTypeView.value !== null,
     duplicateCheckFailed: duplicateCheckFailed.value,
   });
 }
@@ -990,6 +1015,15 @@ async function submit(completions?: ReadonlyMap<string, CompletionChoice>) {
         </div>
         <p v-else-if="line.selected && line.product" class="photo muted">{{ t('summary.photoNone') }}</p>
         <FieldEditor v-if="line.selected" v-model="line.draft" :missing="missingFields(purchase, line.product)" />
+        <EntityTypePicker
+          v-if="line.selected && entityTypeView"
+          :options="entityTypeView.types"
+          :model-value="entityTypes.selectedFor(line.key)"
+          :default-id="entityTypeView.defaultId"
+          :product-name="productName(line)"
+          :disabled="submitting || dialog.kind !== 'none'"
+          @update:model-value="entityTypes.choose(line.key, $event)"
+        />
         <template v-if="line.selected && templateState === 'ready'">
           <TemplatePicker
             :options="templateOptions"

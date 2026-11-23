@@ -6,6 +6,7 @@ import type {
   EntityField,
   EntityOut,
   EntitySummary,
+  EntityTypeSummaryOut,
   EntityUpdate,
   StatusOut,
   TagCreate,
@@ -66,6 +67,21 @@ function toTemplateSummary(x: unknown): TemplateSummary | null {
     name,
     ...(typeof description === 'string' ? { description } : {}),
     ...(typeof updatedAt === 'string' ? { updatedAt } : {}),
+  };
+}
+
+const MAX_ENTITY_TYPES = 200;
+
+/** Entry of an entity type list (spec 023) with a textual `id` and a `name` of 1 to 255 characters; otherwise `null`. */
+function toEntityTypeSummary(x: unknown): EntityTypeSummaryOut | null {
+  if (typeof x !== 'object' || x === null) return null;
+  const { id, name, isLocation, createdAt } = x as Record<string, unknown>;
+  if (typeof id !== 'string' || typeof name !== 'string' || name.length < 1 || name.length > 255) return null;
+  return {
+    id,
+    name,
+    isLocation: isLocation === true,
+    ...(typeof createdAt === 'string' ? { createdAt } : {}),
   };
 }
 
@@ -155,6 +171,26 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
       const json = await readJson<EntityOut>(res, 'CREATE_FAILED');
       if (json.ok && typeof json.value?.id !== 'string') return fail('CREATE_FAILED', res.ok ? res.value.status : undefined);
       return json;
+    },
+
+    /**
+     * GET /entity-types (spec 023): read-only. Entries without a textual `id` and a valid `name` are ignored, at most
+     * 200 are kept; 404 means an instance without entity types (`ENTITY_TYPES_UNSUPPORTED`). Neither a name nor an
+     * identifier is logged.
+     */
+    async listEntityTypes(): Promise<Result<EntityTypeSummaryOut[]>> {
+      const res = on404(
+        await request('GET', '/entity-types', {
+          auth: true,
+          endpoint: 'GET /entity-types',
+          onHttpError: 'ENTITY_TYPES_UNAVAILABLE',
+        }),
+        'ENTITY_TYPES_UNSUPPORTED',
+      );
+      const json = await readJson<unknown>(res, 'ENTITY_TYPES_UNAVAILABLE');
+      if (!json.ok) return json;
+      if (!Array.isArray(json.value)) return fail('ENTITY_TYPES_UNAVAILABLE');
+      return ok(json.value.flatMap((x) => toEntityTypeSummary(x) ?? []).slice(0, MAX_ENTITY_TYPES));
     },
 
     /** GET /entities/tree (without `withItems`): location tree. No name is logged. */
@@ -307,7 +343,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
 
     /**
      * POST /templates/{id}/create-item (spec 018, research D2): the body is exactly `{ name, description?, quantity,
-     * parentId }` (never `locationId`, `tagIds` or `entityTypeId`). Failures as `createEntity`: an unreadable 2xx
+     * parentId, entityTypeId? }` (never `locationId` or `tagIds`; `entityTypeId` only when the user chose a type, spec 023). Failures as `createEntity`: an unreadable 2xx
      * answer or one without `id` is `CREATE_FAILED` with the 2xx status (uncertain creation).
      */
     async createFromTemplate(id: string, data: TemplateCreateItem): Promise<Result<EntityOut>> {
@@ -316,6 +352,7 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
         ...(data.description ? { description: data.description } : {}),
         quantity: data.quantity,
         parentId: data.parentId,
+        ...(data.entityTypeId ? { entityTypeId: data.entityTypeId } : {}),
       };
       const res = await request('POST', `/templates/${encodeURIComponent(id)}/create-item`, {
         auth: true,

@@ -105,6 +105,22 @@ export interface LocationOption {
   path: string[];
 }
 
+/** Item type (non-location) offered to the interface: subset of `repo.EntityTypeSummary` (spec 023). */
+export interface EntityTypeOption {
+  id: string;
+  name: string;
+}
+
+/** Answer of `entity-type/list` (spec 023, data-model §1). */
+export interface EntityTypeListView {
+  /** Non-location types, sorted by name then identifier. */
+  types: EntityTypeOption[];
+  /** Type HomeBox applies when none is sent (oldest non-location type); `null` when it cannot be told. */
+  defaultId: string | null;
+  /** Last type used with this instance, only if it is in `types`; otherwise `null`. */
+  lastUsedId: string | null;
+}
+
 /** HomeBox tag offered to the interface: subset of `repo.TagSummary` (spec 014). */
 export interface TagOption {
   id: string;
@@ -237,6 +253,11 @@ export interface ImportDraft {
    * (no tag request, no `tagIds` key in the PUT). Absent from a state persisted by a previous version.
    */
   tags?: TagChoice[];
+  /**
+   * Spec 023: HomeBox entity type chosen for this product when it differs from the server default. Absent (never
+   * `null`, never empty): no `entityTypeId` is sent and the item is created exactly as before. Never with `complete`.
+   */
+  entityTypeId?: string;
   /** Spec 018: template chosen and confirmed values. Absent (never null): created exactly as before (FR-016). */
   template?: TemplateChoice;
   /**
