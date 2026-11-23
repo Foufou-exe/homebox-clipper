@@ -67,6 +67,9 @@ import {
   type OrderFieldRow,
 } from './order-fields';
 import { isOrderFieldSettings, type OrderFieldSettings } from '@/shared/order-fields';
+import { orderLinkUrl } from '@/shared/order-link';
+import { loadOrderLinkEnabled } from '@/ui/order-link-settings';
+import OrderLinkField from '@/ui/components/OrderLinkField.vue';
 import { loadWarrantySettings } from '@/ui/warranty-settings';
 import { loadTagSettings } from '@/ui/tag-settings';
 import { DEFAULT_TAG_SETTINGS, findExisting, normalizeTagName, tagKey, tagNameError, type TagLine, type TagSettings } from '@/shared/tags';
@@ -134,6 +137,8 @@ interface Line {
    * change of target or template (FR-015, FR-018); gone with the popup.
    */
   orderFields: LineOrderFields;
+  /** Spec 025: box « add a link to the order page » (checked by default); in memory only, kept across targets. */
+  orderLink: boolean;
 }
 
 const loading = ref(true);
@@ -362,6 +367,35 @@ async function loadOrderSettings() {
   }
 }
 
+/**
+ * Order-page link setting of the target instance (spec 025, contracts/ui.md §2): a local storage read (no message, no HomeBox request).
+ * Absent, failed, thrown or malformed entry ⇒ `false`: no box, the option is considered off.
+ */
+const orderLinkOn = ref(false);
+
+async function loadOrderLinkSettings() {
+  const instanceId = target.value;
+  const gen = generation;
+  if (!instanceId) {
+    orderLinkOn.value = false;
+    return;
+  }
+  try {
+    const enabled = await loadOrderLinkEnabled(instanceId);
+    if (gen !== generation) return; // answer for a former target
+    orderLinkOn.value = enabled;
+  } catch {
+    if (gen === generation) orderLinkOn.value = false;
+  }
+}
+
+/** Address of the order page that can be attached for a line, or `null` (no box then). */
+const linkUrlOf = (line: Line): string | null => orderLinkUrl(line.draft.pageUrl);
+function linkNotice(before: boolean): string {
+  if (orderLinkOn.value === before) return '';
+  return orderLinkOn.value ? t('orderLink.shown') : t('orderLink.hidden');
+}
+
 /** Rows of the order fields of a line, with the settings of the target (only called with the option on). */
 const rowsOf = (line: Line): OrderFieldRow[] =>
   orderSettings.value ? orderFieldRows(orderSettings.value, line.draft, line.orderFields, line.template) : [];
@@ -461,7 +495,9 @@ async function changeTarget(id: string) {
   for (const line of lines.value) if (line.template.id !== null) dropTemplate(line);
   // Spec 019: the section follows the settings of the new target; the values typed are kept (FR-015).
   const orderBefore = orderShape();
+  const linkBefore = orderLinkOn.value;
   orderSettings.value = null;
+  orderLinkOn.value = false;
   target.value = id;
   const gen = ++generation;
   details.clear();
@@ -487,9 +523,9 @@ async function changeTarget(id: string) {
     line.location = 'inherit';
     for (const tag of line.tags) tag.id = null;
   }
-  await Promise.all([loadLocations(), loadTags(), loadTemplates(), loadEntityTypes(), loadOrderSettings()]);
+  await Promise.all([loadLocations(), loadTags(), loadTemplates(), loadEntityTypes(), loadOrderSettings(), loadOrderLinkSettings()]);
   if (gen === generation && targetInstance.value) {
-    announce.value = [t('summary.instanceLoaded', [targetInstance.value.name]), orderNotice(orderBefore)].filter(Boolean).join(' ');
+    announce.value = [t('summary.instanceLoaded', [targetInstance.value.name]), orderNotice(orderBefore), linkNotice(linkBefore)].filter(Boolean).join(' ');
   }
 }
 
@@ -565,6 +601,7 @@ onMounted(async () => {
   void loadTemplates();
   void loadEntityTypes();
   void loadOrderSettings();
+  void loadOrderLinkSettings();
   // Read at each opening (never cached); an unreadable storage gives the defaults, never a blocked popup.
   const [res, settings, tagSettings] = await Promise.all([
     send({ type: 'detect/run', tabId: props.tabId }),
@@ -587,6 +624,7 @@ onMounted(async () => {
         tags: [],
         template: emptyLineTemplate(),
         orderFields: initialOrderFields(emptyDraft()),
+        orderLink: true,
       },
     ];
     linesReady = true;
@@ -611,6 +649,7 @@ onMounted(async () => {
       tags: tagLinesFor(store?.tagName ?? null, p?.name.value ?? null, tagSettings),
       template: emptyLineTemplate(),
       orderFields: initialOrderFields(draft),
+      orderLink: true,
     };
   };
   const built = products.length ? products.map((p) => lineFor(p.key, p)) : [lineFor('manual', null)];
@@ -831,6 +870,11 @@ function orderFieldsOf(line: Line): { orderFields?: OrderFieldValue[] } {
   return fields ? { orderFields: fields } : {};
 }
 
+/** Spec 025: `orderLink` only with the option on, the box checked and an address that can be attached; no key otherwise. */
+function orderLinkOf(line: Line): { orderLink?: true } {
+  return orderLinkOn.value && line.orderLink && linkUrlOf(line) !== null ? { orderLink: true } : {};
+}
+
 /** Distinct templates (by id) of the lines, with the fingerprint known to the screen. */
 function templateRefs(withTemplate: Line[]): { id: string; fingerprint: string }[] {
   const refs: { id: string; fingerprint: string }[] = [];
@@ -903,6 +947,7 @@ function draftOf(l: Line, docs: DocumentRef[]): ImportDraft {
     ...entityTypes.draftFor(l.key),
     ...templateOf(l),
     ...orderFieldsOf(l),
+    ...orderLinkOf(l),
   };
 }
 
@@ -1046,6 +1091,12 @@ async function submit(completions?: ReadonlyMap<string, CompletionChoice>) {
           v-model="line.orderFields"
           :rows="rowsOf(line)"
           :id-prefix="`${uid}-${line.key}-orderfields`"
+        />
+        <OrderLinkField
+          v-if="line.selected && orderLinkOn && linkUrlOf(line)"
+          v-model="line.orderLink"
+          :url="linkUrlOf(line) ?? ''"
+          :id-prefix="`${uid}-${line.key}`"
         />
         <ErrorBanner v-if="line.selected && loadFailed.has(line.key)" :code="loadFailed.get(line.key)!.code" tone="warning">
           <p class="failed-name">{{ t('templates.loadFailed', [loadFailed.get(line.key)!.name]) }}</p>

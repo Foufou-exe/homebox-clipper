@@ -19,6 +19,7 @@ import { findDuplicatesByName } from './duplicates';
 import { fieldsFor, fieldsMatch, templatePatch } from './template-patch';
 import { applyOrderFields, currentFields, orderFieldsMatch } from './order-fields';
 import { normalizeTemplate } from '@/background/templates/normalize';
+import { orderLinkUrl } from '@/shared/order-link';
 import { MAX_DOCUMENT_BYTES, base64Size, base64ToBytes, isPdf } from '@/shared/pdf';
 import { flattenTree } from '@/shared/locations';
 import { warrantyPatch } from '@/shared/warranty';
@@ -172,6 +173,19 @@ const hasTemplate = (d: ImportDraft): d is TemplateDraft => d.template !== undef
 type OrderDraft = ImportDraft & { orderFields: OrderFieldValue[] };
 /** Spec 019: order fields to write. Without them (option off), no new code runs (invariant 1, FR-025). */
 const hasOrderFields = (d: ImportDraft): d is OrderDraft => Boolean(d.orderFields?.length);
+
+/**
+ * Spec 025 (research R3): an external link attachment (`mimeType` `link/url`) with exactly this address is already on the
+ * item. HomeBox does not de-duplicate links, so a resume checks before sending again.
+ */
+const linkPresent = (read: EntityOut, url: string): boolean =>
+  (read.attachments ?? []).some((a) => a.mimeType === 'link/url' && a.path === url);
+
+/** Spec 025 (FR-008): localized title, the merchant name (or the host of the address), never the order number. */
+function orderLinkTitle(draft: ImportDraft, url: string): string {
+  const name = storeForPageUrl(draft.pageUrl)?.displayName ?? new URL(url).hostname;
+  return getMessage('orderLink.title', [name]).slice(0, 255);
+}
 
 /** Errors of the PUT step and of the field steps that ride on it. */
 interface UpdateErrors {
@@ -1000,6 +1014,51 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return null;
   }
 
+  /** Records the outcome of the order link step (spec 025) and returns the error to report. */
+  async function settleOrderLink(p: PendingImport, error: ErrorCode | null): Promise<ErrorCode | null> {
+    p.steps.orderLink = error ? 'failed' : 'done';
+    await persist(p);
+    return error;
+  }
+
+  /**
+   * Error of a failed POST of the link (spec 025, C6, FR-011): a 404 may come from an instance without the route or from
+   * a deleted item; the item is read again to tell them apart. Any other failure is `ORDER_LINK_FAILED`.
+   */
+  async function orderLinkFailure(entityId: string, httpStatus: number | undefined): Promise<ErrorCode> {
+    if (httpStatus !== 404) return 'ORDER_LINK_FAILED';
+    const read = await client.getEntity(entityId);
+    return read.ok ? 'ORDER_LINK_UNSUPPORTED' : 'ORDER_LINK_FAILED';
+  }
+
+  /**
+   * Resume guard (spec 025, R3): after an attempt with an unknown outcome the item is read again. `true`: the link is
+   * there; `false`: it is not; `null`: the item could not be read, nothing is sent (a duplicate is worse).
+   */
+  async function linkAlreadyAttached(entityId: string, url: string): Promise<boolean | null> {
+    const read = await client.getEntity(entityId);
+    return read.ok ? linkPresent(read.value, url) : null;
+  }
+
+  /**
+   * Order page link (spec 025, contracts/import-order-link.md §3): after the photo, on an existing item, only when the
+   * draft asked for it. Written as attempted before the POST; never interrupts the other steps.
+   */
+  async function orderLinkStep(p: PendingImport, entityId: string): Promise<ErrorCode | null> {
+    if (p.steps.orderLink === undefined || p.steps.orderLink === 'done') return null;
+    const url = orderLinkUrl(p.draft.pageUrl);
+    if (!url) return settleOrderLink(p, 'ORDER_LINK_FAILED');
+    if (p.orderLinkAttempted) {
+      const there = await linkAlreadyAttached(entityId, url);
+      if (there === null) return settleOrderLink(p, 'ORDER_LINK_FAILED');
+      if (there) return settleOrderLink(p, null);
+    }
+    p.orderLinkAttempted = true;
+    await persist(p);
+    const res = await client.addExternalLink(entityId, { url, title: orderLinkTitle(p.draft, url) });
+    return settleOrderLink(p, res.ok ? null : await orderLinkFailure(entityId, res.httpStatus));
+  }
+
   /** Final status: `partial` keeps the state for a retry; `success` purges it (FR-025). */
   async function finish(p: PendingImport, partialError: ErrorCode | null): Promise<PendingImport> {
     if (partialError) {
@@ -1191,7 +1250,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     const { updateError, tagsError, templateFieldsError, orderFieldsError } = await updateSteps(p, entity, tags);
     const attachmentsError = await attachmentsStep(p, entity.entityId, files);
     const photoError = await photoStep(p, entity.entityId, photos);
-    return finish(p, updateError ?? templateFieldsError ?? orderFieldsError ?? attachmentsError ?? photoError ?? tagsError);
+    const orderLinkError = await orderLinkStep(p, entity.entityId);
+    return finish(p, updateError ?? templateFieldsError ?? orderFieldsError ?? attachmentsError ?? photoError ?? orderLinkError ?? tagsError);
   }
 
   return {
@@ -1239,6 +1299,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
           ...(draft.template ? { templateFields: 'pending' as const } : {}),
           // Only with order fields (spec 019, invariant 1).
           ...(hasOrderFields(draft) ? { orderFields: 'pending' as const } : {}),
+          // Only with the order link (spec 025, invariant 1).
+          ...(draft.orderLink ? { orderLink: 'pending' as const } : {}),
         },
         status: 'running',
         error: null,

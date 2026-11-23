@@ -186,5 +186,7 @@ export function previewDraft(base: ImportDraft): ImportDraft {
 export function completedDraft(base: ImportDraft, choice: CompletionChoice): ImportDraft {
   const draft = previewDraft(base);
   if (!choice.keys.some((k) => k.startsWith('field:'))) delete draft.orderFields;
+  // Spec 025: a completion never adds the order page link.
+  delete draft.orderLink;
   return { ...draft, complete: choice };
 }

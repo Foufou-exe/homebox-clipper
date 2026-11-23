@@ -76,7 +76,7 @@ export interface EntityOut {
   /** `null` (Go nil slice) means no tag. */
   tags?: { id: string; name?: string }[] | null;
   /** `title`: attachment name as normalised by HomeBox (spec 021: documents already present). */
-  attachments?: { id: string; type?: string; primary?: boolean; title?: string }[];
+  attachments?: { id: string; type?: string; primary?: boolean; title?: string; path?: string; mimeType?: string }[];
   /** Custom fields; `null` (Go nil slice) or absent means none. */
   fields?: EntityField[] | null;
 }
@@ -139,6 +139,12 @@ export interface AttachmentUpload {
   mimeType: string;
   /** Sent only when true: a PDF never has a `primary` field. */
   primary?: boolean;
+}
+
+/** External link attachment (spec 025): the address of the order page and the title shown in HomeBox. */
+export interface ExternalLink {
+  url: string;
+  title: string;
 }
 
 export interface StatusOut {

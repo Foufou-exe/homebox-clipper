@@ -48,6 +48,9 @@ export const ERROR_CODES = [
   // Spec 019 (order details as HomeBox custom fields).
   'ORDER_FIELDS_FAILED',
   'FIELD_NAMES_UNAVAILABLE',
+  // Spec 025 (order page as an external link).
+  'ORDER_LINK_FAILED',
+  'ORDER_LINK_UNSUPPORTED',
   // Spec 021 (complete an existing item).
   'ITEM_NOT_FOUND',
   // Spec 023 (entity type of the imported items).

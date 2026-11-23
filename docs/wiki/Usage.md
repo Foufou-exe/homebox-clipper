@@ -211,6 +211,21 @@ with a link to the item and a retry of this step alone (the item is never create
 kept). Changing the target instance shows, renames or removes the section according to the settings of the new
 instance. With the option off, the summary and the import are exactly the same as before.
 
+## Link to the order page
+
+When the option **Add a link to the order page** is on for the target instance (see
+[Configuration](Configuration.md#link-to-the-order-page)), a box **Add a link to the order page** appears under each
+product of the summary. It is ticked by default and shows the web address that will be **stored in HomeBox**: it is
+the address of the order page, the same as in the notes, and it points to the merchant's website. Untick the box to
+add no link for this product. A page without an `http` or `https` address has no box.
+
+After the item is created, the link is added as an external link of the item. The notes of the item stay the same
+as without the option. If the link cannot be added, the import is shown as partial with the message, the link
+step is shown as failed and **Retry the order link** adds only the link (the item is never created again, and a
+link already on the item is never added twice). An instance that does not accept external links gives a message
+that tells to update HomeBox or turn the option off. With the option off, the summary and the import are exactly
+the same as before.
+
 ## Multi-item orders
 
 The popup lists the "Detected products": check the ones to import. Each becomes a HomeBox item, with the

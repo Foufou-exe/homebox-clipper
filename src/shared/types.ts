@@ -266,6 +266,11 @@ export interface ImportDraft {
    */
   orderFields?: OrderFieldValue[];
   /**
+   * Spec 025: attach the order page (`pageUrl`) as an external link of the item. Absent (never `false`) when the option
+   * is off for the target, the box is unchecked or the address cannot be attached: the sequence is unchanged.
+   */
+  orderLink?: true;
+  /**
    * Spec 021: complete this EXISTING HomeBox item instead of creating one. Absent (never `null`): the item is created
    * exactly as before (FR-025). With it, the draft has no template and `location: null`.
    */
@@ -354,11 +359,15 @@ export interface PendingImport {
     templateFields?: StepState;
     /** Present only if `draft.orderFields` (spec 019, invariant 1). */
     orderFields?: StepState;
+    /** Present only if `draft.orderLink` (spec 025, invariant 1). */
+    orderLink?: StepState;
   };
   /** Code of the last failed check of the template fields (spec 018); absent until a failure. */
   templateFieldsError?: ErrorCode;
   /** Code of the last failure of the order fields step (spec 019); absent until a failure. */
   orderFieldsError?: ErrorCode;
+  /** True as soon as the order-link POST may have been sent (written before sending): the resume reads the item first (spec 025, R3). */
+  orderLinkAttempted?: boolean;
   /** Names (`draft.tags[].name`) not applied during the last run (spec 014). Absent until a tag failure happens. */
   failedTags?: string[];
   /**

@@ -61,6 +61,7 @@ FEATURES
 - Multi-item orders, manual PDF attachment, duplicate detection and completing the existing item instead.
 - Recovery after an error without creating a duplicate.
 - Product photo attached as the item's main image (can be unticked).
+- Optional link to the order page (off by default): the link to the order page is added to the item as an external link and is stored in HomeBox; it points to the merchant's website.
 - Location picker with search.
 - Suggested HomeBox tags (the store brand and your own local rules), editable in the summary before you confirm.
 - Light, dark or automatic theme; English and French interface.
@@ -100,6 +101,7 @@ FONCTIONNALITÉS
 - Commandes de plusieurs produits, ajout manuel d'un PDF, détection des doublons et complément de l'objet existant.
 - Reprise après une erreur sans créer de doublon.
 - Photo du produit jointe comme image principale de l'objet (décochable).
+- Lien facultatif vers la page de commande (désactivé par défaut) : le lien vers la page de commande est ajouté à l'objet comme lien externe et est enregistré dans HomeBox ; il pointe vers le site du marchand.
 - Choix de l'emplacement avec recherche.
 - Tags HomeBox proposés (l'enseigne de la boutique et vos propres règles locales), modifiables dans le récapitulatif avant la confirmation.
 - Thème clair, sombre ou automatique ; interface en français et en anglais.

@@ -8,6 +8,7 @@ import { registerHistoryHandlers } from '@/background/history/handlers';
 import { registerImportHandlers } from '@/background/import/handlers';
 import { registerLocationHandlers } from '@/background/location/handlers';
 import { registerOrderFieldHandlers } from '@/background/order-fields/handlers';
+import { registerOrderLinkHandlers } from '@/background/order-link/handlers';
 import { registerTagHandlers } from '@/background/tags/handlers';
 import { registerTemplateHandlers } from '@/background/templates/handlers';
 import { startRouter } from '@/background/router';
@@ -31,6 +32,7 @@ export default defineBackground(() => {
   registerTagHandlers();
   registerTemplateHandlers();
   registerOrderFieldHandlers();
+  registerOrderLinkHandlers();
   registerHistoryHandlers();
   registerUpdateHandlers();
   startRouter();

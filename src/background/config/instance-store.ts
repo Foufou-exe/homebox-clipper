@@ -21,8 +21,10 @@ export const DEFAULT_TEMPLATE_KEY = 'defaultTemplateByInstance';
 export const ORDER_FIELDS_KEY = 'orderFieldsByInstance';
 /** Last entity type per instance (spec 023, storage.local): a type identifier only, cleared with the instance. */
 export const ENTITY_TYPE_KEY = 'lastEntityTypeByInstance';
+/** Order-page link setting per instance (spec 025, storage.local): the option only, cleared with the instance. */
+export const ORDER_LINK_KEY = 'orderLinkByInstance';
 /** Tables keyed by instance id, purged with the instance (`remove`), in this order. */
-const PER_INSTANCE_KEYS = [LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY] as const;
+const PER_INSTANCE_KEYS = [LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY] as const;
 export const MAX_INSTANCES = 10;
 export const MAX_NAME_LENGTH = 50;
 export const MIGRATED_ID = 'migrated';
@@ -353,7 +355,7 @@ export const instanceStore = {
    */
   remove(id: string): Promise<StoredInstance | null> {
     return enqueueConfigWrite(async () => {
-      const stored = await local().get([INSTANCES_KEY, LAST_LOCATION_KEY, LAST_INSTANCE_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY]);
+      const stored = await local().get([INSTANCES_KEY, LAST_LOCATION_KEY, LAST_INSTANCE_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY]);
       const store = stored[INSTANCES_KEY];
       if (!isValidStore(store)) return null;
       const removed = store.instances.find((i) => i.id === id);
@@ -375,7 +377,7 @@ export const instanceStore = {
   /** Removes every instance key (global deletion), in the write queue. */
   clear(): Promise<void> {
     return enqueueConfigWrite(() =>
-      local().remove([INSTANCES_KEY, LEGACY_KEY, LAST_INSTANCE_KEY, LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY]),
+      local().remove([INSTANCES_KEY, LEGACY_KEY, LAST_INSTANCE_KEY, LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY]),
     );
   },
 

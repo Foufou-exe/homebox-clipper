@@ -8,6 +8,7 @@ import { createHomeBoxClient } from '@/background/homebox/client';
 import { importHistoryKey } from '@/background/history/history-crypto';
 import { historyStore } from '@/background/history/history-store';
 import { orderFieldSettings } from '@/background/order-fields/settings';
+import { orderLinkSettings } from '@/background/order-link/settings';
 import { register } from '@/background/router';
 import { browser } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
@@ -136,6 +137,10 @@ export function registerImportHandlers(): void {
   register('import/start', async ({ instanceId, tabId, drafts, manualFiles, orderLocationId, entityTypesRead }) => {
     // Defense in depth (spec 019): order fields are refused, before any request, if the option is off for the target.
     if (drafts.some((d) => d.orderFields !== undefined) && !(await orderFieldSettings.get(instanceId)).enabled) {
+      return fail('BAD_MESSAGE');
+    }
+    // Defense in depth (spec 025, FR-005): the order page link is refused, before any request, if the option is off.
+    if (drafts.some((d) => d.orderLink !== undefined) && !(await orderLinkSettings.get(instanceId)).enabled) {
       return fail('BAD_MESSAGE');
     }
     const started: string[] = [];

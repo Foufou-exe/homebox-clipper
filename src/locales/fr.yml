@@ -47,6 +47,8 @@ error:
   TEMPLATE_CHANGED: "Ce modèle d'objet a été modifié dans HomeBox. Vérifiez les valeurs, puis confirmez de nouveau."
   TEMPLATE_FIELDS_FAILED: "L'objet a été créé mais certains champs du modèle n'ont pas pu être enregistrés."
   ORDER_FIELDS_FAILED: "L'objet a été créé, mais les champs de commande n'ont pas pu être enregistrés."
+  ORDER_LINK_FAILED: "L'objet a été créé, mais le lien vers la page de commande n'a pas pu être ajouté."
+  ORDER_LINK_UNSUPPORTED: "L'objet a été créé, mais cette instance HomeBox n'accepte pas les liens externes. Mettez HomeBox à jour ou désactivez l'option de lien pour cette instance."
   FIELD_NAMES_UNAVAILABLE: "Impossible de lire les noms des champs personnalisés de cette instance HomeBox."
   ITEM_NOT_FOUND: "L'objet HomeBox choisi n'existe plus. Rien n'a été modifié."
   ENTITY_TYPES_UNAVAILABLE: "Les types d'objets HomeBox n'ont pas pu être obtenus."
@@ -217,6 +219,7 @@ result:
   tagsFailed: "Tags non ajoutés : $1"
   stepTemplateFields: "Champs du modèle : $1"
   stepOrderFields: "Champs de commande : $1"
+  stepOrderLink: "Lien vers la page de commande : $1"
   stepComplete: "Mise à jour de l'objet existant : $1"
   completed: "objet existant complété"
   noChange: "Aucun changement : l'objet avait déjà tout."
@@ -241,6 +244,7 @@ recovery:
   abandon: "Abandonner"
   retryPhoto: "Réessayer l'envoi de la photo"
   retryOrderFields: "Réessayer les champs de commande"
+  retryOrderLink: "Réessayer le lien de commande"
   retryWithoutLocation: "Importer sans emplacement"
   interrupted: "L'import a été interrompu avant la fin."
   duplicateHint: "Un objet du même nom existe déjà : c'est peut-être celui de cet import, encore incomplet. Vérifiez dans HomeBox avant de continuer. Si vous abandonnez puis relancez cet import, un second objet peut être créé sans nouvelle confirmation."
@@ -565,6 +569,17 @@ orderFields:
     tooLong: "Ce nom est trop long pour HomeBox."
     duplicate: "Chaque champ doit avoir un nom différent."
     forbiddenChar: "Le nom ne peut pas contenir « = » ni de caractère de contrôle."
+
+orderLink:
+  optionLabel: "Ajouter un lien vers la page de commande"
+  optionHelp: "Ajoute à chaque objet importé un lien vers la page de commande. Ce lien pointe vers le site du marchand et est enregistré dans HomeBox. Désactivé par défaut."
+  save: "Enregistrer"
+  saved: "Réglage enregistré."
+  fieldLabel: "Ajouter un lien vers la page de commande"
+  fieldHelp: "Cette adresse web est enregistrée dans HomeBox : $1"
+  shown: "Lien vers la page de commande affiché pour cette instance."
+  hidden: "Lien vers la page de commande retiré pour cette instance."
+  title: "Page de commande - $1"
 
 completion:
   choiceLegend: "Que faire pour « $1 » ?"

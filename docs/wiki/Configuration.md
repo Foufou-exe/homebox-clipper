@@ -130,6 +130,19 @@ Only the identifier and the name of the template are stored (`defaultTemplateByI
 are erased with the instance or with **Delete settings**. If the template is renamed in HomeBox, the name is
 updated at the next summary; if it is deleted, the summary says so and the products stay on **None**.
 
+## Link to the order page
+
+Each HomeBox instance has an option **Add a link to the order page**, off by default (also for the instances
+configured before this version). When it is on, each imported item also gets an **external link** pointing to the
+order page of the merchant, one click away in HomeBox (see [Usage](Usage.md#link-to-the-order-page)). The link points
+to the merchant's website and is stored in HomeBox: the option help says so. The notes stay the same.
+
+- The option can be read and changed while the extension is locked (no key, no network).
+- Only the option is stored (`orderLinkByInstance`, `storage.local`). It is erased with the instance or with
+  **Delete settings**.
+- The instance needs the external attachments of HomeBox (present since 0.26.0, the minimum version of the
+  extension). Otherwise the import ends partial with a message that names the cause.
+
 ## Order fields as custom fields
 
 Each HomeBox instance has an option **Save the order as custom fields**, off by default (also for the instances

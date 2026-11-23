@@ -108,6 +108,31 @@ The names of the existing custom fields are read for the suggestions of the sett
 (`GET /api/v1/entities/fields`, unlocked, the instance of the message only; never the values); unreadable gives
 `FIELD_NAMES_UNAVAILABLE`.
 
+### Order page as an external link (spec 025)
+
+When the option « Add a link to the order page » is on for the target instance and the box of a product is ticked,
+the confirmed draft carries `ImportDraft.orderLink: true` (absent otherwise, never `false`; the address is the
+draft `pageUrl`, http(s) without credentials). `import/start` refuses it (`BAD_MESSAGE`, before any request) when the
+option is off for the target, or on a draft that completes an existing item. The orchestrator adds the step
+`steps.orderLink` only when the key exists, so without the option the requests, the persisted states and the
+`orchestrator-call-sequence` snapshot (never regenerated) are unchanged:
+
+1. after the photo, one `POST /api/v1/entities/{id}/attachments/external` with the body
+   `{ source_type: "link", external_id: <address>, title, attachment_type: "attachment" }` (HomeBox accepts only the
+   source type `link`, and an http(s) address without credentials; it does not de-duplicate links);
+2. `orderLinkAttempted` is written before the POST; a resume of an attempted step reads the item again
+   (`GET /api/v1/entities/{id}`) and looks for an attachment of type `link/url` with the same path: found, the step is
+   done without sending; not found, the POST is sent; unreadable, nothing is sent. The extension never creates a
+   second link;
+3. a failure leaves the import partial (`steps.orderLink: 'failed'`, `ORDER_LINK_FAILED`), after the photo and before the
+   tags in the order of the reported errors, and never stops the other steps. A 404 of the route followed by a readable
+   item is `ORDER_LINK_UNSUPPORTED` (instance without external links).
+
+The setting is `storage.local.orderLinkByInstance` (`{ [instanceId]: { enabled } }`, erased with the instance or the
+settings), read and written by `order-link/get` and `order-link/set`. The completion path of spec 021 never runs the
+step. Neither the address, nor the title, nor the item identifier is logged (endpoint template, status and duration
+only).
+
 ### Completing an existing item (spec 021)
 
 In the duplicate window, a product can be set to **Complete** an item found (certain duplicate or similar item)
@@ -205,7 +230,7 @@ HomeBox item templates (`template/list`, `template/get`, `template/check`, `temp
 `template/get-default` needs neither the network nor the key), order fields as HomeBox custom fields
 (`order-fields/get`, `order-fields/set`: the setting of one instance, readable and writable while locked, neither the
 network nor the key; `order-fields/names`: the names of the existing custom fields, unlocked,
-`src/background/order-fields/`), duplicates (`duplicate/check`), import
+`src/background/order-fields/`), the order page link (`order-link/get`, `order-link/set`: the setting of one instance, readable and writable while locked, neither the network nor the key; `src/background/order-link/`), duplicates (`duplicate/check`), import
 (`import/start|retry|abandon|pending`), extraction in the tab (`amazon/extract`, `amazon/download`) and
 progress (`import/progress`). Responses are `Result` values: either a value or an error code from the
 catalog (`src/shared/errors.ts`).
@@ -223,7 +248,7 @@ instances and stays unchanged (`src/background/import/orchestrator.ts`); its con
 
 | Where | What |
 |-------|------|
-| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). Default item template per instance (`defaultTemplateByInstance`: `{ [instanceId]: { id, name } }`, erased with the instance or the settings, spec 018). Order-fields setting per instance (`orderFieldsByInstance`: `{ [instanceId]: { enabled, names: { orderNumber, merchant, orderUrl } } }`, erased with the instance or the settings, spec 019). Last item type used per instance (`lastEntityTypeByInstance`: `{ [instanceId]: typeId }`, identifiers only, erased with the instance or the settings, spec 023). |
+| `storage.local` | HomeBox instances (`homeboxInstances`: the vault `{ kdf, iterations, salt, check, historyKey }` and 1 to 10 instances `{ id, name, baseUrl, key, maskedKey, lastCheck }`, each key **encrypted** with the address of its instance as associated data), the instance of the last successful import (`lastInstanceId`), theme (`uiTheme`) and last location per instance (`lastLocationByInstance`, indexed by instance id: identifiers only, erased with the instance or the settings). Import history: one **encrypted** envelope `{ v, iv, ct, inst? }` per product (`importHistory:<id>`), where `inst` is the id of its instance in clear (outside the ciphertext, not authenticated), and its setting (`importHistorySettings`); the history key is sealed in the vault. Automatic lock setting (`lockSettings`), last update notice (`updateNotice`) and automatic-tag setting (`tagSettings`). Default item template per instance (`defaultTemplateByInstance`: `{ [instanceId]: { id, name } }`, erased with the instance or the settings, spec 018). Order-fields setting per instance (`orderFieldsByInstance`: `{ [instanceId]: { enabled, names: { orderNumber, merchant, orderUrl } } }`, erased with the instance or the settings, spec 019), the link setting of each instance (`orderLinkByInstance`: `{ [instanceId]: { enabled } }`, erased with the instance or the settings, spec 025). Last item type used per instance (`lastEntityTypeByInstance`: `{ [instanceId]: typeId }`, identifiers only, erased with the instance or the settings, spec 023). |
 | `storage.session` | Decrypted keys by instance and open history key (`homeboxUnlocked`, `{ v: 2, keys, historyKey }`; a former `{ apiKey }` is read as the key of the single instance), last activity (`homeboxActivity`, for the inactivity lock), version ready to install (`updateReady`) and in-progress imports (`pendingImport:<tab>:<id>`). Memory, cleared when the browser closes. |
 
 The vault and the instances live in `src/background/config/instance-store.ts` (validated reads, a single write

@@ -6,6 +6,7 @@ import { isValidIsoDate } from './warranty';
 import { isLockPolicy, type LockPolicy, type LockSettings } from './lock-policy';
 import { isVersion } from './version';
 import { MAX_TAGS_PER_PRODUCT, normalizeTagName, tagKey, tagNameError } from './tags';
+import { isOrderLinkSettings, orderLinkUrl, type OrderLinkSettings } from './order-link';
 import { ORDER_FIELD_ROLES, fieldNameError, isOrderFieldSettings, orderValueError, type OrderFieldSettings } from './order-fields';
 import type {
   CompletionPreview,
@@ -78,6 +79,9 @@ export type Message =
   | { type: 'order-fields/get'; instanceId: string }
   | { type: 'order-fields/set'; instanceId: string; settings: OrderFieldSettings }
   | { type: 'order-fields/names'; instanceId: string }
+  // Order page link (025): extension pages only (`order-link/` prefix); get/set without key nor network.
+  | { type: 'order-link/get'; instanceId: string }
+  | { type: 'order-link/set'; instanceId: string; settings: OrderLinkSettings }
   | {
       type: 'import/start';
       instanceId: string;
@@ -159,6 +163,8 @@ export interface ResponseMap {
   'order-fields/get': Result<{ settings: OrderFieldSettings }>;
   'order-fields/set': Result<{ settings: OrderFieldSettings }>;
   'order-fields/names': Result<{ names: string[] }>;
+  'order-link/get': Result<{ settings: OrderLinkSettings }>;
+  'order-link/set': Result<{ settings: OrderLinkSettings }>;
   'import/start': Result<PendingImport[]>;
   'import/retry': Result<PendingImport>;
   'import/abandon': Result<void>;
@@ -290,6 +296,14 @@ const isOrderFields = (x: unknown, d: Record<string, unknown>): boolean => {
   const shared = new Set(templateFieldNames(d));
   return x.every((f, i) => isOrderFieldValue(f, names.filter((_, j) => j !== i), d)) && !names.some((n) => shared.has(n));
 };
+/**
+ * `ImportDraft.orderLink` (spec 025): absent, or exactly `true` on a draft whose page address can be attached and which
+ * does not complete an existing item (the spec 021 path never adds a link).
+ */
+const isOrderLink = (x: unknown, d: Record<string, unknown>): boolean => {
+  if (x === undefined) return true;
+  return x === true && d.complete === undefined && orderLinkUrl(isStr(d.pageUrl) ? d.pageUrl : null) !== null;
+};
 /** `template/check` refs: 1 to 50, distinct ids, 64-hex fingerprints. */
 const isTemplateRefs = (x: unknown): boolean =>
   isArr(x) &&
@@ -350,6 +364,7 @@ const areDrafts = (x: unknown): boolean =>
       isOptionalLocation(d.location) &&
       isTemplateChoice(d.template) &&
       isOrderFields(d.orderFields, d) &&
+      isOrderLink(d.orderLink, d) &&
       // A template requires a location (FR-005).
       (d.template === undefined || isLocationChoice(d.location)) &&
       isWarrantyDraft(d.warranty) &&
@@ -394,6 +409,8 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'order-fields/get': (m) => isInstanceId(m.instanceId),
   'order-fields/set': (m) => isInstanceId(m.instanceId) && isOrderFieldSettings(m.settings),
   'order-fields/names': (m) => isInstanceId(m.instanceId),
+  'order-link/get': (m) => isInstanceId(m.instanceId),
+  'order-link/set': (m) => isInstanceId(m.instanceId) && isOrderLinkSettings(m.settings),
   'import/start': (m) =>
     isInstanceId(m.instanceId) &&
     isInt(m.tabId) &&

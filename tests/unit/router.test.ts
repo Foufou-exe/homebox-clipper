@@ -296,7 +296,8 @@ describe('router — session/* and update/* reserved to extension pages, activit
     const line = source.split('\n').find((l) => l.includes('UI_ONLY_PREFIXES ='))!;
     const list = [...line.matchAll(/'([^']+)'/g)].map((m) => m[1]);
     // ADAPTED (023): 'entity-type/' is reserved to extension pages too.
-    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'entity-type/', 'history/', 'update/', 'tag/', 'instance/', 'template/', 'order-fields/']);
+    // ADAPTED (025): 'order-link/' added last (order page link setting, extension pages only).
+    expect(list).toEqual(['config/', 'session/', 'detect/', 'duplicate/', 'import/', 'location/', 'entity-type/', 'history/', 'update/', 'tag/', 'instance/', 'template/', 'order-fields/', 'order-link/']);
   });
 
   it.each(MESSAGES)('$type from an extension page: the hook runs before the handler', async (msg) => {
