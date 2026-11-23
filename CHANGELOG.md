@@ -7,6 +7,15 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.13.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.12.0...v0.13.0) (2026-11-23)
+
+
+### Features
+
+* attach the order page as an external link on the imported item ([#131](https://github.com/Foufou-exe/homebox-clipper/issues/131)) ([847ac6c](https://github.com/Foufou-exe/homebox-clipper/commit/847ac6c8e266464d2a57994f34b47f1ca70f4b0b))
+* choose the HomeBox entity type of imported items ([#130](https://github.com/Foufou-exe/homebox-clipper/issues/130)) ([dab091b](https://github.com/Foufou-exe/homebox-clipper/commit/dab091b6ec310b7e21b1d9f69bebf57e5438fbdd))
+* choose the target HomeBox collection ([#132](https://github.com/Foufou-exe/homebox-clipper/issues/132)) ([701b9a3](https://github.com/Foufou-exe/homebox-clipper/commit/701b9a3312cb72b6ea7bf15ab5332a1ce44d2c9a))
+
 ## [0.12.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.11.0...v0.12.0) (2026-11-22)
 
 
