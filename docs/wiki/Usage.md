@@ -37,6 +37,7 @@ Nothing is written to HomeBox before this click. The popup always shows the targ
 | **Lifetime warranty** box | Lifetime warranty |
 | Warranty details | Warranty details |
 | Order number and order page link | Notes ("<store> order: <number>", for example "Amazon.de order: ...", then the page address; "Order: <number>" in manual entry) |
+| Manufacturer, model number, serial number (only when filled in the **Identification** section) | Manufacturer, Model number, Serial number (never replacing a value already on the item) |
 | PDF invoice | Attachment of type **Receipt** |
 | Manual added by hand | Attachment of type **Manual** |
 | Warranty added by hand | Attachment of type **Warranty** |
@@ -73,6 +74,25 @@ Each product of the summary has a **Warranty** section, shown before you confirm
   duration (1 to 10 years). A duration replaces the legal one in the countries above and is used by **Add a
   warranty**; it never creates a default warranty elsewhere. A warranty shown on the order page is always proposed.
 - The extension only changes items it created and never overwrites a warranty already filled in HomeBox.
+
+## Manufacturer, model and serial number
+
+Each product of the summary has an **Identification** section:
+
+- **Manufacturer** and **Model number** are pre-filled from the Amazon **product page** of the product. When the
+  popup opens, the extension reads that page (one request per product, at most 10, on the same Amazon store as the
+  order, without cookies or referrer, with no API key and no HomeBox data) and looks for the « Manufacturer » and
+  « Item model number » rows of its detail tables, in every language of the supported stores. The brand is not
+  used as the manufacturer.
+- **Serial number** is always empty: type it from the label of your device; it is never read on a page.
+- Every value can be changed or emptied before you confirm. An empty field is not sent; a value already set on
+  the item is never replaced (for example on a retry, if you filled it in HomeBox meanwhile). A value is at most
+  255 bytes.
+- If the product page cannot be read (network, robot check, other layout, time limit), the fields stay empty and
+  a discreet note says « Manufacturer and model not found on the product page »: the import is never blocked.
+- With an item template, the manufacturer and model are those of the template section (filled with the values of
+  the product page when the template has none); the **Identification** section then only shows the serial number.
+- Completing an existing item never adds these values.
 
 ## The product photo
 

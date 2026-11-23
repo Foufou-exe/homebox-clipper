@@ -1,4 +1,4 @@
-import type { DetectedPurchase, DocumentRef } from '@/shared/types';
+import type { DetectedProduct, DetectedPurchase, DocumentRef } from '@/shared/types';
 import type { MerchantId } from '@/shared/merchant-ids';
 
 /** Contract of a merchant extractor (contracts/merchant-extractor.md). */
@@ -21,4 +21,9 @@ export interface MerchantExtractor {
   extract(doc: Document, pageUrl: URL): DetectedPurchase;
   /** Resolves the real PDF URLs (e.g. the "Facture" menu). Same origin only. */
   resolveDocuments(doc: Document, pageUrl: URL, fetchSameOrigin: typeof fetch): Promise<DocumentRef[]>;
+  /**
+   * Spec 027, optional: reads the product page of each product (same origin only, no cookie) and returns the products
+   * with `manufacturer` and `modelNumber`. Never throws; absent for a merchant that reads no product page.
+   */
+  resolveProductIdentifiers?(products: readonly DetectedProduct[], fetchSameOrigin: typeof fetch): Promise<DetectedProduct[]>;
 }

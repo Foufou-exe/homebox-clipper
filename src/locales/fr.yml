@@ -583,6 +583,16 @@ orderLink:
   hidden: "Lien vers la page de commande retiré pour cette instance."
   title: "Page de commande - $1"
 
+identifiers:
+  legend: "Identification du produit"
+  manufacturer: "Fabricant"
+  modelNumber: "Numéro de modèle"
+  serialNumber: "Numéro de série"
+  serialHelp: "À saisir : il n'est jamais lu sur la page."
+  notFound: "Fabricant et modèle non trouvés sur la page produit."
+  templateNote: "Fabricant et modèle : voir le modèle d'objet."
+  tooLong: "$1 octets au maximum."
+
 completion:
   choiceLegend: "Que faire pour « $1 » ?"
   createNew: "Créer un nouvel objet"

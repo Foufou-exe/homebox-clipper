@@ -1,5 +1,6 @@
 import { downloadDocument } from '@/content/merchants/amazon/download';
 import { AMAZON_STORES } from '@/content/merchants/amazon/stores';
+import { extractWithLookups } from '@/content/merchants/extract-all';
 import { MERCHANTS } from '@/content/merchants/registry';
 import { browser } from '@/platform';
 import { fail, ok } from '@/shared/errors';
@@ -31,11 +32,8 @@ export default defineContentScript({
           sendResponse(fail('NOT_AN_ORDER_PAGE'));
           return false;
         }
-        const purchase = merchant.extract(document, pageUrl);
-        void merchant
-          .resolveDocuments(document, pageUrl, fetch.bind(window))
-          .then((documents) => sendResponse(ok({ ...purchase, documents })))
-          .catch(() => sendResponse(ok(purchase)));
+        // Spec 027: the invoice menus and the product pages are read in parallel; a failure of one never affects the other.
+        void extractWithLookups(merchant, document, pageUrl, fetch.bind(window)).then((purchase) => sendResponse(ok(purchase)));
         return true;
       }
 

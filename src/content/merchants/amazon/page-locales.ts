@@ -18,6 +18,14 @@ export interface PageLocale {
   readonly decimalSeparator: ',' | '.';
   /** "Sold by" labels, read before the seller name. */
   readonly sellerLabels: readonly string[];
+  /**
+   * Spec 027: labels of the product page detail tables (research R3), in priority order. Compared after
+   * `labelKey` (case, accents, colons and invisible marks ignored). All to confirm on a real page.
+   */
+  readonly productDetailLabels: {
+    readonly manufacturer: readonly string[];
+    readonly modelNumber: readonly string[];
+  };
   /** Used by the fixture reconstruction script only (scripts/fixtures/reconstruct-amazon.ts). */
   readonly fixtureLabels: {
     readonly invoice: string;
@@ -63,6 +71,11 @@ export const PAGE_LOCALES: Readonly<Record<PageLanguage, PageLocale>> = {
       soldBy: 'Vendu par :',
       orderedOn: 'Commande effectuée le',
     },
+    // Spec 027, to confirm on a real page (research R3).
+    productDetailLabels: {
+      manufacturer: ['Fabricant'],
+      modelNumber: ["Numéro du modèle de l'article", 'Numéro de modèle', 'Référence fabricant'],
+    },
   },
   de: {
     months: {
@@ -99,6 +112,11 @@ export const PAGE_LOCALES: Readonly<Record<PageLanguage, PageLocale>> = {
     sellerLabels: ['Verkauf durch', 'Verkäufer'],
     // To confirm on a real page.
     fixtureLabels: { invoice: 'Rechnung', soldBy: 'Verkauf durch:', orderedOn: 'Bestellt am' },
+    // Spec 027, to confirm on a real page (research R3).
+    productDetailLabels: {
+      manufacturer: ['Hersteller'],
+      modelNumber: ['Modellnummer', 'Herstellerreferenz'],
+    },
   },
   es: {
     months: {
@@ -136,6 +154,11 @@ export const PAGE_LOCALES: Readonly<Record<PageLanguage, PageLocale>> = {
     sellerLabels: ['Vendido por'],
     // To confirm on a real page.
     fixtureLabels: { invoice: 'Factura', soldBy: 'Vendido por:', orderedOn: 'Pedido realizado el' },
+    // Spec 027, to confirm on a real page (research R3).
+    productDetailLabels: {
+      manufacturer: ['Fabricante'],
+      modelNumber: ['Número de modelo del producto', 'Número de modelo', 'Referencia del fabricante'],
+    },
   },
   it: {
     months: {
@@ -171,6 +194,11 @@ export const PAGE_LOCALES: Readonly<Record<PageLanguage, PageLocale>> = {
     sellerLabels: ['Venduto da'],
     // To confirm on a real page.
     fixtureLabels: { invoice: 'Fattura', soldBy: 'Venduto da:', orderedOn: 'Ordine effettuato il' },
+    // Spec 027, to confirm on a real page (research R3).
+    productDetailLabels: {
+      manufacturer: ['Produttore'],
+      modelNumber: ['Numero modello articolo', 'Numero modello', 'Riferimento produttore'],
+    },
   },
   nl: {
     months: {
@@ -206,6 +234,11 @@ export const PAGE_LOCALES: Readonly<Record<PageLanguage, PageLocale>> = {
     sellerLabels: ['Verkocht door'],
     // To confirm on a real page.
     fixtureLabels: { invoice: 'Factuur', soldBy: 'Verkocht door:', orderedOn: 'Besteld op' },
+    // Spec 027, to confirm on a real page (research R3).
+    productDetailLabels: {
+      manufacturer: ['Fabrikant'],
+      modelNumber: ['Modelnummer artikel', 'Modelnummer', 'Referentie fabrikant'],
+    },
   },
   en: {
     months: {
@@ -241,5 +274,10 @@ export const PAGE_LOCALES: Readonly<Record<PageLanguage, PageLocale>> = {
     sellerLabels: ['Sold by'],
     // To confirm on a real page.
     fixtureLabels: { invoice: 'Invoice', soldBy: 'Sold by:', orderedOn: 'Order placed' },
+    // Spec 027, to confirm on a real page (research R3).
+    productDetailLabels: {
+      manufacturer: ['Manufacturer'],
+      modelNumber: ['Item model number', 'Model number', 'Manufacturer reference', 'Part number'],
+    },
   },
 };

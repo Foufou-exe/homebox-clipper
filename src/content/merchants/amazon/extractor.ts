@@ -12,6 +12,7 @@ import {
   toPhotoUrl,
 } from './parse';
 import { documentId, documentLabel } from '../document-labels';
+import { lookUpProductIdentifiers } from './product-details';
 import { SELECTORS } from './selectors';
 import type { AmazonStore, PageLanguage } from './stores';
 
@@ -287,6 +288,11 @@ export function createAmazonExtractor(store: AmazonStore): MerchantExtractor {
         }
       }
       return toDocuments(urls, orderNumber);
+    },
+
+    // Spec 027: the product pages of this store's origin only (contracts/product-page.md).
+    resolveProductIdentifiers(products, fetchSameOrigin) {
+      return lookUpProductIdentifiers(products, origin, fetchSameOrigin);
     },
   };
 }

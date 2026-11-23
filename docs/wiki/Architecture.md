@@ -133,6 +133,25 @@ settings), read and written by `order-link/get` and `order-link/set`. The comple
 step. Neither the address, nor the title, nor the item identifier is logged (endpoint template, status and duration
 only).
 
+### Manufacturer, model and serial number (spec 027)
+
+The injected script (`amazon/extract`) runs `extractWithLookups` (`src/content/merchants/extract-all.ts`): the page
+extraction, then, in parallel, `resolveDocuments` and the optional `resolveProductIdentifiers` of the merchant
+contract. For Amazon, `src/content/merchants/amazon/product-details.ts` reads `<origin>/dp/<ASIN>` for each
+distinct ASIN (10 at most, 3 at a time, 8 s each and 10 s for the whole lookup, 5 MB counted on the streamed body,
+`credentials: 'omit'`, `referrerPolicy: 'no-referrer'`,
+final address on the same origin, HTML only) and reads the detail rows (`SELECTORS.productDetailRow`, labels
+`productDetailLabels` of `page-locales.ts`). Each `DetectedProduct` then carries `manufacturer` and `modelNumber`
+(`Field<string>`) only when its page was read (`not_found`: read, no such row); a product whose page was not read
+(no ASIN, beyond 10, failure, budget exceeded) has neither field, and no notice is shown. Never an error.
+
+The summary shows them in `IdentifiersSection.vue` with an empty serial number; the confirmed draft carries
+`ImportDraft.identifiers` (`{ manufacturer?, modelNumber?, serialNumber? }`, clean, non-empty, 255 bytes at most;
+absent without any value, never with `complete`, the serial number only with a template). No new step and no new
+request: `purchaseBase` adds `identifiersPatch(draft.identifiers, current)` to the purchase PUT, each value only
+when the item read or created has none. Without identifiers, the PUT and the `orchestrator-call-sequence` snapshot
+are unchanged.
+
 ### Target collection (spec 024)
 
 `collectionByInstance` (`storage.local`) holds, per instance, the chosen collection (`chosen`, or none: the default

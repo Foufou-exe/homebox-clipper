@@ -583,6 +583,16 @@ orderLink:
   hidden: "Order page link removed for this instance."
   title: "Order page - $1"
 
+identifiers:
+  legend: "Product identification"
+  manufacturer: "Manufacturer"
+  modelNumber: "Model number"
+  serialNumber: "Serial number"
+  serialHelp: "To type in: it is never read on the page."
+  notFound: "Manufacturer and model not found on the product page."
+  templateNote: "Manufacturer and model: see the item template."
+  tooLong: "At most $1 bytes."
+
 completion:
   choiceLegend: "What to do for \"$1\"?"
   createNew: "Create a new item"

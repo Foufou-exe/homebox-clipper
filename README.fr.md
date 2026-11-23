@@ -49,6 +49,7 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
 - **Historique des imports** : vos derniers imports avec leur résultat et un lien vers l'objet, conservés uniquement dans votre navigateur et chiffrés avec votre phrase de passe (200 entrées, 12 mois ; effaçable ou désactivable).
 - **Photo du produit** jointe à l'objet comme image principale (décochable par produit).
 - **Lien vers la page de commande** (facultatif, désactivé par défaut) : un lien externe vers la page de commande du marchand est ajouté à l'objet, à un clic dans HomeBox ; il pointe vers le site du marchand et est enregistré dans HomeBox.
+- **Fabricant, modèle et numéro de série** : le fabricant et le numéro de modèle sont lus sur la page produit Amazon de chaque produit (une requête par produit vers la même boutique, sans cookie, sans clé API ni donnée HomeBox) et pré-remplis dans le récapitulatif ; le numéro de série est saisi par vous. Les champs vides ne sont pas envoyés, et une valeur déjà présente sur l'objet n'est jamais remplacée.
 - **Plusieurs instances HomeBox** (jusqu'à 10, une seule phrase de passe) : choisissez la cible au récapitulatif ; chaque instance garde sa propre clé chiffrée et sa permission d'origine exacte.
 - **Collection cible** : pour chaque instance, importez dans la collection HomeBox de votre choix (par défaut, celle de la clé) ; le test de connexion, le récapitulatif et le résultat la nomment.
 - **Choix de l'emplacement** parmi vos emplacements HomeBox, avec recherche ; le dernier utilisé est proposé.

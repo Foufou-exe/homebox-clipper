@@ -3,6 +3,7 @@ import type { ErrorCode } from './errors';
 import type { DocumentKind } from './document-kinds';
 import type { OrderFieldRole } from './order-fields';
 import type { CollectionRef, CollectionSetting } from './collections';
+import type { ProductIdentifiers } from './identifiers';
 
 /** Value extracted from a page, or an explicit absence (principle III). */
 export type Field<T> =
@@ -26,6 +27,13 @@ export interface DetectedProduct {
   pageWarranty?: Field<PageWarranty>;
   /** Name of the seller read on the product row (spec 011); absent or not read means unknown. */
   seller?: Field<string>;
+  /**
+   * Spec 027: manufacturer and model read on the merchant's product page (same origin). Present only when that page
+   * was actually read (`not_found`: read, no such row); absent when it was not (merchant without lookup, no ASIN,
+   * beyond the limit, failure, time budget exceeded).
+   */
+  manufacturer?: Field<string>;
+  modelNumber?: Field<string>;
 }
 
 /** Warranty shown on the order page of a merchant that chose to read it (spec 011). */
@@ -271,6 +279,11 @@ export interface ImportDraft {
    * is off for the target, the box is unchecked or the address cannot be attached: the sequence is unchanged.
    */
   orderLink?: true;
+  /**
+   * Spec 027: manufacturer, model and serial number confirmed by the user, clean and non-empty. Absent (never `{}`)
+   * when none is filled: the import sequence is unchanged. With a template, the serial number only. Never with `complete`.
+   */
+  identifiers?: ProductIdentifiers;
   /**
    * Spec 021: complete this EXISTING HomeBox item instead of creating one. Absent (never `null`): the item is created
    * exactly as before (FR-025). With it, the draft has no template and `location: null`.
