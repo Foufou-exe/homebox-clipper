@@ -197,3 +197,7 @@ node_modules/
 tests/fixtures/**/raw/
 # Configuration locale de `bun run dev` (voir web-ext.config.example.ts)
 web-ext.config.ts
+
+# Graphify
+graphify/
+graphify-out/
