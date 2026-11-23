@@ -721,3 +721,13 @@ describe('orchestrator — order fields (spec 019, Q-C3)', () => {
     expect(retried.ok && retried.value.status).toBe('success');
   });
 });
+
+describe('spec 024: chosen collection no longer reachable on the PUT with order fields', () => {
+  it('403 COLLECTION_UNAVAILABLE: no fallback PUT; the error keeps its code', async () => {
+    const { orchestrator, trace } = recorder({ update: [err('COLLECTION_UNAVAILABLE', 403)] });
+    const p = first(await orchestrator.startImport(5, [orderDraft()], []))!;
+    expect(putsOf(trace)).toHaveLength(1);
+    expect(p.steps).toMatchObject({ update: 'failed', orderFields: 'failed' });
+    expect(p.error).toBe('COLLECTION_UNAVAILABLE');
+  });
+});

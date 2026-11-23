@@ -20,6 +20,8 @@ import { historyStore } from '@/background/history/history-store';
 import { activeImports, activeTargets } from '@/background/import/active-imports';
 import { pendingStore } from '@/background/import/pending-store';
 import { logError } from '@/shared/logger';
+import { collectionSettings, type CollectionEntry } from '@/background/collections/settings';
+import type { CollectionRef } from '@/shared/collections';
 import {
   DEFAULT_LOCK_SETTINGS,
   idleLimitMs,
@@ -34,7 +36,7 @@ const KEY = LEGACY_KEY;
 /** Decrypted API keys: storage.session only (in memory, cleared when the browser closes). */
 const SESSION_KEY = 'homeboxUnlocked';
 export const PENDING_PREFIX = 'pendingImport:';
-export { LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY } from './instance-store';
+export { LAST_LOCATION_KEY, DEFAULT_TEMPLATE_KEY, ORDER_FIELDS_KEY, ENTITY_TYPE_KEY, ORDER_LINK_KEY, COLLECTION_KEY } from './instance-store';
 /** Encrypted import history (spec 012): one `importHistory:<id>` key per entry, in storage.local. */
 export const HISTORY_PREFIX = 'importHistory:';
 /** History setting `{ v: 1, enabled }`, in clear (not purchase data); kept when the configuration is deleted. */
@@ -59,6 +61,10 @@ export interface Credentials {
   id: string;
   baseUrl: string;
   apiKey: string;
+  /** Collection chosen for this instance (spec 024): sent as `X-Tenant`. Absent: the default collection of the key. */
+  tenant?: string;
+  /** The same collection with its name (spec 024): kept with an import started with it (M2). */
+  collection?: CollectionRef;
 }
 
 export function maskKey(apiKey: string): string {
@@ -284,6 +290,12 @@ function eraseHistoryEntries(): Promise<void> {
   });
 }
 
+/** Spec 024: the setting when there is one; `collectionInvalid` for an unreadable entry; nothing otherwise. */
+function collectionView(entry: CollectionEntry | undefined): Pick<InstanceView, 'collection' | 'collectionInvalid'> {
+  if (entry?.kind === 'ok') return { collection: entry.setting };
+  return entry?.kind === 'invalid' ? { collectionInvalid: true } : {};
+}
+
 /**
  * HomeBox configuration storage (R12, principle I).
  * Only the service worker uses it; the UI only receives `getView`, without the key.
@@ -295,6 +307,22 @@ export const configStore = {
    * A legacy key lost with the session stays NOT_CONFIGURED (current behaviour: a passphrase must be chosen).
    */
   async getCredentials(instanceId: string): Promise<Result<Credentials>> {
+    const creds = await configStore.getKeyCredentials(instanceId);
+    if (!creds.ok) return creds;
+    // Spec 024: the chosen collection, if any (FR-002: the properties only exist then). An unreadable entry refuses
+    // every use of the instance with COLLECTION_UNAVAILABLE: never a silent fallback to the default collection (M3).
+    const entry = await collectionSettings.entry(creds.value.id, creds.value.baseUrl);
+    if (entry.kind === 'invalid') return fail('COLLECTION_UNAVAILABLE');
+    const chosen = entry.kind === 'ok' ? entry.setting.chosen : null;
+    return ok(chosen ? { ...creds.value, tenant: chosen.id, collection: chosen } : creds.value);
+  },
+
+  /**
+   * The key and the address of ONE instance, without its collection setting (spec 024): the collection discovery reads
+   * (sent without `X-Tenant`) and the resume of an import, which keeps the collection it started with (M2). Same
+   * errors as `getCredentials` except COLLECTION_UNAVAILABLE.
+   */
+  async getKeyCredentials(instanceId: string): Promise<Result<Credentials>> {
     const store = await instanceStore.read();
     if (!store) return fail('NOT_CONFIGURED');
     const instance = store.instances.find((i) => i.id === instanceId);
@@ -314,6 +342,8 @@ export const configStore = {
     const store = await instanceStore.read();
     if (!store) return { configured: false };
     const session = await readSession();
+    // Spec 024 (FR-014): the collection setting, readable while locked; only for the instances that have one.
+    const collections = await collectionSettings.entries(store.instances);
     const instances: InstanceView[] = store.instances.map((i) => ({
       id: i.id,
       name: i.name,
@@ -321,6 +351,7 @@ export const configStore = {
       maskedKey: i.maskedKey,
       lastCheck: i.lastCheck,
       keyState: keyStateOf(i, store, session),
+      ...collectionView(collections[i.id]),
     }));
     const [first] = instances as [InstanceView, ...InstanceView[]];
     const defaultInstanceId = (await instanceStore.defaultId()) ?? first.id;

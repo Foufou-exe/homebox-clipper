@@ -1,6 +1,7 @@
 import { registerAutoLock } from '@/background/config/auto-lock';
 import { configStore } from '@/background/config/config-store';
 import { instanceStore } from '@/background/config/instance-store';
+import { registerCollectionHandlers } from '@/background/collections/handlers';
 import { registerConfigHandlers } from '@/background/config/handlers';
 import { registerDetectHandlers } from '@/background/detect';
 import { registerEntityTypeHandlers } from '@/background/entity-types/handlers';
@@ -25,6 +26,7 @@ export default defineBackground(() => {
   void configStore.expireIfDue().catch(() => undefined);
   registerAutoLock();
   registerConfigHandlers();
+  registerCollectionHandlers();
   registerDetectHandlers();
   registerImportHandlers();
   registerLocationHandlers();

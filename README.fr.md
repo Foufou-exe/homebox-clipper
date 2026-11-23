@@ -50,6 +50,7 @@ l'architecture est faite pour en ajouter facilement : voir [MERCHANTS.fr.md](MER
 - **Photo du produit** jointe à l'objet comme image principale (décochable par produit).
 - **Lien vers la page de commande** (facultatif, désactivé par défaut) : un lien externe vers la page de commande du marchand est ajouté à l'objet, à un clic dans HomeBox ; il pointe vers le site du marchand et est enregistré dans HomeBox.
 - **Plusieurs instances HomeBox** (jusqu'à 10, une seule phrase de passe) : choisissez la cible au récapitulatif ; chaque instance garde sa propre clé chiffrée et sa permission d'origine exacte.
+- **Collection cible** : pour chaque instance, importez dans la collection HomeBox de votre choix (par défaut, celle de la clé) ; le test de connexion, le récapitulatif et le résultat la nomment.
 - **Choix de l'emplacement** parmi vos emplacements HomeBox, avec recherche ; le dernier utilisé est proposé.
 - **Tags proposés** : l'enseigne de la boutique et les tags de vos propres règles locales sont proposés pour chaque produit, modifiables au récapitulatif ; les tags absents sont créés dans HomeBox uniquement après votre confirmation, et les tags existants ne sont jamais retirés.
 - **Interface aux couleurs de HomeBox**, en thème clair, sombre ou automatique, en **anglais ou en français** selon la langue du navigateur.

@@ -14,7 +14,9 @@ export function registerTagHandlers(): void {
     if (!creds.ok) return creds;
     const list = await createHomeBoxClient(creds.value).listTags();
     if (!list.ok) {
-      return list.error === 'UNAUTHORIZED' || list.error === 'HOMEBOX_UNREACHABLE' ? fail(list.error) : fail('TAGS_UNAVAILABLE');
+      // Spec 024: a chosen collection no longer reachable keeps its own message (FR-010).
+      const kept = ['UNAUTHORIZED', 'HOMEBOX_UNREACHABLE', 'COLLECTION_UNAVAILABLE'].includes(list.error);
+      return kept ? fail(list.error) : fail('TAGS_UNAVAILABLE');
     }
     return ok({ tags: list.value.map(({ id, name }) => ({ id, name })) });
   });

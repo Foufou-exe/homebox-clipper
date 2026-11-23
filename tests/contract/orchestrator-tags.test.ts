@@ -651,3 +651,17 @@ describe('018: tags of a template (noCreate, FR-015, data-model §3)', () => {
     expectNoTagRemoved(s.puts);
   });
 });
+
+describe('spec 024: chosen collection no longer reachable on the PUT with tags', () => {
+  it('403 COLLECTION_UNAVAILABLE: no replay without the tags, the error keeps its code', async () => {
+    const s = setup({
+      list: [ok([{ id: 't1', name: 'Amazon' }])],
+      update: [err('COLLECTION_UNAVAILABLE', 403)],
+    });
+    const [p] = await start(s, [product([{ name: 'Amazon', id: 't1' }])]);
+    expect(s.calls).toEqual(['createEntity', 'listTags', 'updateEntity']);
+    expect(p!.steps.update).toBe('failed');
+    expect(p!.error).toBe('COLLECTION_UNAVAILABLE');
+    expect(p!.status).toBe('partial');
+  });
+});

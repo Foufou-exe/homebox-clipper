@@ -8,6 +8,7 @@ import { isVersion } from './version';
 import { MAX_TAGS_PER_PRODUCT, normalizeTagName, tagKey, tagNameError } from './tags';
 import { isOrderLinkSettings, orderLinkUrl, type OrderLinkSettings } from './order-link';
 import { ORDER_FIELD_ROLES, fieldNameError, isOrderFieldSettings, orderValueError, type OrderFieldSettings } from './order-fields';
+import { isCollectionId, type CollectionList } from './collections';
 import type {
   CompletionPreview,
   ConfigView,
@@ -50,6 +51,9 @@ export type Message =
   | { type: 'instance/rename'; instanceId: string; name: string }
   | { type: 'instance/test'; instanceId: string }
   | { type: 'instance/delete'; instanceId: string }
+  // Target collection (024): extension pages only (`instance/` prefix); the key is needed (HomeBox reads).
+  | { type: 'instance/collections'; instanceId: string }
+  | { type: 'instance/set-collection'; instanceId: string; collectionId: string | null }
   | { type: 'session/change-passphrase'; current: string; next: string }
   | { type: 'session/unlock'; passphrase: string }
   | { type: 'session/lock' }
@@ -140,6 +144,8 @@ export interface ResponseMap {
   'instance/rename': Result<ConfigView>;
   'instance/test': Result<ConfigView>;
   'instance/delete': Result<ConfigView>;
+  'instance/collections': Result<CollectionList>;
+  'instance/set-collection': Result<CollectionList>;
   /** `reenter`: ids of the instances whose key was unreadable and must be entered again. */
   'session/change-passphrase': Result<{ view: ConfigView; reenter: string[] }>;
   'session/unlock': Result<ConfigView>;
@@ -387,6 +393,8 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
   'instance/rename': (m) => isInstanceId(m.instanceId) && isStr(m.name),
   'instance/test': (m) => isInstanceId(m.instanceId),
   'instance/delete': (m) => isInstanceId(m.instanceId),
+  'instance/collections': (m) => isInstanceId(m.instanceId),
+  'instance/set-collection': (m) => isInstanceId(m.instanceId) && (m.collectionId === null || isCollectionId(m.collectionId)),
   'session/change-passphrase': (m) => isStr(m.current) && isStr(m.next),
   'session/unlock': (m) => isStr(m.passphrase),
   'session/lock': () => true,

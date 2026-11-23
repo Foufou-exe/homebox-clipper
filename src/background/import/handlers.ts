@@ -1,5 +1,5 @@
 import * as autoLock from '@/background/config/auto-lock';
-import { configStore } from '@/background/config/config-store';
+import { configStore, type Credentials } from '@/background/config/config-store';
 import { instanceStore } from '@/background/config/instance-store';
 import { lastLocation } from '@/background/location/last-location';
 import { lastEntityType } from '@/background/entity-types/last-entity-type';
@@ -13,6 +13,7 @@ import { register } from '@/background/router';
 import { browser } from '@/platform';
 import { fail, ok, type Result } from '@/shared/errors';
 import { logError } from '@/shared/logger';
+import type { CollectionRef } from '@/shared/collections';
 import type { PendingImport } from '@/shared/types';
 import { sendToTab } from '@/shared/messages';
 import { orderNoteLine, planCompletion } from './completion';
@@ -53,19 +54,43 @@ async function recoverOrphan(p: PendingImport): Promise<PendingImport> {
  * only. The orchestrator itself knows nothing about instances: the wrapped `store` and `notify` set
  * `PendingImport.instanceId`, so that a resume always targets the instance of origin (FR-018).
  */
-async function orchestrator(instanceId: string, started: string[] = []): Promise<Result<Orchestrator>> {
+/**
+ * Credentials of a resume (spec 024, M2): the collection comes from the pending import, never from the current setting,
+ * so an unreadable current setting (COLLECTION_UNAVAILABLE) does not prevent resuming where the item lives.
+ */
+async function resumeCredentials(instanceId: string): Promise<Result<Credentials>> {
   const creds = await configStore.getCredentials(instanceId);
+  return !creds.ok && creds.error === 'COLLECTION_UNAVAILABLE' ? configStore.getKeyCredentials(instanceId) : creds;
+}
+
+/** `collection` set on every state of the import (spec 024, M2), only when the import has one. */
+const withCollection = (p: PendingImport, collection: CollectionRef | null): PendingImport =>
+  collection ? { ...p, collection } : p;
+
+/**
+ * `resume`: the collection kept by the pending import being resumed (null: the default collection of the key); absent,
+ * a new import takes the collection chosen now for the instance.
+ */
+async function orchestrator(
+  instanceId: string,
+  started: string[] = [],
+  resume?: { collection: CollectionRef | null },
+): Promise<Result<{ run: Orchestrator; collection: CollectionRef | null }>> {
+  const creds = resume ? await resumeCredentials(instanceId) : await configStore.getCredentials(instanceId);
   if (!creds.ok) return creds;
   const config = creds.value;
   const target = config.id;
+  // Spec 024 (M2): pinned for the whole import, resumes included: the item lives in this collection.
+  const collection = resume ? resume.collection : (config.collection ?? null);
   // History key captured in the closure, like the API key (R10.5): the import keeps writing its entry even if
   // the extension is locked meanwhile. No key (migrated key without passphrase): import without history.
   const rawHistoryKey = await configStore.getHistoryKey();
   const writer = rawHistoryKey ? historyStore.forKey(await importHistoryKey(rawHistoryKey), target) : null;
-  return ok(createOrchestrator({
-    client: createHomeBoxClient({ baseUrl: config.baseUrl, apiKey: config.apiKey }),
+  const run = createOrchestrator({
+    // Spec 024 (FR-005): the collection of the import, if any, on every request of it.
+    client: createHomeBoxClient({ baseUrl: config.baseUrl, apiKey: config.apiKey, tenant: collection?.id }),
     store: {
-      save: (p) => pendingStore.save({ ...p, instanceId: target }),
+      save: (p) => pendingStore.save(withCollection({ ...p, instanceId: target }, collection)),
       get: (id) => pendingStore.get(id),
       purge: (p) => pendingStore.purge(p),
     },
@@ -88,7 +113,8 @@ async function orchestrator(instanceId: string, started: string[] = []): Promise
       ? { history: { start: (p: PendingImport) => writer.start(p, config.baseUrl), update: (p: PendingImport) => writer.update(p) } }
       : {}),
     notify(pending) {
-      browser.runtime.sendMessage({ type: 'import/progress', pending: { ...pending, instanceId: target } }).catch(() => {
+      const progress = withCollection({ ...pending, instanceId: target }, collection);
+      browser.runtime.sendMessage({ type: 'import/progress', pending: progress }).catch(() => {
         // popup closed: the state remains readable via import/pending
       });
     },
@@ -99,7 +125,8 @@ async function orchestrator(instanceId: string, started: string[] = []): Promise
       activeImports.add(id);
       return id;
     },
-  }));
+  });
+  return ok({ run, collection });
 }
 
 /**
@@ -149,10 +176,10 @@ export function registerImportHandlers(): void {
     try {
       const o = await orchestrator(instanceId, started);
       if (!o.ok) return o;
-      const res = await o.value.startImport(tabId, drafts, manualFiles, orderLocationId ?? null, entityTypesRead === true);
+      const res = await o.value.run.startImport(tabId, drafts, manualFiles, orderLocationId ?? null, entityTypesRead === true);
       if (!res.ok) return res;
       await rememberInstance(instanceId, res.value);
-      return ok(res.value.map((p) => ({ ...p, instanceId })));
+      return ok(res.value.map((p) => withCollection({ ...p, instanceId }, o.value.collection)));
     } finally {
       for (const id of started) activeImports.delete(id);
       endTarget();
@@ -174,17 +201,18 @@ export function registerImportHandlers(): void {
     if (!target.ok) return target;
     // Credentials checked BEFORE the import is declared active (review T070): an expired session is locked here,
     // even if the router's activity hook failed; no HomeBox call is made.
-    const creds = await configStore.getCredentials(target.value);
+    const creds = await resumeCredentials(target.value);
     if (!creds.ok) return creds;
     activeImports.add(pendingId);
     const endTarget = beginTarget(target.value);
     try {
-      const o = await orchestrator(target.value);
+      // Spec 024 (M2): the collection the import started with (none: the default collection of the key).
+      const o = await orchestrator(target.value, [], { collection: stored?.collection ?? null });
       if (!o.ok) return o;
-      const res = await o.value.retryImport(pendingId, manualFiles, location);
+      const res = await o.value.run.retryImport(pendingId, manualFiles, location);
       if (!res.ok) return res;
       await rememberInstance(target.value, [res.value]);
-      return ok({ ...res.value, instanceId: target.value });
+      return ok(withCollection({ ...res.value, instanceId: target.value }, o.value.collection));
     } finally {
       activeImports.delete(pendingId);
       endTarget();

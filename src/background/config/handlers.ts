@@ -1,3 +1,4 @@
+import { collectionSettings } from '@/background/collections/settings';
 import { createHomeBoxClient } from '@/background/homebox/client';
 import { register } from '@/background/router';
 import { hasOrigin } from '@/platform';
@@ -8,8 +9,9 @@ import { configStore } from './config-store';
 import { instanceStore } from './instance-store';
 import { normalizeBaseUrl, originOf } from './url-policy';
 
-async function testConnection(baseUrl: string, apiKey: string): Promise<Result<{ version: string }>> {
-  const client = createHomeBoxClient({ baseUrl, apiKey });
+/** Spec 024: with a chosen collection (`tenant`), the key check carries `X-Tenant` (a lost collection fails, FR-007). */
+async function testConnection(baseUrl: string, apiKey: string, tenant?: string): Promise<Result<{ version: string }>> {
+  const client = createHomeBoxClient({ baseUrl, apiKey, ...(tenant ? { tenant } : {}) });
   const status = await client.getStatus();
   if (!status.ok) return status;
   const auth = await client.checkAuth();
@@ -78,7 +80,7 @@ export function registerConfigHandlers(): void {
   register('instance/test', async ({ instanceId }) => {
     const creds = await configStore.getCredentials(instanceId);
     if (!creds.ok) return creds;
-    return recordCheck(creds.value.id, await testConnection(creds.value.baseUrl, creds.value.apiKey));
+    return recordCheck(creds.value.id, await testConnection(creds.value.baseUrl, creds.value.apiKey, creds.value.tenant));
   });
 
   // Rules of the former single-instance save, per instance (US4-4): a new origin must have been granted by the UI (click);
@@ -90,6 +92,10 @@ export function registerConfigHandlers(): void {
     let tested: Result<{ version: string }> | null = null;
     const before = await instanceStore.byId(instanceId);
     const changedOrigin = before !== null && originOf(before.baseUrl) !== origin;
+    // Spec 024 (FR-011): a collection id only means something on its server; kept only for the same address.
+    // The entry is bound to its address: a new address has none (M1, no second write needed).
+    const entry = await collectionSettings.entry(instanceId, url.value.baseUrl);
+    const tenant = entry.kind === 'ok' ? entry.setting.chosen?.id : undefined;
     let res: Result<{ previousBaseUrl: string }>;
     try {
       res = await configStore.updateInstance(
@@ -99,7 +105,7 @@ export function registerConfigHandlers(): void {
           probe: async (target, key) => {
             // Checked on every update (not only a new origin): the permission may have been removed in the browser.
             if (!(await hasOrigin(origin))) return fail('PERMISSION_DENIED');
-            tested = await testConnection(target, key);
+            tested = await testConnection(target, key, tenant);
             return ok(toLastCheck(tested));
           },
         },

@@ -28,6 +28,7 @@ import FieldEditor from '@/ui/components/FieldEditor.vue';
 import InstanceBadge from '@/ui/components/InstanceBadge.vue';
 import InstancePicker from '@/ui/components/InstancePicker.vue';
 import { defaultInstance } from '@/ui/instances';
+import { displayedCollection } from '@/shared/collections';
 import LocationPicker from '@/ui/components/LocationPicker.vue';
 import OrderFieldsSection from '@/ui/components/OrderFieldsSection.vue';
 import TagPicker from '@/ui/components/TagPicker.vue';
@@ -107,6 +108,8 @@ const instances = computed(() => props.config.instances ?? []);
 const target = ref<string | null>(defaultInstance(props.config)?.id ?? null);
 const targetInstance = computed(() => instances.value.find((i) => i.id === target.value) ?? null);
 const several = computed(() => instances.value.length > 1);
+/** Spec 024 (FR-008): collection of the target, from the view (no request); null under the default rule. */
+const targetCollection = computed(() => displayedCollection(targetInstance.value?.collection));
 /** Name shown before an error concerning the target, only when several instances exist. */
 const errorInstance = computed(() => (several.value ? targetInstance.value?.name : undefined));
 const pickerModel = computed({
@@ -1008,6 +1011,7 @@ async function submit(completions?: ReadonlyMap<string, CompletionChoice>) {
       :announce="announce"
     />
     <InstanceBadge v-else-if="targetInstance" :instance="targetInstance" />
+    <p v-if="targetCollection" class="target-collection">{{ t('collections.summaryLine', [targetCollection]) }}</p>
 
     <p v-if="loading" class="muted" role="status">{{ t('summary.detecting') }}</p>
 
@@ -1316,6 +1320,12 @@ async function submit(completions?: ReadonlyMap<string, CompletionChoice>) {
 </template>
 
 <style scoped>
+.target-collection {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
 .line :deep(.editor) {
   margin: 0;
 }

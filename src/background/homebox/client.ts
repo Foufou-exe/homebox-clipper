@@ -1,3 +1,4 @@
+import { isCollectionRef, refOf, type CollectionRef } from '@/shared/collections';
 import { fail, ok, type ErrorCode, type Result } from '@/shared/errors';
 import { log } from '@/shared/logger';
 import type {
@@ -23,6 +24,11 @@ export const REQUEST_TIMEOUT_MS = 15_000;
 export interface HomeBoxClientOptions {
   baseUrl: string;
   apiKey: string;
+  /**
+   * Collection chosen for this instance (spec 024): sent as `X-Tenant` on every authenticated request. Absent: the
+   * default collection of the key, no header (requests identical to before, FR-002).
+   */
+  tenant?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -34,6 +40,8 @@ interface RequestOptions {
   onHttpError: ErrorCode;
   json?: unknown;
   form?: FormData;
+  /** `false`: never sends `X-Tenant` (collection discovery reads, spec 024 D1). */
+  tenant?: false;
 }
 
 export type HomeBoxClient = ReturnType<typeof createHomeBoxClient>;
@@ -91,7 +99,15 @@ function on404<T>(res: Result<T>, code: ErrorCode): Result<T> {
   return !res.ok && res.httpStatus === 404 ? fail(code, 404) : res;
 }
 
-export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClientOptions) {
+/** Collection list or default collection: other shapes are `COLLECTIONS_UNAVAILABLE` (spec 024). */
+async function readCollections(res: Result<Response>): Promise<Result<CollectionRef[]>> {
+  const json = await readJson<unknown>(res, 'COLLECTIONS_UNAVAILABLE');
+  if (!json.ok) return json;
+  if (!Array.isArray(json.value)) return fail('COLLECTIONS_UNAVAILABLE');
+  return ok(json.value.filter(isCollectionRef).map(refOf));
+}
+
+export function createHomeBoxClient({ baseUrl, apiKey, tenant, fetchImpl }: HomeBoxClientOptions) {
   const doFetch = fetchImpl ?? globalThis.fetch.bind(globalThis);
   const apiRoot = `${baseUrl}/api/v1`;
 
@@ -99,8 +115,14 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
     const url = `${apiRoot}${path}`;
     const headers = new Headers({ Accept: 'application/json' });
     // Principle I: the key is only sent to the configured instance.
+    let withTenant = false;
     if (opts.auth && url.startsWith(`${baseUrl}/`)) {
       headers.set('Authorization', `Bearer ${apiKey}`);
+      // Spec 024 (FR-005): the chosen collection, as a header only (never in the URL), never logged.
+      if (tenant && opts.tenant !== false) {
+        headers.set('X-Tenant', tenant);
+        withTenant = true;
+      }
     }
     let body: BodyInit | undefined;
     if (opts.form) {
@@ -126,6 +148,8 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
     }
     log('homebox request', { endpoint: opts.endpoint, status: response.status, ms: Date.now() - started });
 
+    // Spec 024 (FR-010): with a key, a 403 on these routes only comes from the collection check; never retried.
+    if (response.status === 403 && withTenant) return fail('COLLECTION_UNAVAILABLE', 403);
     if (response.status === 401 || response.status === 403) {
       return fail('UNAUTHORIZED', response.status);
     }
@@ -160,6 +184,33 @@ export function createHomeBoxClient({ baseUrl, apiKey, fetchImpl }: HomeBoxClien
         onHttpError: 'INVALID_URL',
       });
       return res.ok ? ok(undefined) : res;
+    },
+
+    /**
+     * GET /groups/all (spec 024, contracts/homebox-collections.md §1): the collections the key can reach, `{ id, name }`
+     * only; never with `X-Tenant` (a lost collection must not prevent choosing another one). No name is logged.
+     */
+    async listCollections(): Promise<Result<CollectionRef[]>> {
+      const res = await request('GET', '/groups/all', {
+        auth: true,
+        endpoint: 'GET /groups/all',
+        onHttpError: 'COLLECTIONS_UNAVAILABLE',
+        tenant: false,
+      });
+      return readCollections(res);
+    },
+
+    /** GET /groups without `X-Tenant` (spec 024 §2): the default collection of the key, as HomeBox resolves it. */
+    async getDefaultCollection(): Promise<Result<CollectionRef>> {
+      const res = await request('GET', '/groups', {
+        auth: true,
+        endpoint: 'GET /groups',
+        onHttpError: 'COLLECTIONS_UNAVAILABLE',
+        tenant: false,
+      });
+      const json = await readJson<unknown>(res, 'COLLECTIONS_UNAVAILABLE');
+      if (!json.ok) return json;
+      return isCollectionRef(json.value) ? ok(refOf(json.value)) : fail('COLLECTIONS_UNAVAILABLE');
     },
 
     async createEntity(data: EntityCreate): Promise<Result<EntityOut>> {
