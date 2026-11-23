@@ -7,6 +7,13 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.13.1](https://github.com/Foufou-exe/homebox-clipper/compare/v0.13.0...v0.13.1) (2026-11-23)
+
+
+### Code Refactoring
+
+* split the import orchestrator into step modules ([#137](https://github.com/Foufou-exe/homebox-clipper/issues/137)) ([8d8674b](https://github.com/Foufou-exe/homebox-clipper/commit/8d8674bb90e228e53f9fbeaee8a7a7cdf6a4f80d))
+
 ## [0.13.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.12.0...v0.13.0) (2026-11-23)
 
 
