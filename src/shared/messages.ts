@@ -9,6 +9,7 @@ import { MAX_TAGS_PER_PRODUCT, normalizeTagName, tagKey, tagNameError } from './
 import { isOrderLinkSettings, orderLinkUrl, type OrderLinkSettings } from './order-link';
 import { ORDER_FIELD_ROLES, fieldNameError, isOrderFieldSettings, orderValueError, type OrderFieldSettings } from './order-fields';
 import { isCollectionId, type CollectionList } from './collections';
+import { ALL_IDENTIFIER_KEYS, TEMPLATE_IDENTIFIER_KEYS, isProductIdentifiers } from './identifiers';
 import type {
   CompletionPreview,
   ConfigView,
@@ -310,6 +311,15 @@ const isOrderLink = (x: unknown, d: Record<string, unknown>): boolean => {
   if (x === undefined) return true;
   return x === true && d.complete === undefined && orderLinkUrl(isStr(d.pageUrl) ? d.pageUrl : null) !== null;
 };
+/**
+ * `ImportDraft.identifiers` (spec 027): absent, or clean values on a draft that does not complete an existing item
+ * (the spec 021 path is not extended); with a template, the serial number only (D3).
+ */
+const isIdentifiers = (x: unknown, d: Record<string, unknown>): boolean => {
+  if (x === undefined) return true;
+  const allowed = d.template === undefined ? ALL_IDENTIFIER_KEYS : TEMPLATE_IDENTIFIER_KEYS;
+  return d.complete === undefined && isProductIdentifiers(x, allowed);
+};
 /** `template/check` refs: 1 to 50, distinct ids, 64-hex fingerprints. */
 const isTemplateRefs = (x: unknown): boolean =>
   isArr(x) &&
@@ -371,6 +381,7 @@ const areDrafts = (x: unknown): boolean =>
       isTemplateChoice(d.template) &&
       isOrderFields(d.orderFields, d) &&
       isOrderLink(d.orderLink, d) &&
+      isIdentifiers(d.identifiers, d) &&
       // A template requires a location (FR-005).
       (d.template === undefined || isLocationChoice(d.location)) &&
       isWarrantyDraft(d.warranty) &&
@@ -437,7 +448,9 @@ const validators: { [K in MessageType]: (m: Record<string, unknown>) => boolean 
     isObj(m.draft) &&
     m.draft.complete === undefined &&
     m.draft.entityTypeId === undefined &&
-    m.draft.template === undefined,
+    m.draft.template === undefined &&
+    // Spec 027: the completion path is not extended.
+    m.draft.identifiers === undefined,
   'import/pending': (m) => isInt(m.tabId),
   'history/list': () => true,
   'history/delete': (m) => isStr(m.id),

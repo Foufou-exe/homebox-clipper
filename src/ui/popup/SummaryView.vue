@@ -71,6 +71,9 @@ import { isOrderFieldSettings, type OrderFieldSettings } from '@/shared/order-fi
 import { orderLinkUrl } from '@/shared/order-link';
 import { loadOrderLinkEnabled } from '@/ui/order-link-settings';
 import OrderLinkField from '@/ui/components/OrderLinkField.vue';
+import IdentifiersSection from '@/ui/components/IdentifiersSection.vue';
+import { ALL_IDENTIFIER_KEYS, TEMPLATE_IDENTIFIER_KEYS, type IdentifierKey } from '@/shared/identifiers';
+import { identifiersDraft, lineIdentifiersFor, prefillTemplateValues, tooLongKeys, type LineIdentifiers } from './identifiers';
 import { loadWarrantySettings } from '@/ui/warranty-settings';
 import { loadTagSettings } from '@/ui/tag-settings';
 import { DEFAULT_TAG_SETTINGS, findExisting, normalizeTagName, tagKey, tagNameError, type TagLine, type TagSettings } from '@/shared/tags';
@@ -142,6 +145,8 @@ interface Line {
   orderFields: LineOrderFields;
   /** Spec 025: box « add a link to the order page » (checked by default); in memory only, kept across targets. */
   orderLink: boolean;
+  /** Spec 027: manufacturer and model pre-filled from the product page, serial number typed; in memory only. */
+  identifiers: LineIdentifiers;
 }
 
 const loading = ref(true);
@@ -238,7 +243,8 @@ function applyOn(line: Line, detail: TemplateDetail) {
   });
   line.draft = res.line.draft;
   line.tags = res.line.tags;
-  line.template = res.line.template;
+  // Spec 027 (D3): the template's empty manufacturer and model take the line's values.
+  line.template = { ...res.line.template, values: prefillTemplateValues(res.line.template.values, line.identifiers) };
   if (res.location) {
     if (multi.value) line.location = res.location;
     else if (orderTouched) line.template.applied.location = false;
@@ -628,6 +634,7 @@ onMounted(async () => {
         template: emptyLineTemplate(),
         orderFields: initialOrderFields(emptyDraft()),
         orderLink: true,
+        identifiers: lineIdentifiersFor(null),
       },
     ];
     linesReady = true;
@@ -653,6 +660,7 @@ onMounted(async () => {
       template: emptyLineTemplate(),
       orderFields: initialOrderFields(draft),
       orderLink: true,
+      identifiers: lineIdentifiersFor(p),
     };
   };
   const built = products.length ? products.map((p) => lineFor(p.key, p)) : [lineFor('manual', null)];
@@ -686,6 +694,8 @@ const canSubmit = computed(
     selectedLines.value.every((l) => !templateBlocks(l.template, mergedOf(l)) && !needsLocation(l)) &&
     // Spec 019 (FR-013): an order field to create with an invalid value blocks; an empty one never does.
     selectedLines.value.every((l) => !orderOn.value || !orderFieldsBlock(rowsOf(l))) &&
+    // Spec 027: an identifier over 255 bytes blocks; an empty one never does.
+    selectedLines.value.every((l) => tooLongKeys(l.identifiers, identifierKeysOf(l)).length === 0) &&
     dialog.value.kind === 'none',
 );
 
@@ -873,6 +883,11 @@ function orderFieldsOf(line: Line): { orderFields?: OrderFieldValue[] } {
   return fields ? { orderFields: fields } : {};
 }
 
+/** Spec 027 (D3): with a ready template, its section holds the manufacturer and model: the serial number only here. */
+function identifierKeysOf(line: Line): ReadonlySet<IdentifierKey> {
+  return templateChoiceFor(line.template) === null ? ALL_IDENTIFIER_KEYS : TEMPLATE_IDENTIFIER_KEYS;
+}
+
 /** Spec 025: `orderLink` only with the option on, the box checked and an address that can be attached; no key otherwise. */
 function orderLinkOf(line: Line): { orderLink?: true } {
   return orderLinkOn.value && line.orderLink && linkUrlOf(line) !== null ? { orderLink: true } : {};
@@ -951,6 +966,8 @@ function draftOf(l: Line, docs: DocumentRef[]): ImportDraft {
     ...templateOf(l),
     ...orderFieldsOf(l),
     ...orderLinkOf(l),
+    // Spec 027: the filled identifiers only; no key at all without any (sequence unchanged).
+    ...identifiersDraft(l.identifiers, identifierKeysOf(l)),
   };
 }
 
@@ -1090,6 +1107,12 @@ async function submit(completions?: ReadonlyMap<string, CompletionChoice>) {
             :merged-names="mergedOf(line)"
           />
         </template>
+        <IdentifiersSection
+          v-if="line.selected"
+          v-model="line.identifiers"
+          :keys="identifierKeysOf(line)"
+          :id-prefix="`${uid}-${line.key}`"
+        />
         <OrderFieldsSection
           v-if="line.selected && orderOn"
           v-model="line.orderFields"

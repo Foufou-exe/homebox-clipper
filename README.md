@@ -47,6 +47,7 @@ architecture is built to add them easily: see [MERCHANTS.md](MERCHANTS.md).
 - **Import history**: your latest imports with their result and a link to the item, kept only in your browser and encrypted with your passphrase (200 entries, 12 months; can be cleared or turned off).
 - **Product photo** attached to the item as its main image (can be unticked per product).
 - **Link to the order page** (optional, off by default): an external link to the merchant's order page is added to the item, one click away in HomeBox; it points to the merchant's website and is stored in HomeBox.
+- **Manufacturer, model and serial number**: the manufacturer and model number are read on the Amazon product page of each product (one request per product to the same store, without cookies, no API key or HomeBox data) and pre-filled in the summary; the serial number is typed by you. Empty fields are not sent, and a value already on the item is never replaced.
 - **Several HomeBox instances** (up to 10, one passphrase for all): choose the target in the summary; each instance keeps its own encrypted key and exact-origin permission.
 - **Target collection**: for each instance, import into the HomeBox collection of your choice (by default, the one of the key); the connection test, the summary and the result name it.
 - **Location choice** among your HomeBox locations, with search; the last one used is suggested.

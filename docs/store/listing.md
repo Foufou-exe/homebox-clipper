@@ -61,6 +61,7 @@ FEATURES
 - Recovery after an error without creating a duplicate.
 - Product photo attached as the item's main image (can be unticked).
 - Optional link to the order page (off by default): the link to the order page is added to the item as an external link and is stored in HomeBox; it points to the merchant's website.
+- Manufacturer and model number read on the Amazon product page of each product (one request to the same store, without cookies, no API key or HomeBox data) and pre-filled; serial number typed by you; all editable, and a value already on the item is never replaced.
 - Location picker with search.
 - Suggested HomeBox tags (the store brand and your own local rules such as "the name contains SSD → Computers"), editable in the summary before you confirm.
 - Light, dark or automatic theme; English and French interface.
@@ -101,6 +102,7 @@ FONCTIONNALITÉS
 - Reprise après une erreur sans créer de doublon.
 - Photo du produit jointe comme image principale de l'objet (décochable).
 - Lien facultatif vers la page de commande (désactivé par défaut) : le lien vers la page de commande est ajouté à l'objet comme lien externe et est enregistré dans HomeBox ; il pointe vers le site du marchand.
+- Fabricant et numéro de modèle lus sur la page produit Amazon de chaque produit (une requête vers la même boutique, sans cookie, sans clé API ni donnée HomeBox) et pré-remplis ; numéro de série saisi par vous ; modifiables, jamais une valeur déjà présente remplacée.
 - Choix de l'emplacement avec recherche.
 - Tags HomeBox proposés (l'enseigne de la boutique et vos propres règles locales, par exemple « le nom contient SSD → Informatique »), modifiables dans le récapitulatif avant la confirmation.
 - Thème clair, sombre ou automatique ; interface en français et en anglais.
@@ -162,13 +164,13 @@ Conserve les adresses des instances HomeBox de l'utilisateur (1 à 10 instances 
 EN:
 
 ```
-Grants temporary access to the Amazon order tab only when the user clicks the extension icon, so the purchase can be read and the invoice downloaded from that page. It avoids any permanent host permission for Amazon.
+Grants temporary access to the Amazon order tab only when the user clicks the extension icon, so the purchase can be read and the invoice downloaded from that page, and the product page of each ordered product read on the same store (without cookies) to propose its manufacturer and model. It avoids any permanent host permission for Amazon.
 ```
 
 FR :
 
 ```
-Donne un accès temporaire à l'onglet de commande Amazon uniquement quand l'utilisateur clique sur l'icône de l'extension, pour lire l'achat et télécharger la facture depuis cette page. Cela évite toute permission d'hôte permanente pour Amazon.
+Donne un accès temporaire à l'onglet de commande Amazon uniquement quand l'utilisateur clique sur l'icône de l'extension, pour lire l'achat et télécharger la facture depuis cette page, et lire sur la même boutique (sans cookie) la page produit de chaque produit commandé pour proposer son fabricant et son modèle. Cela évite toute permission d'hôte permanente pour Amazon.
 ```
 
 **scripting**

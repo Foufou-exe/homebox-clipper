@@ -193,7 +193,8 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     ): Promise<Result<PendingImport[]>> {
       if (drafts.some((d) => d.name.trim() === '')) return fail('PRODUCT_NOT_FOUND');
       // Spec 021 (defense, C4): a completed item never gets a template nor a location; refused before any request.
-      if (drafts.some((d) => d.complete && (d.template || d.location || d.entityTypeId)))
+      // Spec 027: nor identifiers (the completion path is not extended).
+      if (drafts.some((d) => d.complete && (d.template || d.location || d.entityTypeId || d.identifiers)))
         return fail('BAD_MESSAGE');
       const files = filesFrom(manualFiles);
       const photos: PhotoMap = new Map();

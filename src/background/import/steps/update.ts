@@ -5,6 +5,7 @@ import { getMessage } from '@/platform/i18n';
 import { ok, type ErrorCode, type Result } from '@/shared/errors';
 import type { ImportDraft, PendingImport } from '@/shared/types';
 import { warrantyPatch } from '@/shared/warranty';
+import { identifiersPatch } from '../identifiers-patch';
 import type { StepContext } from './context';
 import { knowsTags, settleTags, tagIdsFor, tagsOnlyStep, type ResolvedTags } from './tags';
 
@@ -36,6 +37,8 @@ export function purchaseBase(draft: ImportDraft, current: EntityOut): Partial<En
     purchaseDate: draft.purchaseDate ?? undefined,
     purchaseFrom: draft.purchaseFrom || undefined,
     notes: buildNotes(draft),
+    // Spec 027: only the identifiers the item does not already have; no key without any (sequence unchanged).
+    ...identifiersPatch(draft.identifiers, current),
     // A PUT without `parentId` would lose the location (V3): it is always sent.
     parentId: current.parent?.id ?? draft.location?.id,
   };

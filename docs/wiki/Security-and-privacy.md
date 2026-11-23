@@ -136,6 +136,20 @@ production build.
 - The popup shows the thumbnail from the merchant's image server: this is the only image request made
   before your confirmation, and it is made by your browser, as on Amazon's page.
 
+## The product page (manufacturer and model)
+
+- To pre-fill the manufacturer and model number, the script injected in the order tab reads the Amazon **product
+  page** of each product of the order: `<store origin>/dp/<ASIN>`, built from the product link of the order page,
+  on the **same origin** as the order page only (at most 10 pages, 3 at a time, 8 seconds each, 10 seconds for the
+  whole lookup, 5 MB per page counted while reading).
+- The request is sent **without cookies** (`credentials: 'omit'`) and **without referrer**: it is not tied to your
+  Amazon account and does not reveal the order address. It carries no API key and no HomeBox address or data
+  (the injected script never receives them).
+- **No permission is added**: it is a same-origin request of the script already injected through `activeTab`,
+  like the reading of the invoice menu.
+- No value, no product page address and no ASIN is written to the logs. The values are sent to your HomeBox
+  instance only after your confirmation, and kept only with the import in progress.
+
 ## The location
 
 - The list of locations is a **read** (`GET /entities/tree`) on the instance you configured, with the API

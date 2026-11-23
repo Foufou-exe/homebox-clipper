@@ -86,6 +86,21 @@ export const SELECTORS = {
   ],
   /** PDF links in the content of the "Facture" menu. */
   invoicePopoverPdfLink: ['a[href*="/documents/download/"]', 'a[href$=".pdf"]'],
+  /*
+   * Spec 027: product PAGE (`/dp/<ASIN>`), never the order page. Detail rows of the known blocks (research R2, all to
+   * confirm on a real page); labels in page-locales.ts. The first value of a label wins, in this order.
+   */
+  productDetailRow: [
+    '#productDetails_techSpec_section_1 tr',
+    '#productDetails_detailBullets_sections1 tr',
+    '#technicalSpecifications_section_1 tr',
+    '#prodDetails tr',
+    '#detailBullets_feature_div li',
+  ],
+  /** Label of a detail row (relative to the row). */
+  productDetailLabel: ['th', '.a-text-bold'],
+  /** Value of a detail row (relative to the row). */
+  productDetailValue: ['td', '.a-text-bold + span'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type SelectorField = keyof typeof SELECTORS;

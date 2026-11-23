@@ -176,6 +176,8 @@ export function previewDraft(base: ImportDraft): ImportDraft {
   delete draft.complete;
   // Spec 023: a completed or previewed item is never given a type.
   delete draft.entityTypeId;
+  // Spec 027: the completion path is not extended (no manufacturer, model nor serial number).
+  delete draft.identifiers;
   return draft;
 }
 
