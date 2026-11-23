@@ -25,7 +25,10 @@
     "homebox:logs": "docker compose logs -f homebox",
     "icons": "sh scripts/gen-icons.sh",
     "release:notes": "bun scripts/release-notes.ts",
-    "wiki:publish": "sh scripts/publish-wiki.sh"
+    "wiki:publish": "sh scripts/publish-wiki.sh",
+    "docs:install": "bun install --cwd docs/site --frozen-lockfile --ignore-scripts",
+    "docs:dev": "bun run docs:install && ASTRO_TELEMETRY_DISABLED=1 bun run --cwd docs/site dev",
+    "docs:build": "bun run docs:install && ASTRO_TELEMETRY_DISABLED=1 bun run --cwd docs/site build"
   },
   "dependencies": {
     "vue": "^3.5.44"

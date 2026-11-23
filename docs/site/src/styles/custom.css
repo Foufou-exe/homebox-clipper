@@ -1,0 +1,12 @@
+/* Accent colors of the extension (src/ui/theme.css, HomeBox green). System fonts only: no web font is loaded. */
+:root {
+  --sl-color-accent-low: hsl(139 30% 18%);
+  --sl-color-accent: hsl(139 18% 45%);
+  --sl-color-accent-high: hsl(139 60% 85%);
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: hsl(139 40% 88%);
+  --sl-color-accent: hsl(139 16% 37%);
+  --sl-color-accent-high: hsl(139 30% 22%);
+}

@@ -6,7 +6,7 @@ const prose = (path: string) =>
   readFileSync(resolve(__dirname, '../..', path), 'utf8').replace(/\s+/g, ' ');
 
 describe('completion docs (021)', () => {
-  const usage = prose('docs/wiki/Usage.md');
+  const usage = prose('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
   const duplicates = usage.slice(usage.indexOf('## Duplicates'), usage.indexOf('## No invoice'));
 
   it('Usage.md, Duplicates section: "Complete the existing item", never overwritten, confirmation, quantity unchecked', () => {
@@ -28,7 +28,7 @@ describe('completion docs (021)', () => {
   });
 
   it('Architecture.md cites import/complete-preview, preservingUpdate and the pure module', () => {
-    const doc = prose('docs/wiki/Architecture.md');
+    const doc = prose('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('import/complete-preview');
     expect(doc).toContain('preservingUpdate');
     expect(doc).toContain('src/background/import/completion.ts');
@@ -36,14 +36,14 @@ describe('completion docs (021)', () => {
   });
 
   it('Troubleshooting-and-FAQ.md has the ITEM_NOT_FOUND row with the exact English message', () => {
-    const doc = prose('docs/wiki/Troubleshooting-and-FAQ.md');
+    const doc = prose('docs/site/src/content/docs/troubleshooting-and-faq.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain(
       '| The chosen HomeBox item no longer exists. Nothing was changed. | `ITEM_NOT_FOUND` |',
     );
   });
 
   it('Security-and-privacy.md: update of an existing item only after confirmation, nothing of it logged', () => {
-    const doc = prose('docs/wiki/Security-and-privacy.md');
+    const doc = prose('docs/site/src/content/docs/security-and-privacy.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toMatch(/Completing an existing item/);
     expect(doc).toMatch(/only after the confirmation window/);
     expect(doc).toMatch(/nothing of the item read .* is logged/);

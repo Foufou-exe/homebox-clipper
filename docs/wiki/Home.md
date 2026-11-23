@@ -1,42 +1,27 @@
-# HomeBox Clipper: the wiki
+# HomeBox Clipper: the documentation has moved
 
-**HomeBox Clipper** is a browser extension for Chrome and Firefox (Manifest V3) that turns an online purchase into an
-[HomeBox](https://github.com/sysadminsmedia/homebox) inventory item, PDF invoice included, after your
-confirmation. It currently works with **Amazon** (the "Order Details" page): Amazon.fr, plus Amazon.de,
-.es, .it, .com.be, .nl, .co.uk and .com in testing (see [Supported-merchants](Supported-merchants.md)), and
-talks only to
-**your** self-hosted HomeBox instance (API tested with v0.27).
+> [!IMPORTANT]
+> The documentation of HomeBox Clipper is now a website: **[https://foufou-exe.github.io/homebox-clipper/](https://foufou-exe.github.io/homebox-clipper/)**
+> (English) and **[https://foufou-exe.github.io/homebox-clipper/fr/](https://foufou-exe.github.io/homebox-clipper/fr/)** (French).
 
-> [!NOTE]
-> The project is an MVP. It is independent: it has no affiliation with Amazon or the HomeBox team.
+This wiki is no longer updated: every former page now points to its new location.
 
-## Where to start
+| Former wiki page | New location |
+|------------------|--------------|
+| Installation | [https://foufou-exe.github.io/homebox-clipper/getting-started/installation/](https://foufou-exe.github.io/homebox-clipper/getting-started/installation/) |
+| Configuration | [https://foufou-exe.github.io/homebox-clipper/configuration/](https://foufou-exe.github.io/homebox-clipper/configuration/) |
+| Usage | [https://foufou-exe.github.io/homebox-clipper/usage/](https://foufou-exe.github.io/homebox-clipper/usage/) |
+| Supported merchants | [https://foufou-exe.github.io/homebox-clipper/supported-merchants/](https://foufou-exe.github.io/homebox-clipper/supported-merchants/) |
+| Security and privacy | [https://foufou-exe.github.io/homebox-clipper/security-and-privacy/](https://foufou-exe.github.io/homebox-clipper/security-and-privacy/) |
+| Troubleshooting and FAQ | [https://foufou-exe.github.io/homebox-clipper/troubleshooting-and-faq/](https://foufou-exe.github.io/homebox-clipper/troubleshooting-and-faq/) |
+| Architecture | [https://foufou-exe.github.io/homebox-clipper/contributing/architecture/](https://foufou-exe.github.io/homebox-clipper/contributing/architecture/) |
+| Adding a merchant | [https://foufou-exe.github.io/homebox-clipper/contributing/adding-a-merchant/](https://foufou-exe.github.io/homebox-clipper/contributing/adding-a-merchant/) |
+| Tests and fixtures | [https://foufou-exe.github.io/homebox-clipper/contributing/testing-and-fixtures/](https://foufou-exe.github.io/homebox-clipper/contributing/testing-and-fixtures/) |
+| Local HomeBox instance | [https://foufou-exe.github.io/homebox-clipper/contributing/local-homebox-instance/](https://foufou-exe.github.io/homebox-clipper/contributing/local-homebox-instance/) |
+| Translations and interface texts | [https://foufou-exe.github.io/homebox-clipper/contributing/translations/](https://foufou-exe.github.io/homebox-clipper/contributing/translations/) |
+| Releasing | [https://foufou-exe.github.io/homebox-clipper/maintaining/releasing/](https://foufou-exe.github.io/homebox-clipper/maintaining/releasing/) |
+| Maintaining the development environment | [https://foufou-exe.github.io/homebox-clipper/maintaining/dev-environment/](https://foufou-exe.github.io/homebox-clipper/maintaining/dev-environment/) |
+| Moderating Discussions | [https://foufou-exe.github.io/homebox-clipper/maintaining/moderating-discussions/](https://foufou-exe.github.io/homebox-clipper/maintaining/moderating-discussions/) |
 
-| You want to... | Page |
-|----------------|------|
-| Install the extension | [Installation](Installation.md) |
-| Connect it to your HomeBox instance | [Configuration](Configuration.md) |
-| Import a purchase | [Usage](Usage.md) |
-| See which sites are supported | [Supported-merchants](Supported-merchants.md) |
-| Understand what is stored and sent | [Security-and-privacy](Security-and-privacy.md) |
-| Fix an error message | [Troubleshooting-and-FAQ](Troubleshooting-and-FAQ.md) |
-| Understand the code | [Architecture](Architecture.md) |
-| Add a merchant | [Adding-a-merchant](Adding-a-merchant.md) |
-| Run or write tests | [Testing-and-fixtures](Testing-and-fixtures.md) |
-| Set up a test HomeBox instance | [Local-HomeBox-instance](Local-HomeBox-instance.md) |
-| Publish a release | [Releasing](Releasing.md) |
-| Moderate the Discussions | [Moderating-Discussions](Moderating-Discussions.md) |
-| Change or add an interface text | [Translations](Translations.md) |
-| Maintain the development environment | [Maintaining-the-dev-environment](Maintaining-the-dev-environment.md) |
-
-## Useful links
-
-- [Repository README](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.md)
-- [Contributing guide](https://github.com/Foufou-exe/homebox-clipper/blob/main/CONTRIBUTING.md)
-- [Changelog](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md)
-- [Supported merchants](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md)
-- [Security policy](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md)
-
-The full navigation is in the sidebar. The content of this wiki is versioned in the repository, in
-`docs/wiki/`: to fix it, open a pull request rather than editing the page on GitHub (a later
-publication would overwrite the edit).
+The documentation is versioned in the repository, in `docs/site/`: to fix a page, open a pull request
+(or use the "Edit page" link at the bottom of each page of the site).

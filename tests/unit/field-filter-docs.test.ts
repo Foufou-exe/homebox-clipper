@@ -6,14 +6,14 @@ const read = (path: string) => readFileSync(resolve(__dirname, '../..', path), '
 
 describe('field filter docs (020)', () => {
   it('Usage.md, Duplicates section, mentions the order number custom field', () => {
-    const doc = read('docs/wiki/Usage.md');
+    const doc = read('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
     const section = doc.slice(doc.indexOf('## Duplicates'), doc.indexOf('## No invoice'));
     expect(section).toMatch(/order number custom field/);
     expect(section).toMatch(/incomplete/);
   });
 
   it('Architecture.md mentions the fields filter and the confirmation reads', () => {
-    const doc = read('docs/wiki/Architecture.md');
+    const doc = read('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('/api/v1/entities?fields=');
     expect(doc).toMatch(/at most 5 reads/);
   });

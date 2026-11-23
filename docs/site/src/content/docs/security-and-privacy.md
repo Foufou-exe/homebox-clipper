@@ -1,0 +1,199 @@
+---
+title: "Security and privacy"
+description: "What the extension stores, what it sends and to whom, and the permissions it asks for."
+---
+
+The HomeBox API key gives access to your whole inventory: protecting it is the project's central
+principle. This page describes what the extension does, what it does not do, and its limits. To report a
+vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md).
+
+## What the API key never does
+
+- It is **never sent to Amazon** (or to any other merchant).
+- It is **never sent to an intermediary server**: there is none, and no usage statistics or telemetry
+  exist. The extension contacts only the merchant (to read the page and download the invoice with your
+  session) and **your** HomeBox instance.
+- It is **never written to logs**.
+- It is **never included in the source code** (neither in versioned files nor in test fixtures).
+
+## Several HomeBox instances
+
+You can set up several instances (up to 10). Each instance has its own API key, encrypted separately with the
+**same passphrase** (one unlock opens every key, one lock closes them all) and with the address of **its own**
+instance as associated data: a key moved to another instance's address cannot be decrypted. The vault key
+derived from the passphrase is never stored nor kept in the session, which is why the passphrase is asked again
+every time an instance is added. Each message that contacts HomeBox names its target; the client of a request
+is built from that instance only, the `Authorization` header is added only to requests to its address, and
+there is no fallback to another instance: a key, a purchase, a document or an instance name is never sent to
+another instance (an interrupted import is resumed on the instance it started on). Each instance has its own
+optional permission, for the exact origin of its address, asked in the click that adds it; it is removed as
+soon as no instance uses it (deleting an instance, changing its address). Deleting an instance erases its key,
+its last location, its import history entries (identified by the opaque `inst` id stored next to each encrypted
+entry, which works even while locked) and its interrupted imports.
+
+## Threat model
+
+| Threat | Protection |
+|--------|------------|
+| A file of the browser profile is read (disk copy, backup) | The key is stored only **encrypted** (AES-GCM 256, key derived from your passphrase with PBKDF2-SHA256, 600,000 iterations, random salt and IV) in `storage.local`. The import history is encrypted too (see [Import history](#import-history)): only the number of entries and their approximate size can be seen. |
+| Someone edits the stored address to divert the key to another server | The instance address is used as **associated data** for the encryption: changing it without the passphrase makes decryption impossible. |
+| A web page (Amazon) tries to read the key | Only the **service worker** uses the key. The script injected into the page has access to neither storage nor the settings, and no message addressed to it contains the address or the key. |
+| A page script tries to call the service worker | Messages are **typed and validated** on reception; those touching settings, unlocking, detection and imports are refused unless they come from an extension page (popup, options). |
+| The key is sent to the wrong host | The `Authorization: Bearer` header is added only to requests whose address starts with the configured address. |
+| Eavesdropping on the local network over HTTP | HTTP is accepted only for the local network, with the "Unencrypted HTTP" warning; HTTPS is required for any public address. |
+| Creation of unwanted items | No write to HomeBox without a click on "Add to HomeBox"; all fields can be edited before sending. |
+| A page script reads or creates HomeBox tags | `tag/list` is reserved to extension pages (`tag/` prefix refused from a web page). Tags are created and attached only after the confirmation, and only the checked ones; a PUT always keeps the tags already on the item. No new recipient: tags are read from and created on your instance only. |
+| An existing HomeBox item is changed without your agreement | **Completing an existing item** (spec 021) is a write: it happens only after the confirmation window, which lists every change (attachment, tag, field and value, notes line, quantity), the item and the instance. It only adds: a value already set is never overwritten, and the name, description and location never change. The item is read again just before the update; the single PUT keeps the tags, the location, the custom fields and the sale details read from the item. Requests go to your instance only, and nothing of the item read is logged or stored outside the import in progress. |
+| Booby-trapped image URL (modified merchant page) | The URL is checked twice (at extraction, then in the service worker): `https`, host **strictly equal** to the merchant's (`m.media-amazon.com`), no port or credentials. Redirects refused. |
+| Booby-trapped file passed off as a photo (HTML, SVG, GIF) | Only JPEG, PNG and WebP (byte signature checked) of 5 MB at most are sent; the type sent comes from the signature, not from the response header. |
+| The decrypted key stays in memory while the computer is left unattended | **Automatic lock** (settings): after 15 minutes, 1 hour or 4 hours of inactivity, or every time the extension is opened; no "never" option. Without the `alarms` permission, the browser cannot wake the extension at a fixed time: the expiry is **lazy**. The key is erased at the first use of the extension after the deadline (opening the popup or the settings, any message, or a restart of its service worker), **before** it can be read: no path reads the key without checking the deadline first. Until that moment the key stays in browser memory only, never on disk. No duration survives a browser restart. |
+| Booby-trapped file passed off as an invoice | Only real PDFs (`%PDF-` signature) of 15 MB at most are sent; download limited to the exact origin of the Amazon store of the order (for example `https://www.amazon.de`); a link to another store or site is refused. |
+
+## Where data is stored
+
+| Data | Location | Lifetime |
+|------|----------|----------|
+| HomeBox instances (`homeboxInstances`): address, display name, **encrypted** API key, masked key (`hb_••••abcd`), result of the last test, for each instance; the instance of the last successful import (`lastInstanceId`) | `storage.local` | Until "Delete this instance", "Delete settings" / "Delete all settings" or uninstallation |
+| **Decrypted** API keys, by instance | `storage.session` (memory) | Until locking (🔒), browser close, or extension reload, update or disabling |
+| Passphrase | **Nowhere** | Never saved |
+| In-progress imports (purchase data needed for a recovery) | `storage.session` (memory) | Erased as soon as the import succeeds or is abandoned; without file bytes. Only a minimal, **encrypted** extract is kept in the import history (next row) |
+| Import history (`importHistory:<id>`, one **encrypted** envelope per product) and its on/off setting (`importHistorySettings`) | `storage.local` | At most 200 entries and 12 months; erased by "Clear all", turning the history off, or "Delete settings" (the on/off setting is kept) |
+| History key, **sealed** with the passphrase (in the configuration) / **open** (next to the decrypted API key) | `storage.local` / `storage.session` (memory) | Like the API key |
+| Photo URL of an in-progress import | `storage.session` (memory) | Erased with the import (success or abandon); **never the image bytes** |
+| Last location used, per instance (`lastLocationByInstance`): **identifiers only**, never a location name | `storage.local` | Until "Delete settings" (erased with it) or uninstallation |
+| Default item template per instance (`defaultTemplateByInstance`): identifier and name of the template only | `storage.local` | Erased with the instance ("Delete this instance") or with "Delete settings", or at uninstallation |
+| Last item type used, per instance (`lastEntityTypeByInstance`): **identifier only**, never a type name | `storage.local` | Erased with the instance ("Delete this instance") or with "Delete settings", or at uninstallation |
+| Order-fields setting per instance (`orderFieldsByInstance`): the option and the three field names only, never a value | `storage.local` | Erased with the instance ("Delete this instance") or with "Delete settings", or at uninstallation |
+| Target collection per instance (`collectionByInstance`): identifier and name of the chosen collection and of the collection last read, never an item | `storage.local` | Reset when the address of the instance changes; erased with the instance ("Delete this instance") or with "Delete settings", or at uninstallation |
+| Chosen theme | `storage.local` | Display preference |
+| Automatic lock setting (`lockSettings`: `{ v: 1, policy }`, a choice, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
+| Last time the extension was used while unlocked (`homeboxActivity`: `{ at }`, a technical timestamp, never shown or logged) | `storage.session` (memory) | Written with the decrypted key, erased with it (lock, browser close, "Delete settings") |
+| Version of the last update notice (`updateNotice`: version and whether it was closed) | `storage.local` | Replaced at the next update; kept when you delete the settings |
+| Version ready to install, as signalled by the browser (`updateReady`) | `storage.session` (memory) | Until the browser closes or the extension restarts |
+| Default-warranty setting (`warrantySettings`: on/off and a duration in years, in clear: a preference, no personal data) | `storage.local` | Until uninstallation (kept when you delete the settings) |
+| Warranty of an in-progress import (expiry date, details) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs |
+| Automatic-tag setting (`tagSettings`: store-name option and rules "contains … → tag …", in clear: preferences, no secret) | `storage.local` | Until uninstallation (kept when you delete the settings) |
+| Chosen tags and tags not added of an in-progress import (`draft.tags`, `failedTags`) | `storage.session` (memory), inside the in-progress import | Erased with the import; tags are never stored in the import history |
+| Link to the order page setting of each instance (`orderLinkByInstance`: the option, in clear, no secret) | `storage.local` | Erased with the instance or with **Delete settings** |
+| Link to the order page of an in-progress import (`draft.orderLink`, the address is the page address already in the import) | `storage.session` (memory), inside the in-progress import | Erased with the import; never in the import history and never in the logs. Once added, the link to the order page is stored in HomeBox (it points to the merchant's website), not in the extension |
+
+No data is placed in `storage.sync`.
+
+## Import history
+
+The extension keeps a short history of the imports you confirmed, **only in this browser**:
+
+- **Stored**, per product: name, store identifier, order number, import and purchase dates, instance
+  address, item identifier, result (complete, partial, failed, in progress) and what is missing (purchase
+  details, invoice, manual, warranty, delivery note, documents, photo), with an error **code** for a failure.
+- **Never stored**: the API key, your delivery address, your payment method, invoice or photo contents,
+  the address of the Amazon page, the photo address, the price, the seller, the description or the
+  location.
+- **Encryption**: each entry is encrypted with AES-GCM 256 under a random 256-bit **history key**, with a
+  fresh random IV at every write and the storage key as associated data. Nothing about an entry (date,
+  status, store) is stored in clear. The history key is sealed with the **same** passphrase-derived key
+  as the API key (PBKDF2-SHA256, 600,000 iterations): a single derivation per unlock. While unlocked, the
+  open history key sits in session memory next to the API key, and leaves with it.
+- **Locked**: the history cannot be read; the extension says "History locked". Deleting an entry,
+  "Clear all" and turning the history off still work (they delete encrypted data without reading it).
+- **Forgotten passphrase**: the history cannot be recovered, like the API key. Setting up the extension
+  again with a new passphrase while it is **locked** erases it; the settings page warns before sending.
+  While **unlocked**, changing the passphrase keeps it.
+- No log, no network request, no new permission. The `history/*` messages are refused unless they come
+  from an extension page.
+- Pruning (200 entries, 12 months) needs the key, since the dates are encrypted: it runs when the
+  history is opened and at each new import, while the extension is unlocked. Unlocking alone does not
+  prune. The list is pruned before it is shown, so an entry beyond the limits is never displayed.
+
+## Manifest permissions
+
+| Permission | Why |
+|------------|-----|
+| `storage` | Remember the address, the encrypted key, the theme and the state of in-progress imports. |
+| `activeTab` | Read the Amazon tab **only when you open the extension**. No permanent access to Amazon. |
+| `scripting` | Inject the detection code into that tab, at that moment. |
+| Access to your instances (**optional**, `https://*/*` and `http://*/*`) | Requested at runtime for **the exact origin** of each instance you configure, removed as soon as no instance uses it (deleting an instance, changing its address, deleting the settings). The wildcard is never granted wholesale; the restriction of HTTP to the local network is enforced by the code. |
+
+In Firefox, the access to an instance can be removed at any time in `about:addons` › the extension ›
+**Permissions**, with the same effect as in Chrome: the extension can no longer reach it until you grant it
+again (**Request access again**). The Firefox manifest also declares, as Firefox requires, its data collection
+category: `websiteContent` (required), meaning that the Amazon order page content and the invoice go only to
+your own HomeBox instance after your confirmation, and nowhere else (see
+[PRIVACY.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/PRIVACY.md)). The permissions are the same
+in both browsers.
+
+The manifest declares neither static `host_permissions` nor static content scripts, and its content
+security policy forbids `eval` and remote code. `bun run test:build` checks these points on the
+production build.
+
+## The product photo
+
+- The image request to the merchant's server is an **anonymous GET**: no cookies, no `Referer` header, no
+  API key, to the merchant's exact host only. It is made by a module separate from the HomeBox client
+  (`src/background/import/photo-fetch.ts`), which has no access to the key.
+- The photo is read only after your click on "Add to HomeBox", and only if its box is checked.
+- The bytes are **never kept** (neither in `storage.session` nor in `storage.local`); a recovery
+  downloads the photo again.
+- **No permission is added** to the manifest for this.
+- **No image URL is written to logs** (only a template, a status and a duration are).
+- The popup shows the thumbnail from the merchant's image server: this is the only image request made
+  before your confirmation, and it is made by your browser, as on Amazon's page.
+
+## The product page (manufacturer and model)
+
+- To pre-fill the manufacturer and model number, the script injected in the order tab reads the Amazon **product
+  page** of each product of the order: `<store origin>/dp/<ASIN>`, built from the product link of the order page,
+  on the **same origin** as the order page only (at most 10 pages, 3 at a time, 8 seconds each, 10 seconds for the
+  whole lookup, 5 MB per page counted while reading).
+- The request is sent **without cookies** (`credentials: 'omit'`) and **without referrer**: it is not tied to your
+  Amazon account and does not reveal the order address. It carries no API key and no HomeBox address or data
+  (the injected script never receives them).
+- **No permission is added**: it is a same-origin request of the script already injected through `activeTab`,
+  like the reading of the invoice menu.
+- No value, no product page address and no ASIN is written to the logs. The values are sent to your HomeBox
+  instance only after your confirmation, and kept only with the import in progress.
+
+## The location
+
+- The list of locations is a **read** (`GET /entities/tree`) on the instance you configured, with the API
+  key, like the other calls: nothing is sent elsewhere.
+- `location/*` messages are reserved for extension pages (popup, options), never for scripts injected
+  into a merchant page.
+- `storage.local` contains only identifiers (`lastLocationByInstance`); they are erased with the
+  settings.
+- **No location name or path is written to logs.**
+- **No permission is added** to the manifest for this.
+
+## Logs and personal data
+
+The only access point to the console is `src/shared/logger.ts`. Its signature is closed: it accepts only
+error codes, HTTP statuses, durations and an endpoint **template** (for example
+`POST /entities/{id}/attachments`, `GET /tags`), never a real address, a product name, a price or an order number.
+No tag name and no text of a tag rule is ever logged.
+When an existing item is completed, nothing of the item read (name, notes, custom fields, tags, values) is logged:
+only the endpoint templates (`GET /entities/{id}`, `PUT /entities/{id}`).
+Debug logs are emitted only in development mode; in production only a generic warning ("handler threw"
+and the message type) is emitted. An ESLint rule forbids `console.*` elsewhere.
+
+Only the fields listed in [Usage](/homebox-clipper/usage/) are read from the order page: never your delivery address or
+your payment method.
+
+## Limits to know about
+
+- **Unlocked extension**: the key is then in memory. Malicious software controlling your browser session
+  can read it, as with any unlocked password manager. Encryption protects the profile files and the
+  **locked** extension.
+- **Weak passphrase**: the minimum is 10 characters; a short or guessable passphrase weakens the
+  encryption. Prefer a long passphrase.
+- **Local HTTP**: on a network where other machines are hostile, the key can be intercepted. Use HTTPS.
+- **Lost passphrase**: no recovery is possible, by design (for the API key and the import history).
+- **Import history**: the number of entries is visible on disk; entries beyond the limits (older than
+  12 months, or past the 200th) stay encrypted on disk until the history is opened or an import is made
+  with the extension unlocked, which prunes them. In the "unavailable" state (history key unreadable, or
+  key migrated without a passphrase), nothing is pruned until the extension is set up again with a
+  passphrase, which erases them; "Clear all" works at any time.
+- **Dedicated key**: create in HomeBox a key reserved for the extension, with an expiration date, to limit
+  the impact of a leak.
+
+To go further on the implementation: `src/background/config/key-vault.ts` (encryption),
+`config-store.ts` (storage) and `url-policy.ts` (addresses), detailed in [Architecture](/homebox-clipper/contributing/architecture/).

@@ -13,6 +13,7 @@
 [![Discussions](https://img.shields.io/github/discussions/Foufou-exe/homebox-clipper)](https://github.com/Foufou-exe/homebox-clipper/discussions)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Foufou-exe_homebox-clipper&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Foufou-exe_homebox-clipper)
+[![Documentation](https://img.shields.io/badge/docs-website-2ea44f)](https://foufou-exe.github.io/homebox-clipper/)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4)
 ![Chrome / Chromium](https://img.shields.io/badge/Chrome%20%2F%20Chromium-supported-success)
 ![Firefox 140+](https://img.shields.io/badge/Firefox-140%2B-FF7139)
@@ -113,7 +114,7 @@ bun run build      # → .output/chrome-mv3/ and .output/firefox-mv3/
 
 Then in `chrome://extensions`: enable **Developer mode**, click **Load unpacked** and select
 `.output/chrome-mv3/`. Full guide:
-[Installation](https://github.com/Foufou-exe/homebox-clipper/wiki/Installation).
+[Installation](https://foufou-exe.github.io/homebox-clipper/getting-started/installation/).
 
 ## Quick setup
 
@@ -126,18 +127,18 @@ Then in `chrome://extensions`: enable **Developer mode**, click **Load unpacked*
 
 HTTPS is required, except for a local network address (HTTP accepted with a warning), e.g.
 `https://homebox.example.com` or `http://localhost:3100`.
-Details: [Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration) and
-[Usage](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage).
+Details: [Configuration](https://foufou-exe.github.io/homebox-clipper/configuration/) and
+[Usage](https://foufou-exe.github.io/homebox-clipper/usage/).
 
 ## Documentation
 
-All the details are in the **[wiki](https://github.com/Foufou-exe/homebox-clipper/wiki)**:
-[Installation](https://github.com/Foufou-exe/homebox-clipper/wiki/Installation),
-[Configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration),
-[Usage](https://github.com/Foufou-exe/homebox-clipper/wiki/Usage),
-[Security and privacy](https://github.com/Foufou-exe/homebox-clipper/wiki/Security-and-privacy),
-[Troubleshooting and FAQ](https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ),
-[Architecture](https://github.com/Foufou-exe/homebox-clipper/wiki/Architecture).
+All the details are in the **[documentation website](https://foufou-exe.github.io/homebox-clipper/)**:
+[Installation](https://foufou-exe.github.io/homebox-clipper/getting-started/installation/),
+[Configuration](https://foufou-exe.github.io/homebox-clipper/configuration/),
+[Usage](https://foufou-exe.github.io/homebox-clipper/usage/),
+[Security and privacy](https://foufou-exe.github.io/homebox-clipper/security-and-privacy/),
+[Troubleshooting and FAQ](https://foufou-exe.github.io/homebox-clipper/troubleshooting-and-faq/),
+[Architecture](https://foufou-exe.github.io/homebox-clipper/contributing/architecture/).
 
 ## Contributing
 

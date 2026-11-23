@@ -4,3 +4,6 @@ node_modules/
 coverage/
 bun.lock
 tests/fixtures/
+docs/site/dist/
+docs/site/.astro/
+docs/site/bun.lock

@@ -23,8 +23,8 @@ describe('target collection documentation (024)', () => {
   });
 
   it('wiki: settings, architecture, storage table and troubleshooting', () => {
-    expect(prose('docs/wiki/Configuration.md')).toMatch(/## Target collection/);
-    const arch = prose('docs/wiki/Architecture.md');
+    expect(prose('docs/site/src/content/docs/configuration.md')).toMatch(/## Target collection/); // ADAPTED (028): path moved to the documentation site
+    const arch = prose('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
     for (const s of [
       'instance/collections',
       'instance/set-collection',
@@ -33,10 +33,10 @@ describe('target collection documentation (024)', () => {
       'COLLECTIONS_UNAVAILABLE',
     ])
       expect(arch).toContain(s);
-    const row = readFileSync(resolve(__dirname, '../../docs/wiki/Security-and-privacy.md'), 'utf8')
+    const row = readFileSync(resolve(__dirname, '../../docs/site/src/content/docs/security-and-privacy.md'), 'utf8') // ADAPTED (028): path moved to the documentation site
       .split('\n')
       .find((l) => l.startsWith('|') && l.includes('collectionByInstance'));
     expect(row).toMatch(/erased with the instance/i);
-    expect(prose('docs/wiki/Troubleshooting-and-FAQ.md')).toContain('COLLECTION_UNAVAILABLE');
+    expect(prose('docs/site/src/content/docs/troubleshooting-and-faq.md')).toContain('COLLECTION_UNAVAILABLE'); // ADAPTED (028): path moved to the documentation site
   });
 });

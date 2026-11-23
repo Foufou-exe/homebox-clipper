@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(resolve(__dirname, '../..', path), '
 const prose = (path: string) => read(path).replace(/\s+/g, ' ');
 
 describe('docs/wiki/Usage.md, "Duplicates" section (015)', () => {
-  const doc = prose('docs/wiki/Usage.md');
+  const doc = prose('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
   const section = doc.slice(doc.indexOf('## Duplicates'), doc.indexOf('## No invoice'));
 
   it('the section exists', () => {
@@ -47,7 +47,7 @@ describe('docs/wiki/Usage.md, "Duplicates" section (015)', () => {
 });
 
 describe('docs/wiki/Troubleshooting-and-FAQ.md (015)', () => {
-  const lines = read('docs/wiki/Troubleshooting-and-FAQ.md').split('\n');
+  const lines = read('docs/site/src/content/docs/troubleshooting-and-faq.md').split('\n'); // ADAPTED (028): path moved to the documentation site
   const row = (code: string) => lines.find((l) => l.includes(`\`${code}\``)) ?? '';
 
   it('the DUPLICATE_SUSPECTED row mentions close names', () => {
@@ -60,7 +60,7 @@ describe('docs/wiki/Troubleshooting-and-FAQ.md (015)', () => {
 });
 
 describe('docs/wiki/Architecture.md (015)', () => {
-  const doc = prose('docs/wiki/Architecture.md');
+  const doc = prose('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
 
   it('mentions similarity.ts and the word searches', () => {
     expect(doc).toMatch(/similarity\.ts/);
@@ -70,9 +70,9 @@ describe('docs/wiki/Architecture.md (015)', () => {
 
 describe('015 docs: no new stored data or recipient announced', () => {
   it.each([
-    'docs/wiki/Usage.md',
-    'docs/wiki/Troubleshooting-and-FAQ.md',
-    'docs/wiki/Architecture.md',
+    'docs/site/src/content/docs/usage.md', // ADAPTED (028): path moved to the documentation site
+    'docs/site/src/content/docs/troubleshooting-and-faq.md', // ADAPTED (028): path moved to the documentation site
+    'docs/site/src/content/docs/contributing/architecture.md', // ADAPTED (028): path moved to the documentation site
   ])('%s does not announce a new recipient or new stored data', (path) => {
     const doc = prose(path);
     expect(doc).not.toMatch(/new recipient/i);

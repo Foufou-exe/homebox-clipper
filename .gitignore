@@ -201,3 +201,7 @@ web-ext.config.ts
 # Graphify
 graphify/
 graphify-out/
+
+# Documentation site (docs/site/, spec 028): build output and Astro cache
+docs/site/dist/
+docs/site/.astro/

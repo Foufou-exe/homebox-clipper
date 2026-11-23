@@ -32,7 +32,7 @@ describe('PRIVACY.md and PRIVACY.fr.md', () => {
 
 describe('wiki', () => {
   it('Configuration: the option, off by default, stored in HomeBox', () => {
-    const doc = prose('docs/wiki/Configuration.md');
+    const doc = prose('docs/site/src/content/docs/configuration.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('## Link to the order page');
     expect(doc).toMatch(/Add a link to the order page/);
     expect(doc).toMatch(/off by default/i);
@@ -41,7 +41,7 @@ describe('wiki', () => {
   });
 
   it('Usage: the box, its default, the address shown, the result and the retry', () => {
-    const doc = prose('docs/wiki/Usage.md');
+    const doc = prose('docs/site/src/content/docs/usage.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('## Link to the order page');
     expect(doc).toMatch(/ticked by default/i);
     expect(doc).toMatch(/Retry the order link/);
@@ -49,7 +49,7 @@ describe('wiki', () => {
   });
 
   it('Architecture: step, route, body, guard, messages, storage, codes, unchanged call sequence', () => {
-    const doc = prose('docs/wiki/Architecture.md');
+    const doc = prose('docs/site/src/content/docs/contributing/architecture.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('POST /api/v1/entities/{id}/attachments/external');
     expect(doc).toContain('steps.orderLink');
     expect(doc).toContain('orderLinkAttempted');
@@ -63,13 +63,13 @@ describe('wiki', () => {
   });
 
   it('Security-and-privacy: stored in HomeBox, per-instance option row', () => {
-    const doc = prose('docs/wiki/Security-and-privacy.md');
+    const doc = prose('docs/site/src/content/docs/security-and-privacy.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('orderLinkByInstance');
     expect(doc).toMatch(/link to the order page[^.]*stored in HomeBox/i);
   });
 
   it('Troubleshooting: both codes', () => {
-    const doc = prose('docs/wiki/Troubleshooting-and-FAQ.md');
+    const doc = prose('docs/site/src/content/docs/troubleshooting-and-faq.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('`ORDER_LINK_FAILED`');
     expect(doc).toContain('`ORDER_LINK_UNSUPPORTED`');
   });

@@ -93,7 +93,7 @@ describe('automatic lock and updates documentation (013, FR-021)', () => {
   });
 
   it('no remaining "once per browser session" claim in the documentation and the catalogs', () => {
-    for (const path of ['PRIVACY.md', 'PRIVACY.fr.md', 'README.md', 'README.fr.md', 'docs/wiki/Troubleshooting-and-FAQ.md', 'docs/wiki/Configuration.md', 'docs/wiki/Usage.md', 'src/locales/en.yml', 'src/locales/fr.yml']) {
+    for (const path of ['PRIVACY.md', 'PRIVACY.fr.md', 'README.md', 'README.fr.md', 'docs/site/src/content/docs/troubleshooting-and-faq.md', 'docs/site/src/content/docs/configuration.md', 'docs/site/src/content/docs/usage.md', 'src/locales/en.yml', 'src/locales/fr.yml']) { // ADAPTED (028): path moved to the documentation site
       expect(prose(path), path).not.toMatch(/once per (browser )?session|per browser session|une fois par session/i);
     }
   });

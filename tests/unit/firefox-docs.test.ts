@@ -27,7 +27,8 @@ const effective = (doc: string, label: RegExp, months: string[]) => {
 /** Hosts allowed in the privacy and store documents: project, Mozilla and tooling links, the one Amazon store cited as an example, plus fictitious or local addresses. */
 const ALLOWED_HOST = /(^|\.)(example\.com|localhost|github\.com|githubusercontent\.com|mozilla\.org|shields\.io|bun\.sh|www\.amazon\.de|127\.0\.0\.1)$/;
 /** Same, plus the tooling and documentation hosts used by the guides (not instance addresses). */
-const ALLOWED_HOST_GUIDES = /(^|\.)(example\.com|localhost|github\.com|githubusercontent\.com|mozilla\.org|shields\.io|bun\.sh|nodejs\.org|mise\.jdx\.dev|sonarcloud\.io|feathericons\.com|keepachangelog\.com|conventionalcommits\.org|semver\.org|chrome\.google\.com|console\.cloud\.google\.com|developers\.google\.com|www\.googleapis\.com|developer\.chrome\.com|127\.0\.0\.1|192\.0\.2\.10)$/;
+// ADAPTED (028): the documentation website host (foufou-exe.github.io) is allowed in the guides.
+const ALLOWED_HOST_GUIDES = /(^|\.)(example\.com|foufou-exe\.github\.io|localhost|github\.com|githubusercontent\.com|mozilla\.org|shields\.io|bun\.sh|nodejs\.org|mise\.jdx\.dev|sonarcloud\.io|feathericons\.com|keepachangelog\.com|conventionalcommits\.org|semver\.org|chrome\.google\.com|console\.cloud\.google\.com|developers\.google\.com|www\.googleapis\.com|developer\.chrome\.com|127\.0\.0\.1|192\.0\.2\.10)$/;
 /** Hosts of the URLs in a text; the wildcard patterns of the manifest (a star as host) are not addresses. */
 const hostsOf = (text: string) =>
   [...text.matchAll(/https?:\/\/([^/\s`'")<>\]:]+)/g)].map((m) => m[1]!.toLowerCase()).filter((h) => h !== '*');
@@ -124,7 +125,7 @@ describe('Firefox documentation, install, release and contribution guides (017, 
   });
 
   it('wiki Installation: dev:firefox, build output, about:debugging, about:addons, 140', () => {
-    const doc = prose('docs/wiki/Installation.md');
+    const doc = prose('docs/site/src/content/docs/getting-started/installation.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('bun run dev:firefox');
     expect(doc).toContain('.output/firefox-mv3/');
     expect(doc).toContain('about:debugging');
@@ -133,7 +134,7 @@ describe('Firefox documentation, install, release and contribution guides (017, 
   });
 
   it('wiki Releasing: three archives, AMO submission, Android unticked, checksums', () => {
-    const doc = prose('docs/wiki/Releasing.md');
+    const doc = prose('docs/site/src/content/docs/maintaining/releasing.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('-firefox.zip');
     expect(doc).toContain('-sources.zip');
     expect(doc).toContain('addons.mozilla.org');
@@ -146,7 +147,7 @@ describe('Firefox documentation, install, release and contribution guides (017, 
   });
 
   it('wiki Troubleshooting: Firefox FAQ and the differences with Chrome (FR-012)', () => {
-    const doc = prose('docs/wiki/Troubleshooting-and-FAQ.md');
+    const doc = prose('docs/site/src/content/docs/troubleshooting-and-faq.md'); // ADAPTED (028): path moved to the documentation site
     expect(doc).toContain('Does it work on Firefox?');
     expect(doc).not.toContain('Not yet: Chrome and Chromium only');
     expect(doc).toContain('about:addons');
@@ -158,17 +159,17 @@ describe('Firefox documentation, install, release and contribution guides (017, 
   });
 
   it('wiki Home: Chrome and Firefox', () => {
-    expect(prose('docs/wiki/Home.md')).toContain('a browser extension for Chrome and Firefox (Manifest V3)');
+    expect(prose('docs/site/src/content/docs/index.mdx')).toContain('a browser extension for Chrome and Firefox (Manifest V3)'); // ADAPTED (028): path moved to the documentation site
   });
 
   it('wiki generic pages: neutral browser wording and Firefox access removal', () => {
-    expect(prose('docs/wiki/Usage.md')).toContain('When the browser has an update ready');
-    expect(prose('docs/wiki/Configuration.md')).toMatch(/the browser asks for permission/i);
-    const sec = prose('docs/wiki/Security-and-privacy.md');
+    expect(prose('docs/site/src/content/docs/usage.md')).toContain('When the browser has an update ready'); // ADAPTED (028): path moved to the documentation site
+    expect(prose('docs/site/src/content/docs/configuration.md')).toMatch(/the browser asks for permission/i); // ADAPTED (028): path moved to the documentation site
+    const sec = prose('docs/site/src/content/docs/security-and-privacy.md'); // ADAPTED (028): path moved to the documentation site
     expect(sec).toContain('about:addons');
     expect(sec).toContain('websiteContent');
     expect(sec).not.toContain('as signalled by Chrome');
-    expect(prose('docs/wiki/Local-HomeBox-instance.md')).toContain('.output/firefox-mv3/');
+    expect(prose('docs/site/src/content/docs/contributing/local-homebox-instance.md')).toContain('.output/firefox-mv3/'); // ADAPTED (028): path moved to the documentation site
   });
 
   it('CONTRIBUTING.md: dev:firefox, Firefox output, three archives', () => {
@@ -194,7 +195,7 @@ describe('Firefox documentation, install, release and contribution guides (017, 
     expect(doc).toMatch(/^ {4}id: extension-version$/m);
   });
 
-  it.each(['README.md', 'README.fr.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/wiki/Installation.md', 'docs/wiki/Releasing.md', 'docs/wiki/Troubleshooting-and-FAQ.md'])(
+  it.each(['README.md', 'README.fr.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/site/src/content/docs/getting-started/installation.md', 'docs/site/src/content/docs/maintaining/releasing.md', 'docs/site/src/content/docs/troubleshooting-and-faq.md'])( // ADAPTED (028): path moved to the documentation site
     '%s: only fictitious or local instance addresses, no real-looking API key',
     (path) => {
       const text = raw(path);

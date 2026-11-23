@@ -39,11 +39,11 @@ describe('identifiers documentation (spec 027)', () => {
   it('README en/fr, wiki and store listings describe the feature', () => {
     expect(doc('README.md')).toContain('**Manufacturer, model and serial number**');
     expect(doc('README.fr.md')).toContain('**Fabricant, modèle et numéro de série**');
-    expect(doc('docs/wiki/Usage.md')).toContain('## Manufacturer, model and serial number');
-    expect(doc('docs/wiki/Security-and-privacy.md')).toContain(
+    expect(doc('docs/site/src/content/docs/usage.md')).toContain('## Manufacturer, model and serial number'); // ADAPTED (028): path moved to the documentation site
+    expect(doc('docs/site/src/content/docs/security-and-privacy.md')).toContain( // ADAPTED (028): path moved to the documentation site
       '## The product page (manufacturer and model)',
     );
-    expect(doc('docs/wiki/Architecture.md')).toContain(
+    expect(doc('docs/site/src/content/docs/contributing/architecture.md')).toContain( // ADAPTED (028): path moved to the documentation site
       '### Manufacturer, model and serial number (spec 027)',
     );
     for (const listing of ['docs/store/listing.md', 'docs/store/amo-listing.md']) {

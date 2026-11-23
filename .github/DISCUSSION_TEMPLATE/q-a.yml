@@ -6,7 +6,7 @@ body:
       value: |
         Welcome, and thanks for asking! Questions are always fine here.
 
-        Please look at the [Troubleshooting and FAQ](https://github.com/Foufou-exe/homebox-clipper/wiki/Troubleshooting-and-FAQ) and the existing discussions first. For questions about HomeBox itself, the [HomeBox documentation](https://homebox.software) is the best place.
+        Please look at the [Troubleshooting and FAQ](https://foufou-exe.github.io/homebox-clipper/troubleshooting-and-faq/) and the existing discussions first. For questions about HomeBox itself, the [HomeBox documentation](https://homebox.software) is the best place.
 
         Never attach raw store pages, API keys, real instance addresses (public or local) or personal data.
 
