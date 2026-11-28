@@ -3,13 +3,25 @@ title: "Configuration"
 description: "Connect the extension to your HomeBox instances: address, API key, passphrase, collection and options."
 ---
 
+**Who this page is for**: users who have [installed](/homebox-clipper/getting-started/installation/) the
+extension and want to connect it to their HomeBox instance. Steps 1 and 2 are enough to start; the other
+sections are options you can set later.
+
 Before the first import, the extension needs the address of your HomeBox instance and an API key.
 Everything is done in the settings page (click the extension icon then ⚙, or right-click then *Options*).
 
+## Before you start
+
+- The address of your HomeBox instance, for example `https://homebox.example.com` (or
+  `http://192.0.2.10:7745` on your local network).
+- A HomeBox account on that instance.
+
 ## 1. Create an API key in HomeBox
 
-In HomeBox: **Profile** then **API Keys**, create a key and copy it (it starts with `hb_`). It is shown
-only once.
+1. Sign in to HomeBox.
+2. Open **Profile** then **API Keys**.
+3. Create a key and copy it (it starts with `hb_`). It is shown only once: paste it somewhere safe until
+   step 2.
 
 :::tip
 Create a key **dedicated to the extension, with an expiration date**: HomeBox shows its last use and
@@ -29,6 +41,19 @@ lets you revoke it without touching your other keys.
 The extension checks that the address answers like a HomeBox instance (`GET /api/v1/status`) and that the
 key is accepted (`GET /api/v1/users/self`), then shows the connected instance and its version. The result
 of the last test is kept with the settings.
+
+**Expected result**: the settings page shows the connected instance and its HomeBox version. You can now
+[import a purchase](/homebox-clipper/usage/).
+
+**If it does not work**: the page shows a message in plain words. The most common ones:
+
+| Message | Fix |
+|---------|-----|
+| "An HTTPS address is required." | The address is public and starts with `http://`: use its `https://` address (see [Accepted addresses](#accepted-addresses)). |
+| "Invalid or expired API key." | Create a new key in HomeBox (step 1) and paste it again. |
+| "HomeBox is unreachable. Check the address and your connection." | Open the address in a browser tab: HomeBox must answer. Check for a typo in the address. |
+
+All the messages and their fixes: [Troubleshooting and FAQ](/homebox-clipper/troubleshooting-and-faq/).
 
 ## Accepted addresses
 

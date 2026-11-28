@@ -3,6 +3,9 @@ title: "Supported merchants"
 description: "The online shops HomeBox Clipper can read, and how to ask for a new one."
 ---
 
+**Who this page is for**: users who want to know on which shops the extension works, and how to ask for a
+new one.
+
 HomeBox Clipper aims at online shops in general. This page summarizes the current state; the full list,
 kept up to date with every merchant addition, is in
 [MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md).

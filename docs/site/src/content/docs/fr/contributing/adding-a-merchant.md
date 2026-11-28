@@ -3,11 +3,21 @@ title: "Ajouter un marchand"
 description: "Guide pas à pas pour prendre en charge une nouvelle boutique en ligne."
 ---
 
+**Public visé** : les contributeurs qui veulent que l'extension lise les pages de commande d'une nouvelle
+boutique en ligne. À la fin, la popup détecte un achat sur cette boutique et `bun run ci` passe.
+
 Un marchand est un module indépendant : vous ajoutez un dossier, un point d'entrée et une ligne dans le registre.
 Ni le client HomeBox, ni l'orchestrateur d'import, ni l'interface n'ont à changer.
 
-Prérequis : [environnement de développement](/homebox-clipper/fr/maintaining/dev-environment/) prêt et une
-[instance HomeBox locale](/homebox-clipper/fr/contributing/local-homebox-instance/) pour tester de bout en bout.
+## Avant de commencer
+
+- Le projet est [installé](/homebox-clipper/fr/contributing/development-setup/) et `bun run ci` passe.
+- Une [instance HomeBox locale](/homebox-clipper/fr/contributing/local-homebox-instance/) tourne, pour tester de bout en bout.
+- Vous avez un compte sur la boutique, avec au moins une commande passée dont vous pouvez ouvrir la page de détails.
+- Facultatif mais recommandé : un ticket de [demande de marchand](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml),
+  pour que personne d'autre ne travaille sur la même boutique.
+
+Lisez d'abord [Architecture](/homebox-clipper/fr/contributing/architecture/) si vous ne connaissez pas encore le code.
 
 ## 1. Le contrat `MerchantExtractor`
 
@@ -90,8 +100,12 @@ Ajoutez une ligne dans la section « Supported » (ou « Partial ») de
 [MERCHANTS.fr.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.fr.md) : marchand, domaines,
 pays, champs détectés, version, limites. Un test échoue si un extracteur du registre n'y figure pas (l'un
 de ses domaines doit apparaître dans une ligne des sections Supported ou Partial). Les identifiants de statut
-(`Supported`, `Partial`, `In progress`, `Planned`, `Requested`) sont fixes. Ajoutez aussi une entrée « Added » dans le
-[journal des modifications](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md).
+(`Supported`, `Partial`, `In progress`, `Planned`, `Requested`) sont fixes. Faites de même dans
+[MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md).
+
+Ne modifiez pas `CHANGELOG.md` : il est généré à la publication d'une version à partir du titre de votre
+pull request. Utilisez un titre `feat:`, par exemple `feat: support the order pages of <shop>` (voir
+[Proposer une modification](/homebox-clipper/fr/contributing/submitting-changes/)).
 
 ## 7. Clés de traduction
 
@@ -103,8 +117,25 @@ clés. Tout autre texte utilise des clés dédiées avec des substitutions `$1`,
 
 ## 8. Vérifier
 
-```bash
-bun run ci     # typecheck, lint, tests, build, manifest
-```
+1. Lancez toutes les vérifications :
 
-Essayez ensuite sur une vraie commande avec `bun run dev` et votre instance de test.
+   ```bash
+   bun run ci     # typecheck, lint, tests, build, manifest
+   ```
+
+   **Résultat attendu** : aucune erreur.
+2. Lancez `bun run dev`, connectez-vous à la boutique dans le navigateur de développement, ouvrez la page de
+   détails d'une de vos commandes, puis cliquez sur l'icône de l'extension.
+   **Résultat attendu** : la popup affiche le produit, le prix, la date et le numéro de commande.
+3. Cliquez sur **Ajouter à HomeBox** et vérifiez l'objet dans votre instance de test.
+
+## Si ça ne marche pas
+
+| Symptôme | Solution |
+|----------|----------|
+| « Aucun achat détecté sur cette page. » | `matchesUrl` ou `isOrderPage` renvoie false : vérifiez la liste des domaines et le repère DOM de la page de commande. |
+| Un champ affiche « non détecté » | Ses sélecteurs ne correspondent pas : ajoutez un sélecteur de repli dans `selectors.ts` et un test sur votre fixture. |
+| Le test sur `MERCHANTS.md` échoue | L'un des domaines du marchand doit apparaître dans une ligne de la section Supported ou Partial. |
+| La photo est absente (`PHOTO_UNAVAILABLE`) | L'hôte de l'image n'est pas dans `imageHosts`, ou le CDN de la boutique refuse la requête anonyme (voir la question CORS de la section 1). |
+
+Ouvrez ensuite une pull request : [Proposer une modification](/homebox-clipper/fr/contributing/submitting-changes/).

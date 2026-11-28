@@ -3,6 +3,10 @@ title: "Architecture"
 description: "How the code is organized: layers, import steps, messaging and storage."
 ---
 
+**Who this page is for**: contributors who need to understand how the code is organized before changing
+it. Reference page: read the section you need. To run the project first, see
+[Set up the project](/homebox-clipper/contributing/development-setup/).
+
 HomeBox Clipper is a Manifest V3 extension built with [WXT](https://wxt.dev) (Vite-based),
 [Vue 3](https://vuejs.org) and strict TypeScript. The code is split into layers that only know each other
 through typed contracts: adding a merchant touches neither the HomeBox client nor the interface.

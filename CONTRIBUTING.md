@@ -1,47 +1,87 @@
 # Contributing to homebox-clipper
 
-Thank you for your interest! This guide gets you up and running in a few minutes.
+Thank you for your interest! This guide is for anyone who wants to change the code, the texts or the
+documentation. It takes you from an empty machine to a pull request. Each step says what you should see;
+if you do not see it, look at [If it does not work](#if-it-does-not-work).
 
-## Quick start
+The same guide, in English and French, with more detail per topic, is on the
+[documentation site](https://foufou-exe.github.io/homebox-clipper/contributing/development-setup/).
 
-**Option A: on your machine**
+## 1. Install the tools
 
-```bash
-git clone https://github.com/Foufou-exe/homebox-clipper.git
-cd homebox-clipper
-mise install          # optional: installs Bun and Node at the project's versions (mise.toml)
-bun run setup         # dependencies, HomeBox instance .env, pre-push hook (optional)
-bun run homebox:up    # HomeBox on http://localhost:3100
-bun run dev           # opens a development Chrome with the extension
-bun run dev:firefox   # same with Firefox (Firefox must be installed)
-```
+| Tool | Version | Check with |
+|------|---------|------------|
+| Git | any recent | `git --version` |
+| [Bun](https://bun.sh) | 1.4 (`packageManager` in `package.json`) | `bun --version` |
+| [Node.js](https://nodejs.org) | LTS (used by Vite and WXT) | `node --version` |
+| Docker with Compose | recent (local HomeBox instance) | `docker compose version` |
+| Chrome or Chromium | recent | |
+| Firefox | 140 or later (optional, to test the Firefox build) | |
+| `rsvg-convert` (librsvg) | optional, only for `bun run icons` | |
 
-**Option B: development container (VS Code / GitHub Codespaces)**
+[mise](https://mise.jdx.dev) installs Bun and Node at the right versions: run `mise install` in the
+project folder (it reads `mise.toml`).
 
-Open the repository in VS Code, then *Reopen in Container*. The container installs Bun, the
-dependencies and the `.env`, and has its own Docker for HomeBox (port 3100 forwarded to your
-machine). There is no browser in the container: run `bun run build` (or `bun run dev`, which
-rebuilds continuously) and load the `.output/chrome-mv3/` folder (or `.output/chrome-mv3-dev/`), or `.output/firefox-mv3/` for Firefox,
-in the browser on your machine.
+No tool on your machine? Use the [development container](#option-development-container) instead.
 
-Then:
+## 2. Get the project running
 
-1. Open <http://localhost:3100>, create a test account and an API key
-   (details: [docs/local-homebox.md](docs/local-homebox.md)).
-2. Configure the extension (address `http://localhost:3100`, key, passphrase).
+1. Get the code:
 
-### Prerequisites
+   ```bash
+   git clone https://github.com/Foufou-exe/homebox-clipper.git
+   cd homebox-clipper
+   ```
 
-| Tool | Version | Note |
-|-------|---------|----------|
-| [Bun](https://bun.sh) | 1.4 (`packageManager` in `package.json`) | package manager and scripts |
-| [Node.js](https://nodejs.org) | LTS | used by Vite / WXT |
-| Docker + Compose | recent | local HomeBox instance |
-| Chrome or Chromium | recent | to load the extension |
-| Firefox | 140 or later (optional) | to test the Firefox build (`bun run dev:firefox`, `about:debugging`) |
-| `rsvg-convert` (librsvg) | optional | only for `bun run icons` |
+2. Prepare the project (safe to re-run):
 
-[mise](https://mise.jdx.dev) installs Bun and Node at the right versions thanks to `mise.toml`.
+   ```bash
+   bun run setup
+   ```
+
+   It checks your tools, installs the dependencies, creates the `.env` of the local HomeBox instance and
+   offers a `pre-push` hook that runs `bun run ci` before every push (answer `y`, recommended).
+   **Expected result**: the last lines start with `Ready. Next:`.
+
+3. Start the local HomeBox instance:
+
+   ```bash
+   bun run homebox:up    # HomeBox on http://localhost:3100
+   ```
+
+4. Open <http://localhost:3100>, create a test account (a fictitious address such as `dev@example.com`),
+   then **Profile → API Keys** → create a key and copy it (it starts with `hb_`). Full guide:
+   [Local HomeBox instance](https://foufou-exe.github.io/homebox-clipper/contributing/local-homebox-instance/).
+
+5. Start the extension in development mode:
+
+   ```bash
+   bun run dev           # opens a development Chrome with the extension
+   bun run dev:firefox   # same with Firefox (Firefox must be installed)
+   ```
+
+   **Expected result**: a separate browser window opens with the extension loaded; it reloads each time
+   you save a file.
+
+6. In that window, open the extension settings and enter the address `http://localhost:3100`, your test
+   key and a passphrase (at least 10 characters), then click **Test and save**.
+   **Expected result**: the settings page shows the connected instance and its version.
+
+7. Run all the checks once:
+
+   ```bash
+   bun run ci
+   ```
+
+   **Expected result**: no error.
+
+### Option: development container
+
+Open the repository in VS Code (or GitHub Codespaces), then run **Dev Containers: Reopen in Container**.
+The container installs Bun, the dependencies and the `.env`, and has its own Docker for HomeBox (port
+3100 forwarded to your machine). There is no browser in the container: run `bun run build` (or
+`bun run dev`, which rebuilds continuously) and load the `.output/chrome-mv3/` folder (or
+`.output/chrome-mv3-dev/`), or `.output/firefox-mv3/` for Firefox, in the browser on your machine.
 
 ### Editor
 
@@ -49,63 +89,78 @@ VS Code suggests the recommended extensions (`.vscode/extensions.json`): Vue (Vo
 Prettier, Vitest, EditorConfig, Bun. Formatting and ESLint fixes are applied on save. Common
 tasks are in *Terminal → Run Task* (checks, dev mode, build, test watch, local HomeBox).
 
+`bun run dev` can be customized with a local `web-ext.config.ts` file (ignored by git): another
+browser, no browser, start page. Copy `web-ext.config.example.ts` to start.
+
+## 3. Make a change and open a pull request
+
+1. Create a branch from an up-to-date `main`, named after the topic: `feat/…`, `fix/…`, `docs/…`,
+   `chore/…`, `ci/…`.
+
+   ```bash
+   git switch main
+   git pull
+   git switch -c fix/short-description
+   ```
+
+2. Make your change, on one topic only.
+3. Commit in the [Conventional Commits](https://www.conventionalcommits.org/en/) format. It is
+   **mandatory**: the version number and the changelog are computed from it. English or French are both
+   fine.
+
+   | Your change | Type |
+   |-------------|------|
+   | New feature or new merchant | `feat:` |
+   | Bug fix | `fix:` |
+   | Performance | `perf:` |
+   | Documentation only | `docs:` |
+   | Code change without new behavior | `refactor:` |
+   | Tests only | `test:` |
+   | Tooling, dependencies | `chore:` or `build:` |
+   | CI workflows | `ci:` |
+   | Breaking change | `feat!:`, `fix!:` or a `BREAKING CHANGE:` footer |
+
+   Do not edit `CHANGELOG.md` or the `package.json` version: they are generated at release time.
+
+4. **Run `bun run ci` before every push.** GitHub CI runs the same check on pull requests, but catching
+   errors locally is faster. The `pre-push` hook does it for you if you installed it.
+5. Push the branch and open a **pull request** to `main`. Fill in the template.
+   - The pull request is squash-merged: **its title is what counts**, so write it in the same
+     Conventional Commits format (`fix: …`).
+   - If you change the manifest (permissions, `host_permissions`, CSP), say so and justify it.
+6. Wait for the checks. A SonarQube Cloud analysis also runs on pull requests opened from a branch of this
+   repository; for pull requests from forks it is skipped and never blocks you.
+
 ## Commands
 
 Every command is run with `bun run <script>`.
 
 | Command | Purpose |
-|----------|------|
+|---------|---------|
 | `bun run setup` | Prepares your machine (safe to re-run) |
-| `bun run dev` | Dev mode with automatic reload |
-| `bun run dev:firefox` | Dev mode for Firefox with automatic reload |
+| `bun run dev` | Dev mode with automatic reload (Chrome) |
+| `bun run dev:firefox` | Dev mode with automatic reload (Firefox) |
 | `bun run build` | Build → `.output/chrome-mv3/` and `.output/firefox-mv3/` |
-| `bun run zip` | Archive ready to publish |
+| `bun run zip` | Distributable archives in `.output/`: `homebox-clipper-X.Y.Z-chrome.zip`, `homebox-clipper-X.Y.Z-firefox.zip` and `homebox-clipper-X.Y.Z-sources.zip` |
 | `bun run test` | Unit and contract tests (Vitest, **not** `bun test`) |
 | `bun run test:watch` | Tests in watch mode |
 | `bun run test:coverage` | Tests with a coverage report (`coverage/lcov.info`, not tracked by git) |
 | `bun run test:build` | Checks the built manifest (permissions, CSP), after `bun run build` |
 | `bun run typecheck` | Type checking (`vue-tsc`) |
 | `bun run lint` | ESLint |
-| `bun run check:config` | Validates the settings files: JSON/YAML, same Bun version everywhere, issue templates and labels |
+| `bun run check:config` | Validates the settings files: JSON/YAML, same Bun version everywhere, issue templates and labels, `en`/`fr` catalog parity |
 | `bun run ci` | **All checks**: `check:config`, typecheck, lint, tests, build, manifest |
 | `bun run homebox:up` | Starts the local HomeBox instance |
 | `bun run homebox:down` | Stops the local HomeBox instance |
 | `bun run homebox:logs` | Follows the HomeBox logs |
 | `bun run icons` | Regenerates `public/icon/*.png` from `src/assets/logo.svg` |
-| `bun run release:notes` | Prints a version's section of `CHANGELOG.md` (see "Changelog and releases") |
-| `bun run wiki:publish` | Publishes the redirect pages of `docs/wiki/` to the GitHub wiki (manual action; also automatic on `main`, see "Documentation site") |
 | `bun run docs:install` | Installs the documentation site dependencies (`docs/site/`, frozen lockfile) |
 | `bun run docs:dev` | Previews the documentation site with live reload |
-| `bun run docs:build` | Builds the documentation site and checks its internal links (local equivalent of the `docs.yml` workflow) |
-
-`bun run dev` can be customized with a local `web-ext.config.ts` file: another browser, no
-browser, start page. See `web-ext.config.example.ts`.
-
-## Workflow
-
-1. **One branch per topic**, created from an up-to-date `main`: `feat/…`, `fix/…`, `docs/…`,
-   `chore/…`, `ci/…`.
-2. **Commits** in [Conventional Commits](https://www.conventionalcommits.org/en/) format are
-   **mandatory** (`feat:`, `fix:`, `perf:`, `docs:`, `refactor:`, `test:`, `chore:`…), in English or
-   French: the next version number and the changelog are computed from them (see "Changelog and
-   releases"). With squash merge, the **pull request title** is what counts, so write it in the same
-   format.
-3. **`bun run ci` must pass locally before every push.** GitHub CI runs the same check on
-   code pull requests and on `main`, but catching errors locally is faster. `bun run setup` can install a `pre-push` hook that runs it automatically.
-4. Open a **pull request** to `main` and fill in the template.
-
-### SonarQube analysis
-
-The `SonarQube` workflow analyses the source code on [SonarQube Cloud](https://sonarcloud.io/project/overview?id=Foufou-exe_homebox-clipper)
-for pull requests opened from a branch of this repository and for `main`. The result (Quality Gate,
-issues) is on the SonarQube Cloud project page and in the pull request checks. Pull requests from
-forks cannot access the `SONAR_TOKEN` secret: the analysis is skipped for them, so it never blocks
-them; maintainers can review the code after merging. The configuration is in
-`sonar-project.properties`.
+| `bun run docs:build` | Builds the documentation site and checks its internal links and anchors |
 
 ## Project rules
 
-The full principles are in the project constitution. The essentials:
+The essentials (the review checks them):
 
 - **API key**: only the service worker uses it. It is encrypted at rest, never sent anywhere
   other than the HomeBox instance and never logged. No `console.*` outside
@@ -123,86 +178,35 @@ The full principles are in the project constitution. The essentials:
 - **Interface texts**: any interface text you add goes into both `src/locales/en.yml` **and**
   `src/locales/fr.yml` in the same contribution (same keys, same `$n` substitutions);
   `bun run check:config` checks this.
+- **Interface**: colors are CSS variables in `src/ui/theme.css`. Check your changes in both the light
+  and dark themes.
 
-## Common cases
+## Common tasks
 
-**Amazon changed its layout**: capture the page in `tests/fixtures/amazon-<store>/raw/`
-(ignored by git), anonymize it with `scripts/fixtures/anonymize-amazon.ts` (leak check at 0), add a
-failing test, then fix `selectors.ts` or `page-locales.ts`.
+| You want to… | Guide |
+|--------------|-------|
+| Fix an extractor after Amazon changed its layout | [Tests and fixtures](https://foufou-exe.github.io/homebox-clipper/contributing/testing-and-fixtures/#when-amazon-changes-its-layout) |
+| Add a merchant (then update [MERCHANTS.md](MERCHANTS.md) and [MERCHANTS.fr.md](MERCHANTS.fr.md)) | [Adding a merchant](https://foufou-exe.github.io/homebox-clipper/contributing/adding-a-merchant/) |
+| Change or add an interface text | [Translations](https://foufou-exe.github.io/homebox-clipper/contributing/translations/) |
+| Understand the code | [Architecture](https://foufou-exe.github.io/homebox-clipper/contributing/architecture/) |
 
-**Adding a merchant**: a `src/content/merchants/<merchant>/` folder that implements
-`MerchantExtractor` (`src/content/merchants/types.ts`), with its selectors, its fixtures and an
-injectable entry point in `src/entrypoints/`. Neither the import orchestrator, nor the HomeBox
-client, nor the interface needs to change.
+### Change the documentation
 
-**Changing the interface**: colors are CSS variables in `src/ui/theme.css`.
-Check your changes in both the light and dark themes.
+The documentation site is `docs/site/` (Astro Starlight). Every page exists in English
+(`docs/site/src/content/docs/`) and in French (`docs/site/src/content/docs/fr/`, same file name): change
+both languages in the same pull request. Before pushing, run `bun run docs:build`: it fails on a broken
+internal link or anchor. The site is not part of `bun run ci`.
 
-## Changelog and releases
+## If it does not work
 
-The changelog and the version number are **generated** by [Release Please](https://github.com/googleapis/release-please)
-from the Conventional Commits merged into `main`; do not edit `CHANGELOG.md` or the `package.json`
-version by hand.
-
-| Commit type | Effect |
-|-------------|--------|
-| `feat:` | new minor version (while below 1.0.0), section *Features* |
-| `fix:` | new patch version, section *Bug Fixes* |
-| `perf:` | patch version, section *Performance* |
-| `docs:`, `refactor:`, `revert:`, `build:` | appear in the changelog (*Documentation*, *Code Refactoring*, *Reverts*, *Build System*), without releasing on their own |
-| `ci:`, `test:`, `style:`, `chore:` | hidden from the changelog, no release |
-| `feat!:`, `fix!:` or a `BREAKING CHANGE:` footer | breaking change (minor version while below 1.0.0, major afterwards) |
-
-How a release happens:
-
-1. After each merge into `main`, the bot opens or updates a pull request titled
-   `chore: release X.Y.Z` (new version in `package.json`, new section in `CHANGELOG.md`).
-2. The maintainer reviews it and merges it when a release is wanted. This creates the `vX.Y.Z` tag
-   and the GitHub release.
-3. The same workflow (`.github/workflows/release.yml`) then builds the archives and attaches
-   `homebox-clipper-X.Y.Z-chrome.zip`, `homebox-clipper-X.Y.Z-firefox.zip` and
-   `homebox-clipper-X.Y.Z-sources.zip`, each with its `.sha256`, to the release.
-4. Last, the `chrome-web-store` job uploads that archive to the Chrome Web Store and submits it for
-   review (skipped if the environment secrets are not set; see the wiki page "Releasing").
-
-`bun run release:notes X.Y.Z` prints a version's section of the changelog. Details and recovery
-procedure: [Releasing](https://github.com/Foufou-exe/homebox-clipper/wiki/Releasing). The history before
-0.3.0 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and stays as it is.
-
-## Supported merchants
-
-The extension targets **all online stores**, not just Amazon. The merchant list is in
-[MERCHANTS.md](MERCHANTS.md), maintained by hand and checked by a test against
-`src/content/merchants/registry.ts`: add your merchant to the registry, then update `MERCHANTS.md`.
-Step by step: [Adding-a-merchant](https://github.com/Foufou-exe/homebox-clipper/wiki/Adding-a-merchant) and [Supported-merchants](https://github.com/Foufou-exe/homebox-clipper/wiki/Supported-merchants).
-
-## Translations
-
-All visible texts go through `t()` (keys of the `src/locales/en.yml` and `src/locales/fr.yml`
-catalogs): no hard-coded text in components. English is the reference catalog; French must have
-the same keys and substitutions, and `bun run check:config` fails otherwise. Details: [Translations](https://github.com/Foufou-exe/homebox-clipper/wiki/Translations).
-
-## Documentation site
-
-The documentation is a website built from `docs/site/` (Astro Starlight, its own `package.json` and
-`bun.lock`), in English (`docs/site/src/content/docs/`) and French (`docs/site/src/content/docs/fr/`, same
-file names): change both languages in the same pull request. It is reviewed like the rest of the code and
-published on GitHub Pages by the `docs.yml` workflow on every push to `main` that changes `docs/site/`.
-Before pushing a documentation change, run `bun run docs:build`: it fails on a broken internal link or
-anchor. The site is not part of `bun run ci` (separate install, no effect on the extension).
-
-The GitHub wiki is no longer a source: `docs/wiki/` only holds redirect pages to the site, published by
-`wiki.yml` (secret `WIKI_TOKEN`; skipped if the secret is absent). `bun run wiki:publish` remains available
-as a manual action, to be run only with the maintainer's approval. Details: the "Releasing" page of the
-documentation.
-
-## Maintaining the dev environment
-
-When Bun, Node, HomeBox, a VS Code extension or WXT changes, several files must change
-together. The checklist is in the wiki:
-[Maintaining-the-dev-environment](https://github.com/Foufou-exe/homebox-clipper/wiki/Maintaining-the-dev-environment), and
-`bun run check:config` catches some of the omissions. Issue templates and `labels.yml` do not
-trigger GitHub CI: running `bun run ci` locally is their only guard.
+| Symptom | Fix |
+|---------|-----|
+| `bun run setup` stops with `Bun is required` or `Node.js LTS is required` | Install the missing tool (or `mise install`), then run `bun run setup` again. |
+| `bun run homebox:up` fails with *Set HBOX_AUTH_API_KEY_PEPPER…* | The `.env` file is missing: run `bun run setup` again. |
+| `bun run dev` opens no browser | A `web-ext.config.ts` with `disabled: true` exists: load the build folder by hand (see the development container option). |
+| Tests fail or are not found with `bun test` | Use `bun run test` (Vitest). |
+| The `pre-push` hook blocks the push | `bun run ci` found an error: read the first one, fix it, commit, push again. |
+| `bun run check:config` fails on `en.yml`/`fr.yml` | A key or a `$n` substitution exists in one catalog only: add it to the other one. |
 
 ## Questions and ideas
 
@@ -217,10 +221,3 @@ request**. For a wrong detection, state the merchant, the order type (third-part
 multiple items…) and the affected field, **without** attaching the raw page.
 
 For a **vulnerability**, do not open a public issue: follow [SECURITY.md](SECURITY.md).
-Maintainer: enable *Private vulnerability reporting* in the repository's *Settings → Code security*
-if the repository allows it; otherwise the fallback described in `SECURITY.md` applies.
-
-## Going further
-
-The [wiki](https://github.com/Foufou-exe/homebox-clipper/wiki/Home) details the [architecture](https://github.com/Foufou-exe/homebox-clipper/wiki/Architecture), the
-[tests and fixtures](https://github.com/Foufou-exe/homebox-clipper/wiki/Testing-and-fixtures) and the [configuration](https://github.com/Foufou-exe/homebox-clipper/wiki/Configuration).

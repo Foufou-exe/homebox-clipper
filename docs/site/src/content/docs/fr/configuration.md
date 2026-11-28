@@ -3,13 +3,25 @@ title: "Configuration"
 description: "Connectez l'extension à vos instances HomeBox : adresse, clé API, phrase de passe, collection et options."
 ---
 
+**Public visé** : les utilisateurs qui ont [installé](/homebox-clipper/fr/getting-started/installation/)
+l'extension et veulent la connecter à leur instance HomeBox. Les étapes 1 et 2 suffisent pour démarrer ; les
+autres sections sont des options que vous pouvez régler plus tard.
+
 Avant le premier import, l'extension a besoin de l'adresse de votre instance HomeBox et d'une clé API.
 Tout se fait dans la page de configuration (cliquez sur l'icône de l'extension puis sur ⚙, ou faites un clic droit puis *Options*).
 
+## Avant de commencer
+
+- L'adresse de votre instance HomeBox, par exemple `https://homebox.example.com` (ou
+  `http://192.0.2.10:7745` sur votre réseau local).
+- Un compte HomeBox sur cette instance.
+
 ## 1. Créer une clé API dans HomeBox
 
-Dans HomeBox : **Profil** puis **Clés API**, créez une clé et copiez-la (elle commence par `hb_`). Elle n'est
-affichée qu'une seule fois.
+1. Connectez-vous à HomeBox.
+2. Ouvrez **Profil** puis **Clés API**.
+3. Créez une clé et copiez-la (elle commence par `hb_`). Elle n'est affichée qu'une seule fois : collez-la
+   dans un endroit sûr jusqu'à l'étape 2.
 
 :::tip
 Créez une clé **dédiée à l'extension, avec une date d'expiration** : HomeBox affiche sa dernière
@@ -18,7 +30,7 @@ utilisation et permet de la révoquer sans toucher à vos autres clés.
 
 ## 2. Renseigner l'extension
 
-1. **Adresse de l'instance HomeBox**, par exemple `https://homebox.example.com`. Il n'est pas nécessaire
+1. **Adresse de l’instance HomeBox**, par exemple `https://homebox.example.com`. Il n'est pas nécessaire
    d'ajouter `/api` : l'extension normalise l'adresse (elle retire le `/` final ainsi que tout `/api` ou `/api/v1`).
 2. **Clé API** : collez la clé `hb_...`.
 3. **Phrase de passe** (au moins **10 caractères**, saisie deux fois) : elle chiffre la clé API sur le disque.
@@ -29,6 +41,19 @@ utilisation et permet de la révoquer sans toucher à vos autres clés.
 L'extension vérifie que l'adresse répond comme une instance HomeBox (`GET /api/v1/status`) et que la
 clé est acceptée (`GET /api/v1/users/self`), puis affiche l'instance connectée et sa version. Le résultat
 du dernier test est conservé avec les réglages.
+
+**Résultat attendu** : la page de configuration affiche l'instance connectée et sa version HomeBox. Vous
+pouvez maintenant [importer un achat](/homebox-clipper/fr/usage/).
+
+**Si ça ne marche pas** : la page affiche un message en langage clair. Les plus courants :
+
+| Message | Solution |
+|---------|----------|
+| « Une adresse HTTPS est obligatoire. » | L'adresse est publique et commence par `http://` : utilisez son adresse `https://` (voir [Adresses acceptées](#adresses-acceptées)). |
+| « Clé API invalide ou expirée. » | Créez une nouvelle clé dans HomeBox (étape 1) et collez-la de nouveau. |
+| « HomeBox est inaccessible. Vérifiez l’adresse et votre connexion. » | Ouvrez l'adresse dans un onglet du navigateur : HomeBox doit répondre. Vérifiez qu'il n'y a pas de faute de frappe dans l'adresse. |
+
+Tous les messages et leurs solutions : [Dépannage et FAQ](/homebox-clipper/fr/troubleshooting-and-faq/).
 
 ## Adresses acceptées
 

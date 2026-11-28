@@ -60,23 +60,18 @@ export default defineConfig({
           translations: { fr: 'Contribuer' },
           collapsed: true,
           items: [
-            'contributing/architecture',
-            'contributing/adding-a-merchant',
-            'contributing/testing-and-fixtures',
+            'contributing/development-setup',
+            'contributing/submitting-changes',
+            'contributing/commands',
             'contributing/local-homebox-instance',
+            'contributing/testing-and-fixtures',
+            'contributing/adding-a-merchant',
             'contributing/translations',
+            'contributing/architecture',
           ],
         },
-        {
-          label: 'Maintaining',
-          translations: { fr: 'Maintenance' },
-          collapsed: true,
-          items: [
-            'maintaining/releasing',
-            'maintaining/dev-environment',
-            'maintaining/moderating-discussions',
-          ],
-        },
+        // Users and contributors only (issue #147): maintainer documentation lives in docs/maintainer/
+        // (French, in the repository) and is never published on this site.
       ],
     }),
   ],

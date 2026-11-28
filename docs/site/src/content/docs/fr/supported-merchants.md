@@ -3,6 +3,9 @@ title: "Marchands pris en charge"
 description: "Les boutiques en ligne que HomeBox Clipper sait lire, et comment en demander une nouvelle."
 ---
 
+**Public visé** : les utilisateurs qui veulent savoir sur quelles boutiques l'extension fonctionne, et
+comment en demander une nouvelle.
+
 HomeBox Clipper vise les boutiques en ligne en général. Cette page résume l'état actuel ; la liste
 complète, tenue à jour à chaque ajout de marchand, se trouve dans
 [MERCHANTS.fr.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.fr.md).

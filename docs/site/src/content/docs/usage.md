@@ -3,6 +3,9 @@ title: "Usage"
 description: "Import a purchase into HomeBox: confirmation, duplicates, completing an item, templates, tags, order fields and more."
 ---
 
+**Who this page is for**: users who want to import a purchase into HomeBox. The first section is the
+everyday procedure; the other sections explain each option of the confirmation screen.
+
 Prerequisite: the extension is [installed](/homebox-clipper/getting-started/installation/) and [configured](/homebox-clipper/configuration/), and
 unlocked (it stays unlocked until it locks again, see [Automatic lock](#automatic-lock)).
 
@@ -25,6 +28,13 @@ unlocked (it stays unlocked until it locks again, see [Automatic lock](#automati
 
 Nothing is written to HomeBox before this click. The popup always shows the targeted instance
 ("HomeBox: <address>"), with the "Unencrypted HTTP" label if it uses HTTP.
+
+**Expected result**: the item exists in HomeBox, with its invoice attached when one was detected. Click
+**Open in HomeBox** to see it.
+
+**If it does not work**: "No purchase detected on this page." means you are not on an order details page
+(you can still fill in the form by hand, see [Manual entry](#manual-entry)). For any other message, see
+[Troubleshooting and FAQ](/homebox-clipper/troubleshooting-and-faq/): it lists every message with its fix.
 
 ## What is created in HomeBox
 

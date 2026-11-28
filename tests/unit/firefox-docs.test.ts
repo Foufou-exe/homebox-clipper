@@ -134,7 +134,7 @@ describe('Firefox documentation, install, release and contribution guides (017, 
   });
 
   it('wiki Releasing: three archives, AMO submission, Android unticked, checksums', () => {
-    const doc = prose('docs/site/src/content/docs/maintaining/releasing.md'); // ADAPTED (028): path moved to the documentation site
+    const doc = prose('docs/maintainer/publier-une-version.md'); // ADAPTED (147): maintainer documentation, French only, outside the site
     expect(doc).toContain('-firefox.zip');
     expect(doc).toContain('-sources.zip');
     expect(doc).toContain('addons.mozilla.org');
@@ -142,8 +142,8 @@ describe('Firefox documentation, install, release and contribution guides (017, 
     expect(doc).toContain('Checksums');
     expect(doc).toContain('amo-listing.md');
     expect(doc).toContain('amo-build.md');
-    expect(doc).toContain('the three archives with their `.sha256` files and the Checksums section');
-    expect(doc).not.toContain('the two attached files');
+    expect(doc).toContain('les trois archives avec leurs fichiers `.sha256` et la section Checksums'); // ADAPTED (147): French page
+    expect(doc).not.toContain('les deux fichiers joints'); // ADAPTED (147): French page
   });
 
   it('wiki Troubleshooting: Firefox FAQ and the differences with Chrome (FR-012)', () => {
@@ -195,7 +195,7 @@ describe('Firefox documentation, install, release and contribution guides (017, 
     expect(doc).toMatch(/^ {4}id: extension-version$/m);
   });
 
-  it.each(['README.md', 'README.fr.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/site/src/content/docs/getting-started/installation.md', 'docs/site/src/content/docs/maintaining/releasing.md', 'docs/site/src/content/docs/troubleshooting-and-faq.md'])( // ADAPTED (028): path moved to the documentation site
+  it.each(['README.md', 'README.fr.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/site/src/content/docs/getting-started/installation.md', 'docs/maintainer/publier-une-version.md', 'docs/site/src/content/docs/troubleshooting-and-faq.md'])( // ADAPTED (028): path moved to the documentation site
     '%s: only fictitious or local instance addresses, no real-looking API key',
     (path) => {
       const text = raw(path);

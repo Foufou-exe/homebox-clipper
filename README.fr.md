@@ -156,7 +156,8 @@ bun run dev
 ```
 
 Avant chaque push, lancez `bun run ci` (la même vérification tourne sur GitHub pour les pull requests). Règles du projet,
-conteneur de développement et façon de travailler : **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+conteneur de développement et façon de travailler : **[CONTRIBUTING.md](CONTRIBUTING.md)** (en anglais). Guide pas à pas :
+[Installer le projet](https://foufou-exe.github.io/homebox-clipper/fr/contributing/development-setup/).
 
 ## Communauté
 

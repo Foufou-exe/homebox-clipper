@@ -3,6 +3,10 @@ title: "Tests et fixtures"
 description: "Lancer les vérifications, écrire des tests et ajouter des fixtures anonymisées."
 ---
 
+**Public visé** : les contributeurs qui lancent les tests, en écrivent de nouveaux, ou ont besoin d'une
+nouvelle page de marchand pour tester (une « fixture »). Prérequis : le projet est
+[installé](/homebox-clipper/fr/contributing/development-setup/).
+
 ## Lancer les vérifications
 
 | Commande | Rôle |
@@ -57,6 +61,11 @@ même pull request (les tests vérifient les trois).
    Il ne conserve que le sous-arbre `#orderDetails` grâce à une liste d'autorisation, remplace chaque texte par une valeur
    générée, puis lance le **contrôle de fuite** (chaque valeur de la page brute est recherchée dans la fixture) : la fixture
    n'est écrite que s'il trouve 0 fuite. L'outil n'affiche que des compteurs, jamais une valeur de la page.
+   **Résultat attendu** : le nouveau fichier existe dans `tests/fixtures/amazon-<store>/`. Si le contrôle
+   de fuite trouve une fuite, aucun fichier n'est écrit : ne copiez jamais la page brute à la main à la place.
+3. Ajoutez une ligne pour la fixture dans le README du dossier (date de capture et type de page, jamais une
+   adresse réelle).
+4. Lancez `bun run test`.
 
 Pour une fixture synthétique écrite à la main :
 
@@ -82,8 +91,18 @@ Pour une fixture synthétique écrite à la main :
 3. Corrigez **uniquement** `src/content/merchants/amazon/selectors.ts` (sélecteurs) ou
    `src/content/merchants/amazon/page-locales.ts` (libellés et noms de mois d'une langue de page), en ajoutant des
    replis plutôt qu'en remplaçant les anciens quand c'est possible.
+4. Lancez `bun run test`.
+   **Résultat attendu** : le nouveau test passe maintenant, et les anciens tests passent toujours.
 
 Une correction de sélecteur sans fixture reproduisant la nouvelle structure n'est pas acceptée.
+
+## Si ça ne marche pas
+
+| Symptôme | Solution |
+|----------|----------|
+| Les tests échouent ou ne sont pas trouvés avec `bun test` | Utilisez `bun run test` (Vitest). |
+| `bun run test:build` échoue juste après un clone neuf | Lancez d'abord `bun run build` : la commande vérifie le manifeste compilé. |
+| L'outil d'anonymisation refuse d'écrire la fixture | Il a trouvé une fuite : la page contient une valeur qu'il ne sait pas remplacer. Ouvrez un ticket décrivant le type de page, **sans** joindre la page brute. |
 
 ## Vérifications automatiques notables
 

@@ -3,6 +3,9 @@ title: "Sécurité et confidentialité"
 description: "Ce que l'extension stocke, ce qu'elle envoie et à qui, et les permissions qu'elle demande."
 ---
 
+**Public visé** : les utilisateurs qui veulent savoir ce que l'extension stocke, ce qu'elle envoie et à qui,
+avant de lui confier leur clé API. Rien à faire ici : ce sont des informations de référence.
+
 La clé API HomeBox donne accès à tout votre inventaire : la protéger est le principe central du projet. Cette
 page décrit ce que l'extension fait, ce qu'elle ne fait pas, et ses limites. Pour signaler une vulnérabilité,
 consultez la [politique de sécurité](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md).
