@@ -77,6 +77,5 @@ Ready. Next:
   bun run build          build → .output/chrome-mv3/ and .output/firefox-mv3/
   bun run check:config   validate the settings files (JSON, YAML, Bun versions, issue templates)
   bun run ci             all checks (including check:config), before every push
-Environment maintenance: https://foufou-exe.github.io/homebox-clipper/maintaining/dev-environment/
-Contribution guide: CONTRIBUTING.md
+Contribution guide: CONTRIBUTING.md (https://foufou-exe.github.io/homebox-clipper/contributing/development-setup/)
 MSG

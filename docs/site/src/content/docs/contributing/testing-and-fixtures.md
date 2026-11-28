@@ -3,6 +3,9 @@ title: "Tests and fixtures"
 description: "Run the checks, write tests and add anonymized fixtures."
 ---
 
+**Who this page is for**: contributors who run the tests, write new ones, or need a new merchant page to
+test on (a "fixture"). Prerequisite: the project is [set up](/homebox-clipper/contributing/development-setup/).
+
 ## Run the checks
 
 | Command | Role |
@@ -57,6 +60,10 @@ same pull request (tests check the three).
    It keeps only the `#orderDetails` subtree with an allow list, replaces every text with a generated
    value, then runs the **leak check** (every value of the raw page searched in the fixture): the fixture
    is written only if it finds 0 leak. The tool prints counts only, never a value of the page.
+   **Expected result**: the new file exists in `tests/fixtures/amazon-<store>/`. If the leak check finds a
+   leak, no file is written: never copy the raw page by hand instead.
+3. Add a line for the fixture in the folder's README (capture date and page type, never a real address).
+4. Run `bun run test`.
 
 For a hand-written synthetic fixture instead:
 
@@ -83,7 +90,18 @@ For a hand-written synthetic fixture instead:
    `src/content/merchants/amazon/page-locales.ts` (labels and month names of a page language), adding
    fallbacks rather than replacing the old ones when possible.
 
+4. Run `bun run test`.
+   **Expected result**: the new test now passes, and the older tests still pass.
+
 A selector fix without a fixture reproducing the new structure is not accepted.
+
+## If it does not work
+
+| Symptom | Fix |
+|---------|-----|
+| Tests fail or are not found with `bun test` | Use `bun run test` (Vitest). |
+| `bun run test:build` fails right after a fresh clone | Run `bun run build` first: it checks the built manifest. |
+| The anonymization tool refuses to write the fixture | It found a leak: the page contains a value it cannot replace. Open an issue describing the page type, **without** attaching the raw page. |
 
 ## Notable automatic checks
 

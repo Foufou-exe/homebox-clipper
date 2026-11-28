@@ -3,6 +3,9 @@ title: "Security and privacy"
 description: "What the extension stores, what it sends and to whom, and the permissions it asks for."
 ---
 
+**Who this page is for**: users who want to know what the extension stores, what it sends and to whom
+before trusting it with their API key. Nothing to do here: it is reference information.
+
 The HomeBox API key gives access to your whole inventory: protecting it is the project's central
 principle. This page describes what the extension does, what it does not do, and its limits. To report a
 vulnerability, see the [security policy](https://github.com/Foufou-exe/homebox-clipper/blob/main/SECURITY.md).

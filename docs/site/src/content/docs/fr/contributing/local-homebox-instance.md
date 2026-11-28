@@ -3,6 +3,10 @@ title: "Instance HomeBox locale"
 description: "Lancer une instance HomeBox locale avec Docker pour tester l'extension."
 ---
 
+**Public visé** : les contributeurs qui ont besoin d'une instance HomeBox de test sur leur machine, avec des
+données fictives, pour essayer l'extension de bout en bout. N'utilisez jamais votre vrai inventaire pour
+les tests.
+
 Ce guide met en place une instance HomeBox de développement avec Docker Compose. Ses données vivent dans le
 dossier `homebox/` du dépôt : c'est la configuration utilisée pour développer l'extension.
 
@@ -20,9 +24,14 @@ homebox-clipper/
 
 - Docker avec le plugin Compose (`docker compose version`).
 - `openssl` pour générer le secret.
-- Le dépôt installé (`bun install`), voir le [README](https://github.com/Foufou-exe/homebox-clipper/blob/main/README.fr.md#installation).
+- Le projet [installé](/homebox-clipper/fr/contributing/development-setup/).
 
 ## 1. Préparer le secret (pepper)
+
+:::tip
+`bun run setup` a déjà fait cette étape pour vous : si le fichier `.env` existe à la racine du projet,
+passez à l'étape 2.
+:::
 
 Depuis la version 0.27, HomeBox exige `HBOX_AUTH_API_KEY_PEPPER` : un secret d'au moins 32 octets qui
 protège les clés API dans la base de données. **Il doit rester identique d'un démarrage à l'autre**. Le
@@ -83,6 +92,9 @@ docker compose up -d
    `dev@example.com`).
 2. **Profil → Clés API** → créez une clé nommée `homebox-clipper-dev`, avec une date d'expiration.
 3. Copiez la clé `hb_…` : elle ne sera plus affichée.
+
+**Résultat attendu** : vous avez une clé qui commence par `hb_` (par exemple `hb_xxxxxxxx`), gardée pour
+l'étape 4.
 
 ## 4. Connecter l'extension
 

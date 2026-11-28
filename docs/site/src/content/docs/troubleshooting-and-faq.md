@@ -3,6 +3,9 @@ title: "Troubleshooting and FAQ"
 description: "Error messages, what they mean and how to fix them, plus frequently asked questions."
 ---
 
+**Who this page is for**: users who see an error message or something unexpected. Find the message you
+see (use the search of the site, or Ctrl+F), then follow the "Fix" column.
+
 This page lists **all the error messages** of the extension (the `error.*` catalog of
 `src/locales/en.yml`, English being the default language), with their probable cause and the fix. If your
 browser is set to French, the same messages appear in French (`src/locales/fr.yml`); the codes are the

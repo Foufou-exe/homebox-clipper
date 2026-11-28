@@ -19,9 +19,9 @@ This wiki is no longer updated: every former page now points to its new location
 | Tests and fixtures | [https://foufou-exe.github.io/homebox-clipper/contributing/testing-and-fixtures/](https://foufou-exe.github.io/homebox-clipper/contributing/testing-and-fixtures/) |
 | Local HomeBox instance | [https://foufou-exe.github.io/homebox-clipper/contributing/local-homebox-instance/](https://foufou-exe.github.io/homebox-clipper/contributing/local-homebox-instance/) |
 | Translations and interface texts | [https://foufou-exe.github.io/homebox-clipper/contributing/translations/](https://foufou-exe.github.io/homebox-clipper/contributing/translations/) |
-| Releasing | [https://foufou-exe.github.io/homebox-clipper/maintaining/releasing/](https://foufou-exe.github.io/homebox-clipper/maintaining/releasing/) |
-| Maintaining the development environment | [https://foufou-exe.github.io/homebox-clipper/maintaining/dev-environment/](https://foufou-exe.github.io/homebox-clipper/maintaining/dev-environment/) |
-| Moderating Discussions | [https://foufou-exe.github.io/homebox-clipper/maintaining/moderating-discussions/](https://foufou-exe.github.io/homebox-clipper/maintaining/moderating-discussions/) |
+| Releasing (no longer maintained; closest page) | [https://foufou-exe.github.io/homebox-clipper/contributing/submitting-changes/](https://foufou-exe.github.io/homebox-clipper/contributing/submitting-changes/) |
+| Maintaining the development environment (no longer maintained; closest page) | [https://foufou-exe.github.io/homebox-clipper/contributing/development-setup/](https://foufou-exe.github.io/homebox-clipper/contributing/development-setup/) |
+| Moderating Discussions (no longer maintained) | [https://foufou-exe.github.io/homebox-clipper/](https://foufou-exe.github.io/homebox-clipper/) |
 
 The documentation is versioned in the repository, in `docs/site/`: to fix a page, open a pull request
 (or use the "Edit page" link at the bottom of each page of the site).

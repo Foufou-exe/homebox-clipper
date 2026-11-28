@@ -3,11 +3,21 @@ title: "Adding a merchant"
 description: "Step-by-step guide to support a new online shop."
 ---
 
+**Who this page is for**: contributors who want the extension to read the order pages of a new online
+shop. At the end, the popup detects a purchase on that shop and `bun run ci` passes.
+
 A merchant is an independent module: you add a folder, an entry point and a line in the registry.
 Neither the HomeBox client, nor the import orchestrator, nor the interface has to change.
 
-Prerequisites: [development environment](/homebox-clipper/maintaining/dev-environment/) ready and a
-[local HomeBox instance](/homebox-clipper/contributing/local-homebox-instance/) to try things end to end.
+## Before you start
+
+- The project is [set up](/homebox-clipper/contributing/development-setup/) and `bun run ci` passes.
+- A [local HomeBox instance](/homebox-clipper/contributing/local-homebox-instance/) runs, to try things end to end.
+- You have an account on the shop, with at least one past order whose details page you can open.
+- Optional but recommended: a [merchant request](https://github.com/Foufou-exe/homebox-clipper/issues/new?template=merchant-request.yml)
+  issue, so nobody else works on the same shop.
+
+Read [Architecture](/homebox-clipper/contributing/architecture/) first if you do not know the code yet.
 
 ## 1. The `MerchantExtractor` contract
 
@@ -90,8 +100,12 @@ Add a line in the "Supported" (or "Partial") section of
 [MERCHANTS.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.md): merchant, domains,
 country, detected fields, version, limits. A test fails if a registry extractor is not listed there (one
 of its domains must appear in a line of the Supported or Partial sections). The status identifiers
-(`Supported`, `Partial`, `In progress`, `Planned`, `Requested`) are fixed. Also add an "Added" entry in the
-[changelog](https://github.com/Foufou-exe/homebox-clipper/blob/main/CHANGELOG.md).
+(`Supported`, `Partial`, `In progress`, `Planned`, `Requested`) are fixed. Do the same in
+[MERCHANTS.fr.md](https://github.com/Foufou-exe/homebox-clipper/blob/main/MERCHANTS.fr.md).
+
+Do not edit `CHANGELOG.md`: it is generated at release time from the title of your pull request. Use a
+`feat:` title, for example `feat: support the order pages of <shop>` (see
+[Submit a change](/homebox-clipper/contributing/submitting-changes/)).
 
 ## 7. Translation keys
 
@@ -103,8 +117,25 @@ keys. Any other text uses dedicated keys with `$1`, `$2` substitutions, never co
 
 ## 8. Verify
 
-```bash
-bun run ci     # typecheck, lint, tests, build, manifest
-```
+1. Run all the checks:
 
-Then try it on a real order with `bun run dev` and your test instance.
+   ```bash
+   bun run ci     # typecheck, lint, tests, build, manifest
+   ```
+
+   **Expected result**: no error.
+2. Start `bun run dev`, sign in to the shop in the development browser, open the details page of one of
+   your orders, then click the extension icon.
+   **Expected result**: the popup shows the product, the price, the date and the order number.
+3. Click **Add to HomeBox** and check the item in your test instance.
+
+## If it does not work
+
+| Symptom | Fix |
+|---------|-----|
+| "No purchase detected on this page." | `matchesUrl` or `isOrderPage` returns false: check the domain list and the DOM marker of the order page. |
+| A field shows "not detected" | Its selectors do not match: add a fallback selector in `selectors.ts` and a test on your fixture. |
+| The test on `MERCHANTS.md` fails | One of the merchant domains must appear in a line of the Supported or Partial section. |
+| The photo is missing (`PHOTO_UNAVAILABLE`) | The image host is not in `imageHosts`, or the shop's CDN does not allow the anonymous request (see the CORS question in section 1). |
+
+Then open a pull request: [Submit a change](/homebox-clipper/contributing/submitting-changes/).

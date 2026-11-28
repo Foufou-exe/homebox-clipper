@@ -3,6 +3,9 @@ title: "Utilisation"
 description: "Importer un achat dans HomeBox : confirmation, doublons, compléter un objet, modèles, tags, champs de commande et plus encore."
 ---
 
+**Public visé** : les utilisateurs qui veulent importer un achat dans HomeBox. La première section est la
+procédure de tous les jours ; les autres sections expliquent chaque option de l'écran de confirmation.
+
 Prérequis : l'extension est [installée](/homebox-clipper/fr/getting-started/installation/) et [configurée](/homebox-clipper/fr/configuration/), et
 déverrouillée (elle reste déverrouillée jusqu'au prochain verrouillage, voir [Verrouillage automatique](#verrouillage-automatique)).
 
@@ -25,6 +28,14 @@ déverrouillée (elle reste déverrouillée jusqu'au prochain verrouillage, voir
 
 Rien n'est écrit dans HomeBox avant ce clic. La popup indique toujours l'instance visée
 (« HomeBox : <adresse> »), avec la mention « HTTP non chiffré » si elle utilise HTTP.
+
+**Résultat attendu** : l'objet existe dans HomeBox, avec sa facture jointe si une facture a été détectée.
+Cliquez sur **Ouvrir dans HomeBox** pour le voir.
+
+**Si ça ne marche pas** : « Aucun achat détecté sur cette page. » signifie que vous n'êtes pas sur une page
+de détails de commande (vous pouvez quand même remplir le formulaire à la main, voir
+[Saisie manuelle](#saisie-manuelle)). Pour tout autre message, voir
+[Dépannage et FAQ](/homebox-clipper/fr/troubleshooting-and-faq/) : la page liste chaque message avec sa solution.
 
 ## Ce qui est créé dans HomeBox
 

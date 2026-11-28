@@ -3,6 +3,11 @@ title: "Traductions et textes de l'interface"
 description: "Comment les textes de l'interface sont traduits et comment en ajouter ou en modifier un."
 ---
 
+**Public visé** : les contributeurs qui corrigent une faute, améliorent une formulation, ajoutent un texte à
+l'interface ou le traduisent. Prérequis : le projet est [installé](/homebox-clipper/fr/contributing/development-setup/).
+Pour corriger un texte, les sections [Modifier un texte existant](#modifier-un-texte-existant) et
+[Ajouter un texte](#ajouter-un-texte) suffisent.
+
 Tous les textes visibles de l'extension viennent de **catalogues** : `src/locales/en.yml` (anglais, langue
 par défaut et référence) et `src/locales/fr.yml` (français). Aucun texte n'est écrit en dur dans les
 composants Vue ni dans le code de `src/ui/`.
@@ -57,6 +62,8 @@ touche qu'un des deux ne passe pas `bun run ci`.
 1. Trouvez la clé dans `src/locales/en.yml` (le texte affiché est la valeur) et sa jumelle dans `fr.yml`.
 2. Modifiez la valeur dans les **deux** fichiers. Ne renommez pas une clé sans mettre à jour tous ses usages.
 3. Lancez `bun run test` puis `bun run ci`.
+   **Résultat attendu** : aucune erreur. Avec `bun run dev`, le nouveau texte apparaît dans l'extension après
+   son rechargement (passez le navigateur en français pour voir le texte français).
 
 ## Ajouter un texte
 
@@ -85,6 +92,15 @@ mêmes substitutions que `en.yml`, et le test de parité étendu à ce fichier. 
 `extDescription`, et existence dans le catalogue de chaque clé littérale passée à `t()` ou `getMessage()`
 dans `src/`. `tests/unit/ui-i18n-render.test.ts` vérifie que l'avertissement « HTTP non chiffré » affiché
 est exactement la valeur du catalogue.
+
+## Si ça ne marche pas
+
+| Symptôme | Solution |
+|----------|----------|
+| `bun run check:config` signale une clé ou une substitution manquante | Ajoutez la clé (ou le `$n`) à l'autre catalogue. |
+| `typecheck` échoue sur `t('…')` | La clé n'existe pas dans `en.yml` : vérifiez son orthographe ou ajoutez-la. |
+| Le test signale une valeur identique dans les deux langues | Traduisez-la ou, pour un nom propre, ajoutez-la à `IDENTICAL_OK` dans `tests/unit/i18n-harness.ts` avec la raison. |
+| Le test signale un caractère accentué | `en.yml` ne doit pas contenir d'accents : écrivez le texte anglais sans eux. |
 
 Voir aussi [Architecture](/homebox-clipper/fr/contributing/architecture/) (couche i18n) et
 [Tests et fixtures](/homebox-clipper/fr/contributing/testing-and-fixtures/).

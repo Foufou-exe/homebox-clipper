@@ -3,6 +3,9 @@ title: "Dépannage et FAQ"
 description: "Les messages d'erreur, leur signification et la façon de les corriger, ainsi que les questions fréquentes."
 ---
 
+**Public visé** : les utilisateurs qui voient un message d'erreur ou un comportement inattendu. Trouvez le
+message affiché (utilisez la recherche du site, ou Ctrl+F), puis suivez la colonne « Solution ».
+
 Cette page liste **tous les messages d'erreur** de l'extension (le catalogue `error.*` de
 `src/locales/en.yml`, l'anglais étant la langue par défaut), avec leur cause probable et la solution. Si votre
 navigateur est en français, les mêmes messages apparaissent en français (`src/locales/fr.yml`) ; les codes sont

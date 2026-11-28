@@ -3,6 +3,11 @@ title: "Translations and interface texts"
 description: "How interface texts are translated and how to add or change one."
 ---
 
+**Who this page is for**: contributors who fix a typo, improve a wording, add a text to the interface or
+translate it. Prerequisite: the project is [set up](/homebox-clipper/contributing/development-setup/). To
+fix a text, sections [Change an existing text](#change-an-existing-text) and
+[Add a text](#add-a-text) are enough.
+
 All the visible texts of the extension come from **catalogs**: `src/locales/en.yml` (English, the default
 language and the reference) and `src/locales/fr.yml` (French). No text is hard-coded in the Vue
 components or in the code of `src/ui/`.
@@ -55,6 +60,8 @@ touches only one of the two does not pass `bun run ci`.
 1. Find the key in `src/locales/en.yml` (the displayed text is the value) and its twin in `fr.yml`.
 2. Change the value in **both** files. Do not rename a key without updating all its usages.
 3. Run `bun run test` then `bun run ci`.
+   **Expected result**: no error. With `bun run dev`, the new text appears in the extension after it
+   reloads (switch the browser language to French to see the French text).
 
 ## Add a text
 
@@ -82,5 +89,14 @@ same substitutions as `en.yml`, and the parity test extended to it. Update `uiLa
 `extDescription`, and existence in the catalog of each literal key passed to `t()` or `getMessage()` in
 `src/`. `tests/unit/ui-i18n-render.test.ts` checks that the displayed "Unencrypted HTTP" warning is
 exactly the catalog value.
+
+## If it does not work
+
+| Symptom | Fix |
+|---------|-----|
+| `bun run check:config` reports a missing key or substitution | Add the key (or the `$n`) to the other catalog. |
+| `typecheck` fails on `t('…')` | The key does not exist in `en.yml`: check its spelling or add it. |
+| The test complains about an identical value in both languages | Translate it, or, for a proper name, add it to `IDENTICAL_OK` in `tests/unit/i18n-harness.ts` with the reason. |
+| The test complains about an accented character | `en.yml` must not contain accents: write the English text without them. |
 
 See also [Architecture](/homebox-clipper/contributing/architecture/) (i18n layer) and [Testing-and-fixtures](/homebox-clipper/contributing/testing-and-fixtures/).
