@@ -7,6 +7,18 @@ from the Conventional Commits merged into `main` (see CONTRIBUTING.md). Earlier 
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). The project adheres to
 [SemVer](https://semver.org).
 
+## [0.15.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.14.0...v0.15.0) (2026-11-28)
+
+
+### Features
+
+* publish a documentation website ([#144](https://github.com/Foufou-exe/homebox-clipper/issues/144)) ([caa2a25](https://github.com/Foufou-exe/homebox-clipper/commit/caa2a2596bf04bc6eb1f6de118708e35608163c9))
+
+
+### Bug Fixes
+
+* update documentation to remove starlight-github-alerts and improve note formatting ([9cda76e](https://github.com/Foufou-exe/homebox-clipper/commit/9cda76e181f0bb0696858e303fb1f97b3a299dfe))
+
 ## [0.14.0](https://github.com/Foufou-exe/homebox-clipper/compare/v0.13.1...v0.14.0) (2026-11-23)
 
 
