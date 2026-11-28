@@ -9,9 +9,10 @@ la seule étape manuelle. La numérotation suit [SemVer](https://semver.org) ; l
 [Conventional Commits](https://www.conventionalcommits.org/en/), ce qui est **obligatoire** car la prochaine
 version et le journal des modifications en sont calculés.
 
-> [!IMPORTANT]
-> Fusionner la pull request de release publie immédiatement une version, et une version publiée est difficile à
-> annuler : ne le faites qu'avec l'accord explicite du mainteneur.
+:::caution[Important]
+Fusionner la pull request de release publie immédiatement une version, et une version publiée est difficile à
+annuler : ne le faites qu'avec l'accord explicite du mainteneur.
+:::
 
 ## Fonctionnement
 

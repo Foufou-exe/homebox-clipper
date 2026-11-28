@@ -46,10 +46,11 @@ composants Vue ni dans le code de `src/ui/`.
 La parité est vérifiée à deux endroits : `bun run check:config` (clés et substitutions, lancé en premier par
 `bun run ci` et donc par le hook `pre-push`) et `tests/unit/locales.test.ts` (lancé par `bun run test`).
 
-> [!IMPORTANT]
-> **Règle FR-004c.** Tout texte d'interface ajouté ou modifié l'est dans les **deux catalogues**
-> (`src/locales/en.yml` et `src/locales/fr.yml`) **dans la même contribution**. Une pull request qui ne
-> touche qu'un des deux ne passe pas `bun run ci`.
+:::caution[Important]
+**Règle FR-004c.** Tout texte d'interface ajouté ou modifié l'est dans les **deux catalogues**
+(`src/locales/en.yml` et `src/locales/fr.yml`) **dans la même contribution**. Une pull request qui ne
+touche qu'un des deux ne passe pas `bun run ci`.
+:::
 
 ## Modifier un texte existant
 

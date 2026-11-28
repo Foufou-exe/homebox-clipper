@@ -11,9 +11,10 @@ Everything is done in the settings page (click the extension icon then ⚙, or r
 In HomeBox: **Profile** then **API Keys**, create a key and copy it (it starts with `hb_`). It is shown
 only once.
 
-> [!TIP]
-> Create a key **dedicated to the extension, with an expiration date**: HomeBox shows its last use and
-> lets you revoke it without touching your other keys.
+:::tip
+Create a key **dedicated to the extension, with an expiration date**: HomeBox shows its last use and
+lets you revoke it without touching your other keys.
+:::
 
 ## 2. Fill in the extension
 
@@ -38,10 +39,11 @@ of the last test is kept with the settings.
 | `http://` to a **public** address (public domain name, public IP) | No: "An HTTPS address is required." |
 | Address containing a username or password (`https://user:pass@...`) or a protocol other than `http`/`https` | No: "The HomeBox address is invalid or does not point to a HomeBox instance." |
 
-> [!WARNING]
-> Over HTTP, your API key travels **in clear text** on the network with every request. This is acceptable
-> on a trusted local network (homelab), never on the Internet. To go further, put HomeBox behind an HTTPS
-> reverse proxy (Caddy, Traefik, Nginx Proxy Manager...).
+:::caution
+Over HTTP, your API key travels **in clear text** on the network with every request. This is acceptable
+on a trusted local network (homelab), never on the Internet. To go further, put HomeBox behind an HTTPS
+reverse proxy (Caddy, Traefik, Nginx Proxy Manager...).
+:::
 
 The rule is enforced in `src/background/config/url-policy.ts` and covered by unit tests. For example, a
 test instance on another machine of the local network will have an address like

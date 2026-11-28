@@ -6,12 +6,13 @@
 // fonts; the search is Pagefind, an index built at build time and served from this site).
 import { defineConfig, passthroughImageService } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightLinksValidator from 'starlight-links-validator';
 
 const REPO = 'https://github.com/Foufou-exe/homebox-clipper';
 
 export default defineConfig({
+  // Vite 8 must not look for a tsconfig above docs/site (the extension's one needs generated files).
+  vite: { tsconfig: './tsconfig.json' },
   // GitHub Pages project site: https://foufou-exe.github.io/homebox-clipper/
   site: 'https://foufou-exe.github.io',
   base: '/homebox-clipper',
@@ -34,8 +35,6 @@ export default defineConfig({
       lastUpdated: true,
       customCss: ['./src/styles/custom.css'],
       plugins: [
-        // `> [!NOTE]` blocks render as Starlight asides (same syntax as on GitHub).
-        starlightGitHubAlerts(),
         // The build fails on a broken internal link or anchor, in both languages, and on a page missing in
         // one language. Local links are allowed: the local HomeBox guide points to http://localhost:3100.
         starlightLinksValidator({ errorOnInvalidHashes: true, errorOnFallbackPages: true, errorOnLocalLinks: false }),

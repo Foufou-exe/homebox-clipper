@@ -60,14 +60,15 @@ curl -s http://localhost:3100/api/v1/status
 # {"health":true, … ,"build":{"version":"v0.27.0", …}}
 ```
 
-> [!NOTE]
-> **Vous lancez déjà HomeBox avec `docker run`** (conteneur `homebox` monté sur `./homebox`) : supprimez
-> l'ancien conteneur, vos données restent dans `homebox/`.
->
-> ```bash
-> docker rm -f homebox
-> docker compose up -d
-> ```
+:::note
+**Vous lancez déjà HomeBox avec `docker run`** (conteneur `homebox` monté sur `./homebox`) : supprimez
+l'ancien conteneur, vos données restent dans `homebox/`.
+
+```bash
+docker rm -f homebox
+docker compose up -d
+```
+:::
 
 | Variable (`.env`) | Par défaut | Rôle |
 |-------------------|------------|------|
@@ -106,9 +107,10 @@ Ensuite :
    `manifest.json` de `.output/firefox-mv3/` (voir [Installation](/homebox-clipper/fr/getting-started/installation/)).
 3. Le badge doit afficher `● HomeBox : http://… v0.27.0`.
 
-> [!TIP]
-> `bun run dev` ouvre un Chrome dédié avec l'extension chargée et rechargée à chaque modification du code.
-> C'est le plus pratique pendant le développement.
+:::tip
+`bun run dev` ouvre un Chrome dédié avec l'extension chargée et rechargée à chaque modification du code.
+C'est le plus pratique pendant le développement.
+:::
 
 ## 5. Scénarios à vérifier
 

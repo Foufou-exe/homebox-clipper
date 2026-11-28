@@ -9,9 +9,10 @@ the only manual step. Numbering follows [SemVer](https://semver.org); commits fo
 [Conventional Commits](https://www.conventionalcommits.org/en/), which is **mandatory** because the next
 version and the changelog are computed from them.
 
-> [!IMPORTANT]
-> Merging the release pull request publishes a release immediately, and a published release is hard to
-> undo: only do it with the maintainer's explicit approval.
+:::caution[Important]
+Merging the release pull request publishes a release immediately, and a published release is hard to
+undo: only do it with the maintainer's explicit approval.
+:::
 
 ## How it works
 

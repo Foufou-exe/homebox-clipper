@@ -11,9 +11,10 @@ Tout se fait dans la page de configuration (cliquez sur l'icône de l'extension 
 Dans HomeBox : **Profil** puis **Clés API**, créez une clé et copiez-la (elle commence par `hb_`). Elle n'est
 affichée qu'une seule fois.
 
-> [!TIP]
-> Créez une clé **dédiée à l'extension, avec une date d'expiration** : HomeBox affiche sa dernière
-> utilisation et permet de la révoquer sans toucher à vos autres clés.
+:::tip
+Créez une clé **dédiée à l'extension, avec une date d'expiration** : HomeBox affiche sa dernière
+utilisation et permet de la révoquer sans toucher à vos autres clés.
+:::
 
 ## 2. Renseigner l'extension
 
@@ -38,10 +39,11 @@ du dernier test est conservé avec les réglages.
 | `http://` vers une adresse **publique** (nom de domaine public, IP publique) | Non : « Une adresse HTTPS est obligatoire. » |
 | Adresse contenant un nom d'utilisateur ou un mot de passe (`https://user:pass@...`) ou un protocole autre que `http`/`https` | Non : « L'adresse HomeBox est invalide ou ne correspond pas à une instance HomeBox. » |
 
-> [!WARNING]
-> En HTTP, votre clé API circule **en clair** sur le réseau à chaque requête. C'est acceptable sur un
-> réseau local de confiance (homelab), jamais sur Internet. Pour aller plus loin, placez HomeBox derrière un
-> reverse proxy HTTPS (Caddy, Traefik, Nginx Proxy Manager...).
+:::caution
+En HTTP, votre clé API circule **en clair** sur le réseau à chaque requête. C'est acceptable sur un
+réseau local de confiance (homelab), jamais sur Internet. Pour aller plus loin, placez HomeBox derrière un
+reverse proxy HTTPS (Caddy, Traefik, Nginx Proxy Manager...).
+:::
 
 La règle est appliquée dans `src/background/config/url-policy.ts` et couverte par des tests unitaires. Par exemple, une
 instance de test sur une autre machine du réseau local aura une adresse du type

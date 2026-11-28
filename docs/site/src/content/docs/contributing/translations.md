@@ -44,10 +44,11 @@ components or in the code of `src/ui/`.
 The parity is checked in two places: `bun run check:config` (keys and substitutions, run first by
 `bun run ci` and so by the `pre-push` hook) and `tests/unit/locales.test.ts` (run by `bun run test`).
 
-> [!IMPORTANT]
-> **Rule FR-004c.** Any interface text added or changed is added or changed in **both catalogs**
-> (`src/locales/en.yml` and `src/locales/fr.yml`) **in the same contribution**. A pull request that
-> touches only one of the two does not pass `bun run ci`.
+:::caution[Important]
+**Rule FR-004c.** Any interface text added or changed is added or changed in **both catalogs**
+(`src/locales/en.yml` and `src/locales/fr.yml`) **in the same contribution**. A pull request that
+touches only one of the two does not pass `bun run ci`.
+:::
 
 ## Change an existing text
 
